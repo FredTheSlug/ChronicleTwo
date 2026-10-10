@@ -4172,8 +4172,8 @@ void ClsMes::DrawRightDelta(mgCDrawPrim *prim) {
     }
 }
 
-static inline int Ident(int value) {
-    return value;
+static inline int Ident(int v) {
+    return v;
 }
 
 void ClsMes::DrawDigit(mgCDrawPrim *prim, int digit, int x, int y, int alpha, RGBAQ_TYPE *color) {

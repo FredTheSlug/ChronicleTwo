@@ -979,7 +979,7 @@ int CBaseMenuClass::MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, in
 }
 
 template <typename T>
-static inline T Ident(T value) { return value; }
+static inline T Ident(T v) { return v; }
 
 int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
     CGameDataUsed    *used_data = MenuUserParam.used_data;

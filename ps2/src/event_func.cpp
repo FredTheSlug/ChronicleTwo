@@ -4,6 +4,7 @@
 #include <libcdvd.h>
 
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -15701,11 +15702,21 @@ static int _EOH_SYNC_DOOR_PARTS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes the Sphida mini-game.
+ *
+ */
 static int _SPHIDA_INIT(RS_STACKDATA *stack, int argc) {
     InitSphida();
     return true;
 }
 
+/**
+ *
+ * Allocates a Sphida object in a scene stack slot and sets up its course by kind.
+ *
+ */
 static int _SPHIDA_SET_UP(RS_STACKDATA *stack, int argc) {
     CSphida      *sphida;
     mgCMemory    *memory;
@@ -15739,13 +15750,13 @@ static int _SPHIDA_SET_UP(RS_STACKDATA *stack, int argc) {
     sphida->Initialize();
 
     switch (kind) {
-        case 0:
+        case EVENT_SPHIDA_SETUP_NORMAL:
             Sphida->SetUp(param);
             break;
-        case 1:
+        case EVENT_SPHIDA_SETUP_S17:
             Sphida->s17_SetUp(param);
             break;
-        case 2:
+        case EVENT_SPHIDA_SETUP_OMAKE:
             Sphida->Omake_SetUp(GetStackInt(ptr), param);
             break;
     }
@@ -15753,6 +15764,11 @@ static int _SPHIDA_SET_UP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida play flag.
+ *
+ */
 static int _SPHIDA_SET_PLAY_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
@@ -15766,6 +15782,11 @@ static int _SPHIDA_SET_PLAY_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida minimap flag.
+ *
+ */
 static int _SPHIDA_SET_MINIMAP_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
@@ -15779,6 +15800,11 @@ static int _SPHIDA_SET_MINIMAP_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the flag of a Sphida minimap line.
+ *
+ */
 static int _SPHIDA_SET_MM_LINE_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
@@ -15792,6 +15818,11 @@ static int _SPHIDA_SET_MM_LINE_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the position of a Sphida minimap line from a vector.
+ *
+ */
 static int _SPHIDA_SET_MM_LINE_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index = GetStackInt(stack++);
@@ -15808,6 +15839,11 @@ static int _SPHIDA_SET_MM_LINE_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida pin position from three floats.
+ *
+ */
 static int _SPHIDA_SET_PIN_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     pos[0] = GetStackFloat(stack++);
@@ -15823,6 +15859,11 @@ static int _SPHIDA_SET_PIN_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida pin position as three floats.
+ *
+ */
 static int _SPHIDA_GET_PIN_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
@@ -15837,6 +15878,11 @@ static int _SPHIDA_GET_PIN_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida ball position from three floats.
+ *
+ */
 static int _SPHIDA_SET_BALL_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     pos[0] = GetStackFloat(stack++);
@@ -15852,6 +15898,11 @@ static int _SPHIDA_SET_BALL_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida ball position as three floats.
+ *
+ */
 static int _SPHIDA_GET_BALL_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
@@ -15866,6 +15917,11 @@ static int _SPHIDA_GET_BALL_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida pin colour.
+ *
+ */
 static int _SPHIDA_SET_PIN_COL(RS_STACKDATA *stack, int argc) {
     int color;
 
@@ -15879,6 +15935,11 @@ static int _SPHIDA_SET_PIN_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida pin colour.
+ *
+ */
 static int _SPHIDA_GET_PIN_COL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -15888,6 +15949,11 @@ static int _SPHIDA_GET_PIN_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida ball colour.
+ *
+ */
 static int _SPHIDA_SET_BALL_COL(RS_STACKDATA *stack, int argc) {
     int color;
 
@@ -15901,6 +15967,11 @@ static int _SPHIDA_SET_BALL_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida ball colour.
+ *
+ */
 static int _SPHIDA_GET_BALL_COL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -15910,6 +15981,11 @@ static int _SPHIDA_GET_BALL_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida par count, unless debug mode is on.
+ *
+ */
 static int _SPHIDA_SET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     int par_count;
 
@@ -15926,6 +16002,11 @@ static int _SPHIDA_SET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida par count, incremented by one in debug mode.
+ *
+ */
 static int _SPHIDA_GET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -15943,6 +16024,11 @@ static int _SPHIDA_GET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida mini level.
+ *
+ */
 static int _SPHIDA_GET_MINI_LEVEL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -15952,6 +16038,11 @@ static int _SPHIDA_GET_MINI_LEVEL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida texture bank.
+ *
+ */
 static int _SPHIDA_GET_TEXB(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -15961,6 +16052,11 @@ static int _SPHIDA_GET_TEXB(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida status flag.
+ *
+ */
 static int _SPHIDA_SET_STATUS_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
@@ -15974,31 +16070,45 @@ static int _SPHIDA_SET_STATUS_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Resets the Sphida power gauge to its idle state.
+ *
+ */
 static int _SPHIDA_RESET_POWGAGE(RS_STACKDATA *stack, int argc) {
-    if (Sphida == 0) {
+    if (Sphida == NULL) {
         return false;
     }
 
     CSphida *sphida = Sphida;
-    sphida->pow_gage.state = -1;
+    sphida->pow_gage.state = POWGAGE_STATE_IDLE;
     sphida->pow_gage.reverse = 0;
     sphida->pow_gage.count = 0;
     sphida->pow_gage.power = 0;
-    sphida->pow_gage.code = -10;
+    sphida->pow_gage.code = POWGAGE_CODE_NONE;
     return true;
 }
 
+/**
+ *
+ * Starts the Sphida power gauge.
+ *
+ */
 static int _SPHIDA_START_POWGAGE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
 
-    Sphida->pow_gage.state = 0;
+    Sphida->pow_gage.state = POWGAGE_STATE_START;
     return true;
 }
 
+/**
+ *
+ * Advances the Sphida power gauge from charge to charge set, or from impact to judge.
+ *
+ */
 static int _SPHIDA_TRIGGER_POWGAGE(RS_STACKDATA *stack, int argc) {
-
     CSphida *sphida = Sphida;
 
     if (sphida == NULL) {
@@ -16006,17 +16116,22 @@ static int _SPHIDA_TRIGGER_POWGAGE(RS_STACKDATA *stack, int argc) {
     }
 
     switch (sphida->pow_gage.state) {
-        case 1:
-            sphida->pow_gage.state = 2;
+        case POWGAGE_STATE_CHARGE:
+            sphida->pow_gage.state = POWGAGE_STATE_CHARGE_SET;
             break;
-        case 3:
-            sphida->pow_gage.state = 4;
+        case POWGAGE_STATE_IMPACT:
+            sphida->pow_gage.state = POWGAGE_STATE_JUDGE;
             break;
     }
 
     return true;
 }
 
+/**
+ *
+ * Pushes the power of the Sphida shot.
+ *
+ */
 static int _SPHIDA_GET_SHOT_POW(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -16026,6 +16141,11 @@ static int _SPHIDA_GET_SHOT_POW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the result code of the Sphida power gauge.
+ *
+ */
 static int _SPHIDA_GET_POWGAGE_CODE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -16035,6 +16155,11 @@ static int _SPHIDA_GET_POWGAGE_CODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida power gauge safe level, clamped to the range 1 to 6.
+ *
+ */
 static int _SPHIDA_SET_POWGAGE_SAFE_LEVEL(RS_STACKDATA *stack, int argc) {
     int level;
 
@@ -16056,6 +16181,11 @@ static int _SPHIDA_SET_POWGAGE_SAFE_LEVEL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the power and the next two fields of a Sphida club definition.
+ *
+ */
 static int _SPHIDA_GET_CULB_DEF(RS_STACKDATA *stack, int argc) {
     GOLF_CLUB_DEF *club = GetSphidaClubDef(GetStackInt(stack++));
 
@@ -16069,6 +16199,11 @@ static int _SPHIDA_GET_CULB_DEF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida spin mark position.
+ *
+ */
 static int _SPHIDA_SET_SPIN_MARK_POS(RS_STACKDATA *stack, int argc) {
     float    x = GetStackFloat(stack++);
     float    y = GetStackFloat(stack);
@@ -16083,6 +16218,11 @@ static int _SPHIDA_SET_SPIN_MARK_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida club number.
+ *
+ */
 static int _SPHIDA_SET_CULB_NO(RS_STACKDATA *stack, int argc) {
     int club_no;
 
@@ -16096,6 +16236,11 @@ static int _SPHIDA_SET_CULB_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida carry distance.
+ *
+ */
 static int _SPHIDA_CALC_CARRY(RS_STACKDATA *stack, int argc) {
     float carry = GetStackFloat(stack);
 
@@ -16107,6 +16252,11 @@ static int _SPHIDA_CALC_CARRY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the screen position of the Sphida power gauge cursor.
+ *
+ */
 static int _SPHIDA_GET_PG_CURSOR_POS(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -16119,6 +16269,11 @@ static int _SPHIDA_GET_PG_CURSOR_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Loads a collision model into a scene stack slot and sets it on the Sphida.
+ *
+ */
 static int _SPHIDA_SET_COL_MODEL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -16141,6 +16296,11 @@ static int _SPHIDA_SET_COL_MODEL(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Pushes the two prizes awarded for a Sphida hole.
+ *
+ */
 static int _SPHIDA_GET_PRIZE(RS_STACKDATA *stack, int argc) {
     int               prize1;
     int               prize2;
@@ -16151,7 +16311,7 @@ static int _SPHIDA_GET_PRIZE(RS_STACKDATA *stack, int argc) {
     dng_scene = &EventScene->battle_area;
     floor_manager = &dng_scene->floor_manager;
 
-    if (dng_scene == 0) {
+    if (dng_scene == NULL) {
         return false;
     }
 
@@ -16167,6 +16327,11 @@ static int _SPHIDA_GET_PRIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the last Sphida challenge.
+ *
+ */
 static int _SPHIDA_SET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
@@ -16176,6 +16341,11 @@ static int _SPHIDA_SET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the last Sphida challenge.
+ *
+ */
 static int _SPHIDA_GET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL || argc != 1) {
         return false;
@@ -16186,6 +16356,11 @@ static int _SPHIDA_GET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida bonus course mode.
+ *
+ */
 static int _SPHIDA_GET_OMAKE_MODE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL || argc != 1) {
         return false;
@@ -16196,6 +16371,11 @@ static int _SPHIDA_GET_OMAKE_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the current Sphida hole in the save data.
+ *
+ */
 static int _SPHIDA_SET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     CSubGameData *sub_game = GetSubGameSaveData();
 
@@ -16213,6 +16393,11 @@ static int _SPHIDA_SET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the current Sphida hole from the save data.
+ *
+ */
 static int _SPHIDA_GET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     CSphidaData  *sphida_data;
     CSubGameData *sub_game;
@@ -16237,6 +16422,11 @@ static int _SPHIDA_GET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the Sphida score of a slot in the save data.
+ *
+ */
 static int _SPHIDA_SET_SCORE(RS_STACKDATA *stack, int argc) {
     CSubGameData *sub_game = GetSubGameSaveData();
 
@@ -16256,6 +16446,11 @@ static int _SPHIDA_SET_SCORE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the Sphida score of a slot from the save data.
+ *
+ */
 static int _SPHIDA_GET_SCORE(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;
@@ -16278,17 +16473,29 @@ static int _SPHIDA_GET_SCORE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _TEST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
 /**
+ *
  * Returns the intersection test routine's script command status.
+ *
  */
 static int _MT_TEST(RS_STACKDATA *stack, int argc) {
     return mt_test(stack, argc);
 }
 
+/**
+ *
+ * Pushes a zero vector.
+ *
+ */
 static int _ZERO_VECTOR(RS_STACKDATA *stack, int arg_count) {
     SetStack(stack++, 0.0f);
     SetStack(stack++, 0.0f);
@@ -16296,6 +16503,11 @@ static int _ZERO_VECTOR(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Normalizes a vector and pushes the result.
+ *
+ */
 static int _NORMAL_VECTOR(RS_STACKDATA *stack, int argc) {
     float vec[4];
     vec[0] = stack[0].val.p->val.f;
@@ -16309,6 +16521,11 @@ static int _NORMAL_VECTOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes a copy of a vector.
+ *
+ */
 static int _COPY_VECTOR(RS_STACKDATA *stack, int argc) {
     float vector[4];
     GetStackVector(vector, stack + 3);
@@ -16318,6 +16535,11 @@ static int _COPY_VECTOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds a vector to a vector variable and stores the result in the variable.
+ *
+ */
 static int _ADD_VECTOR(RS_STACKDATA *stack, int argc) {
     float operand[4];
     GetStackVector(operand, stack + 3);
@@ -16327,6 +16549,11 @@ static int _ADD_VECTOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Subtracts a vector from a vector variable and stores the result in the variable.
+ *
+ */
 static int _SUB_VECTOR(RS_STACKDATA *stack, int argc) {
     float operand[4];
     GetStackVector(operand, stack + 3);
@@ -16336,6 +16563,11 @@ static int _SUB_VECTOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Scales a vector variable by a float and stores the result in the variable.
+ *
+ */
 static int _SCALE_VECTOR(RS_STACKDATA *stack, int argc) {
     float scale = GetStackFloat(stack + 3);
     SetStack(stack, stack[0].val.p->val.f * scale);
@@ -16344,6 +16576,11 @@ static int _SCALE_VECTOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Divides a vector variable by a float and stores the result in the variable, failing on a zero divisor.
+ *
+ */
 static int _DIV_VECTOR(RS_STACKDATA *stack, int argc) {
     float divisor = GetStackFloat(stack + 3);
 
@@ -16357,6 +16594,11 @@ static int _DIV_VECTOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the length of a vector.
+ *
+ */
 static int _DIST_VECTOR(RS_STACKDATA *stack, int argc) {
     float vec[4];
     GetStackVector(vec, stack);
@@ -16366,6 +16608,11 @@ static int _DIST_VECTOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the distance between two points.
+ *
+ */
 static int _DIST_VECTOR2(RS_STACKDATA *stack, int argc) {
     float from[4];
     float to[4];
@@ -16377,12 +16624,22 @@ static int _DIST_VECTOR2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the square root of a float.
+ *
+ */
 static int _SQRT(RS_STACKDATA *stack, int argc) {
     float value = GetStackFloat(stack++);
     SetStack(stack, (float) sqrt(value));
     return true;
 }
 
+/**
+ *
+ * Pushes the two-argument arctangent of two floats.
+ *
+ */
 static int _ATAN2F(RS_STACKDATA *stack, int argc) {
     float y = GetStackFloat(stack++);
     float x = GetStackFloat(stack++);
@@ -16390,6 +16647,11 @@ static int _ATAN2F(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the result of comparing two angles within a tolerance.
+ *
+ */
 static int _ANGLE_CMP(RS_STACKDATA *stack, int argc) {
     float first_angle = GetStackFloat(stack++);
     float second_angle = GetStackFloat(stack++);
@@ -16398,16 +16660,26 @@ static int _ANGLE_CMP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes an angle limited to the angle range.
+ *
+ */
 static int _ANGLE_LIMIT(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *angle = stack->val.p;
     SetStack(stack, mgAngleLimit(angle->val.f));
     return true;
 }
 
+/**
+ *
+ * Pushes a random float or integer in the range given, depending on the type of the range argument.
+ *
+ */
 static int _GET_RAND(RS_STACKDATA *stack, int argc) {
     int int_range;
 
-    if (stack->type == 1) {
+    if (stack->type == RS_FLOAT) {
         float range = GetStackFloat(stack++);
         SetStack(stack, range * (float) rand() / 2147483648.0f);
     } else {
@@ -16419,6 +16691,11 @@ static int _GET_RAND(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the distance from a point to a line segment, or -1 when the point projects outside the segment.
+ *
+ */
 static int _LINE_POINT_DIST(RS_STACKDATA *stack, int argc) {
     float segment_start[4];
     float segment_end[4];
@@ -16448,6 +16725,11 @@ static int _LINE_POINT_DIST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Creates the sword after-image effect in a scene stack slot.
+ *
+ */
 static int _CREATE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
     int               stack_no = GetStackInt(stack++);
     int               capacity = GetStackInt(stack++);
@@ -16483,13 +16765,23 @@ static int _CREATE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Clears the sword after-image effect.
+ *
+ */
 static int _DELETE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
-    SwordEffect = 0;
+    SwordEffect = NULL;
     return true;
 }
 
+/**
+ *
+ * Sets the edge and back colours of the sword after-image effect.
+ *
+ */
 static int _SWORD_EFFECT_COLOR(RS_STACKDATA *stack, int argc) {
-    if (SwordEffect == 0) {
+    if (SwordEffect == NULL) {
         return false;
     }
 
@@ -16513,6 +16805,11 @@ static int _SWORD_EFFECT_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds a point to the sword after-image effect, with an optional life.
+ *
+ */
 static int _SWORD_EFFECT_ADD_POINT(RS_STACKDATA *stack, int argc) {
     float edge[4];
     float back[4];
@@ -16536,6 +16833,11 @@ static int _SWORD_EFFECT_ADD_POINT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds an offset to a character's position.
+ *
+ */
 static int _ADD_CHARA_POS(RS_STACKDATA *stack, int argc) {
     float offset[4];
     float pos[4];
@@ -16553,6 +16855,11 @@ static int _ADD_CHARA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds an offset to a character's rotation.
+ *
+ */
 static int _ADD_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     float offset[4];
     float rot[4];
@@ -16574,6 +16881,11 @@ static int _ADD_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Places a treasure box in the dungeon battle area.
+ *
+ */
 static int _POST_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
     float                position[3];
     CTreasureBoxManager *chest_manager;
@@ -16608,6 +16920,11 @@ static int _POST_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the origin of the map part nearest to a sphere.
+ *
+ */
 static int _GET_PARTS_ORIGIN(RS_STACKDATA *stack, int argc) {
     float      center[4];
     CMapParts *parts[8];
@@ -16664,24 +16981,44 @@ static int _GET_PARTS_ORIGIN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Advances the camera control by one step.
+ *
+ */
 static int _CTRLC_STEP(RS_STACKDATA *stack, int argc) {
     CCameraControl *camera = GetCamera();
     camera->Step(1);
     return true;
 }
 
+/**
+ *
+ * Sets the rotation angle of the camera control.
+ *
+ */
 static int _CTRLC_SET_ROTATE(RS_STACKDATA *stack, int argc) {
     float angle = GetStackFloat(stack);
     GetCamera()->SetRotate(angle);
     return true;
 }
 
+/**
+ *
+ * Rotates the camera control back by an angle.
+ *
+ */
 static int _CTRLC_ROT_BACK(RS_STACKDATA *stack, int argc) {
     float angle = GetStackFloat(stack);
     GetCamera()->RotBack(angle);
     return true;
 }
 
+/**
+ *
+ * Moves the camera control around the map polygons near a character.
+ *
+ */
 static int _CTRLC_MOVE_CAMERA(RS_STACKDATA *stack, int argc) {
     float           chara_pos[4];
     CCPoly          polys[256];
@@ -16726,6 +17063,11 @@ static int _CTRLC_MOVE_CAMERA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the mask of inputs that cancel camera rotation.
+ *
+ */
 static int _CTRLC_SET_ROT_CANCEL(RS_STACKDATA *stack, int argc) {
     int mask;
 
@@ -16734,6 +17076,11 @@ static int _CTRLC_SET_ROT_CANCEL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the near height, far height and distance range of the active camera parameters.
+ *
+ */
 static int _CTRLC_MOVE_RANGE(RS_STACKDATA *stack, int argc) {
     CameraCtrlParam *param = GetCamera()->GetActiveParam();
     param->near_height = GetStackFloat(stack++);
@@ -16743,6 +17090,11 @@ static int _CTRLC_MOVE_RANGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the position of the treasure box nearest to a point, or -1 when none is within range.
+ *
+ */
 static int _GET_NEAR_TBOX_POS(RS_STACKDATA *stack, int argc) {
     float                target[4];
     float                box_pos[4];
@@ -16803,10 +17155,20 @@ static int _GET_NEAR_TBOX_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing and fails.
+ *
+ */
 static int _CONV_CHRNO_S2L(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Creates a sword after-effect on a character.
+ *
+ */
 static int _SWE_INIT(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     int          slot = GetStackInt(stack++);
@@ -16835,9 +17197,22 @@ static int _SWE_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the two colours of a character's sword after-effect.
+ *
+ */
 static int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
-    int                 color0_r, color0_g, color0_b, color0_a, color1_r, color1_g, color1_b, color1_a;
-    int                 chara_no, slot;
+    int                 color0_r;
+    int                 color0_g;
+    int                 color0_b;
+    int                 color0_a;
+    int                 color1_r;
+    int                 color1_g;
+    int                 color1_b;
+    int                 color1_a;
+    int                 chara_no;
+    int                 slot;
     CCharacter2        *chara;
     CSWordAfterEffect **effect_slot;
     chara_no = GetStackInt(stack++);
@@ -16847,10 +17222,7 @@ static int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    effect_slot =
-        (CSWordAfterEffect *
-             *) ((slot << 2) + (int) chara +
-                 chara_sword_after_offset);
+    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + offsetof(CCharacter2, sword_effect));
 
     if (*effect_slot == NULL) {
         return false;
@@ -16876,6 +17248,11 @@ static int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the texture of a character's sword after-effect.
+ *
+ */
 static int _SWE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     mgCTexture         *texture;
     int                 block_no;
@@ -16895,10 +17272,7 @@ static int _SWE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    effect_slot =
-        (CSWordAfterEffect *
-             *) ((slot << 2) + (int) chara +
-                 chara_sword_after_offset);
+    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + offsetof(CCharacter2, sword_effect));
 
     if (*effect_slot == NULL) {
         return false;
@@ -16919,6 +17293,11 @@ static int _SWE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Starts a character's sword after-effect between two frames.
+ *
+ */
 static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
     int                 chara_no;
     int                 slot;
@@ -16938,10 +17317,7 @@ static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    effect_slot =
-        (CSWordAfterEffect *
-             *) ((slot << 2) + (int) chara +
-                 chara_sword_after_offset);
+    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + offsetof(CCharacter2, sword_effect));
 
     if (*effect_slot == NULL) {
         return false;
@@ -16973,6 +17349,11 @@ static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the type of a scene character.
+ *
+ */
 static int _SET_CHARA_TYPE(RS_STACKDATA *stack, int argc) {
     int chara_no;
 
@@ -16981,6 +17362,11 @@ static int _SET_CHARA_TYPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes a field of the triggered event data.
+ *
+ */
 static int _GET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     CSceneEventData *event_data;
 
@@ -16991,45 +17377,45 @@ static int _GET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     }
 
     switch (GetStackInt(stack++)) {
-        case 0:
+        case EVENT_DATA_FLAG:
             SetStack(stack, static_cast<int>(event_data->event.flag));
             break;
-        case 1:
+        case EVENT_DATA_EVENT_NO:
             SetStack(stack, event_data->event.event_no);
             break;
-        case 2:
+        case EVENT_DATA_POINT_NO:
             SetStack(stack, event_data->event.point_no);
             break;
-        case 3:
+        case EVENT_DATA_ARG1:
             SetStack(stack, event_data->event.arg1);
             break;
-        case 4:
+        case EVENT_DATA_ARG2:
             SetStack(stack, event_data->event.arg2);
             break;
-        case 5:
+        case EVENT_DATA_ARG3:
             SetStack(stack, event_data->event.arg3);
             break;
-        case 6:
+        case EVENT_DATA_MAP_CHECK_TYPE:
             SetStack(stack, event_data->map_event.check_type);
             break;
-        case 7:
+        case EVENT_DATA_MAP_EVENT_NO:
             SetStack(stack, event_data->map_event.event_no);
             break;
-        case 8:
+        case EVENT_DATA_MAP_TRANSFORM:
             SetStack(stack++, event_data->map_event.matrix[3][0]);
             SetStack(stack++, event_data->map_event.matrix[3][1]);
             SetStack(stack++, event_data->map_event.matrix[3][2]);
             SetStack(stack, atan2f(event_data->map_event.matrix[2][0], event_data->map_event.matrix[2][2]));
             break;
-        case 9:
+        case EVENT_DATA_MAP_PARTS_NO:
             SetStack(stack, event_data->map_event.parts_no);
             break;
-        case 10:
+        case EVENT_DATA_POSITION:
             SetStack(stack++, event_data->position[0]);
             SetStack(stack++, event_data->position[1]);
             SetStack(stack, event_data->position[2]);
             break;
-        case 11:
+        case EVENT_DATA_ROTATION:
             switch (argc) {
                 case 2:
                     SetStack(stack, event_data->rotation[1]);
@@ -17044,18 +17430,18 @@ static int _GET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 12:
+        case EVENT_DATA_SCALE:
             SetStack(stack++, event_data->scale[0]);
             SetStack(stack++, event_data->scale[1]);
             SetStack(stack, event_data->scale[2]);
             break;
-        case 13:
+        case EVENT_DATA_CHARA_SLOT:
             SetStack(stack, event_data->chara_slot);
             break;
-        case 14:
+        case EVENT_DATA_CHARA_NO:
             SetStack(stack, event_data->chara_no);
             break;
-        case 15:
+        case EVENT_DATA_GAMEOBJ_NO:
             SetStack(stack, event_data->gameobj_no);
             break;
         default:
@@ -17065,6 +17451,11 @@ static int _GET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the previous floor of the current dungeon stage in the save data.
+ *
+ */
 static int _DNG_SET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     int        floor = GetStackInt(stack);
     CSaveData *save = GetSaveData();
@@ -17083,6 +17474,11 @@ static int _DNG_SET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the previous floor of the current dungeon stage from the save data.
+ *
+ */
 static int _DNG_GET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -17100,10 +17496,20 @@ static int _DNG_GET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing and fails.
+ *
+ */
 static int _DNG_SET_FAST_FLOOR(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Sets a field of a dungeon floor's save info.
+ *
+ */
 static int _SET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     int        dungeon_no = GetStackInt(stack++);
     int        floor_no = GetStackInt(stack++);
@@ -17158,6 +17564,11 @@ static int _SET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes a field of a dungeon floor's save info.
+ *
+ */
 static int _GET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     int        dungeon_no = GetStackInt(stack++);
     int        floor_no = GetStackInt(stack++);
@@ -17212,6 +17623,11 @@ static int _GET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the next floor ID of a dungeon route.
+ *
+ */
 static int _GET_NEXT_FLOOR(RS_STACKDATA *stack, int argc) {
     int              floor = GetStackInt(stack++);
     int              route = GetStackInt(stack++);
@@ -17232,11 +17648,21 @@ static int _GET_NEXT_FLOOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns off pad auto repeat.
+ *
+ */
 static int _PAD_AUTO_REPEAT_OFF(RS_STACKDATA *stack, int argc) {
     GamePad__2.AutoRepeatOff();
     return true;
 }
 
+/**
+ *
+ * Sets the pad auto repeat mask, delay and interval.
+ *
+ */
 static int _PAD_SET_AUTO_REPEAT(RS_STACKDATA *stack, int argc) {
     int mask = GetStackInt(stack++);
     int delay = GetStackInt(stack++);
@@ -17245,6 +17671,11 @@ static int _PAD_SET_AUTO_REPEAT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets or clears the pause flags of the dungeon battle area.
+ *
+ */
 static int _DNG_PAUSE(RS_STACKDATA *stack, int argc) {
     int              mask = GetStackInt(stack++);
     int              enable = GetStackInt(stack);
@@ -17263,6 +17694,11 @@ static int _DNG_PAUSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the masked pause flags of the dungeon battle area.
+ *
+ */
 static int _DNG_CHECK_PAUSE(RS_STACKDATA *stack, int argc) {
     int              mask = GetStackInt(stack++);
     DNG_BATTLE_AREA *dng_scene = &EventScene->battle_area;
@@ -17276,6 +17712,11 @@ static int _DNG_CHECK_PAUSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Resets the timer of the dungeon battle area.
+ *
+ */
 static int _DNG_RESET_TIMER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
 
@@ -17289,6 +17730,11 @@ static int _DNG_RESET_TIMER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the timer of the dungeon battle area.
+ *
+ */
 static int _DNG_GET_TIMER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
 
@@ -17302,6 +17748,11 @@ static int _DNG_GET_TIMER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Loads a character skin from a pack file into a scene stack slot.
+ *
+ */
 static int _LOAD_SKIN(RS_STACKDATA *stack, int argc) {
     int                stack_no;
     int                image_block;
@@ -17315,10 +17766,10 @@ static int _LOAD_SKIN(RS_STACKDATA *stack, int argc) {
     stack_no = GetStackInt(stack++);
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             pack_file = GetItemFilePath(GetStackInt(stack++), 0);
             break;
-        case 2:
+        case RS_STR:
             pack_file = GetStackString(stack++);
             break;
     }
@@ -17338,7 +17789,7 @@ static int _LOAD_SKIN(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    if ((pack_file = (char *) GetLoadBGBuff(pack_file, 0)) == 0) {
+    if ((pack_file = (char *) GetLoadBGBuff(pack_file, NULL)) == NULL) {
         return false;
     }
 
@@ -17358,6 +17809,11 @@ static int _LOAD_SKIN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Checks for map collision along a segment, pushing the hit position and the hit flag.
+ *
+ */
 static int _CHK_CAMERA_COL(RS_STACKDATA *stack, int argc) {
     float     from[4];
     float     to[4];
@@ -17409,6 +17865,11 @@ static int _CHK_CAMERA_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the position of a named function point on the map part nearest to a sphere.
+ *
+ */
 static int _GET_PARTS_FUNC_POS(RS_STACKDATA *stack, int argc) {
     float      center[4];
     CMapParts *parts[8];
@@ -17482,6 +17943,11 @@ static int _GET_PARTS_FUNC_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes a position inside a random circle.
+ *
+ */
 static int _RANDOM_CIRCLE_GET_POS(RS_STACKDATA *stack, int argc) {
     float pos[3];
     int   circle_id = GetStackInt(stack++);
@@ -17496,6 +17962,11 @@ static int _RANDOM_CIRCLE_GET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Deactivates a random circle, or the circle that was hit when given -1.
+ *
+ */
 static int _RANDOM_CIRCLE_OFF(RS_STACKDATA *stack, int argc) {
     int circle_id = GetStackInt(stack);
 
@@ -17512,21 +17983,41 @@ static int _RANDOM_CIRCLE_OFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Exchanges the map lighting.
+ *
+ */
 static int _DNG_XCHG_MAP_LIGHT(RS_STACKDATA *stack, int argc) {
     XChgMapLighting();
     return true;
 }
 
+/**
+ *
+ * Turns off the geostone animation.
+ *
+ */
 static int _GEOSTONE_ANIME_OFF(RS_STACKDATA *stack, int argc) {
     GeoStone.anime = 0;
     return true;
 }
 
+/**
+ *
+ * Sets the geostone flag.
+ *
+ */
 static int _GEOSTONE_SET_FLAG(RS_STACKDATA *stack, int argc) {
     GeoStone.SetFlag(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the geostone frame reference to a named frame of a character.
+ *
+ */
 static int _GEOSTONE_SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     char        *name = GetStackString(stack);
@@ -17554,6 +18045,11 @@ static int _GEOSTONE_SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Deletes the geostone frame reference.
+ *
+ */
 static int _GEOSTONE_DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     if (GeoStone.CObjectFrame::frame == NULL) {
         return false;
@@ -17563,26 +18059,51 @@ static int _GEOSTONE_DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the move type of the robo character.
+ *
+ */
 static int _GET_ROBO_MOVE_TYPE(RS_STACKDATA *stack, int argc) {
     SetStack(stack, ((CActionChara *) GetCharacter(0))->move_type);
     return true;
 }
 
+/**
+ *
+ * Sets the scene exit flag.
+ *
+ */
 static int _SET_EXIT_FLAG(RS_STACKDATA *stack, int argc) {
     EventScene->exit_flag = GetStackInt(stack);
     return true;
 }
 
+/**
+ *
+ * Pushes the scene exit flag.
+ *
+ */
 static int _GET_EXIT_FLAG(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->exit_flag);
     return true;
 }
 
+/**
+ *
+ * Pushes the E3 version, which is always zero.
+ *
+ */
 static int _GET_E3_VERSION(RS_STACKDATA *stack, int argc) {
     SetStack(stack, 0);
     return true;
 }
 
+/**
+ *
+ * Pushes the state of a pad button.
+ *
+ */
 static int _CHK_PAD_CTRL(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;

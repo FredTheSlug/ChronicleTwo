@@ -673,7 +673,7 @@ public:
      * @address 0x239650
      * @size 0x7C
      */
-    int MenuItemCommnadSelectPrepare(CGameDataUsed *item, int slot, int arg);
+    int MenuItemCommnadSelectPrepare(CGameDataUsed *item, int place, int chara);
 
     /**
      *
@@ -683,7 +683,7 @@ public:
      * @address 0x2396D0
      * @size 0x22C
      */
-    int MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, int mes_no, CMenuPosDataForm *form, int chara);
+    int MenuItemMoveItemCommand(CGameDataUsed *item, int place, int mes_no, CMenuPosDataForm *form, int chara);
 
     /**
      *
@@ -743,7 +743,7 @@ public:
      * @address 0x23B850
      * @size 0x2C4
      */
-    int IsSpectolFusion(int select_key, int command);
+    int IsSpectolFusion(int select_key, int push_button);
 
     /**
      *
@@ -753,7 +753,7 @@ public:
      * @address 0x23BC10
      * @size 0x1F8
      */
-    int IsTrush(int select_key, int command);
+    int IsTrush(int select_key, int push_button);
 
     /**
      *
@@ -773,7 +773,7 @@ public:
      * @address 0x23BEC0
      * @size 0x1B0
      */
-    int SelectInGiftBox(int select_key, int command);
+    int SelectInGiftBox(int select_key, int push_button);
 
     /**
      *
@@ -813,7 +813,7 @@ public:
      * @address 0x23C390
      * @size 0x178
      */
-    int ExtendCommand(int select_key, int command);
+    int ExtendCommand(int select_key, int push_button);
 
     /**
      *
@@ -823,7 +823,7 @@ public:
      * @address 0x23C510
      * @size 0x118
      */
-    int SelectMakeObject(int keys);
+    int SelectMakeObject(int select_key);
 
     /**
      *

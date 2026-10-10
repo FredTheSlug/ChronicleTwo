@@ -793,7 +793,7 @@ CBaseMenuClass::CBaseMenuClass() {
 
     swap_info.Set(-1, 0, -1, 0);
     memset(this, 0, sizeof(CBaseMenuClass));
-    opened = 0;
+    opened = false;
     mode = MENU_ASK_MODE_OPEN;
     step = 0;
     message_type = 0;
@@ -832,28 +832,28 @@ void CBaseMenuClass::DeleteTexBlock() {
     MenuDeleteTextureBlock(tex_block);
 }
 
-int CBaseMenuClass::MenuItemCommnadSelectPrepare(CGameDataUsed *item, int slot, int arg) {
+int CBaseMenuClass::MenuItemCommnadSelectPrepare(CGameDataUsed *item, int place, int chara) {
 
     if (item == NULL) {
-        return 0;
+        return false;
     }
 
     if (item->used_type > 0) {
-        cmd_arg_pos = slot;
+        cmd_arg_pos = place;
         MENU_ASKMODE_PARA param;
-        return (GetItemCommandMsg(item, &param, cmd_arg_pos, arg) <= 0) ^ 1;
+        return (GetItemCommandMsg(item, &param, cmd_arg_pos, chara) <= 0) ^ 1;
     }
 
-    return 0;
+    return false;
 }
 
-int CBaseMenuClass::MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, int mes_no, CMenuPosDataForm *form, int chara) {
+int CBaseMenuClass::MenuItemMoveItemCommand(CGameDataUsed *item, int place, int mes_no, CMenuPosDataForm *form, int chara) {
     if (MenuCommonInfo->have_item.item_no > 0) {
-        MenuSePlay(5);
-        return 0;
+        MenuSePlay(SYSTEM_SE_CANCEL);
+        return false;
     }
 
-    if (MenuItemCommnadSelectPrepare(item, arg_pos, chara)) {
+    if (MenuItemCommnadSelectPrepare(item, place, chara)) {
         MenuItemCmdRet.result = 0;
         MenuItemCmdRet.se_no = -1;
         MenuItemCmdRet.menu_cmd = -2;
@@ -864,8 +864,8 @@ int CBaseMenuClass::MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, in
         mode = MENU_ASK_MODE_ITEM_COMMAND;
         step = 0;
         MENU_ASKMODE_PARA param;
-        param.cmd_num = GetItemCommandMsg(item, &param, arg_pos, chara);
-        MenuItemCmdArgPos = arg_pos;
+        param.cmd_num = GetItemCommandMsg(item, &param, place, chara);
+        MenuItemCmdArgPos = place;
         param.mes_no = mes_no;
         param.form = form;
         param.arg0 = chara;
@@ -888,18 +888,18 @@ int CBaseMenuClass::MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, in
             }
         }
 
-        param.form->draw_flag = 1;
+        param.form->draw_flag = true;
 
         if (MenuCommonInfo->cursor_form != NULL) {
-            MenuCommonInfo->cursor_form->draw_flag = 0;
+            MenuCommonInfo->cursor_form->draw_flag = false;
         }
 
-        MenuSePlay(19);
-        return 1;
+        MenuSePlay(SYSTEM_SE_WINDOW);
+        return true;
     }
 
-    MenuSePlay(5);
-    return 0;
+    MenuSePlay(SYSTEM_SE_CANCEL);
+    return false;
 }
 
 /**
@@ -915,7 +915,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
     u_long            target;
     CUserDataManager *user = GetUserDataMan();
     MenuItemCmdRet.se_no = -1;
-    int      decided = 0;
+    int      decided = false;
     CDC2Mes *mes = MenuDCMsg[ask_para.mes_no];
     int      ret = 0;
 
@@ -979,11 +979,11 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                     MenuItemCmdRet.menu_cmd = cmd;
 
                     if (cmd == -1) {
-                        MenuItemCmdRet.se_no = 5;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                     } else if (cmd == 0) {
-                        MenuItemCmdRet.se_no = 5;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                     } else if (cmd == 1) {
-                        MenuItemCmdRet.se_no = 1;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                     } else if (cmd == ITEM_MENU_COMMAND_EQUIP) {
                         MenuItemCmdRet.result = -1;
                         int item_no = ask_para.item->item_no;
@@ -1051,16 +1051,16 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                             MenuItemCmdRet.se_no = 8;
                         }
                     } else if (cmd == 3 || cmd == 8) {
-                        MenuItemCmdRet.se_no = 1;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                     } else if (cmd == ITEM_MENU_COMMAND_REPAIR) {
-                        MenuItemCmdRet.se_no = 5;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         CGameDataUsed *repair = user->SearchAllHaveItem(ask_para.item->GetEnableRepairItemNo());
 
                         if (MenuItemUse.UseItem(repair, ITEM_USE_TARGET_ITEM, ask_para.item) == 0) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
                             MenuItemCmdRet.se_no = -1;
-                            decided = 1;
+                            decided = true;
                             MenuItemCmdRet.result = 1;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_SET_ACTIVE_ITEM) {
@@ -1085,7 +1085,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         if (active_slot < 0) {
                             MenuItemCmdRet.se_no = 0x1C;
                         } else {
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                             MenuItemCmdRet.item = &chara->active_item[active_slot];
 
                             if (Ident(ask_para.item->item_no) == MenuItemCmdRet.item->item_no) {
@@ -1100,7 +1100,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         MenuItemCmdRet.result = space;
 
                         if (space < 0) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
                             MenuItemCmdRet.item = &used_data[space];
                             int num = MenuItemCmdRet.item->GetNum();
@@ -1109,11 +1109,11 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                                 MenuItemCmdRet.num = num;
                             }
 
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_SPECTRUMIZE) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                             break;
                         }
 
@@ -1127,24 +1127,24 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
 
                         if (space < 0 && num > 100) {
                             MenuItemCmdRet.item = NULL;
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                         }
                     } else if (cmd == 11 || cmd == 12 || cmd == 29 || cmd == 47) {
-                        MenuItemCmdRet.se_no = 1;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                     } else if (cmd == ITEM_MENU_COMMAND_GIFT_BOX_CONTENTS) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                             break;
                         }
 
                         if (ask_para.item->GetGiftBoxItemNum() > 0) {
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_PUT_IN_AQUARIUM) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
                             MenuItemCmdRet.se_no = 6;
                             user->FishInAquarium(ask_para.item, 0);
@@ -1155,7 +1155,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         CHARA_DATA *target_chara;
 
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                             target_chara = NULL;
 
                             if (cmd == ITEM_MENU_COMMAND_USE_ON_MAX) {
@@ -1166,7 +1166,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                                 target_chara = MenuUserParam.chara[1];
                             }
 
-                            ((CItemUseTarget *) &target)->SetPtr((int) ITEM_USE_TARGET_CHARA, target_chara);
+                            ((CItemUseTarget *) &target)->SetPtr(ITEM_USE_TARGET_CHARA, target_chara);
                             MenuUseItemCheckFunc(ask_para.item, (CItemUseTarget *) &target, 0);
 
                             if (MenuUsedNotErrorCode == 1) {
@@ -1185,22 +1185,22 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                     } else if (cmd == 17) {
                     } else if (cmd == ITEM_MENU_COMMAND_USE_ON_MONSTER) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
                             MenuItemCmdRet.detail = ask_para.item->item_no;
                             MenuItemCmdRet.result = MenuItemUse.UseItem(ask_para.item, ITEM_USE_TARGET_MONSTER, MenuUserParam.monster);
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON || cmd == ITEM_MENU_COMMAND_USE_ON_SECONDARY_WEAPON) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
                             MenuItemCmdRet.result = MenuItemUse.UseItem(ask_para.item, ITEM_USE_TARGET_ITEM, &Ident(MenuUserParam.chara[CMenuItemInfoPt->sub_view])->equip[cmd - ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON]);
                         }
                     } else if (cmd == 21 || cmd == 22) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else if (ask_para.item != NULL && cmd == 22) {
-                            CGameDataUsed *core = MenuUserDataManPtr->SearchItemOnItemBrd((int) ITEM_ID_RIDEPOD_FUEL, 1);
+                            CGameDataUsed *core = MenuUserDataManPtr->SearchItemOnItemBrd(ITEM_ID_RIDEPOD_FUEL, 1);
 
                             if (core != NULL) {
                                 MenuItemCmdRet.result = MenuItemUse.UseItem(core, ITEM_USE_TARGET_ROBO, ask_para.item);
@@ -1212,19 +1212,19 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_VIEW_BUILD_UP) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_RENAME) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                         }
                     } else if (cmd == 24 || cmd == 25) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                             CGameDataUsed *esa = user->GetActiveEsa();
                             int            esa_no = esa->item_no;
                             MenuItemCmdRet.item2 = NULL;
@@ -1246,9 +1246,9 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         }
                     } else if (cmd == 27 || cmd == 28 || cmd == 32 || cmd == 33) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                             int rod_no = user->GetFishingRodNo();
                             MenuItemCmdRet.no_equipped_rod = 0;
 
@@ -1289,51 +1289,51 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                     } else if (cmd == 37) {
                         CGameDataUsed *core = MenuUserDataManPtr->SearchItemOnItemBrd(MenuUserDataManPtr->CheckRobotCore(), 1);
                         MenuItemCmdRet.result = MenuItemUse.UseItem(ask_para.item, ITEM_USE_TARGET_ITEM, core);
-                        decided = 1;
+                        decided = true;
                     } else if (cmd == 38) {
-                        decided = 1;
-                        MenuItemCmdRet.se_no = 1;
+                        decided = true;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                     } else if (cmd == 43) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
-                            MenuItemCmdRet.se_no = 1;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                         }
                     } else if (cmd == 44) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.se_no = 5;
+                            MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                         } else {
                             MenuItemCmdRet.result = 1;
                         }
                     } else if (cmd == 45) {
-                        MenuItemCmdRet.se_no = 1;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                     } else if (cmd == ITEM_MENU_COMMAND_VIEW_FISHING_ROD) {
-                        MenuItemCmdRet.se_no = 1;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_DECIDE;
                     } else {
-                        MenuItemCmdRet.se_no = 5;
+                        MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                     }
 
                     if (MenuItemCmdRet.se_no != 5 && MenuItemCmdRet.se_no != 0x1C) {
-                        decided = 1;
+                        decided = true;
                         mes->MakeMsg(-100);
                     }
 
                     break;
                 }
                 case 1:
-                    decided = 1;
-                    MenuItemCmdRet.se_no = 5;
+                    decided = true;
+                    MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                     MenuItemCmdRet.menu_cmd = -1;
                     break;
             }
 
             if (decided) {
                 if (MenuCommonInfo->cursor_form != NULL) {
-                    MenuCommonInfo->cursor_form->draw_flag = 1;
+                    MenuCommonInfo->cursor_form->draw_flag = true;
                 }
 
                 MenuCommonInfo->SetVibeCnt(60, 30);
-                ask_para.form->draw_flag = 0;
+                ask_para.form->draw_flag = false;
                 mode = MENU_ASK_MODE_NONE;
             }
 
@@ -1392,7 +1392,7 @@ void CBaseMenuClass::SetItemCmdMsgPos(int *item_pos) {
     int               height = message->font_h * lines;
     CMenuPosDataForm *form = ask_para.form;
     CGameDataUsed    *item = ask_para.item;
-    int               fishing_rod = 0;
+    int               fishing_rod = false;
 
     if (mode == MENU_ASK_MODE_ITEM_COMMAND) {
         if (item == NULL || form == NULL) {
@@ -1400,7 +1400,7 @@ void CBaseMenuClass::SetItemCmdMsgPos(int *item_pos) {
         }
 
         if (item->item_no == 0x130) {
-            fishing_rod = 1;
+            fishing_rod = true;
         }
     }
 
@@ -1556,7 +1556,7 @@ int MenuHowMuchNumSelect(int key, CGameDataUsed *item, int limit) {
         MenuHowHaveMuchNum = max_num;
     }
 
-    changed = 0;
+    changed = false;
 
     if (before != MenuHowHaveMuchNum) {
         MenuSePlay(0x1D);
@@ -1569,7 +1569,7 @@ int MenuHowMuchNumSelect(int key, CGameDataUsed *item, int limit) {
             MenuCommonInfo->down_arrow_cnt = 8;
         }
 
-        changed = 1;
+        changed = true;
     }
 
     MenuCommonInfo->how_much_form->SetNumber("num", MenuHowHaveMuchNum);
@@ -1581,7 +1581,7 @@ void CBaseMenuClass::MenuItemAskMode_HowMuch(int select_key, int push_button) {
     int end;
     MenuHowMuchNumSelect(select_key, ask_para.item, -1);
     ask_mode = mode;
-    end = 0;
+    end = false;
 
     switch (push_button) {
         case MENU_PUSH_BUTTON_TRIANGLE:
@@ -1594,18 +1594,18 @@ void CBaseMenuClass::MenuItemAskMode_HowMuch(int select_key, int push_button) {
                     break;
             }
 
-            end = 1;
+            end = true;
             MenuHowHaveMuchNum = 1;
             break;
         case MENU_PUSH_BUTTON_CANCEL:
-            MenuSePlay(5);
-            end = 1;
+            MenuSePlay(SYSTEM_SE_CANCEL);
+            end = true;
             break;
     }
 
     if (end) {
         mode = MENU_ASK_MODE_NONE;
-        MenuCommonInfo->how_much_form->draw_flag = 0;
+        MenuCommonInfo->how_much_form->draw_flag = false;
         MenuCommonInfo->MenuPosPlay();
     }
 
@@ -1629,7 +1629,7 @@ CGameDataUsed *CheckTrushWeapon(CGameDataUsed *item) {
 int CBaseMenuClass::CheckSpectolFusion(CGameDataUsed *item, int panel, CMenuPosDataForm *form) {
     CDC2Mes       *message;
     int            held_type;
-    CGameDataUsed *held = (CGameDataUsed *) (&MenuCommonInfo->have_item);
+    CGameDataUsed *held = &MenuCommonInfo->have_item;
     held_type = GetItemDataType(MenuCommonInfo->have_item.item_no);
     GetItemDataType(item->item_no);
     int kind = item->used_type;
@@ -1639,8 +1639,8 @@ int CBaseMenuClass::CheckSpectolFusion(CGameDataUsed *item, int panel, CMenuPosD
     }
 
     if (held_type == 0x11) {
-        mode = (int) MENU_ASK_MODE_FUSION;
-        form->draw_flag = 1;
+        mode = MENU_ASK_MODE_FUSION;
+        form->draw_flag = true;
         message = MenuDCMsg[panel];
         MENU_ASKMODE_PARA param;
         param.mes_no = panel;
@@ -1711,7 +1711,7 @@ void UpdataInfoSpectolBreakItem(CDC2Mes *mes, CGameDataUsed *item, int count) {
     MenuFormUpdataAttachInfo(MenuSpectolSatusCheckForm, &result, item->item_no, 1, 0);
 
     if (MenuSpectolSatusCheckBGFadeForm) {
-        MenuSpectolSatusCheckBGFadeForm->draw_flag = 1;
+        MenuSpectolSatusCheckBGFadeForm->draw_flag = true;
     }
 }
 
@@ -1725,7 +1725,7 @@ int CheckEquipFishRod(CGameDataUsed *item) {
             SetFishingGamePreEquip(weapon);
             result = 2;
         } else {
-            MenuSePlay(5);
+            MenuSePlay(SYSTEM_SE_CANCEL);
             result = 1;
         }
     }
@@ -1736,7 +1736,7 @@ int CheckEquipFishRod(CGameDataUsed *item) {
 int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
     CDC2Mes          *message = MenuDCMsg[ask_para.mes_no];
     CMenuPosDataForm *form = MenuMesForm[ask_para.mes_no];
-    int               cancel = 0;
+    int               cancel = false;
     int               result = 0;
 
     switch (step) {
@@ -1748,7 +1748,7 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                 case 4:
                     if (message->GetMsgCursor() == 0) {
                         if (CheckEquipFishRod(ask_para.item) == 1) {
-                            MenuSePlay(5);
+                            MenuSePlay(SYSTEM_SE_CANCEL);
                         } else {
                             trans_spectol_pos = ask_para.arg0;
 
@@ -1758,7 +1758,7 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                                 int pos = MenuUserDataManPtr->SearchSpaceUsedData();
 
                                 if (pos < 0) {
-                                    MenuSePlay(5);
+                                    MenuSePlay(SYSTEM_SE_CANCEL);
                                     break;
                                 }
 
@@ -1768,11 +1768,11 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                             trans_spectol_cnt = 0.0f;
                             trans_spectol_rgb = 0x80;
                             step = 1;
-                            form->draw_flag = 0;
+                            form->draw_flag = false;
                             MenuSePlay(SYSTEM_SE_DECIDE);
 
                             if (MenuCommonInfo->cursor_form != NULL) {
-                                MenuCommonInfo->cursor_form->draw_flag = 0;
+                                MenuCommonInfo->cursor_form->draw_flag = false;
                             }
 
                             result = 2;
@@ -1781,7 +1781,7 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                         break;
                     }
                 case 2:
-                    cancel = 1;
+                    cancel = true;
                     break;
             }
 
@@ -1797,7 +1797,7 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                     ask_para.item2 = MenuUserDataManPtr->GetUsedDataPtr(trans_spectol_pos);
                 }
 
-                spegetflag = 0;
+                spegetflag = false;
 
                 if (effect_type == 20) {
                     result = 3;
@@ -1805,12 +1805,12 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                 }
             }
 
-            if (spegetflag == 0 && effect_type == 20) {
+            if (spegetflag == false && effect_type == 20) {
                 MENU_EFFECT_INFO *info = &MenuEffect[0]->info[111];
 
                 if (info->unk_1c == 1.0f || !(info->unk_18 < 29.0f)) {
                     SpectolTransBefore.ToSpectolTrans(ask_para.item2, -1);
-                    spegetflag = 1;
+                    spegetflag = true;
                 }
             }
 
@@ -1821,11 +1821,11 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                 trans_spectol_cnt = 0.0f;
                 trans_spectol_pos = -1;
 
-                if (spegetflag == 0) {
+                if (spegetflag == false) {
                     SpectolTransBefore.ToSpectolTrans(ask_para.item2, -1);
                 }
 
-                spegetflag = 0;
+                spegetflag = false;
                 result = 4;
             }
 
@@ -1840,13 +1840,13 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                 SpectolBreakNum = MenuHowHaveMuchNum;
 
                 if (MenuUserDataManPtr->SearchSpaceUsedData() < 0 && ask_para.item->GetNum() > MenuHowHaveMuchNum) {
-                    MenuSePlay(5);
+                    MenuSePlay(SYSTEM_SE_CANCEL);
                 } else {
-                    MenuCommonInfo->how_much_form->draw_flag = 0;
+                    MenuCommonInfo->how_much_form->draw_flag = false;
                     step = 0;
 
                     if (MenuCommonInfo->cursor_form != NULL) {
-                        MenuCommonInfo->cursor_form->draw_flag = 0;
+                        MenuCommonInfo->cursor_form->draw_flag = false;
                     }
 
                     message->MsgPreset(0xB);
@@ -1862,7 +1862,7 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
                     MenuSePlay(SYSTEM_SE_DECIDE);
                 }
             } else if (push_button & MENU_PUSH_BUTTON_CANCEL) {
-                cancel = 1;
+                cancel = true;
             }
 
             break;
@@ -1872,23 +1872,23 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
     }
 
     if (cancel) {
-        MenuCommonInfo->how_much_form->draw_flag = 0;
-        form->draw_flag = 0;
+        MenuCommonInfo->how_much_form->draw_flag = false;
+        form->draw_flag = false;
 
         if (MenuCommonInfo->cursor_form != NULL) {
-            MenuCommonInfo->cursor_form->draw_flag = 1;
+            MenuCommonInfo->cursor_form->draw_flag = true;
         }
 
         mode = MENU_ASK_MODE_NONE;
         step = 0;
-        MenuSePlay(5);
+        MenuSePlay(SYSTEM_SE_CANCEL);
         result = 1;
     }
 
     return result;
 }
 
-int CBaseMenuClass::IsSpectolFusion(int key, int command) {
+int CBaseMenuClass::IsSpectolFusion(int select_key, int push_button) {
     CDC2Mes          *message;
     CMenuPosDataForm *form;
 
@@ -1897,7 +1897,7 @@ int CBaseMenuClass::IsSpectolFusion(int key, int command) {
      * Non-zero after the fusion sound begins.
      *
      */
-    static s8 sndflag = 0;
+    static s8 sndflag = false;
 
     message = MenuDCMsg[ask_para.mes_no];
     form = MenuMesForm[ask_para.mes_no];
@@ -1906,43 +1906,43 @@ int CBaseMenuClass::IsSpectolFusion(int key, int command) {
         case 0:
             int choice = message->YesNoCursor();
 
-            switch (command) {
+            switch (push_button) {
                 case 1:
                 case 4:
                 case 8:
                     if (choice == 0) {
                         step = 1;
-                        form->draw_flag = 0;
-                        MenuSePlay(1);
+                        form->draw_flag = false;
+                        MenuSePlay(SYSTEM_SE_DECIDE);
 
                         if (MenuCommonInfo->cursor_form != NULL) {
-                            MenuCommonInfo->cursor_form->draw_flag = 0;
+                            MenuCommonInfo->cursor_form->draw_flag = false;
                         }
 
                         SpectolInfoStay.CopyGameData(SpectolInfo[1]);
                         MenuCommonInfo->InitHaveData();
                         InitSpectol();
-                        sndflag = 0;
+                        sndflag = false;
                         return 2;
                     }
                 case 2:
-                    form->draw_flag = 0;
+                    form->draw_flag = false;
 
                     if (MenuCommonInfo->cursor_form != NULL) {
-                        MenuCommonInfo->cursor_form->draw_flag = 1;
+                        MenuCommonInfo->cursor_form->draw_flag = true;
                     }
 
-                    mode = (int) MENU_ASK_MODE_NONE;
+                    mode = MENU_ASK_MODE_NONE;
                     step = 0;
-                    itemmenu_chr_rotflag = 1;
-                    MenuSePlay(5);
+                    itemmenu_chr_rotflag = true;
+                    MenuSePlay(SYSTEM_SE_CANCEL);
                     return 1;
             }
 
             break;
         case 1: {
             if (!sndflag && ReadBGSync() == 0) {
-                sndflag = 1;
+                sndflag = true;
                 void *file = GetReadBGFile(0);
 
                 if (file != NULL) {
@@ -1970,9 +1970,9 @@ int CBaseMenuClass::IsSpectolFusion(int key, int command) {
                     }
                 }
 
-                form->draw_flag = 1;
+                form->draw_flag = true;
                 step += 1;
-                itemmenu_chr_rotflag = 1;
+                itemmenu_chr_rotflag = true;
                 trans_spectol_pos = -1;
                 MenuCommonInfo->FadeInMenuBGMVol(9);
                 return 3;
@@ -1982,9 +1982,9 @@ int CBaseMenuClass::IsSpectolFusion(int key, int command) {
         }
         case 2:
         case 3:
-            if (command != 0) {
-                IsAskEnd(1, form);
-                itemmenu_chr_rotflag = 1;
+            if (push_button != 0) {
+                IsAskEnd(SYSTEM_SE_DECIDE, form);
+                itemmenu_chr_rotflag = true;
                 return 1;
             }
 
@@ -1997,7 +1997,7 @@ int CBaseMenuClass::IsSpectolFusion(int key, int command) {
 }
 
 int IsDispTrushCommand(CGameDataUsed *item) {
-    int show = 1;
+    int show = true;
 
     if (item->item_type == ITEM_DATA_MAX_MELEE) {
         CUserDataManager *user_data = GetUserDataMan();
@@ -2012,33 +2012,33 @@ int IsDispTrushCommand(CGameDataUsed *item) {
             }
         }
 
-        if (weapon_count < 2 && user_data->chara_data[(int) USER_CHARA_MAX].equip[0].IsFishingRod()) {
-            show = 0;
+        if (weapon_count < 2 && user_data->chara_data[USER_CHARA_MAX].equip[0].IsFishingRod()) {
+            show = false;
         }
     }
 
     return show;
 }
 
-int CBaseMenuClass::IsTrush(int key, int command) {
+int CBaseMenuClass::IsTrush(int select_key, int push_button) {
     CMenuPosDataForm *form = MenuMesForm[ask_para.mes_no];
     CDC2Mes          *message = MenuDCMsg[ask_para.mes_no];
 
     if (step == 0) {
         message->YesNoCursor();
 
-        switch (command) {
+        switch (push_button) {
             case 1:
                 if (message->GetMsgCursor() == 0) {
                     if (CheckEquipFishRod(ask_para.item) == 1) {
-                        MenuSePlay(5);
+                        MenuSePlay(SYSTEM_SE_CANCEL);
                         break;
                     }
 
-                    form->draw_flag = 0;
+                    form->draw_flag = false;
 
                     if (MenuCommonInfo->cursor_form != NULL) {
-                        MenuCommonInfo->cursor_form->draw_flag = 1;
+                        MenuCommonInfo->cursor_form->draw_flag = true;
                     }
 
                     MenuCommonInfo->InitHaveData();
@@ -2049,30 +2049,30 @@ int CBaseMenuClass::IsTrush(int key, int command) {
                     return 2;
                 }
             case 2:
-                IsAskEnd(5, form);
+                IsAskEnd(SYSTEM_SE_CANCEL, form);
                 return 0;
         }
     } else if (step == 1) {
         IsAskEnd(-1, form);
         return 0;
     } else if (step == 3) {
-        MenuHowMuchNumSelect(key, ask_para.item, -1);
+        MenuHowMuchNumSelect(select_key, ask_para.item, -1);
 
-        switch (command) {
+        switch (push_button) {
             case 1:
                 MenuTrushNum = MenuHowHaveMuchNum;
                 step = 0;
-                MenuCommonInfo->how_much_form->draw_flag = 0;
-                form->draw_flag = 1;
+                MenuCommonInfo->how_much_form->draw_flag = false;
+                form->draw_flag = true;
                 message->MakeMsg(0xB0);
                 message->values[0] = MenuHowHaveMuchNum;
                 message->value_width[0] = 0;
                 message->SetMsgCursor(1);
-                MenuSePlay(1);
+                MenuSePlay(SYSTEM_SE_DECIDE);
                 break;
             case 2:
-                MenuCommonInfo->how_much_form->draw_flag = 0;
-                IsAskEnd(5, form);
+                MenuCommonInfo->how_much_form->draw_flag = false;
+                IsAskEnd(SYSTEM_SE_CANCEL, form);
                 return 0;
         }
     }
@@ -2080,7 +2080,7 @@ int CBaseMenuClass::IsTrush(int key, int command) {
     return 0;
 }
 
-int CBaseMenuClass::IsItemUseNum(int panel, int key, int command, CGameDataUsed *item,
+int CBaseMenuClass::IsItemUseNum(int mes_no, int select_key, int push_button, CGameDataUsed *item,
                                  CItemUseTarget *target) {
     if (step == 0) {
         MenuItemUse.UseItem(item, target);
@@ -2102,18 +2102,18 @@ int CBaseMenuClass::IsItemUseNum(int panel, int key, int command, CGameDataUsed 
     return 0;
 }
 
-int CBaseMenuClass::SelectInGiftBox(int key, int command) {
+int CBaseMenuClass::SelectInGiftBox(int select_key, int push_button) {
     int            before;
     CGameDataUsed *gift_box;
     int            item_no;
     CGameDataUsed *slot;
     before = NowGiftBoxSelect;
 
-    if (key & 8) {
+    if (select_key & 8) {
         NowGiftBoxSelect += 1;
     }
 
-    if (key & 4) {
+    if (select_key & 4) {
         NowGiftBoxSelect -= 1;
     }
 
@@ -2126,12 +2126,12 @@ int CBaseMenuClass::SelectInGiftBox(int key, int command) {
     }
 
     if (before != NowGiftBoxSelect) {
-        MenuSePlay(0);
+        MenuSePlay(SYSTEM_SE_CURSOR);
     }
 
     gift_box = ask_para.item;
 
-    switch (command) {
+    switch (push_button) {
         case 4:
         case 8:
         case 1:
@@ -2143,29 +2143,29 @@ int CBaseMenuClass::SelectInGiftBox(int key, int command) {
                 if (slot != NULL) {
                     MenuUserDataManPtr->CopyGameData(slot, item_no);
                     gift_box->SetGiftBoxItem(0, NowGiftBoxSelect);
-                    MenuSePlay(1);
+                    MenuSePlay(SYSTEM_SE_DECIDE);
                 } else {
                     slot = MenuUserDataManPtr->SearchSpaceUsedDataPtr();
 
                     if (slot != NULL) {
                         MenuUserDataManPtr->CopyGameData(slot, item_no);
                         gift_box->SetGiftBoxItem(0, NowGiftBoxSelect);
-                        MenuSePlay(1);
+                        MenuSePlay(SYSTEM_SE_DECIDE);
                     } else {
-                        MenuSePlay(5);
+                        MenuSePlay(SYSTEM_SE_CANCEL);
                     }
                 }
             } else {
-                MenuSePlay(5);
+                MenuSePlay(SYSTEM_SE_CANCEL);
             }
 
             break;
         case 2:
             NowGiftBoxSelect = 1;
             SetAskParam(NULL);
-            mode = (int) MENU_ASK_MODE_NONE;
-            GiftBoxViewFlag = 0;
-            MenuSePlay(5);
+            mode = MENU_ASK_MODE_NONE;
+            GiftBoxViewFlag = false;
+            MenuSePlay(SYSTEM_SE_CANCEL);
             break;
     }
 
@@ -2182,7 +2182,7 @@ void SetConditionHowMuchBoard() {
     int               cursor_pos[2];
 
     if (board) {
-        board->draw_flag = 1;
+        board->draw_flag = true;
         MenuCommonInfo->down_arrow_cnt = 0;
         MenuCommonInfo->up_arrow_cnt = 0;
         MenuCommonInfo->GetCursorPos(cursor_pos);
@@ -2201,7 +2201,7 @@ void SetConditionHowMuchBoard() {
 }
 
 void CBaseMenuClass::SetAskHowMuchItemNum(MENU_SWAPITEM_INFO *info, CGameDataUsed *item) {
-    mode = (int) MENU_ASK_MODE_HOW_MUCH;
+    mode = MENU_ASK_MODE_HOW_MUCH;
     SetConditionHowMuchBoard();
 
     if (item != NULL) {
@@ -2258,86 +2258,86 @@ void CBaseMenuClass::ExeScript(char *script) {
     MenuCommandAnalyze(this->script, script_size, script);
 }
 
-int CBaseMenuClass::ExtendCommand(int key, int command) {
+int CBaseMenuClass::ExtendCommand(int select_key, int push_button) {
     int                result = 0;
     CBaseMenuClass    *menu = this;
     short              ask_mode = mode;
     MENU_ASKMODE_PARA *param = &menu->ask_para;
 
-    if (ask_mode == (int) MENU_ASK_MODE_ITEM_COMMAND) {
-        result = MenuItemCommandSelect(key, command);
+    if (ask_mode == MENU_ASK_MODE_ITEM_COMMAND) {
+        result = MenuItemCommandSelect(select_key, push_button);
         menu->ItemCmdAfter(result, &MenuItemCmdRet);
-    } else if (ask_mode == (int) MENU_ASK_MODE_SPECTOL) {
-        result = IsSpectolTrans(key, command);
-    } else if (ask_mode == (int) MENU_ASK_MODE_HOW_MUCH) {
-        MenuItemAskMode_HowMuch(key, command);
-    } else if (ask_mode == (int) MENU_ASK_MODE_FUSION) {
-        result = IsSpectolFusion(key, command);
-    } else if (ask_mode == (int) MENU_ASK_MODE_TRUSH) {
-        result = IsTrush(key, command);
-    } else if (ask_mode == (int) MENU_ASK_MODE_ITEM_USE_NUM) {
-        result = IsItemUseNum(param->mes_no, key, command, (CGameDataUsed *) (&MenuCommonInfo->have_item),
+    } else if (ask_mode == MENU_ASK_MODE_SPECTOL) {
+        result = IsSpectolTrans(select_key, push_button);
+    } else if (ask_mode == MENU_ASK_MODE_HOW_MUCH) {
+        MenuItemAskMode_HowMuch(select_key, push_button);
+    } else if (ask_mode == MENU_ASK_MODE_FUSION) {
+        result = IsSpectolFusion(select_key, push_button);
+    } else if (ask_mode == MENU_ASK_MODE_TRUSH) {
+        result = IsTrush(select_key, push_button);
+    } else if (ask_mode == MENU_ASK_MODE_ITEM_USE_NUM) {
+        result = IsItemUseNum(param->mes_no, select_key, push_button, &MenuCommonInfo->have_item,
                               &MenuItemUseTarget);
-    } else if (ask_mode == (int) MENU_ASK_MODE_GIFT_BOX) {
-        result = SelectInGiftBox(key, command);
-    } else if (ask_mode == (int) MENU_ASK_MODE_CREATE) {
-        result = menu->IsCreateObject(key, command);
-    } else if (ask_mode == (int) MENU_ASK_MODE_MAKE) {
-        result = menu->IsMakeObject(key, command);
-    } else if (ask_mode == (int) MENU_ASK_MODE_EXTEND) {
-        result = menu->IsAskExtend(key, command);
+    } else if (ask_mode == MENU_ASK_MODE_GIFT_BOX) {
+        result = SelectInGiftBox(select_key, push_button);
+    } else if (ask_mode == MENU_ASK_MODE_CREATE) {
+        result = menu->IsCreateObject(select_key, push_button);
+    } else if (ask_mode == MENU_ASK_MODE_MAKE) {
+        result = menu->IsMakeObject(select_key, push_button);
+    } else if (ask_mode == MENU_ASK_MODE_EXTEND) {
+        result = menu->IsAskExtend(select_key, push_button);
     }
 
     return result;
 }
 
-int CBaseMenuClass::SelectMakeObject(int keys) {
-    int old_column = make_cursor;
+int CBaseMenuClass::SelectMakeObject(int select_key) {
+    int old_cursor = make_cursor;
     int direction;
 
-    if (keys & 2) {
+    if (select_key & 2) {
         make_cursor = 1;
     }
 
-    if (keys & 1) {
+    if (select_key & 1) {
         make_cursor = 0;
     }
 
-    if (old_column != make_cursor) {
-        MenuSePlay(0);
+    if (old_cursor != make_cursor) {
+        MenuSePlay(SYSTEM_SE_CURSOR);
     }
 
     direction = 0;
 
     if (make_cursor == 0) {
-        int old_row = make_num;
-        int mode = 0;
+        int old_num = make_num;
+        int delta = 0;
 
-        if (keys & 8) {
-            mode += 1;
+        if (select_key & 8) {
+            delta += 1;
         }
 
-        if (keys & 4) {
-            mode -= 1;
+        if (select_key & 4) {
+            delta -= 1;
         }
 
-        if (keys & 0x20) {
-            mode += 5;
+        if (select_key & 0x20) {
+            delta += 5;
         }
 
-        if (keys & 0x10) {
-            mode -= 5;
+        if (select_key & 0x10) {
+            delta -= 5;
         }
 
-        if (mode < 0) {
+        if (delta < 0) {
             direction = -1;
         }
 
-        if (0 < mode) {
+        if (0 < delta) {
             direction = 1;
         }
 
-        make_num += mode;
+        make_num += delta;
 
         if (make_num <= 0) {
             make_num = 1;
@@ -2347,7 +2347,7 @@ int CBaseMenuClass::SelectMakeObject(int keys) {
             make_num = make_num_max;
         }
 
-        if (old_row != make_num) {
+        if (old_num != make_num) {
             MenuSePlay(29);
         }
     }
@@ -2355,38 +2355,38 @@ int CBaseMenuClass::SelectMakeObject(int keys) {
     return direction;
 }
 
-void CBaseMenuClass::IsAskEnd(int se, CMenuPosDataForm *form) {
+void CBaseMenuClass::IsAskEnd(int se_no, CMenuPosDataForm *form) {
     if (form) {
-        form->draw_flag = 0;
+        form->draw_flag = false;
     }
 
-    MenuCommonInfo->key_enable = 1;
+    MenuCommonInfo->key_enable = true;
 
     if (MenuCommonInfo->cursor_form) {
-        MenuCommonInfo->cursor_form->draw_flag = 1;
+        MenuCommonInfo->cursor_form->draw_flag = true;
     }
 
-    mode = (int) MENU_ASK_MODE_NONE;
+    mode = MENU_ASK_MODE_NONE;
     step = 0;
-    MenuSePlay(se);
+    MenuSePlay(se_no);
 }
 
-void CBaseMenuClass::FadeInMenu(int frames, float rate) {
-    (&MenuMainScene->fade)->FadeIn(frames);
-    (&MenuMainScene->fade)->FadeStep();
+void CBaseMenuClass::FadeInMenu(int frames, float unused) {
+    MenuMainScene->fade.FadeIn(frames);
+    MenuMainScene->fade.FadeStep();
 }
 
-void CBaseMenuClass::FadeOutMenu(int frames, float rate) {
-    (&MenuMainScene->fade)->FadeOut(frames, 0.0f, 0.0f, 0.0f);
-    (&MenuMainScene->fade)->FadeStep();
+void CBaseMenuClass::FadeOutMenu(int frames, float unused) {
+    MenuMainScene->fade.FadeOut(frames, 0.0f, 0.0f, 0.0f);
+    MenuMainScene->fade.FadeStep();
 }
 
 int CBaseMenuClass::FadeCheckMenu() {
-    return (&MenuMainScene->fade)->FadeCheck();
+    return MenuMainScene->fade.FadeCheck();
 }
 
 void SetPreCmdTrush(CBaseMenuClass *menu, int panel, CGameDataUsed *item, CMenuPosDataForm *form) {
-    menu->mode = (int) MENU_ASK_MODE_TRUSH;
+    menu->mode = MENU_ASK_MODE_TRUSH;
     MENU_ASKMODE_PARA param;
     param.mes_no = panel;
     param.form = form;
@@ -2410,10 +2410,10 @@ void SetPreCmdTrush(CBaseMenuClass *menu, int panel, CGameDataUsed *item, CMenuP
         message->values[0] = 1;
         message->value_width[0] = 0;
         message->SetMsgCursor(1);
-        form->draw_flag = 1;
+        form->draw_flag = true;
 
         if (MenuCommonInfo->cursor_form != NULL) {
-            MenuCommonInfo->cursor_form->draw_flag = 0;
+            MenuCommonInfo->cursor_form->draw_flag = false;
         }
     } else {
         MenuHowHaveMuchNum = MenuTrushNum;
@@ -2423,7 +2423,7 @@ void SetPreCmdTrush(CBaseMenuClass *menu, int panel, CGameDataUsed *item, CMenuP
 
 void SetPreCmdSpectolBreak(CBaseMenuClass *menu, int panel, CMenuPosDataForm *form,
                            CGameDataUsed *item, CGameDataUsed *target) {
-    menu->mode = (int) MENU_ASK_MODE_SPECTOL;
+    menu->mode = MENU_ASK_MODE_SPECTOL;
     menu->step = 0;
     MENU_ASKMODE_PARA param;
     param.mes_no = panel;
@@ -2446,9 +2446,9 @@ void SetPreCmdSpectolBreak(CBaseMenuClass *menu, int panel, CMenuPosDataForm *fo
 }
 
 void SetPreCmdGiftBoxSelect(CBaseMenuClass *menu, CGameDataUsed *item) {
-    menu->mode = (int) MENU_ASK_MODE_GIFT_BOX;
+    menu->mode = MENU_ASK_MODE_GIFT_BOX;
     menu->step = 0;
-    GiftBoxViewFlag = 1;
+    GiftBoxViewFlag = true;
     MENU_ASKMODE_PARA param;
     param.item = item;
     menu->SetAskParam(&param);
@@ -2464,21 +2464,21 @@ int CheckFishCondition() {
     scene = GetMainScene();
     battle_scene = menu_GetBattleAreaScene();
     map_no = scene->now_map_no;
-    enabled = 1;
+    enabled = true;
 
     if (map_no == 0x7D) {
-        enabled = 0;
+        enabled = false;
     }
 
     if ((map_no == 0x63) || (map_no == 0x5F)) {
-        enabled = 0;
+        enabled = false;
     }
 
     result = enabled;
 
-    if (GetMenuLoopType() == (int) MENU_LOOP_DUNGEON) {
+    if (GetMenuLoopType() == MENU_LOOP_DUNGEON) {
         if (battle_scene->battle_clear == 0) {
-            enabled = 0;
+            enabled = false;
         }
 
         result = enabled;

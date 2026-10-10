@@ -4847,7 +4847,7 @@ int CAquarium::ColCheck(int no) {
                 move[3] = 1.0f;
                 sceVu0ScaleVector(me->move, move, 1.5f);
 
-                if (calm == 0) {
+                if (!calm) {
                     if (me->think_mode == AQUA_FISH_THINK_BATTLE || me->think_mode == AQUA_FISH_THINK_LOVE_CHASE) {
                         me->AddFatigue(1);
 
@@ -4990,7 +4990,8 @@ int CAquarium::InitSelFish() {
 
     for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         if (fish[i] != NULL) {
-            float x, y;
+            float x;
+            float y;
             sel_fish = i;
             x = mes.menu_mes->cursor_x;
             y = mes.menu_mes->cursor_y;
@@ -5000,12 +5001,12 @@ int CAquarium::InitSelFish() {
             mes.cursor_target[1] = y;
             mes.cursor_snap = true;
             SelFishSetCursor();
-            return 0;
+            return false;
         }
     }
 
     mes.cursor_draw = false;
-    return 1;
+    return true;
 }
 
 void CAquarium::SelectFish(int force) {
@@ -5308,7 +5309,7 @@ int CAquarium::Step() {
             case AQUARIUM_MODE_VIEW:
                 if (key & MENU_PUSH_BUTTON_CANCEL) {
                     MenuSePlay(SYSTEM_SE_CANCEL);
-                    return 1;
+                    return true;
                 }
 
                 if (GamePad__2.Down(PAD_TRIANGLE)) {
@@ -6131,7 +6132,7 @@ int CAquarium::Step() {
         love_phase = AQUA_EVENT_ELECTRIC_FADE_OUT;
     }
 
-    return 0;
+    return false;
 }
 
 void CAquarium::Draw() {
@@ -6271,7 +6272,7 @@ void CAquarium::Draw() {
         Camera->GetPos(camera_pos);
 
         if (camera_pos[1] < 47.0f) {
-            water->SetPosition(-34.0f, float(46.8), -21.5f);
+            water->SetPosition(-34.0f, 46.8f, -21.5f);
         } else {
             water->SetPosition(-34.0f, 47.0f, -21.5f);
         }
@@ -6311,7 +6312,7 @@ void CAquarium::Draw() {
         int row = fptosi(24.0f * GetRandF(1.0f));
         water->Shake(row, fptosi(16.0f * GetRandF(1.0f)), ripple);
         float speed = 0.0045f;
-        water->SetParam(float(0.15), speed, 0.0f, 10.0f);
+        water->SetParam(0.15f, speed, 0.0f, 10.0f);
         water->Step();
         water->SetColor(0x80, 0x80, 0x80, 0x80);
         mgDrawDirect(water);
@@ -6659,7 +6660,7 @@ int MenuAquaKey() {
             ReStartEnvSoundMenu();
             MenuMainScene->SetVolfBGM(Auqa_Bgm_Volf);
             MenuScreenBlackBeltSet(1);
-            return 1;
+            return true;
         case AQUA_MENU_TANK_FADE_OUT_WAIT:
             Aquarium.Step();
 
@@ -6707,7 +6708,7 @@ int MenuAquaKey() {
             break;
     }
 
-    return 0;
+    return false;
 }
 
 void MenuAquaDraw() {

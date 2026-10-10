@@ -210,7 +210,7 @@ extern mgCMemory MainBuffer;
  * Active page of the debug menu.
  */
 static int menu_mode;
-void       InitEventSelect();
+static void InitEventSelect();
 
 /**
  * Values selected by the debug menu and game configuration tags.
@@ -397,21 +397,21 @@ static void InitPadTable(int language) {
 
     for (i = 0; pad_table[i].no >= 0; i++) {
         switch (pad_table[i].no) {
-            case 0:
+            case PAD_BTN_CONFIRM:
             case 0x10:
             case 0x14:
-            case 0x32:
-            case 0x38:
-            case 0x66:
-            case 0x67:
-            case 0x68:
+            case PAD_BTN_ACTION_CONFIRM:
+            case PAD_BTN_ACTION_HELD:
+            case PAD_BTN_EDIT_PLACE:
+            case PAD_BTN_EDIT_REMOVE:
+            case PAD_BTN_EDIT_PAINT:
             case 0x78:
             case 0x79:
                 pad_table[i].button = confirm[language_index];
                 break;
-            case 1:
+            case PAD_BTN_CANCEL:
             case 0x11:
-            case 0x34:
+            case PAD_BTN_ACTION_CANCEL:
                 pad_table[i].button = cancel[language_index];
                 break;
         }
@@ -468,7 +468,11 @@ void LanguageChange(int language, u_long128 *buffer) {
 }
 
 void MainLoop() {
-    // Microprogram addresses loaded when the main game loop starts.
+    /**
+     *
+     * Microprogram addresses loaded when the main game loop starts.
+     *
+     */
     static u_long128 *vu_prog[16];
 
     mgCMemory        *memory;
@@ -487,28 +491,30 @@ void MainLoop() {
     SaveData.Initialize();
     ActiveSaveData = &SaveData;
     SubGameSaveData = NULL;
-    DebugFlag = 0;
+    DebugFlag = false;
     GamePad__2.Init();
     InitFileCache(NULL, 0);
     mgInit(MG_SCREEN_MODE_512X480, 3);
-    PlayTimeCountFlag = 0;
+    PlayTimeCountFlag = false;
     mgInitVSyncCallBack((int (*)(int)) VSyncCallBack);
     LanguageCode = LANG_FRENCH;
     SCElogoFade(0, memory);
     LoopNo = LOOP_TITLE;
-    DebugFlag = 0;
+    DebugFlag = false;
     DebugInfo.chara_move = 0;
     /**
+     *
      * Whether the debug performance meter is displayed.
+     *
      */
-    static int pmeter_flag = 0;
+    static int pmeter_flag = false;
 
-    pmeter_flag = 0;
+    pmeter_flag = false;
     GamePad__2.WaitEnable();
     sceGsSyncV(0);
     GamePad__2.UpDate();
     MasterDebugCode = 0;
-    DebugFlag = 0;
+    DebugFlag = false;
 
     if (GamePad__2.On2(PAD_R1) && GamePad__2.On2(PAD_R2) && GamePad__2.On2(PAD_L1) && GamePad__2.On2(PAD_L2)) {
         MasterDebugCode = MASTER_DEBUG_CODE;
@@ -593,7 +599,7 @@ void MainLoop() {
     while (1) {
         if (LoopNo == LOOP_TITLE || OmakeFlag != 0) {
             SubGameSaveData = (CSubGameData *) main_buffer;
-            memory->stSetBuffer(main_buffer + 5000, 0x19EC78);
+            memory->stSetBuffer(&main_buffer[5000], 0x1A0000 - 5000);
             memory->stack_used = 0;
             memory->lock = 0;
         }
@@ -623,7 +629,7 @@ void MainLoop() {
         }
 
         mgFrameRate = 2;
-        CaptureScreen = 0;
+        CaptureScreen = false;
         GetMainScene()->save_data = GetSaveData();
         float now_time = GetSaveData()->now_time;
         GetMainScene()->SetTime(now_time);
@@ -688,10 +694,10 @@ void MainLoop() {
             PadCtrl.Update(&GamePad__2);
             mgCDrawPrim frame_border;
             frame_border.Initialize(NULL, NULL);
-            frame_border.DepthTestEnable(0);
-            frame_border.AlphaTestEnable(0);
-            frame_border.AlphaBlendEnable(0);
-            frame_border.TextureMapEnable(0);
+            frame_border.DepthTestEnable(false);
+            frame_border.AlphaTestEnable(false);
+            frame_border.AlphaBlendEnable(false);
+            frame_border.TextureMapEnable(false);
             frame_border.ZMask(MG_Z_MASK_MASKED);
             frame_border.Begin(MG_PRIM_LINE_STRIP);
             frame_border.Color(0, 0, 0, 0x80);
@@ -717,12 +723,14 @@ void MainLoop() {
                 case LOOP_DUNGEON:
                 case LOOP_TITLE: {
                     /**
+                     *
                      * Whether the debug frame-advance pause is enabled.
+                     *
                      */
-                    static int pause = 0;
+                    static int pause = false;
 
                     if (GamePad__2.Down2(PAD_SELECT)) {
-                        pause = 1;
+                        pause = true;
                     }
 
                     while (pause != 0) {
@@ -730,7 +738,7 @@ void MainLoop() {
                         GamePad__2.UpDate();
 
                         if (GamePad__2.Down(PAD_START) || GamePad__2.Down2(PAD_SELECT)) {
-                            pause = 0;
+                            pause = false;
                             break;
                         }
 
@@ -788,7 +796,9 @@ void MainLoop() {
 }
 
 /**
+ *
  * Prepares rendering and resource buffers for the main debug menu.
+ *
  */
 void MenuInit(INIT_LOOP_ARG arg) {
     mgCMemory *main_stack;
@@ -796,33 +806,41 @@ void MenuInit(INIT_LOOP_ARG arg) {
     u_long128 *packet_b;
 
     sndSeAllStop(-1);
-    sndDeletePort(0);
+    sndDeletePort(SND_PORT_BGM);
     MainScene.InitBGM();
     MainScene.InitSeEnv();
     MainScene.InitSeSrc();
-    menu_mode = 0;
+    menu_mode = DEBUG_MENU_TOP;
     mgInitFont();
     main_stack = GetMainStack();
     main_stack->stack_used = 0;
     main_stack->lock = 0;
 
     /**
+     *
      * Packet buffer for the first debug-menu draw buffer.
+     *
      */
     static mgCMemory buf0;
 
     /**
+     *
      * Packet buffer for the second debug-menu draw buffer.
+     *
      */
     static mgCMemory buf1;
 
     /**
+     *
      * Data buffer for the first debug-menu draw buffer.
+     *
      */
     static mgCMemory dbuf0;
 
     /**
+     *
      * Data buffer for the second debug-menu draw buffer.
+     *
      */
     static mgCMemory dbuf1;
 
@@ -858,7 +876,11 @@ void MenuInit(INIT_LOOP_ARG arg) {
  *
  */
 static int MenuLoop() {
-    // Rows displayed by the main debug menu.
+    /**
+     *
+     * Rows displayed by the main debug menu.
+     *
+     */
     static char *menu[] = {
         "game start ", "map        ", "dungeon    ", "title      ",
         "chrview    ", "texview    ", "mapview    ", "sound view ",
@@ -877,21 +899,21 @@ static int MenuLoop() {
     if (menu_mode == DEBUG_MENU_MAP_SELECT) {
         map_result = MapSelectLoop();
 
-        if (map_result == (int) MAP_SELECT_DECIDE) {
+        if (map_result == MAP_SELECT_DECIDE) {
             INIT_LOOP_ARG arg;
 
             arg.map_no = -1;
             arg.event_no = DefStartEventNo;
             NextLoop(LOOP_EDIT, arg);
-            return 1;
+            return true;
         }
 
-        if (map_result == (int) MAP_SELECT_CANCEL) {
+        if (map_result == MAP_SELECT_CANCEL) {
             menu_mode = DEBUG_MENU_TOP;
-            return 0;
+            return false;
         }
 
-        return 0;
+        return false;
     }
 
     if (menu_mode == DEBUG_MENU_EVENT_SELECT) {
@@ -904,7 +926,7 @@ static int MenuLoop() {
             menu_mode = DEBUG_MENU_TOP;
         }
 
-        return 0;
+        return false;
     }
 
     char *language[] = {
@@ -954,7 +976,7 @@ static int MenuLoop() {
 
     int step = 100;
 
-    if (select == 1) {
+    if (select == LOOP_EDIT) {
         step = 100;
     }
 
@@ -1027,28 +1049,28 @@ static int MenuLoop() {
     if (GamePad__2.Down(PAD_CIRCLE)) {
         if (select == DEBUG_ROW_EVENT_SELECT) {
             InitEventSelect();
-            return 0;
+            return false;
         } else if (select == DEBUG_ROW_LANGUAGE) {
             LanguageChange(menu_arguments[select], read_buffer);
-            return 0;
+            return false;
         } else if (select == DEBUG_ROW_ITEM_SET) {
             CUserDataManager *user = &GetSaveData()->user_data;
             DebugGetItem(user, item_set_no[menu_arguments[select]]);
-            return 0;
+            return false;
         } else if (select == DEBUG_ROW_SAVE_DATA) {
             InitSaveDataEdit(&MenuBuffer);
             menu_mode = DEBUG_MENU_SAVE_DATA_EDIT;
-            return 0;
+            return false;
         } else if (select == DEBUG_ROW_LOAD_CFG) {
             sprintf(config_name, "dbg/game%d.cfg", menu_arguments[select]);
             InitSaveData();
             LoadGameConfig(config_name);
-            return 0;
+            return false;
         } else {
             if (menu_arguments[select] < 0 && select == LOOP_EDIT) {
                 InitMapSelect(&MenuBuffer);
                 menu_mode = DEBUG_MENU_MAP_SELECT;
-                return 0;
+                return false;
             }
 
             if (select == DEBUG_ROW_CONVERT_SAVE) {
@@ -1063,26 +1085,33 @@ static int MenuLoop() {
                 NextLoop(select, arg);
             }
 
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 /**
+ *
  * Releases debug-menu input repeat and font state.
+ *
  */
 void MenuExit() {
     GamePad__2.AutoRepeatOff();
     mgCloseFont();
 }
 
+/**
+ *
+ * Opens the debug event selection screen with none of its sub-screens open.
+ *
+ */
 void InitEventSelect() {
-    event_view = 0;
-    future_sel = 0;
-    menu_mode = 2;
-    hdd_sel = 0;
+    event_view = false;
+    future_sel = false;
+    menu_mode = DEBUG_MENU_EVENT_SELECT;
+    hdd_sel = false;
 }
 
 /**
@@ -1091,11 +1120,19 @@ void InitEventSelect() {
  *
  */
 static int EventSelect() {
-    // Persistent row values selected by the chapter and event debug menu.
-    static int menu_sel[11] = {0};
+    /**
+     *
+     * Persistent row values selected by the chapter and event debug menu.
+     *
+     */
+    static int menu_sel[DEBUG_EVENT_ROW_NUM] = {0};
 
-    // Rows displayed by the chapter and event debug menu.
-    static char *menu[12] = {
+    /**
+     *
+     * Rows displayed by the chapter and event debug menu.
+     *
+     */
+    static char *menu[DEBUG_EVENT_ROW_NUM + 1] = {
         "It begins in the beginning:",
         "From each chapter(normal) :",
         "From each chapter(debug)  :",
@@ -1115,44 +1152,44 @@ static int EventSelect() {
         result = EventViewLoop();
 
         if (result == EVENT_VIEW_CONTINUE) {
-            return 0;
+            return false;
         } else if (result == EVENT_VIEW_START) {
-            return 1;
+            return true;
         } else if (result == EVENT_VIEW_CANCEL) {
-            event_view = 0;
+            event_view = false;
         }
 
-        return 0;
+        return false;
     }
 
     if (future_sel != 0) {
         result = FutureMapSelect();
 
         if (result == FUTURE_MAP_SELECT_CONTINUE) {
-            return 0;
+            return false;
         } else if (result == FUTURE_MAP_SELECT_CHOSEN) {
-            return 1;
+            return true;
         } else if (result == FUTURE_MAP_SELECT_CLOSED) {
-            future_sel = 0;
+            future_sel = false;
         }
 
-        return 0;
+        return false;
     }
 
     if (hdd_sel != 0) {
         result = HDDMenuLoop();
 
         if (result == 0) {
-            return 0;
+            return false;
         } else if (result > 0) {
-            return 1;
+            return true;
         } else {
-            return 0;
+            return false;
         }
     }
 
     char       display[1024];
-    char      *subgame_name[3] = {"Spheda", "GyoRace", "Fishing"};
+    char      *subgame_name[DEBUG_SUB_GAME_NUM] = {"Spheda", "GyoRace", "Fishing"};
     int        row = 0;
     char      *map_name;
     static int select = 0;
@@ -1170,10 +1207,10 @@ static int EventSelect() {
     }
 
     if (select < 0) {
-        select = 10;
+        select = DEBUG_EVENT_ROW_EXTRA;
     }
 
-    if (select >= 11) {
+    if (select >= DEBUG_EVENT_ROW_NUM) {
         select = 0;
     }
 
@@ -1186,8 +1223,8 @@ static int EventSelect() {
     }
 
     switch (select) {
-        case 1:
-        case 2:
+        case DEBUG_EVENT_ROW_CHAPTER:
+        case DEBUG_EVENT_ROW_CHAPTER_DEBUG:
             if (menu_sel[select] < 0) {
                 menu_sel[select] = 0;
             }
@@ -1197,17 +1234,17 @@ static int EventSelect() {
             }
 
             break;
-        case 3:
+        case DEBUG_EVENT_ROW_SUB_GAME:
             if (menu_sel[select] < 0) {
                 menu_sel[select] = 0;
             }
 
-            if (menu_sel[select] > 2) {
-                menu_sel[select] = 2;
+            if (menu_sel[select] > DEBUG_SUB_GAME_FISHING) {
+                menu_sel[select] = DEBUG_SUB_GAME_FISHING;
             }
 
             break;
-        case 8:
+        case DEBUG_EVENT_ROW_DIORAMA_MAP:
             if (menu_sel[select] < 0) {
                 menu_sel[select] = 0;
             }
@@ -1217,7 +1254,7 @@ static int EventSelect() {
             }
 
             break;
-        case 10:
+        case DEBUG_EVENT_ROW_EXTRA:
             if (menu_sel[select] < 0) {
                 menu_sel[select] = 0;
             }
@@ -1237,15 +1274,15 @@ static int EventSelect() {
         text += sprintf(text, "%s%s", cursor[row == select], menu[row]);
 
         switch (row) {
-            case 1:
-            case 2:
+            case DEBUG_EVENT_ROW_CHAPTER:
+            case DEBUG_EVENT_ROW_CHAPTER_DEBUG:
                 text += sprintf(text, "%d\x8F\xCD", menu_sel[row] + 1);
                 break;
-            case 3:
-            case 10:
+            case DEBUG_EVENT_ROW_SUB_GAME:
+            case DEBUG_EVENT_ROW_EXTRA:
                 text += sprintf(text, "%s", subgame_name[menu_sel[row]]);
                 break;
-            case 8:
+            case DEBUG_EVENT_ROW_DIORAMA_MAP:
                 if (GetMapName(menu_sel[row], &map_name)) {
                     text += sprintf(text, "%s", map_name);
                 }
@@ -1259,11 +1296,11 @@ static int EventSelect() {
     text += sprintf(text, "\n");
 
     switch (select) {
-        case 2:
-        case 1:
+        case DEBUG_EVENT_ROW_CHAPTER_DEBUG:
+        case DEBUG_EVENT_ROW_CHAPTER:
             sprintf(text, "\x95\xFB\x8C\xFC\x83\x4C\x81\x5B\x8D\xB6\x89\x45\x82\xC5\x8F\xCD\x91\x49\x91\xF0\n");
             break;
-        case 3:
+        case DEBUG_EVENT_ROW_SUB_GAME:
             sprintf(text, "\x95\xFB\x8C\xFC\x83\x4C\x81\x5B\x8D\xB6\x89\x45\x82\xC5\x83\x54\x83\x75\x83\x51\x81\x5B\x83\x80\x82\xCC\x8E\xED\x97\xDE\x91\x49\x91\xF0\n");
             break;
     }
@@ -1272,7 +1309,7 @@ static int EventSelect() {
 
     if (GamePad__2.Down(PAD_CROSS)) {
         menu_mode = DEBUG_MENU_TOP;
-        return 0;
+        return false;
     }
 
     if (GamePad__2.Down(PAD_CIRCLE)) {
@@ -1281,16 +1318,16 @@ static int EventSelect() {
         char          config_path[64];
 
         loop_no = LOOP_EDIT;
-        monica = 0;
+        monica = false;
 
         switch (select) {
-            case 0:
+            case DEBUG_EVENT_ROW_BEGINNING:
                 arg.map_no = 0;
                 loop_no = LOOP_TITLE;
                 config_name[0] = '\0';
                 break;
-            case 1:
-            case 2: {
+            case DEBUG_EVENT_ROW_CHAPTER:
+            case DEBUG_EVENT_ROW_CHAPTER_DEBUG: {
                 switch (menu_sel[select]) {
                     case 0:
                         arg.floor_no = 1;
@@ -1324,10 +1361,10 @@ static int EventSelect() {
                 }
 
                 if (menu_sel[select] >= 2) {
-                    monica = 1;
+                    monica = true;
                 }
 
-                if (select == 1) {
+                if (select == DEBUG_EVENT_ROW_CHAPTER) {
                     sprintf(config_name, "cap%d.cfg", menu_sel[select] + 1);
                 } else {
                     sprintf(config_name, "db_cap%d.cfg", menu_sel[select] + 1);
@@ -1335,20 +1372,20 @@ static int EventSelect() {
 
                 break;
             }
-            case 3: {
+            case DEBUG_EVENT_ROW_SUB_GAME: {
                 int subgame = menu_sel[select];
 
                 switch (subgame) {
-                    case 0:
+                    case DEBUG_SUB_GAME_SPHEDA:
                         arg.floor_no = 1;
                         arg.event_no = 4000;
                         arg.map_no = 2;
                         loop_no = LOOP_DUNGEON;
                         break;
-                    case 1:
+                    case DEBUG_SUB_GAME_GYORACE:
                         arg.map_no = 95;
                         break;
-                    case 2:
+                    case DEBUG_SUB_GAME_FISHING:
                         arg.map_no = 65;
                         break;
                 }
@@ -1356,31 +1393,31 @@ static int EventSelect() {
                 sprintf(config_name, "sg%d.cfg", subgame);
                 break;
             }
-            case 4:
+            case DEBUG_EVENT_ROW_PALM_BRINKS:
                 sprintf(config_name, "pb.cfg");
                 arg.map_no = 10;
                 break;
-            case 6:
-                BossBattleSelFlag = 1;
-            case 5:
-                event_view = 1;
-                return 0;
-            case 7:
-                future_sel = 1;
-                return 0;
-            case 8:
+            case DEBUG_EVENT_ROW_BOSS_BATTLE:
+                BossBattleSelFlag = true;
+            case DEBUG_EVENT_ROW_EVENT:
+                event_view = true;
+                return false;
+            case DEBUG_EVENT_ROW_FUTURE_MAP:
+                future_sel = true;
+                return false;
+            case DEBUG_EVENT_ROW_DIORAMA_MAP:
                 arg.map_no = menu_sel[select];
                 sprintf(config_name, "geo.cfg");
                 break;
-            case 9:
-                hdd_sel = 1;
+            case DEBUG_EVENT_ROW_HDD:
+                hdd_sel = true;
                 InitHDDMenu(MenuBuffer.stack + MenuBuffer.stack_used);
-                return 0;
-            case 10:
+                return false;
+            case DEBUG_EVENT_ROW_EXTRA:
                 InitSaveData();
                 InitOmakeEnv(menu_sel[select], &arg, &loop_no);
                 NextLoop(loop_no, arg);
-                return 1;
+                return true;
         }
 
         sprintf(config_path, "dbg/%s", config_name);
@@ -1393,15 +1430,15 @@ static int EventSelect() {
         }
 
         NextLoop(loop_no, arg);
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 mgCTexture *GetFontTexture(int page) {
-    if ((page < 0) || (page > 0)) {
-        return 0;
+    if (page < 0 || page > 0) {
+        return NULL;
     }
 
     return FontTex[page];
@@ -1417,9 +1454,9 @@ void LoadFontTexture() {
     u32  misalign;
 
     buffer = scratch;
-    FontTex[0] = 0;
+    FontTex[0] = NULL;
     misalign = (u32) buffer & 3;
-    FontDataAdr[0] = 0;
+    FontDataAdr[0] = NULL;
 
     if (misalign != 0) {
         buffer += (4 - misalign) * 0x10;
@@ -1428,9 +1465,9 @@ void LoadFontTexture() {
     page = 0;
 
     do {
-        if (LanguageCode == 0) {
+        if (LanguageCode == LANG_JAPANESE) {
             sprintf(file_name, "FontTex_%d.tm2", page);
-        } else if (LanguageCode == 1) {
+        } else if (LanguageCode == LANG_ENGLISH) {
             if (page == 0) {
                 sprintf(file_name, "FontTex_1_0.tm2", page);
             }
@@ -1443,7 +1480,7 @@ void LoadFontTexture() {
         if (LoadFile2(path, buffer, &size, 0) != 0) {
             FontDataAdr[page] = (TM2_head *) font_buff;
 
-            if (FontDataAdr[page] == 0) {
+            if (FontDataAdr[page] == NULL) {
                 return;
             }
 
@@ -1460,9 +1497,9 @@ void ReLoadFontTexture(int texture_no) {
 
     for (page = 0; page <= 0; page++) {
         if (FontDataAdr[page] != NULL) {
-            if (LanguageCode == 0) {
+            if (LanguageCode == LANG_JAPANESE) {
                 sprintf(file_name, "FontTex_%d.tm2", page);
-            } else if (LanguageCode == 1) {
+            } else if (LanguageCode == LANG_ENGLISH) {
                 if (page == 0) {
                     sprintf(file_name, "FontTex_1_0.tm2", page);
                 }
@@ -1497,10 +1534,10 @@ void InitPauseMenu(int texture_block) {
     PauseMes.texture_block = texture_block;
     PauseMes.SetWindowMode(MES_WIN_YESNO);
     BlackFade = 0.0f;
-    PauseSel = 1;
+    PauseSel = PAUSE_CHOICE_CONTINUE;
     BlackFade2 = 0.0f;
     PauseMenuMode = PAUSE_MENU_OPEN;
-    exit_start = 0;
+    exit_start = false;
 }
 
 int PauseMenu() {
@@ -1517,19 +1554,19 @@ int PauseMenu() {
             previous_select = PauseSel;
 
             if (PadCtrl.Btn(PAD_BTN_RIGHT)) {
-                PauseSel = 1;
+                PauseSel = PAUSE_CHOICE_CONTINUE;
             }
 
             if (PadCtrl.Btn(PAD_BTN_LEFT)) {
-                PauseSel = 0;
+                PauseSel = PAUSE_CHOICE_QUIT;
             }
 
             if (PadCtrl.Analog(PAD_ANALOG_LEFT_X) > 0.8f) {
-                PauseSel = 1;
+                PauseSel = PAUSE_CHOICE_CONTINUE;
             }
 
             if (PadCtrl.Analog(PAD_ANALOG_LEFT_X) < -0.8f) {
-                PauseSel = 0;
+                PauseSel = PAUSE_CHOICE_QUIT;
             }
 
             int selected = PauseSel;
@@ -1541,14 +1578,14 @@ int PauseMenu() {
             PauseMes.select = selected;
 
             if (previous_select != PauseSel) {
-                sndSePlay(GetSystemSndID(), 0, 0);
+                sndSePlay(GetSystemSndID(), SYSTEM_SE_CURSOR, 0);
             }
 
             if (PadCtrl.Btn(PAD_BTN_CONFIRM)) {
-                if (PauseSel == 0) {
+                if (PauseSel == PAUSE_CHOICE_QUIT) {
                     BlackFade = 0.0f;
                     PauseMenuMode = PAUSE_MENU_FADE_OUT;
-                    sndSePlay(GetSystemSndID(), 1, 0);
+                    sndSePlay(GetSystemSndID(), SYSTEM_SE_DECIDE, 0);
                 } else {
                     result = PAUSE_MENU_RESUME;
                 }
@@ -1576,10 +1613,10 @@ int PauseMenu() {
     mgCDrawPrim prim;
 
     prim.Initialize(NULL, NULL);
-    prim.DepthTestEnable(0);
-    prim.AlphaBlendEnable(1);
+    prim.DepthTestEnable(false);
+    prim.AlphaBlendEnable(true);
     prim.ZMask(MG_Z_MASK_WRITE);
-    prim.TextureMapEnable(0);
+    prim.TextureMapEnable(false);
     prim.Begin(MG_PRIM_SPRITE);
     prim.Color(0, 0, 0, 0x40);
     prim.Vertex(0, 0, 0);
@@ -1614,10 +1651,15 @@ void LoadGameConfig(char *path) {
     interpreter.Run();
 }
 
+/**
+ *
+ * Sets the map the debug menu starts the editor in, by name or number.
+ *
+ */
 int gcMAP_NO(SPI_STACK *stack, int arg_count) {
     int map_no;
 
-    if (stack->type == 0) {
+    if (stack->type == SPI_STACK_TYPE_STRING) {
         map_no = SearchMapNo(spiGetStackString(stack));
     } else {
         map_no = spiGetStackInt(stack);
@@ -1627,6 +1669,11 @@ int gcMAP_NO(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Sets the story progress of the save data.
+ *
+ */
 int gcPROGRESS(SPI_STACK *stack, int arg_count) {
     int        value = spiGetStackInt(stack);
     CSaveData *save = GetSaveData();
@@ -1634,47 +1681,67 @@ int gcPROGRESS(SPI_STACK *stack, int arg_count) {
     return 0;
 }
 
+/**
+ *
+ * Sets each listed bit flag of the save data.
+ *
+ */
 int gcBIT_FLAG_ON(SPI_STACK *stack, int arg_count) {
     CSaveData *save_data;
     int        i;
 
     for (i = 0; i < arg_count; i++) {
         save_data = GetSaveData();
-        save_data->SetBitFlag(spiGetStackInt(stack++), 1);
+        save_data->SetBitFlag(spiGetStackInt(stack++), true);
     }
 
     return 0;
 }
 
+/**
+ *
+ * Clears each listed bit flag of the save data.
+ *
+ */
 int gcBIT_FLAG_OFF(SPI_STACK *stack, int arg_count) {
     CSaveData *save_data;
     int        i;
 
     for (i = 0; i < arg_count; i++) {
         save_data = GetSaveData();
-        save_data->SetBitFlag(spiGetStackInt(stack++), 0);
+        save_data->SetBitFlag(spiGetStackInt(stack++), false);
     }
 
     return 0;
 }
 
+/**
+ *
+ * Sets the event the debug menu starts maps with.
+ *
+ */
 int gcSTART_EVENT(SPI_STACK *stack, int arg_count) {
     DefStartEventNo = spiGetStackInt(stack);
     return 0;
 }
 
+/**
+ *
+ * Lifts the georama conditions and opens every condition of each listed town.
+ *
+ */
 int gcGEO_COMPLETE(SPI_STACK *stack, int arg_count) {
     int        i;
     int        index;
     CEditData *edit_data;
 
-    DebugInfo.georama_debug = 1;
+    DebugInfo.georama_debug = true;
 
     for (i = 0; i < arg_count; i++) {
         index = spiGetStackInt(stack++);
         edit_data = GetSaveData()->GetEditData(index);
 
-        if (edit_data != 0) {
+        if (edit_data != NULL) {
             edit_data->dbgSetAllContintionFlag(index, 1);
         }
     }
@@ -1682,11 +1749,21 @@ int gcGEO_COMPLETE(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Lifts the georama placement conditions.
+ *
+ */
 int gcGEO_DEBUG(SPI_STACK *stack, int arg_count) {
-    DebugInfo.georama_debug = 1;
+    DebugInfo.georama_debug = true;
     return 1;
 }
 
+/**
+ *
+ * Gives the player one of the debug item sets.
+ *
+ */
 int gcITEM_SET(SPI_STACK *stack, int arg_count) {
     CUserDataManager *user_data;
 
@@ -1695,6 +1772,11 @@ int gcITEM_SET(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Gives the player one of each listed item.
+ *
+ */
 int gcGET_ITEM(SPI_STACK *stack, int arg_count) {
     int               i;
     CUserDataManager *user_data;
@@ -1707,6 +1789,11 @@ int gcGET_ITEM(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Gives the player each listed item in the listed quantity.
+ *
+ */
 int gcGET_N_ITEM(SPI_STACK *stack, int arg_count) {
     int               item_no;
     int               i;
@@ -1721,10 +1808,16 @@ int gcGET_N_ITEM(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Equips an item on a character.
+ *
+ */
 int gcEQUIP(SPI_STACK *stack, int arg_count) {
     int               chara_no;
     int               item_no;
     CUserDataManager *user_data;
+
     user_data = &GetSaveData()->user_data;
     chara_no = spiGetStackInt(stack++);
     item_no = spiGetStackInt(stack);
@@ -1732,6 +1825,11 @@ int gcEQUIP(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Sets a character's defence.
+ *
+ */
 int gcDEFENSE(SPI_STACK *stack, int arg_count) {
     int         chara_no;
     int         defence;
@@ -1748,6 +1846,11 @@ int gcDEFENSE(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Sets a character's maximum and current hit points.
+ *
+ */
 int gcHP(SPI_STACK *stack, int arg_count) {
     int         chara_no;
     int         hp;
@@ -1803,11 +1906,11 @@ static int gcALL_GEO_PARTS(SPI_STACK *stack, int arg_count) {
 
         if (edit != NULL) {
             for (i = 0; i < EDIT_ANALYZE_DATA_MAX; i++) {
-                edit->analyze.data_open[i] = 1;
+                edit->analyze.data_open[i] = true;
             }
 
             for (i = 0; i < EDIT_ANALYZE_CONDITION_MAX; i++) {
-                edit->analyze.condition_open[i] = 1;
+                edit->analyze.condition_open[i] = true;
             }
         }
     }
@@ -1827,11 +1930,21 @@ static int gcALL_GEO_PARTS(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Shows or hides the parameter display.
+ *
+ */
 int gcPARAM_DRAW(SPI_STACK *stack, int arg_count) {
     DebugInfo.param_off = !spiGetStackInt(stack);
     return 1;
 }
 
+/**
+ *
+ * Sets one of the named game options.
+ *
+ */
 int gcOPTION(SPI_STACK *stack, int arg_count) {
     char             *name;
     SV_CONFIG_OPTION *options;
@@ -1859,18 +1972,28 @@ int gcOPTION(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Adds Monica to the party.
+ *
+ */
 int gcMONICA(SPI_STACK *stack, int arg_count) {
     CUserDataManager *manager;
 
     manager = GetUserDataMan();
 
-    if (manager) {
-        manager->JoinPartyMember(1);
+    if (manager != NULL) {
+        manager->JoinPartyMember(USER_CHARA_MONICA);
     }
 
     return 1;
 }
 
+/**
+ *
+ * Adds the ridepod to the party and gives its core, optionally swapping in the core of another ridepod.
+ *
+ */
 int gcSTEVE(SPI_STACK *stack, int arg_count) {
     CUserDataManager *manager;
 
@@ -1880,7 +2003,7 @@ int gcSTEVE(SPI_STACK *stack, int arg_count) {
         return 0;
     }
 
-    manager->JoinPartyMember(2);
+    manager->JoinPartyMember(USER_CHARA_ROBO);
     manager->GetItemNotOver(0xF6, 1);
 
     if (arg_count == 2) {
@@ -1891,6 +2014,11 @@ int gcSTEVE(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Adds monster transformation to the party and enables each listed monster badge.
+ *
+ */
 int gcMONSTER(SPI_STACK *stack, int arg_count) {
     int               class_level;
     CUserDataManager *manager;
@@ -1905,7 +2033,7 @@ int gcMONSTER(SPI_STACK *stack, int arg_count) {
         return 0;
     }
 
-    manager->JoinPartyMember(3);
+    manager->JoinPartyMember(USER_CHARA_MONSTER);
     manager->GetItemNotOver(0x134, 1);
 
     for (i = 0; i < arg_count; i++) {
@@ -1926,6 +2054,11 @@ int gcMONSTER(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Adds a townsperson (party character) to the party.
+ *
+ */
 int gcPARTY(SPI_STACK *stack, int arg_count) {
     int               chara_no;
     CUserDataManager *manager;
@@ -1946,23 +2079,28 @@ int gcPARTY(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
+/**
+ *
+ * Selects the active character, Max or Monica.
+ *
+ */
 int gcACTIVE_CHARA(SPI_STACK *stack, int arg_count) {
     int               chara_no;
     CUserDataManager *manager;
 
     chara_no = spiGetStackInt(stack);
 
-    if (chara_no < 0) {
-        chara_no = 0;
+    if (chara_no < USER_CHARA_MAX) {
+        chara_no = USER_CHARA_MAX;
     }
 
-    if (chara_no > 1) {
-        chara_no = 1;
+    if (chara_no > USER_CHARA_MONICA) {
+        chara_no = USER_CHARA_MONICA;
     }
 
     manager = GetUserDataMan();
 
-    if (manager) {
+    if (manager != NULL) {
         manager->SetActiveChrNo(chara_no);
     }
 

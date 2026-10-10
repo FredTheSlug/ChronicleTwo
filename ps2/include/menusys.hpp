@@ -1723,6 +1723,15 @@ STATIC_ASSERT(sizeof(CMenuItemInfo) == 0x370);
 
 /**
  *
+ * Shape of the grid of the item choice.
+ *
+ */
+enum ITEM_SELECT_GRID {
+    ITEM_SELECT_COLUMNS = 5, /**< Items in each row of the item choice. */
+};
+
+/**
+ *
  * The item choice that an event asks for: a grid of the inventory to pick one item from.
  *
  */

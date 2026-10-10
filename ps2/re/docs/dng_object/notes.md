@@ -207,3 +207,22 @@ linked image unchanged. No helper-mask adjustment or shared-header change is
 needed. Earlier raw-alias and initializer-only calibration evidence above is
 historical; this function uses natural typed accesses and the consumer-level
 stable selector.
+
+## Enums and parameter names
+
+- `CRocketLauncher::SetPos(start, target, direction)` and `CLaserGun::SetPos(start, target, direction)` take the
+  start position, the homing target and the initial direction.
+- `DNG_SHOT_SIZE` gives the slot counts of the rocket trail (16), rocket launcher (24), machine gun bullets (16),
+  laser trail (8) and laser guns (16).
+- `LASER_VISUAL_CODE` names the five laser looks chosen by `CLaserGun::SetVisualCode`. Colours by code:
+  0 (64,128,64), 1 (64,64,128), 2 (128,32,128), 3 (0,128,128), 4 (128,64,0). Callers: `ShotLaserGun` in actscript
+  passes its type, the four-cannon ridepod attack passes 3, and the 90 attack passes 4.
+- `ROBO_VOICE_STREAM` is the sound stream channel (1) the robot voices play on.
+
+## Reverted candidates
+
+- Rocket and laser manager loops rewritten with `CRocketLauncher *entry = &rocket[i]` or with a moving
+  `entry++` pointer do not match in `CRocketLauncherMan::Draw`/`Initialize` or `CLaserGunMan::Draw`/`Initialize`;
+  they keep the byte-offset form, with `manager->` in place of `(manager)->`.
+- `CPullItem::Step` badge name as `char *badge_name = mons_attr_list[LanguageCode][item_no];` and as
+  `char *&badge_name = mons_attr_list[LanguageCode][item_no];` do not match; the pointer-to-pointer form stays.

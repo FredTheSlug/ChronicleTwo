@@ -833,7 +833,7 @@ void CommonStageClassInit() {
         afterWire[w].mode = 0;
     }
 
-    for (int b = 0; b < 16; b++) {
+    for (int b = 0; b < MACHINE_GUN_BULLET_NUM; b++) {
         MachineGun.active[b] = 0;
         MachineGun.col_prim_id[b] = -1;
     }

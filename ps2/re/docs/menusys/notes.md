@@ -55,7 +55,7 @@ No symbol names these types, so the names are neutral ones taken from the tables
   never read here either.
 - 0x14 s16 `key_arg_no`: index into `item_menu_argtbl` (`CMenuItemInfo`).
 - 0x18 `int tex_block[16]`: SetTexBlock/DeleteTexBlock loop to 16 and stop at a value <= 0 or < 0.
-- 0x58 `ask_para`; 0xEC `swap_info`; 0xF4 `cmd_arg_pos` (MenuItemCommnadSelectPrepare stores its arg).
+- 0x58 `ask_para`; 0xEC `swap_info`; 0xF4 `cmd_arg_pos` (MenuItemCommnadSelectPrepare stores its place).
 - 0x100/0x108/0x10A: the make question of SelectMakeObject (count, cursor row byte, max s16).
 - Ctor order in retail: vptr store, `ask_para` ctor, `swap_info.Set(-1,0,-1,0)`, `memset(this,0,0x110)`
   (this clears the vptr too; derived classes store theirs afterwards), field inits, 16x `tex_block=-1`,

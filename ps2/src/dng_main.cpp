@@ -68,15 +68,50 @@
 #include "water.hpp"
 #include "wavetable.hpp"
 
+/**
+ *
+ * Stack that the dungeon's long-lived objects are allocated from.
+ *
+ */
 mgCMemory           *MainBuffer;
 u_long128           *BuffReadData;
+/**
+ *
+ * Non-zero to draw the dungeon's interface; the debug pad toggles it.
+ *
+ */
 static int           debag_param;
+/**
+ *
+ * Horizontal angle of the eye view, in radians.
+ *
+ */
 float                viewAngleH__2;
+/**
+ *
+ * Vertical angle of the eye view, in radians.
+ *
+ */
 float                viewAngleV__2;
+/**
+ *
+ * Non-zero once the eye view has saved the camera position it restores.
+ *
+ */
 static int           init_camera;
 DNG_FLOOR_SAVE      *NowFloorInfoPtr;
 RUN_SCRIPT_ENV       ActionScriptEnv;
+/**
+ *
+ * Non-zero while the dungeon is held for debugging.
+ *
+ */
 static int           DebugPause;
+/**
+ *
+ * Distance of the follow camera from the player.
+ *
+ */
 static float         test_dist;
 CUserDataManager    *DngUserData;
 CSaveData           *DngSaveData;
@@ -97,12 +132,37 @@ CEffectScriptMan    *FxScriptMan;
 CColPrim            *BTsuboCol;
 CPullItemManager     PullItemMan;
 mgCFrame            *TornadoModel;
+/**
+ *
+ * Index of the next weapon element effect that GetWeaponEffect hands out.
+ *
+ */
 static int           wep_effect_cnt;
 
 static void EyeCamera(mgCCamera *camera, CCharacter2 *chara, int mode);
+/**
+ *
+ * Selected line of the debug command menu.
+ *
+ */
 static int  debug_cursor;
+/**
+ *
+ * First monster listed by the debug monster loader.
+ *
+ */
 static int  debug_mons_no;
+/**
+ *
+ * Selected line of the debug monster loader, or -1 while it is closed.
+ *
+ */
 static int  debug_mons_cur;
+/**
+ *
+ * Number of monsters the debug monster loader can list.
+ *
+ */
 static int  debug_mons_num;
 
 mgCMemory             BuffPaketList[2];
@@ -150,11 +210,36 @@ CMachineGun           MachineGun;
 CLaserGunMan          LaserGun;
 CCharacter2           LaserGunModel;
 CPullItem             PullItem[DNG_PULL_ITEM_NUM];
+/**
+ *
+ * Loading screen shown while the dungeon is set up.
+ *
+ */
 static NowLoadingInfo nowload;
+/**
+ *
+ * Wave animation of the floor's water texture.
+ *
+ */
 static CWaveTable     WaveTable;
 mgCFrame             *SparcModel[DNG_SPARC_MODEL_NUM];
+/**
+ *
+ * Glow trail of the player's sword.
+ *
+ */
 static CSwordLuminous SwordLuminous;
+/**
+ *
+ * Weapon element effects that GetWeaponEffect hands out in turn.
+ *
+ */
 CWeaponElement        wep_effect[DNG_WEAPON_EFFECT_NUM];
+/**
+ *
+ * Spark effects of weapon hits.
+ *
+ */
 CSparcEffect          Sparc_fx[DNG_ELEMENT_EFFECT_NUM];
 CThunder              thunder[DNG_ELEMENT_EFFECT_NUM];
 CTornado              tornado[DNG_ELEMENT_EFFECT_NUM];
@@ -3043,6 +3128,11 @@ void CheckStatusError() {
     }
 }
 
+/**
+ *
+ * Camera position saved when the eye view starts and restored when it ends.
+ *
+ */
 static sceVu0FVECTOR backup_pos;
 
 void InitEyeCamera(CActionChara *chara) {
@@ -3195,6 +3285,11 @@ static void EyeCamera(mgCCamera *camera, CCharacter2 *chara, int mode) {
     camera->SetRef(ref);
 }
 
+/**
+ *
+ * Value shown on each line of the debug command menu.
+ *
+ */
 int debug_no[8] = {100, 0, 1, 0, 0, 0, 0, 0};
 
 void DebugMainDraw() {

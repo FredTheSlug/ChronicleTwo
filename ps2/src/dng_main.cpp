@@ -1762,7 +1762,7 @@ void DngStep() {
 
             MainChara__2->GetPosition(pos);
             int foot_no = MainChara__2->CheckFootEffect();
-            int effect[35] = {DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_GRASS, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_SPLASH, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE,
+            DNG_FOOT_EFFECT effect[35] = {DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_GRASS, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_SPLASH, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE,
                               DNG_FOOT_EFFECT_SPLASH, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE};
 
             if (foot_no >= 0) {
@@ -2423,14 +2423,14 @@ int DngMainKey() {
                             rate = 1.0f;
                         }
 
-                        MainCamera.Rotate(-(0.1308997f * rate));
+                        MainCamera.Rotate(-(PI / 24.0f * rate));
                     }
 
                     if (screen[0] < 32) {
                         float rate = (float) screen[0] - 32.0f;
 
                         rate /= 128.0f;
-                        MainCamera.Rotate(-(0.1308997f * rate));
+                        MainCamera.Rotate(-(PI / 24.0f * rate));
                     }
                 } else {
                     sceVu0FVECTOR diff;
@@ -2452,11 +2452,11 @@ int DngMainKey() {
                     }
 
                     if (angle > 0.0f) {
-                        MainCamera.Rotate(-0.09817477f);
+                        MainCamera.Rotate(-(PI / 32.0f));
                     }
 
                     if (angle < 0.0f) {
-                        MainCamera.Rotate(0.09817477f);
+                        MainCamera.Rotate(PI / 32.0f);
                     }
                 }
             }

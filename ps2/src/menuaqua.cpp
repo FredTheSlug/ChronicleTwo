@@ -8036,7 +8036,7 @@ int GyoraceMenuKey() {
             if (0 < MenuSaveKey()) {
                 MenuLoadFishIsLoad = false;
 
-                if (MenuArg.end_code == SAVE_MENU_END_LOAD) {
+                if (MenuArg.end_code == MENU_END_LOAD) {
                     MenuLoadFishIsLoad = true;
                 }
 

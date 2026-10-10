@@ -377,10 +377,7 @@ int VSyncCallBack(int field) {
 
     call_back_active = 0;
 
-    asm {
-        sync
-        ei
-    }
+    ExitHandler();
 
     return 0;
 }
@@ -405,13 +402,14 @@ void mgSetRotateThread(int priority) {
  *
  */
 void WaitVSync(int start, int frames) {
-wait:
-    if ((mgGetVSyncCount() - start) < frames) {
+    for (;;) {
+        if (mgGetVSyncCount() - start >= frames) {
+            break;
+        }
+
         if (rot_priority > 0) {
             RotateThreadReadyQueue(rot_priority);
         }
-
-        goto wait;
     }
 }
 

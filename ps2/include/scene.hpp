@@ -4,20 +4,20 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
+#include "effscript.hpp"
+#include "map.hpp"
+#include "mapsky.hpp"
+#include "mg_camera.hpp"
+#include "mg_memory.hpp"
+#include "nd_meswin.hpp"
+
 /**
  * @file
  * Declares the slots in which a scene keeps its characters, maps, messages,
  * cameras, skies, game objects and effect scripts, the rain effect with its
  * drops, splashes and ripples, and the random number helpers they share.
  */
-
-class CCharacter2;
-class CEffectScriptMan;
-class CMap;
-class CMapSky;
-class ClsMes;
-class mgCCamera;
-class mgCMemory;
 
 /**
  *

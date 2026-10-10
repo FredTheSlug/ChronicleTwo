@@ -2,16 +2,16 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+#include "sceneload.hpp"
+#include "scenesnd.hpp"
+
 /**
  * @file
  * Declares the moves between town maps: loading the main map and the sub
  * map of a scene, entering and leaving interiors, and loading the event
  * script that belongs to the current map.
  */
-
-class mgCMemory;
-class CScene;
-struct SCN_LOADMAP_INFO2;
 
 /**
  *

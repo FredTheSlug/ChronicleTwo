@@ -4,13 +4,13 @@
 
 #include <libvu0.h>
 
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the event editor, a developer tool for placing the event camera and characters,
  * recording camera and character paths and writing the results to a host file as script lines.
  */
-
-class mgCMemory;
 
 /**
  *

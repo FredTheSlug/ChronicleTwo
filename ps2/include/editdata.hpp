@@ -4,17 +4,13 @@
 
 #include <cstring>
 
-#include "editmap.hpp"
-
 /**
  * @file
- * Declares the saved layout of a Georama town (the parts placed, their
- * houses, how they rest on each other and the river grids) and the town
- * analysis that turns that layout into the conditions and requests the
- * town's future depends on, read from the geo%d.cfg script.
+ * Declares the saved layout of a Georama town (the parts placed, their houses and the placement log
+ * they keep, how they rest on each other and the river grids) and the town analysis that turns that
+ * layout into the conditions and requests the town's future depends on, read from the geo%d.cfg
+ * script.
  */
-
-class CEditParts;
 
 /**
  *
@@ -238,6 +234,18 @@ struct EditDataAnalyze {
 };
 
 STATIC_ASSERT(sizeof(EditDataAnalyze) == 0xD0);
+
+/**
+ *
+ * Entry of an edit map's placement log, recording that one placed part rests on another.
+ *
+ */
+struct EditPlaceLog {
+    s16 parts_no; /**< Slot number of the part that rests on the other, or below zero when the entry is free. */
+    s16 base_no;  /**< Slot number of the part it rests on. */
+};
+
+STATIC_ASSERT(sizeof(EditPlaceLog) == 0x4);
 
 /**
  *

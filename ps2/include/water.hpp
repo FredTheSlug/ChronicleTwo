@@ -2,12 +2,14 @@
 
 #include "common.h"
 
+#include <cstring>
 #include <libvu0.h>
 
-#include <cstring>
-
 #include "mg_dataset.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
 #include "mg_frame.hpp"
+#include "mg_memory.hpp"
 #include "mg_texture.hpp"
 
 /**
@@ -16,10 +18,6 @@
  * together with the heat-haze effect drawn above fire points and the scene's
  * thunder effect state.
  */
-
-class mgCMemory;
-class mgCDrawManager;
-class mgRENDER_INFO;
 
 /**
  *

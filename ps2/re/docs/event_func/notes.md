@@ -3,9 +3,8 @@
 ## Status
 All 827 functions in `ps2/src/event_func.cpp` match retail (including `_COPY_CHARA`,
 `_COPY_MONS2SCNCHR`, `_ESM_INITIALIZE`, `LoadMovie`, `_SET_CROSSFADE` and `_SET_GYORACE_ETC`).
-826 are native C++ definitions. The compiler-generated `CObject::CObject(const CObject &)`
-(`__ct__7CObjectFRC7CObject`, 0x2804B0, 0xC8 in a 0xD0 extent) has no source definition: MWCC
-emits it from the character copy inside `_COPY_MONS2SCNCHR`.
+826 are native C++ definitions. `CObject::CObject(const CObject &)` (`__ct__7CObjectFRC7CObject`, 0x2804B0) is emitted in this
+unit; it is declared in `map.hpp` and defined member-wise next to `_COPY_MONS2SCNCHR`.
 
 - `_ESM_INITIALIZE` (0x128 body in a 0x130 extent) reads the scene stack number and an optional
   texture-block offset, constructs the `CEffectScriptMan` in that stack and stores it in
@@ -125,7 +124,7 @@ in the asm across all units (no other base+offset access exists; the addiu users
 | 0x128 | unk int | only zeroed |
 | 0x12C/0x130 | `env_bgm_volume` (float) / `env_bgm_no` | `_PLAY_ENV_BGM` |
 | 0x134 | `stream_playing` | 1 in `_STREAM_PLAY`, read by `_GET_MES_VOICE`, ClsMes::DrawMesWin |
-| 0x138 | `stream_from_fpl` | 1 when opened via `CommandStreamOpenFromFPL`; chooses StreamEND vs StreamClose |
+| 0x138 | `int stream_source` | `EventStreamSource`; `EVENT_STREAM_VOICE_PACK` chooses StreamEND, other values StreamClose |
 | 0x13C | `int func_iparam[16]` | door mode: [0] chara no, [1] = EventScene+0x2E9C, [2] SE id (`EventDoorLoop`) |
 | 0x17C | `float func_fparam[16]` | door mode: [0..2] pos, [3] yaw (atan2), [4..6] cam pos, [7..9] cam ref offset |
 | 0x1BC | `int monster_talk[3]` | written by dng_main `IsEventRun`, read by `_GET_MONSTER_TALK_DATA` |
@@ -223,10 +222,10 @@ in the asm across all units (no other base+offset access exists; the addiu users
 | EventSprite2 | 0x1800 | local | `CEventSprite2[0x30]` |
 | EventScriptArg | 0x10 | local | CEventScriptArg |
 | EventScreenEffect | 0x4C | global | CScreenEffect |
-| ext_func (symbol file `ext_func__2`) | 0x1770 | local | `static EventFunc ext_func[event_func_slots]` (0x5DC typed `int (*)(RS_STACKDATA *, int)`) |
+| ext_func (symbol file `ext_func__2`) | 0x1770 | local | `static EventFunc ext_func[EVENT_EXT_FUNC_NUM]` (0x5DC typed `int (*)(RS_STACKDATA *, int)`) |
 | ext_func_info (symbol file `ext_func_info__2`) | 0x15C8 .data | local | `static RS_EXTFUNC_INFO ext_func_info[697]`: 696 typed handlers followed by `{NULL, EVENT_EXT_END}`; `EventExternalCommand` names every retail command number (sparse and out of order); eight-byte zero tail is retail piece padding (`SetEventFunc`, numbers 0..0x5DB) |
 | esa_ext_func_info | 0x18 .data | local | `static RS_EXTFUNC_INFO esa_ext_func_info[3]`: `_DATA`, `_ID_OFFSET` (`EventArgumentCommand`) and the null sentinel |
-| vv (retail `vv$3333`) | 0x30 .data | local | `static float vv[3][4]` inside `_SET_TALK_CAMERA`; it transforms `vv[1]`, the other two rows are retail data |
+| offsets (retail `vv$3333`) | 0x30 .data | local | `static float offsets[3][4]` inside `_SET_TALK_CAMERA`; it transforms `offsets[1]`, the other two rows are retail data |
 
 `Hit_para` holds `BattleEffectPrim` (dng_effect.hpp, 0x50) sparks, the type `HitEffect[n].spark`
 points at: +0x10 pos, +0x20 velocity, +0x34 speed, +0x38 rate, +0x3C life, +0x44 alpha,
@@ -293,6 +292,31 @@ their stack-output calls preserve in `v0`. `_EOH_GET_FRAME_POS` needs the positi
 `if (result != 0)` body with one common return: an early return shortens the body by four bytes
 and moves the branch/call placement.
 
+## Script sub-command enums
+Enums in `event_func.hpp` that replace the literal sub-command and option values of the event script commands.
+- `EventArgScriptExtent`: extents of the argument script interpreter (`BuildArgData`), not a script command.
+- `EventStreamChannel`: sound stream channel used by the voice stream calls, not a script command.
+- `EventStreamSource`: values of `ED_EVENT_INFO::stream_source`, set by the stream open commands.
+- `EventStopwatchStyle`: values of `ED_EVENT_INFO::stopwatch_style`, set by `_STOPWATCH`.
+- `EventStopwatchCommand`: sub-commands of `_STOPWATCH`.
+- `EventCheckButton`: buttons tested by `_CHECK_BUTTON`.
+- `EventSetGyoRaceCommand`: sub-commands of `_SET_GYORACE_ETC`.
+- `EventGetGyoRaceCommand`: sub-commands of `_GET_GYORACE_ETC`.
+- `EventSetSaveDataCommand`: sub-commands of `_SET_SAVEDATA_ETC`.
+- `EventGetSaveDataCommand`: sub-commands of `_GET_SAVEDATA_ETC`.
+- `EventSetMenuCommand`: sub-commands of `_SET_MENU_ETC`.
+- `EventGetMenuCommand`: sub-commands of `_GET_MENU_ETC`.
+- `EventSetQuestCommand`: sub-commands of `_SET_QUEST_ETC`.
+- `EventGetQuestCommand`: sub-commands of `_GET_QUEST_ETC`.
+- `EventDataField`: scene event data fields reached by `_SET_EVENT_DATA` and `_GET_EVENT_DATA`.
+- `EventSetFuncCommand`: sub-commands of `_SET_FUNC_ETC`.
+- `EventSetMesCommand`: sub-commands of `_SET_MES_ETC`.
+- `EventGetMesCommand`: sub-commands of `_GET_MES_ETC`.
+- `EventSetFishingTournamentCommand`: sub-commands of `_SET_FISHINGTOURNAMENT_ETC`.
+- `EventGetFishingTournamentCommand`: sub-commands of `_GET_FISHINGTOURNAMENT_ETC`.
+- `EventCaptionCommand`: sub-commands of `_SET_MOVIE_CC`.
+- `EventSphidaSetUpKind`: set-up kinds of `_SPHIDA_SET_UP`.
+
 ## Source forms the match depends on
 - `_CHK_INTERSECTION_POINT` and `_CHK_INTERSECTION_POINT_PIPE` select polygons by indexing
   through the collision polygon cursor; indexing from the original local array changes register
@@ -311,9 +335,9 @@ and moves the branch/call placement.
   offset, the element and the `charaSlot` pointer.
 - `_FUNCTION_MAP_JUMP`: `(char *) (request + 6)` from `&EventScene->map_jump_flags`;
   `EventScene->map_jump_name` (the same address) reloads `EventScene` and shrinks the function.
-- `_SWE_SET_COLOR`, `_SWE_SET_TEXTURE`, `_SWE_START_EFFECT`: `(CSWordAfterEffect **) ((slot << 2)
-  + (int) chara + chara_sword_after_offset)` (0x570, `CCharacter2::sword_effect`) keeps retail's
-  index-first sum; `&chara->sword_effect[slot]` adds the base first (`addu v0,v0,v1`).
+- `_SWE_SET_COLOR`, `_SWE_SET_TEXTURE`, `_SWE_START_EFFECT`: the slot pointer is `(CSWordAfterEffect **)
+  ((slot << 2) + (int) chara + offsetof(CCharacter2, sword_effect))` (`CCharacter2::sword_effect`, 0x570),
+  which keeps retail's index-first sum; `&chara->sword_effect[slot]` adds the base first (`addu v0,v0,v1`).
 - `_SWE_INIT`: `chara->sword_effect[slot] = new (scene_stack->Alloc(12)) CSWordAfterEffect` uses
   the inline constructor for the two colours.
 - `_ESM_INIT_FIX`: `(mgCMemory *) operator new(0x30, ...)` then `Init()`; `new (...) mgCMemory`

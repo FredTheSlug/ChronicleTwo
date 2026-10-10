@@ -4,22 +4,18 @@
 
 #include <libvu0.h>
 
-#include "mg_dataset.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
- * Declares the engine's model visuals: the MDT model that builds VU1 packets from its face lists, the
- * model whose face packets are built once at load time, the primitive visual that carries GS drawing
- * attributes, and the helpers that write texture, material and lighting packets.
+ * Declares the engine's model visuals: the base of every visual, the MDT model file records, the
+ * MDT model that builds VU1 packets from its face lists, the model whose face packets are built
+ * once at load time, the primitive visual that carries GS drawing attributes, and the helpers that
+ * write texture, material and lighting packets.
  */
-
-class mgCMemory;
-class mgCTexture;
-class mgCTextureManager;
-class mgCDrawEnv;
-class mgCDrawManager;
-class mgRENDER_INFO;
-class mgCFace;
 
 /**
  *
@@ -44,6 +40,75 @@ enum mgDestAlphaTest {
     MG_DEST_ALPHA_TEST_KEEP = 0, /**< Leaves the draw environment's setting as it is. */
     MG_DEST_ALPHA_TEST_ZERO = 1, /**< Pixels whose destination alpha bit is zero pass. */
     MG_DEST_ALPHA_TEST_ONE = 2,  /**< Pixels whose destination alpha bit is one pass. */
+};
+
+/**
+ *
+ * Starts an MDT model: the counts of each data section and their byte offsets from this header.
+ *
+ */
+struct MDT_HEADER {
+    char magic[4];    /**< Identifies the file as a model: "MDT". */
+    int  header_size; /**< Size of this header in bytes. */
+    int  unk_08;
+    int  vertex_num;   /**< Number of vertex positions. */
+    int  vertex_ofs;   /**< Byte offset from the header to the vertex positions. */
+    int  normal_num;   /**< Number of normal vectors. */
+    int  normal_ofs;   /**< Byte offset from the header to the normal vectors. */
+    int  colour_num;   /**< Number of per-vertex colours. */
+    int  colour_ofs;   /**< Byte offset from the header to the per-vertex colours. */
+    int  faces_size;   /**< Size in bytes of the face section. */
+    int  faces_ofs;    /**< Byte offset from the header to the face section. */
+    int  uv_num;       /**< Number of texture coordinates. */
+    int  uv_ofs;       /**< Byte offset from the header to the texture coordinates. */
+    int  material_num; /**< Number of material records. */
+    int  material_ofs; /**< Byte offset from the header to the material records. */
+    int  unk_3c;
+};
+
+STATIC_ASSERT(sizeof(MDT_HEADER) == 0x40);
+
+/**
+ *
+ * Describes one material of an MDT model: its colours and the name of the texture it draws with.
+ *
+ */
+struct MDT_MATERIAL_ {
+    sceVu0FVECTOR diffuse; /**< Colour the material is drawn with. */
+    float         unk_10[4];
+    float         unk_20[4];
+    float         unk_30;
+    char          texture[32]; /**< Name of the texture the material draws with. */
+    int           unk_54;
+    float         extra[2];
+};
+
+STATIC_ASSERT(sizeof(MDT_MATERIAL_) == 0x60);
+
+/**
+ *
+ * Starts the face section of an MDT model, which holds one FACES_ID record per primitive.
+ *
+ */
+struct MDT_FACES {
+    int unk_00;
+    int header_size; /**< Size of this header in bytes; the first FACES_ID record follows it. */
+    int prim_num;    /**< Number of FACES_ID records in the section. */
+    int unk_0c;
+};
+
+STATIC_ASSERT(sizeof(MDT_FACES) == 0x10);
+
+/**
+ *
+ * One primitive of an MDT model's face section: a run of vertex indices drawn with one material.
+ *
+ */
+struct FACES_ID {
+    u_int type;     /**< Primitive flags, which set how many indices make one face. */
+    u_int face_num; /**< Number of faces in the primitive. */
+    u_int material; /**< Index of the material the primitive is drawn with. */
+    int   index[1]; /**< Vertex indices, as many as the faces need. */
 };
 
 /**
@@ -102,41 +167,159 @@ STATIC_ASSERT(sizeof(mgFACE_GROUP) == 0x20);
 
 /**
  *
- * GS drawing settings a visual or frame applies over the draw environment it is drawn with.
+ * Base of everything a frame can draw: the draw settings shared by all visuals and the calls a frame makes on its visual.
  *
  */
-class mgCVisualAttr {
+class mgCVisual {
 public:
-    int alpha_ref;       /**< Alpha test reference value, or a negative value to keep the environment's. */
-    int alpha_blend;     /**< Alpha blending mode, from mgAlphaMacroID; zero keeps the environment's. */
-    int z_write;         /**< Depth buffer write mode, from mgZBufMode. */
-    int z_test;          /**< Depth test, from mgDEPTH_TEST; zero keeps the environment's. */
-    int alpha_test;      /**< GS alpha test method, -1 to disable alpha testing, or zero to keep the environment's. */
-    int dest_alpha_test; /**< Destination alpha test, from mgDestAlphaTest. */
+    int                unk_00;
+    mgCDrawEnv        *draw_env;        /**< Draw environment the visual is drawn with, or NULL for the render info's own. */
+    mgCTextureManager *texture_manager; /**< Texture manager the visual's textures come from, or NULL for the global one. */
+    u_int              prmode;          /**< Value the visual writes to the GS PRMODE register. */
+    int                vu1_base;        /**< VU1 memory base address sent with the VIF BASE command. */
+    int                vu1_offset;      /**< VU1 double-buffer offset sent with the VIF OFFSET command. */
+    int                unk_18;
 
     /**
      *
-     * Creates the attributes with every setting reset.
+     * Creates a visual with its draw settings cleared.
      *
-     * @mangled __ct__13mgCVisualAttrFv
-     * @address 0x13EE60
-     * @size 0x28
+     * @mangled __ct__9mgCVisualFv
      */
-    mgCVisualAttr();
+    mgCVisual() { Initialize(); }
 
     /**
      *
-     * Resets every setting: no alpha reference, depth writes on, destination alpha test off,
-     * and everything else left to the draw environment.
+     * Returns the kind of this visual.
      *
-     * @mangled Initialize__13mgCVisualAttrFv
-     * @address 0x13EE20
+     * @mangled Iam__9mgCVisualFv
+     * @address 0x133DC0
+     * @size 0x10
+     */
+    virtual int Iam();
+
+    /**
+     *
+     * Returns the number of materials the visual has.
+     *
+     * @mangled GetMaterialNum__9mgCVisualFv
+     * @address 0x134980
+     * @size 0x10
+     */
+    virtual int GetMaterialNum();
+
+    /**
+     *
+     * Returns the visual's material table, or NULL if it has none.
+     *
+     * @mangled GetpMaterial__9mgCVisualFv
+     * @address 0x134990
+     * @size 0x10
+     */
+    virtual mgMaterial *GetpMaterial();
+
+    /**
+     *
+     * Returns one of the visual's materials, or NULL if the index is out of range.
+     *
+     * @mangled GetMaterial__9mgCVisualFi
+     * @address 0x1349A0
+     * @size 0x10
+     */
+    virtual mgMaterial *GetMaterial(int index);
+
+    /**
+     *
+     * Returns a copy of the visual allocated from memory; a visual with nothing to copy returns itself.
+     *
+     * @mangled Copy__9mgCVisualFP9mgCMemory
+     * @address 0x133DD0
+     * @size 0x10
+     */
+    virtual mgCVisual *Copy(mgCMemory *memory);
+
+    /**
+     *
+     * Writes the visual's bounding box and returns non-zero if it has one.
+     *
+     * @mangled CreateBBox__9mgCVisualFPfPfPA4_f
+     * @address 0x1349B0
+     * @size 0x10
+     */
+    virtual int CreateBBox(float *max, float *min, float (*matrix)[4]);
+
+    /**
+     *
+     * Writes the packet that sets up drawing the visual and returns its length in quadwords.
+     *
+     * @mangled CreateRenderInfoPacket__9mgCVisualFPUiPA4_fP13mgRENDER_INFO
+     * @address 0x1349C0
+     * @size 0x10
+     */
+    virtual int CreateRenderInfoPacket(u_int *packet, float (*matrix)[4], mgRENDER_INFO *info);
+
+    /**
+     *
+     * Builds the visual's draw packet ahead of time and returns its size.
+     *
+     * @mangled CreatePacket__9mgCVisualFP9mgCMemoryP9mgCMemory
+     * @address 0x134970
+     * @size 0x10
+     */
+    virtual int CreatePacket(mgCMemory *memory, mgCMemory *work_memory);
+
+    /**
+     *
+     * Draws the visual through the draw manager with no packet of the caller's.
+     *
+     * @mangled Draw__9mgCVisualFPA4_fP14mgCDrawManager
+     * @address 0x1349E0
      * @size 0x40
      */
-    void Initialize();
+    virtual void Draw(float (*matrix)[4], mgCDrawManager *draw_manager);
+
+    /**
+     *
+     * Writes the visual into a packet and returns the number of quadwords written.
+     *
+     * @mangled Draw__9mgCVisualFPUiPA4_fP14mgCDrawManager
+     * @address 0x1349D0
+     * @size 0x10
+     */
+    virtual int Draw(u_int *packet, float (*matrix)[4], mgCDrawManager *draw_manager);
+
+    /**
+     *
+     * Clears the visual's draw settings.
+     *
+     * @mangled Initialize__9mgCVisualFv
+     * @address 0x133440
+     * @size 0x20
+     */
+    virtual void Initialize();
+
+    /**
+     *
+     * Returns the visual's texture manager, or the global one if it has none.
+     *
+     * @mangled GetTextureManager__9mgCVisualFv
+     * @address 0x13EE90
+     * @size 0x30
+     */
+    mgCTextureManager *GetTextureManager();
+
+    /**
+     *
+     * Writes a copy of a draw environment adjusted by the render info's settings and returns its length in quadwords.
+     *
+     * @mangled SetDrawEnvGifTag__9mgCVisualFP1P13mgRENDER_INFOP10mgCDrawEnv
+     * @address 0x13EEC0
+     * @size 0x270
+     */
+    int SetDrawEnvGifTag(u_long128 *packet, mgRENDER_INFO *info, mgCDrawEnv *base);
 };
 
-STATIC_ASSERT(sizeof(mgCVisualAttr) == 0x18);
+STATIC_ASSERT(sizeof(mgCVisual) == 0x20);
 
 /**
  *

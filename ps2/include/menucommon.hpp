@@ -2,6 +2,14 @@
 
 #include "common.h"
 
+#include "character.hpp"
+#include "dataread.hpp"
+#include "gamedata.hpp"
+#include "mg_camera.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "savedata.hpp"
 #include "snd_mngr.hpp"
 
 /**
@@ -10,15 +18,6 @@
  * sorting and stacking of item lists, language-aware file loading, menu value easing, and the
  * script tags that read a menu layout file and run its message commands.
  */
-
-class CCharacter2;
-class CGameDataUsed;
-class CSaveData;
-class mgCCamera;
-class mgCFrame;
-class mgCMemory;
-struct BG_READ_INFO;
-struct mgVu0FBOX;
 
 /**
  *

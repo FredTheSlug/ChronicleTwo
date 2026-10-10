@@ -2,16 +2,16 @@
 
 #include "common.h"
 
+#include "character.hpp"
+#include "mg_camera.hpp"
+#include "mg_memory.hpp"
+#include "nd_meswin.hpp"
+#include "scenesnd.hpp"
+
 /**
  * @file
  * Declares the scene event runner, which loads and steps the event script of a town or dungeon scene and handles its skip, door and mode-change requests.
  */
-
-class CCharacter2;
-class ClsMes;
-class CScene;
-class mgCCamera;
-class mgCMemory;
 
 /**
  *

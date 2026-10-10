@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "mainloop.hpp"
+
 /**
  * @file
  * Declares the entry, exit and per-frame functions of the debug map viewer.
@@ -12,7 +14,6 @@
  * Parameters that the main loop hands to a mode when it enters it.
  *
  */
-struct INIT_LOOP_ARG;
 
 /**
  *

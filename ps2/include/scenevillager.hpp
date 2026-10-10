@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#include "character.hpp"
+#include "mg_frame.hpp"
+
 /**
  * @file
  * Declares what a scene uses to place, step and draw its villagers and the
@@ -121,9 +124,6 @@ struct GAMEOBJ_INFO {
 };
 
 STATIC_ASSERT(sizeof(GAMEOBJ_INFO) == 0x50);
-
-class CCharacter2;
-class mgCFrame;
 
 /**
  *

@@ -2,15 +2,15 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+#include "scenesnd.hpp"
+
 /**
  * @file
  * Declares the sub game dispatcher, which starts, runs, draws and ends the mini-games played
  * inside a town or dungeon scene (fishing, the fish race and the buggy game), and the streamed
  * voice player those mini-games use.
  */
-
-class CScene;
-class mgCMemory;
 
 /**
  *

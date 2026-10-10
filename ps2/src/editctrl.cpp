@@ -1094,7 +1094,7 @@ void CameraControl(CScene *scene, CPadControl *pad) {
                                         camera, chara, 0);
                                     scene->SetStatus(SCENE_DATA_CHARA, scene->player_chara, 0x10);
                                     scene->EyeViewDrawOnOff(1);
-                                    goto done;
+                                    return;
                                 }
                             }
                         } else if (ViewMode == 1 || ViewMode == 2) {
@@ -1126,7 +1126,7 @@ void CameraControl(CScene *scene, CPadControl *pad) {
                                 }
 
                                 LoopTakePhoto(pad, user_data);
-                                goto done;
+                                return;
                             }
                         }
                     }
@@ -1137,8 +1137,6 @@ void CameraControl(CScene *scene, CPadControl *pad) {
             }
         }
     }
-
-done:;
 }
 
 /**

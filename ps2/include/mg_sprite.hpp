@@ -5,7 +5,11 @@
 #include <libgraph.h>
 
 #include "mg_dataset.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
+#include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
 #include "mg_visual.hpp"
 
 /**
@@ -14,12 +18,6 @@
  * rectangle in screen coordinates, and the 3D sprite that builds a VU1 packet
  * of camera-facing billboards placed in the world.
  */
-
-class mgCDrawEnv;
-class mgCDrawManager;
-class mgCMemory;
-class mgCTexture;
-class mgRENDER_INFO;
 
 /**
  *

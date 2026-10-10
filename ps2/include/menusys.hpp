@@ -1261,7 +1261,7 @@ public:
      * @address 0x2411A0
      * @size 0xF0
      */
-    int menu_inputkey_limmit_check_line(int keys);
+    int menu_inputkey_limmit_check_line(int select_key);
 
     /**
      *
@@ -1281,7 +1281,7 @@ public:
      * @address 0x241410
      * @size 0x5C
      */
-    int CheckMoveSelect(int arg);
+    int CheckMoveSelect(int select_key);
 
     /**
      *
@@ -1291,7 +1291,7 @@ public:
      * @address 0x241470
      * @size 0x68
      */
-    void FadeOutMenuBGMVol(int arg, int value);
+    void FadeOutMenuBGMVol(int step, int volume);
 
     /**
      *
@@ -1917,13 +1917,13 @@ void SetSpectolInfo(CGameDataUsed *item, CGameDataUsed *part);
 
 /**
  *
- * Gives the colour of the fusion effect.
+ * Steps the colour of the fusion effect and copies it into a colour when asked.
  *
  * @mangled FusionColor__FiiPf
  * @address 0x23CF40
  * @size 0x20C
  */
-void FusionColor(int type, int step, float *color);
+void FusionColor(int fusing, int apply, float *color);
 
 /**
  *
@@ -2223,7 +2223,7 @@ void TransSpectolDataSave(CGameDataUsed *item, int count);
  * @address 0x23EF40
  * @size 0x20
  */
-int GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int slot, int arg);
+int GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int place, int chara);
 
 /**
  *
@@ -2233,8 +2233,8 @@ int GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int slot, i
  * @address 0x23EF60
  * @size 0x1644
  */
-int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values, short *marks, int type,
-                       int arg);
+int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values, short *marks, int place,
+                       int chara);
 
 /**
  *

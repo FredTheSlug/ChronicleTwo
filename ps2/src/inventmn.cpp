@@ -2934,7 +2934,7 @@ void CMenuInvent::EnterDataMenu(u8 *pack) {
 
 int CMenuInvent::ItemCmdAfter(int command, ITEMCMD_RET_PARA *para) {
     if (para->menu_cmd >= -1) {
-        MenuSePlay(para->cmd);
+        MenuSePlay(para->se_no);
         signed char result = para->menu_cmd;
 
         switch (result) {
@@ -7423,13 +7423,13 @@ int MenuInventKey() {
                 CMenuInventPt->InitEnd();
                 CMenuInventPt->mode = MENU_ASK_MODE_NONE;
                 CMenuInventPt->opened = 1;
-                CMenuInventPt->unk_10 = 0x80;
+                CMenuInventPt->fade_alpha = 0x80;
             }
 
             break;
         case MENU_ASK_MODE_CLOSE:
             if ((CMenuInventPt->photo_only == 0 && GetMenuMainFrameEndFlag() != 0) ||
-                (CMenuInventPt->photo_only == 1 && CalcMenuAdd(&CMenuInventPt->unk_10, -8, 0) != 0)) {
+                (CMenuInventPt->photo_only == 1 && CalcMenuAdd(&CMenuInventPt->fade_alpha, -8, 0) != 0)) {
                 CMenuInventPt->ExitEnd();
                 result = 1;
 

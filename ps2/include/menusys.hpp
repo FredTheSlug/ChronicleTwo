@@ -190,7 +190,7 @@ enum MENU_INPUTKEY_TYPE {
  */
 struct MENU_SWAPITEM_INFO {
     s16 flag;  /**< Non-zero once the source has been recorded. */
-    s16 type;  /**< Kind of place the item came from; -1 for none. */
+    s16 type;  /**< Kind of place the item came from; -1 for none. @see MENU_SWAP_TYPE */
     s16 no;    /**< Slot within that place. */
     s16 chara; /**< Character owning that place; -1 for none. */
 
@@ -248,7 +248,7 @@ struct MENU_ASKMODE_PARA {
     s16               arg1; /**< Second value that depends on the question. */
     s16               unk_6C;
     s16               unk_6E;
-    s16               ask_mode; /**< Kind of question shown by the menu. */
+    s16               ask_mode; /**< Question of the derived menu while mode is MENU_ASK_MODE_EXTEND. @see MENU_ITEM_EXTEND_KIND */
     s32               unk_74;
     CMenuPosDataForm *form;  /**< Form the question was opened from. */
     CGameDataUsed    *item;  /**< Item the question acts on. */
@@ -289,12 +289,12 @@ STATIC_ASSERT(sizeof(MENU_ASKMODE_PARA) == 0x94);
  *
  */
 struct ITEMCMD_RET_PARA {
-    s16            cmd;      /**< Command that was run, or -1 for none. */
-    s8             menu_cmd; /**< Item menu command returned to the caller. */
+    s16            se_no;      /**< Sound effect played once the command has run, or -1 for none. @see SYSTEM_SE */
+    s8             menu_cmd; /**< Item command that was chosen, or -1 / -2 when none was. @see ITEM_MENU_COMMAND */
     s8             chara;    /**< Character the item is equipped on. */
     s16            result;   /**< Value the command returned, such as what using the item did. */
-    s16            item_no;  /**< Item number of the item the command acted on. */
-    s16            no_equipped_rod;
+    s16            detail;  /**< Further outcome of the command, such as the item number used or why equipping failed. */
+    s16            no_equipped_rod; /**< Non-zero when a bait command acted on a fishing rod that is not equipped. */
     s16            num;   /**< Number of items used by the returned command. */
     CGameDataUsed *item;  /**< Item the command acted on. */
     CGameDataUsed *item2; /**< Second item the command acted on. */
@@ -359,8 +359,8 @@ struct MENU_INPUTKEY_ARG {
     u8  disp_columns; /**< Number of columns on screen at once. */
     u8  rows;         /**< Number of rows of a grid. */
     u8  columns;      /**< Number of columns of a grid. */
-    s16 limit[4];     /**< What each direction does at an edge, as MenuKeySelectCheck takes it. */
-    s16 exit_no[4];   /**< Layout each direction leaves to when it passes an edge, or -1. */
+    s16 limit[4];     /**< What each direction does at an edge, as MenuKeySelectCheck takes it. @see MENU_CURSOR_LIMIT */
+    s16 exit_no[4];   /**< Layout each direction leaves to when it passes an edge, or -1. @see ITEM_MENU_PANEL */
 };
 
 STATIC_ASSERT(sizeof(MENU_INPUTKEY_ARG) == 0x24);
@@ -378,12 +378,12 @@ public:
     s16                message_type; /**< Message type used by the open question. */
     char              *script;       /**< Menu command script of the screen. */
     int                script_size;  /**< Size of the menu command script in bytes. */
-    s32                unk_10;
-    s16                key_arg_no;    /**< Cursor layout in use, as an index into the screen's layout table. */
+    s32                fade_alpha;    /**< Alpha the screen fades with; 0x80 while it is fully shown. */
+    s16                key_arg_no;    /**< Cursor layout in use, as an index into the screen's layout table. @see ITEM_MENU_PANEL */
     int                tex_block[16]; /**< Texture blocks the screen uses, ending at the first negative one. */
     MENU_ASKMODE_PARA  ask_para;      /**< Contents of the open question. */
     MENU_SWAPITEM_INFO swap_info;     /**< Where the item being moved came from. */
-    s16                cmd_arg_pos;   /**< Position of the item that the command list was opened for. */
+    s16                cmd_arg_pos;   /**< Kind of place of the item the command list was opened for. @see MENU_SWAP_TYPE */
     s32                unk_F8;
     s32                make_item_no;  /**< Identifier of the item selected for creation. */
     int                make_num;      /**< Number of objects chosen to make. */
@@ -710,7 +710,7 @@ public:
     u32    select_key;    /**< Direction keys pressed this frame. @see MENU_SELECT_KEY */
     int    push_button;   /**< Buttons pressed this frame. @see MENU_PUSH_BUTTON */
     int    tex_block[16]; /**< Texture blocks the menu system may use. */
-    s32    unk_4C;
+    s32    tex_block_end; /**< Always -1, ending the list of texture blocks. */
     s16    open_type;      /**< What the menu was opened as. @see MenuOpenType */
     int    now_mode;       /**< Menu mode that is running. @see MenuModeID */
     int    next_mode;      /**< Menu mode waiting to start, or -1. @see MenuModeID */
@@ -1158,7 +1158,7 @@ enum MENU_ITEM_VIEW {
 class CMenuItemInfo : public CBaseMenuClass {
 public:
     s16                 view_mode; /**< Page that is shown. @see MENU_ITEM_VIEW */
-    s16                 active_chara_view_mode;
+    s16                 active_chara_view_mode; /**< Page of the active character, which the menu turns back to. @see MENU_ITEM_VIEW */
     s16                 sub_view;     /**< Sub-page that is shown within the page. */
     s16                 view_chara;   /**< Character whose model is shown. */
     s16                 load_item_no; /**< Item list the menu loads models for. */
@@ -1179,8 +1179,8 @@ public:
     u8                  item_consumed;      /**< Non-zero after the current item has been consumed. */
     s16                 equipped_model_no;  /**< Model number of the equipped item shown by the menu. */
     s16                 chara_reload;       /**< Non-zero when the displayed character must be reloaded. */
-    s16                 sub_menu;           /**< Screen opened from the item menu that is running, or -1 for the item menu itself. */
-    s16                 next_sub_menu;      /**< Screen to open from the item menu, or -1 for none. */
+    s16                 sub_menu;           /**< Screen opened from the item menu that is running, or -1 for the item menu itself. @see MENU_ITEM_SUB_MENU */
+    s16                 next_sub_menu;      /**< Screen to open from the item menu, or -1 for none. @see MENU_ITEM_SUB_MENU */
     CGameDataUsed      *view_weapon;        /**< Weapon whose status is shown. */
     CMenuPosDataForm   *view_form[6];       /**< Forms of the pages. */
     s16                 status_check_ready; /**< Non-zero when the special status check can be accepted. */

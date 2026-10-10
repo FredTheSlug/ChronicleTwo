@@ -51,7 +51,7 @@ No symbol names these types, so the names are neutral ones taken from the tables
 - 0x04 u8 `opened`: `CMenuItemInfo::KeyStep` sets it once it has run the opening script (`ExeScript`).
 - 0x08/0x0C: script pointer and size, from `GetPackFile(..., &size)` in `MenuItemInit` and passed to
   `MenuCommandAnalyze(char*, int, char*)`.
-- 0x10 is set to 0x80 by the ctor and never read in menusys (`unk_10`). 0x06, 0xF8, 0xFC and 0x104 are
+- 0x10 is set to 0x80 by the ctor and never read in menusys (`fade_alpha`). 0x06, 0xF8, 0xFC and 0x104 are
   never read here either.
 - 0x14 s16 `key_arg_no`: index into `item_menu_argtbl` (`CMenuItemInfo`).
 - 0x18 `int tex_block[16]`: SetTexBlock/DeleteTexBlock loop to 16 and stop at a value <= 0 or < 0.

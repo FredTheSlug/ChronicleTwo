@@ -875,7 +875,7 @@ CBaseMenuClass::CBaseMenuClass() {
     message_type = 0;
     script = NULL;
     script_size = 0;
-    unk_10 = 0x80;
+    fade_alpha = 0x80;
     key_arg_no = 0;
 
     for (i = 0; i < 16; i++) {
@@ -931,12 +931,12 @@ int CBaseMenuClass::MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, in
 
     if (MenuItemCommnadSelectPrepare(item, arg_pos, chara)) {
         MenuItemCmdRet.result = 0;
-        MenuItemCmdRet.cmd = -1;
+        MenuItemCmdRet.se_no = -1;
         MenuItemCmdRet.menu_cmd = -2;
         MenuItemCmdRet.item2 = NULL;
         MenuItemCmdRet.item = NULL;
         MenuItemCmdRet.num = 0;
-        MenuItemCmdRet.item_no = 0;
+        MenuItemCmdRet.detail = 0;
         mode = MENU_ASK_MODE_ITEM_COMMAND;
         step = 0;
         MENU_ASKMODE_PARA param;
@@ -985,7 +985,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
     CGameDataUsed    *used_data = MenuUserParam.used_data;
     u_long            target;
     CUserDataManager *user = GetUserDataMan();
-    MenuItemCmdRet.cmd = -1;
+    MenuItemCmdRet.se_no = -1;
     int      decided = 0;
     CDC2Mes *mes = MenuDCMsg[ask_para.mes_no];
     int      ret = 0;
@@ -1050,11 +1050,11 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                     MenuItemCmdRet.menu_cmd = cmd;
 
                     if (cmd == -1) {
-                        MenuItemCmdRet.cmd = 5;
+                        MenuItemCmdRet.se_no = 5;
                     } else if (cmd == 0) {
-                        MenuItemCmdRet.cmd = 5;
+                        MenuItemCmdRet.se_no = 5;
                     } else if (cmd == 1) {
-                        MenuItemCmdRet.cmd = 1;
+                        MenuItemCmdRet.se_no = 1;
                     } else if (cmd == ITEM_MENU_COMMAND_EQUIP) {
                         MenuItemCmdRet.result = -1;
                         int item_no = ask_para.item->item_no;
@@ -1064,41 +1064,41 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         CHARA_DATA *chara = MenuUserParam.chara[MenuItemCmdRet.chara];
 
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 0x1C;
+                            MenuItemCmdRet.se_no = 0x1C;
                             int attribute = MenuUserDataManPtr->GetCharaStatusAttirbute(MenuItemCmdRet.chara);
 
                             if (attribute & 8) {
-                                MenuItemCmdRet.item_no = 2;
+                                MenuItemCmdRet.detail = 2;
                             }
 
                             if (attribute & 0x20) {
-                                MenuItemCmdRet.item_no = 3;
+                                MenuItemCmdRet.detail = 3;
                             }
 
                             if (attribute & 4) {
-                                MenuItemCmdRet.item_no = 1;
+                                MenuItemCmdRet.detail = 1;
                             }
 
                             break;
                         }
 
                         if (ask_para.item->IsFishingRod() && !CheckFishCondition()) {
-                            MenuItemCmdRet.cmd = 0x1C;
+                            MenuItemCmdRet.se_no = 0x1C;
                             break;
                         }
 
                         if (slot < 0) {
-                            MenuItemCmdRet.cmd = 0x1C;
+                            MenuItemCmdRet.se_no = 0x1C;
                             break;
                         }
 
                         MenuItemCmdRet.item2 = &chara->equip[slot];
                         GameDataSwap(MenuItemCmdRet.item2, ask_para.item, 1);
                         MenuItemCmdRet.result = slot;
-                        MenuItemCmdRet.cmd = 8;
+                        MenuItemCmdRet.se_no = 8;
                     } else if (cmd == ITEM_MENU_COMMAND_EQUIP_RIDEPOD_PART) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 0x1C;
+                            MenuItemCmdRet.se_no = 0x1C;
                         } else {
                             ROBO_DATA *robo = MenuUserParam.robo;
                             int        item_no = ask_para.item->item_no;
@@ -1107,37 +1107,37 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                             MenuItemCmdRet.chara = IsItemtypeWhoisEquip(item_no, &slot);
 
                             if (MenuItemCmdRet.chara != 2) {
-                                MenuItemCmdRet.cmd = 0x1C;
+                                MenuItemCmdRet.se_no = 0x1C;
                                 break;
                             }
 
                             if (slot < 0) {
-                                MenuItemCmdRet.cmd = 0x1C;
+                                MenuItemCmdRet.se_no = 0x1C;
                                 break;
                             }
 
                             MenuItemCmdRet.item2 = &robo->parts[slot];
                             GameDataSwap(MenuItemCmdRet.item2, ask_para.item, 0);
                             MenuItemCmdRet.result = slot;
-                            MenuItemCmdRet.cmd = 8;
+                            MenuItemCmdRet.se_no = 8;
                         }
                     } else if (cmd == 3 || cmd == 8) {
-                        MenuItemCmdRet.cmd = 1;
+                        MenuItemCmdRet.se_no = 1;
                     } else if (cmd == ITEM_MENU_COMMAND_REPAIR) {
-                        MenuItemCmdRet.cmd = 5;
+                        MenuItemCmdRet.se_no = 5;
                         CGameDataUsed *repair = user->SearchAllHaveItem(ask_para.item->GetEnableRepairItemNo());
 
                         if (MenuItemUse.UseItem(repair, ITEM_USE_TARGET_ITEM, ask_para.item) == 0) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.cmd = -1;
+                            MenuItemCmdRet.se_no = -1;
                             decided = 1;
                             MenuItemCmdRet.result = 1;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_SET_ACTIVE_ITEM) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
                             MenuItemCmdRet.result = -1;
-                            MenuItemCmdRet.cmd = 0x1C;
+                            MenuItemCmdRet.se_no = 0x1C;
                             break;
                         }
 
@@ -1145,7 +1145,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         int         item_no = ask_para.item->item_no;
 
                         if (GetItemInfoData(item_no) == NULL || chara == NULL) {
-                            MenuItemCmdRet.cmd = 0x1C;
+                            MenuItemCmdRet.se_no = 0x1C;
                             MenuItemCmdRet.result = -1;
                             break;
                         }
@@ -1154,16 +1154,16 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         MenuItemCmdRet.result = active_slot;
 
                         if (active_slot < 0) {
-                            MenuItemCmdRet.cmd = 0x1C;
+                            MenuItemCmdRet.se_no = 0x1C;
                         } else {
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                             MenuItemCmdRet.item = &chara->active_item[active_slot];
 
                             if (Ident(ask_para.item->item_no) == MenuItemCmdRet.item->item_no) {
                                 MenuItemCmdRet.num = MenuItemCmdRet.item->GetActiveSetNum() - MenuItemCmdRet.item->GetNum();
 
                                 if (ask_para.item->GetNum() > MenuItemCmdRet.num) {
-                                    MenuItemCmdRet.item_no = 10;
+                                    MenuItemCmdRet.detail = 10;
                                 }
                             }
                         }
@@ -1171,7 +1171,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         MenuItemCmdRet.result = space;
 
                         if (space < 0) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
                             MenuItemCmdRet.item = &used_data[space];
                             int num = MenuItemCmdRet.item->GetNum();
@@ -1180,11 +1180,11 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                                 MenuItemCmdRet.num = num;
                             }
 
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_SPECTRUMIZE) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                             break;
                         }
 
@@ -1198,26 +1198,26 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
 
                         if (space < 0 && num > 100) {
                             MenuItemCmdRet.item = NULL;
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                         }
                     } else if (cmd == 11 || cmd == 12 || cmd == 29 || cmd == 47) {
-                        MenuItemCmdRet.cmd = 1;
+                        MenuItemCmdRet.se_no = 1;
                     } else if (cmd == ITEM_MENU_COMMAND_GIFT_BOX_CONTENTS) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                             break;
                         }
 
                         if (ask_para.item->GetGiftBoxItemNum() > 0) {
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_PUT_IN_AQUARIUM) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.cmd = 6;
+                            MenuItemCmdRet.se_no = 6;
                             user->FishInAquarium(ask_para.item, 0);
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_BOIL_FISH) {
@@ -1226,7 +1226,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         CHARA_DATA *target_chara;
 
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                             target_chara = NULL;
 
                             if (cmd == ITEM_MENU_COMMAND_USE_ON_MAX) {
@@ -1245,31 +1245,31 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                             }
                         } else {
                             target_chara = MenuUserParam.chara[cmd - ITEM_MENU_COMMAND_USE_ON_MAX];
-                            MenuItemCmdRet.item_no = ask_para.item->item_no;
+                            MenuItemCmdRet.detail = ask_para.item->item_no;
                             MenuItemCmdRet.result = MenuItemUse.UseItem(ask_para.item, ITEM_USE_TARGET_CHARA, target_chara);
 
                             if (0 < MenuItemCmdRet.result &&
-                                (MenuItemCmdRet.item_no == 0x124 || MenuItemCmdRet.item_no == 0x110)) {
+                                (MenuItemCmdRet.detail == 0x124 || MenuItemCmdRet.detail == 0x110)) {
                                 MenuItemCmdRet.result = 1;
                             }
                         }
                     } else if (cmd == 17) {
                     } else if (cmd == ITEM_MENU_COMMAND_USE_ON_MONSTER) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.item_no = ask_para.item->item_no;
+                            MenuItemCmdRet.detail = ask_para.item->item_no;
                             MenuItemCmdRet.result = MenuItemUse.UseItem(ask_para.item, ITEM_USE_TARGET_MONSTER, MenuUserParam.monster);
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON || cmd == ITEM_MENU_COMMAND_USE_ON_SECONDARY_WEAPON) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
                             MenuItemCmdRet.result = MenuItemUse.UseItem(ask_para.item, ITEM_USE_TARGET_ITEM, &Ident(MenuUserParam.chara[CMenuItemInfoPt->sub_view])->equip[cmd - ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON]);
                         }
                     } else if (cmd == 21 || cmd == 22) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else if (ask_para.item != NULL && cmd == 22) {
                             CGameDataUsed *core = MenuUserDataManPtr->SearchItemOnItemBrd((int) ITEM_ID_RIDEPOD_FUEL, 1);
 
@@ -1283,26 +1283,26 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_VIEW_BUILD_UP) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         }
                     } else if (cmd == ITEM_MENU_COMMAND_RENAME) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                         }
                     } else if (cmd == 24 || cmd == 25) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                             CGameDataUsed *esa = user->GetActiveEsa();
                             int            esa_no = esa->item_no;
                             MenuItemCmdRet.item2 = NULL;
                             MenuItemCmdRet.item = NULL;
 
                             if (esa_no > 0) {
-                                MenuItemCmdRet.item_no = user->SearchSpaceUsedData(esa_no);
+                                MenuItemCmdRet.detail = user->SearchSpaceUsedData(esa_no);
                                 MenuItemCmdRet.item = user->SearchSpaceUsedDataPtr(esa_no);
 
                                 if (MenuItemCmdRet.item != NULL) {
@@ -1317,9 +1317,9 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         }
                     } else if (cmd == 27 || cmd == 28 || cmd == 32 || cmd == 33) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                             int rod_no = user->GetFishingRodNo();
                             MenuItemCmdRet.no_equipped_rod = 0;
 
@@ -1363,28 +1363,28 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         decided = 1;
                     } else if (cmd == 38) {
                         decided = 1;
-                        MenuItemCmdRet.cmd = 1;
+                        MenuItemCmdRet.se_no = 1;
                     } else if (cmd == 43) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
-                            MenuItemCmdRet.cmd = 1;
+                            MenuItemCmdRet.se_no = 1;
                         }
                     } else if (cmd == 44) {
                         if (ask_para.cmd_color[cursor] == 0x80202020) {
-                            MenuItemCmdRet.cmd = 5;
+                            MenuItemCmdRet.se_no = 5;
                         } else {
                             MenuItemCmdRet.result = 1;
                         }
                     } else if (cmd == 45) {
-                        MenuItemCmdRet.cmd = 1;
+                        MenuItemCmdRet.se_no = 1;
                     } else if (cmd == ITEM_MENU_COMMAND_VIEW_FISHING_ROD) {
-                        MenuItemCmdRet.cmd = 1;
+                        MenuItemCmdRet.se_no = 1;
                     } else {
-                        MenuItemCmdRet.cmd = 5;
+                        MenuItemCmdRet.se_no = 5;
                     }
 
-                    if (MenuItemCmdRet.cmd != 5 && MenuItemCmdRet.cmd != 0x1C) {
+                    if (MenuItemCmdRet.se_no != 5 && MenuItemCmdRet.se_no != 0x1C) {
                         decided = 1;
                         mes->MakeMsg(-100);
                     }
@@ -1393,7 +1393,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                 }
                 case 1:
                     decided = 1;
-                    MenuItemCmdRet.cmd = 5;
+                    MenuItemCmdRet.se_no = 5;
                     MenuItemCmdRet.menu_cmd = -1;
                     break;
             }
@@ -5725,7 +5725,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
             }
 
             int mes_no = ask_para.mes_no;
-            MenuSePlay(ret->cmd);
+            MenuSePlay(ret->se_no);
             mgCMemory *load_stack = &MenuCharaLoadStack;
             int        cursor = MenuCommonInfo->cursor;
 
@@ -5740,8 +5740,8 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     break;
                 case ITEM_MENU_COMMAND_EQUIP:
                     if (MenuItemCmdRet.result < 0) {
-                        if (MenuItemCmdRet.item_no > 0) {
-                            ExeScript(exename[MenuItemCmdRet.item_no]);
+                        if (MenuItemCmdRet.detail > 0) {
+                            ExeScript(exename[MenuItemCmdRet.detail]);
                             step = 1;
                         }
 
@@ -5789,7 +5789,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
                     break;
                 case ITEM_MENU_COMMAND_EQUIP_RIDEPOD_PART:
-                    if (ret->cmd == 5 || ret->cmd == 0x1C) {
+                    if (ret->se_no == 5 || ret->se_no == 0x1C) {
                         if (MenuItemCommand_RoboPackBreakFlag == 1) {
                             ExeScript("\x83\x4C\x83\x83\x83\x70\x91\xAB\x82\xE8\x82\xC8\x82\xA2");
                             step = 1;
@@ -5887,7 +5887,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     if (0 <= ret->result && ((view_mode != MENU_ITEM_VIEW_MONSTER && view_mode != MENU_ITEM_VIEW_ROBO) || sub_view == 1)) {
                         int move_type = 1;
 
-                        if (ret->item_no == 10) {
+                        if (ret->detail == 10) {
                             memcpy(&MenuMoveTempGameDataUsed, ask_para.item, sizeof(CGameDataUsed));
                             ask_para.item->DeleteNum(ret->num);
                             MenuMoveTempGameDataUsed.DeleteNum(ask_para.item->GetNum());
@@ -5931,7 +5931,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     MenuItemCharaDataLoadEndCheckAfter(MenuCharaBuild2, sub_view);
                     break;
                 case ITEM_MENU_COMMAND_SPECTRUMIZE:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         SetPreCmdSpectolBreak(this, 4, MenuMesForm[4], ask_para.item, ret->item);
                         step = 10;
                         CDC2Mes      *mes = MenuDCMsg[4];
@@ -5979,14 +5979,14 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
                     break;
                 case 11:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         next_sub_menu = 0;
                         FadeOutMenu(40, 0.0f);
                     }
 
                     break;
                 case 12:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         next_sub_menu = 1;
 
                         if (chara_poly_form[0] != NULL) {
@@ -6002,7 +6002,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
                     break;
                 case ITEM_MENU_COMMAND_GIFT_BOX_CONTENTS:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         NowGiftBoxPtr = ask_para.item;
                         SetPreCmdGiftBoxSelect(CMenuItemInfoPt, ask_para.item);
 
@@ -6015,7 +6015,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                 case 29:
                 case 38:
                 case 47:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         if (ret->menu_cmd == 29) {
                             next_sub_menu = 3;
                         }
@@ -6048,11 +6048,11 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                         SetItemEffect();
                         CheckEnableHaveItemNum();
 
-                        if (MenuItemCmdRet.item_no == 0x184 || MenuItemCmdRet.item_no == 0x185) {
+                        if (MenuItemCmdRet.detail == 0x184 || MenuItemCmdRet.detail == 0x185) {
                             step = 2;
                             int msg = 0xB8;
 
-                            if (MenuItemCmdRet.item_no == 0x185) {
+                            if (MenuItemCmdRet.detail == 0x185) {
                                 msg = 0xB9;
                             }
 
@@ -6071,7 +6071,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                         step = 2;
                         int msg_no[2] = {10, -1};
 
-                        if (MenuItemCmdRet.item_no == 0x185) {
+                        if (MenuItemCmdRet.detail == 0x185) {
                             msg_no[0] = 11;
                         }
 
@@ -6082,7 +6082,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
                     break;
                 case ITEM_MENU_COMMAND_RENAME:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         Nameregi_Target.target = 0;
                         Nameregi_Target.item = ask_para.item;
 
@@ -6098,7 +6098,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     break;
                 case 24:
                 case 25:
-                    if (ret->cmd == 1 && view_mode == MENU_ITEM_VIEW_MAX && ret->item2 != NULL) {
+                    if (ret->se_no == 1 && view_mode == MENU_ITEM_VIEW_MAX && ret->item2 != NULL) {
                         int esa_no = ret->item2->item_no;
                         ret->item2->Init();
                         ask_para.item->CopyDataItem(esa_no);
@@ -6115,7 +6115,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                 case 28:
                 case 32:
                 case 33:
-                    if (ret->cmd == 1 && view_mode == MENU_ITEM_VIEW_MAX && ret->no_equipped_rod == 0) {
+                    if (ret->se_no == 1 && view_mode == MENU_ITEM_VIEW_MAX && ret->no_equipped_rod == 0) {
                         GameDataSwap(ret->item2, GetUserDataMan()->GetActiveEsa(), 0);
                         int movement[2][4] = {
                             {1, 0, 0, 0},
@@ -6127,7 +6127,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
                     break;
                 case ITEM_MENU_COMMAND_VIEW_FISHING_ROD:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         view_weapon = ask_para.item;
                         view_chara = ask_para.item->item_no;
                         viewing_weapon = 1;
@@ -6158,7 +6158,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
                     break;
                 case 43:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         ExeScript("\x92\x45\x8F\x6F\x3F");
                         mode = MENU_ASK_MODE_ITEM_COMMAND;
                         step = 3;
@@ -6166,7 +6166,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
                     break;
                 case 45:
-                    if (ret->cmd == 1) {
+                    if (ret->se_no == 1) {
                         mode = MENU_ASK_MODE_ITEM_COMMAND;
                         step = 2;
                         ExeScript("\x8B\x9B\x88\xC3\x8D\x86");

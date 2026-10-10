@@ -986,7 +986,7 @@ int MenuMainInit(MENU_INIT_ARG *arg) {
         texture_manager->DeleteBlock(MenuCommonInfo->tex_block[i]);
     }
 
-    MenuCommonInfo->unk_4C = -1;
+    MenuCommonInfo->tex_block_end = -1;
     MenuBGTextureBlock = -1;
     MenuItemIconTextureBlock = -1;
     MenuCommonInfo->open_type = init_arg->open_type;

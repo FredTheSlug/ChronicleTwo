@@ -1171,22 +1171,35 @@ int CInventUserData::GetHatsumeiNum() {
     return count;
 }
 
+/**
+ *
+ * Invention card record of the older save layout that TranslateInventUserData converts.
+ *
+ */
+struct INVENT_CREATED_ITEM_OLD {
+    short   item_id; /**< Item the invention produced, or 0 or less for an empty slot. */
+    u_short unk_2;
+    u8      unk_4[8];
+};
+
+STATIC_ASSERT(sizeof(INVENT_CREATED_ITEM_OLD) == 0xC);
+
 void TranslateInventUserData(CInventUserData *old_data, CInventUserData *new_data) {
-    short               *from;
-    INVENT_CREATED_ITEM *to;
-    int                  i;
+    INVENT_CREATED_ITEM_OLD *from;
+    INVENT_CREATED_ITEM     *to;
+    int                      i;
 
     if (old_data == NULL || new_data == NULL) {
         return;
     }
 
-    from = (short *) old_data->created_item;
+    from = (INVENT_CREATED_ITEM_OLD *) old_data->created_item;
     to = new_data->created_item;
 
     for (i = 0; i < 128; i++) {
-        to->item_id = from[0];
-        to->unk_2 = *(unsigned short *) &from[1];
-        from += 6;
+        to->item_id = from->item_id;
+        to->unk_2 = from->unk_2;
+        from++;
         to++;
     }
 }

@@ -4,9 +4,14 @@
 
 #include <libvu0.h>
 
+#include "actionchara.hpp"
+#include "character.hpp"
 #include "gamedata.hpp"
+#include "menucls1.hpp"
+#include "menudraw.hpp"
 #include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
 #include "userdata.hpp"
 
 /**
@@ -133,14 +138,6 @@ enum ITEM_MENU_COMMAND {
 };
 
 // clang-format on
-class CActionChara;
-class CCharacter2;
-class CDC2Mes;
-class CMenuEffect;
-class CMenuPosDataForm;
-class CRepairManager;
-class mgCTexture;
-struct MENUFORMPARTS_TYPE;
 
 /**
  *
@@ -2178,65 +2175,464 @@ int MenuItemSelectKey();
  */
 void MenuItemSelectDraw();
 
-/** Sound effect played after a swap, for each way a swap can go. */
+/**
+ *
+ * Checks whether fishing is available on the current map and battle state.
+ *
+ * @mangled CheckFishCondition__Fv
+ * @address 0x23C960
+ * @size 0x88
+ */
+int CheckFishCondition();
+
+/**
+ *
+ * Initializes the second spectol information panel when present.
+ *
+ * @mangled InitSpectol__Fv
+ * @address 0x23CC50
+ * @size 0x28
+ */
+void InitSpectol();
+
+/**
+ *
+ * Applies an attachment's spectol values to a weapon and counts raised stats.
+ *
+ * @mangled AfterSpectolFusion__FP13CGameDataUsedP13CGameDataUsed
+ * @address 0x23CC80
+ * @size 0x2B4
+ */
+int AfterSpectolFusion(CGameDataUsed *item, CGameDataUsed *part);
+
+/**
+ *
+ * Saves the source item state and consumes the amount converted to spectol.
+ *
+ * @mangled TransSpectolDataSave__FP13CGameDataUsedi
+ * @address 0x23D3E0
+ * @size 0x7C
+ */
+void TransSpectolDataSave(CGameDataUsed *item, int count);
+
+/**
+ *
+ * Fills an item's available command messages in an ask-mode parameter record.
+ *
+ * @mangled GetItemCommandMsg__FP13CGameDataUsedP17MENU_ASKMODE_PARAii
+ * @address 0x23EF40
+ * @size 0x20
+ */
+int GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int slot, int arg);
+
+/**
+ *
+ * Builds the commands, colors, values, and markers available for an item.
+ *
+ * @mangled GetItemCommandMsg__FP13CGameDataUsedPiPUiPsPsii
+ * @address 0x23EF60
+ * @size 0x1644
+ */
+int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values, short *marks, int type,
+                       int arg);
+
+/**
+ *
+ * Updates an attachment or weapon form with current and changed status values.
+ *
+ * @mangled MenuFormUpdataAttachInfo__FP16CMenuPosDataFormP13CGameDataUsediiPs
+ * @address 0x241D80
+ * @size 0x334
+ */
+void MenuFormUpdataAttachInfo(CMenuPosDataForm *form, CGameDataUsed *item, int item_no, int reset,
+                              s16 *before);
+
+/**
+ *
+ * Assigns an item's number to a visible information form part.
+ *
+ * @mangled local_item_infoview_set__FP18MENUFORMPARTS_TYPEP13CGameDataUsed
+ * @address 0x24C430
+ * @size 0x24
+ */
+void local_item_infoview_set(MENUFORMPARTS_TYPE *part, CGameDataUsed *item);
+
+/**
+ *
+ * Updates a character's equipped weapon indicators and warning colors.
+ *
+ * @mangled MenuItemCharaActWepInfoDraw__FP16CMenuPosDataFormP13CGameDataUsedii
+ * @address 0x24C460
+ * @size 0x45C
+ */
+void MenuItemCharaActWepInfoDraw(CMenuPosDataForm *form, CGameDataUsed *equip, int chara_no, int flag);
+
+/**
+ *
+ * Updates a character's visible health and equipment preview forms.
+ *
+ * @mangled MenuItemCharaViewCheck__FP10CHARA_DATAii
+ * @address 0x24C8C0
+ * @size 0x258
+ */
+void MenuItemCharaViewCheck(CHARA_DATA *chara, int chara_no, int flag);
+
+/**
+ *
+ * Updates monster transformation status and health on its menu form.
+ *
+ * @mangled MenuPosFormValueSetMonster__FP16MOS_CHANGE_PARAMP10CHARA_DATA
+ * @address 0x24CFC0
+ * @size 0x200
+ */
+void MenuPosFormValueSetMonster(MOS_CHANGE_PARAM *monster, CHARA_DATA *chara);
+
+/**
+ *
+ * Updates the weapon upgrade status form for a selected weapon.
+ *
+ * @mangled MenuWeaponStatusInfoFormSet__FP13CGameDataUsedP11CDataWeapon
+ * @address 0x24E500
+ * @size 0x290
+ */
+void MenuWeaponStatusInfoFormSet(CGameDataUsed *item, CDataWeapon *data);
+
+/**
+ *
+ * Looks up the destination cursor layout and row for a preview page selection.
+ *
+ * @mangled MenuItemSelectDiffer__Fi
+ * @address 0x24E790
+ * @size 0x268
+ */
+int MenuItemSelectDiffer(int select);
+
+/**
+ *
+ * Sets the item information cursor indicators for the active menu mode.
+ *
+ * @mangled MenuItemInfoCursorSet__Fi
+ * @address 0x24FEC0
+ * @size 0x128
+ */
+void MenuItemInfoCursorSet(int mode);
+
+/**
+ *
+ * Sound effect played after a swap, for each way a swap can go.
+ *
+ * @mangled menu_item_swap_sndtbl
+ * @address 0x355A60
+ * @size 0x10
+ */
 extern s16 menu_item_swap_sndtbl[8];
 
-/** Inventory place of the item being spectrumised, or -1. */
+/**
+ *
+ * Inventory place of the item being spectrumised, or -1.
+ *
+ * @mangled trans_spectol_pos
+ * @address 0x37CA64
+ * @size 0x4
+ */
 extern int trans_spectol_pos;
 
-/** Weapon repair effect of the item menu. */
+/**
+ *
+ * Weapon repair effect of the item menu.
+ *
+ * @mangled MenuRepairMan
+ * @address 0x37DC1C
+ * @size 0x4
+ */
 extern CRepairManager *MenuRepairMan;
 
-/** Per-character flags for active items whose owned totals reach the item limit. */
+/**
+ *
+ * Flags, per character and active item slot, marking active items whose owned totals reach the item limit.
+ *
+ * @mangled menu_chara_activeItem_limmit_check
+ * @address 0x37DC28
+ * @size 0x6
+ */
 extern u8 menu_chara_activeItem_limmit_check[6];
 
-/** Non-zero while the character status texture is not drawn. */
+/**
+ *
+ * Non-zero while the character status texture is not drawn.
+ *
+ * @mangled MenuStatusMode
+ * @address 0x37DC44
+ * @size 0x1
+ */
 extern s8 MenuStatusMode;
 
-/** Texture of the character status. */
+/**
+ *
+ * Texture of the character status.
+ *
+ * @mangled MenuStatusTex
+ * @address 0x37DC48
+ * @size 0x4
+ */
 extern mgCTexture *MenuStatusTex;
 
-/** Target that an item command uses an item on. */
+/**
+ *
+ * Target that an item command uses an item on.
+ *
+ * @mangled MenuItemUseTarget
+ * @address 0x37DC50
+ * @size 0x8
+ */
 extern CItemUseTarget MenuItemUseTarget;
 
-/** Effects of a spectrumise or fusion in progress. */
+/**
+ *
+ * Effects of a spectrumise or fusion in progress.
+ *
+ * @mangled MenuEffect
+ * @address 0x37DC60
+ * @size 0x8
+ */
 extern CMenuEffect *MenuEffect[];
 
-/** Attachment and weapon of a fusion in progress. */
+/**
+ *
+ * Attachment and weapon of a fusion in progress.
+ *
+ * @mangled SpectolInfo
+ * @address 0x37DC70
+ * @size 0x8
+ */
 extern CGameDataUsed *SpectolInfo[2];
 
-/** Character model the fusion effect plays on. */
+/**
+ *
+ * Character model the fusion effect plays on.
+ *
+ * @mangled SpectolFusionTargetChara
+ * @address 0x37DC7C
+ * @size 0x4
+ */
 extern CCharacter2 *SpectolFusionTargetChara;
 
-/** Position of the item that the command list was opened for. */
+/**
+ *
+ * Kind of place of the item that the command list was opened for.
+ *
+ * @mangled MenuItemCmdArgPos
+ * @address 0x37DC84
+ * @size 0x2
+ */
 extern s16 MenuItemCmdArgPos;
 
-/** Side the command list window opens on, or -1. */
+/**
+ *
+ * Side the command list window opens on, or -1.
+ *
+ * @mangled MenuItemCommandDir
+ * @address 0x37DC94
+ * @size 0x4
+ */
 extern int MenuItemCommandDir;
 
-/** Frame counter of the spectrumise effect. */
+/**
+ *
+ * Frame counter of the spectrumise effect.
+ *
+ * @mangled trans_spectol_cnt
+ * @address 0x37DCB4
+ * @size 0x4
+ */
 extern float trans_spectol_cnt;
 
-/** Non-zero while the shown character model turns. */
+/**
+ *
+ * Non-zero while the shown character model turns.
+ *
+ * @mangled itemmenu_chr_rotflag
+ * @address 0x37DCC4
+ * @size 0x1
+ */
 extern s8 itemmenu_chr_rotflag;
 
-/** Texture of the weapon build-up board. */
+/**
+ *
+ * Texture of the weapon build-up board.
+ *
+ * @mangled Tex_BuildUpBoard
+ * @address 0x37DD50
+ * @size 0x4
+ */
 extern mgCTexture *Tex_BuildUpBoard;
 
-/** Pointers into the player's data that the item menu reads. */
+/**
+ *
+ * Pointers into the player's data that the item menu reads.
+ *
+ * @mangled MenuUserParam
+ * @address 0x1EFC8F0
+ * @size 0x18
+ */
 extern CMENU_USERPARAM MenuUserParam;
 
-/** Arrows and marks drawn around the cursor of the item menu. */
+/**
+ *
+ * Arrows and marks drawn around the cursor of the item menu.
+ *
+ * @mangled MenuItemCursorInfo
+ * @address 0x1EFCAE0
+ * @size 0xC
+ */
 extern MENU_ITEM_CURSOR_INFO MenuItemCursorInfo;
 
-/** Memory that character data shown by the item menu is loaded into. */
+/**
+ *
+ * Memory that character data shown by the item menu is loaded into.
+ *
+ * @mangled MenuCharaLoadStack
+ * @address 0x1EFCC20
+ * @size 0x30
+ */
 extern mgCMemory MenuCharaLoadStack;
 
-/** State of the weapon build-up view. */
+/**
+ *
+ * State of the weapon build-up view.
+ *
+ * @mangled BuildUpWeaponInfo
+ * @address 0x1EFCC50
+ * @size 0x44
+ */
 extern BUILDUP_WEAPON_INFO BuildUpWeaponInfo;
 
-/** Copy of a weapon before a fusion, to compare with afterwards. */
+/**
+ *
+ * Copy of a weapon before a fusion, to compare with afterwards.
+ *
+ * @mangled SepectolFusionBeforeAfterCheck
+ * @address 0x1EFCD10
+ * @size 0x6C
+ */
 extern CGameDataUsed SepectolFusionBeforeAfterCheck;
 
-/** Screen position of each build-up name in the weapon build-up view. */
+/**
+ *
+ * Screen position of each build-up name in the weapon build-up view.
+ *
+ * @mangled BuildUpNameXY
+ * @address 0x1EFCF58
+ * @size 0xC
+ */
 extern s16 BuildUpNameXY[3][2];
+
+/**
+ *
+ * Question contents handed to the menus that open a question.
+ *
+ * @mangled MenuAskParam
+ * @address 0x1EFC850
+ * @size 0x94
+ */
+extern MENU_ASKMODE_PARA MenuAskParam;
+
+/**
+ *
+ * Memory the active character's model, skin and outline are read into when the menu closes.
+ *
+ * @mangled MainCharaReadStack
+ * @address 0x1EFC910
+ * @size 0x30
+ */
+extern mgCMemory MainCharaReadStack;
+
+/**
+ *
+ * Work memory of the item menu.
+ *
+ * @mangled MenuItemMainMemory
+ * @address 0x1EFCB60
+ * @size 0x30
+ */
+extern mgCMemory MenuItemMainMemory;
+
+/**
+ *
+ * Memory holding the item menu's pack file.
+ *
+ * @mangled MenuItemBGDataMemory
+ * @address 0x1EFCB90
+ * @size 0x30
+ */
+extern mgCMemory MenuItemBGDataMemory;
+
+/**
+ *
+ * Memory of the screens opened from the item menu.
+ *
+ * @mangled MenuItemMemory
+ * @address 0x1EFCBC0
+ * @size 0x30
+ */
+extern mgCMemory MenuItemMemory;
+
+/**
+ *
+ * Memory of the item menu's models, effects and move animations.
+ *
+ * @mangled MenuItemMemory2
+ * @address 0x1EFCBF0
+ * @size 0x30
+ */
+extern mgCMemory MenuItemMemory2;
+
+/**
+ *
+ * Copy of the attachment of a fusion, or of the fishing rod before its points are spent.
+ *
+ * @mangled SpectolInfoStay
+ * @address 0x1EFCCA0
+ * @size 0x6C
+ */
+extern CGameDataUsed SpectolInfoStay;
+
+/**
+ *
+ * Copy of an item before it was spectrumised.
+ *
+ * @mangled SpectolTransBefore
+ * @address 0x1EFCDA0
+ * @size 0x6C
+ */
+extern CGameDataUsed SpectolTransBefore;
+
+/**
+ *
+ * Split-off part of a stack that is being moved.
+ *
+ * @mangled MenuMoveTempGameDataUsed
+ * @address 0x1EFCE90
+ * @size 0x6C
+ */
+extern CGameDataUsed MenuMoveTempGameDataUsed;
+
+/**
+ *
+ * The item menu.
+ *
+ * @mangled class_menu_item_info
+ * @address 0x1EFCFA0
+ * @size 0x370
+ */
+extern CMenuItemInfo class_menu_item_info;
+
+/**
+ *
+ * Memory of the item menu's debug model viewer.
+ *
+ * @mangled MenuDebugStack
+ * @address 0x1EFD310
+ * @size 0x30
+ */
+extern mgCMemory MenuDebugStack;

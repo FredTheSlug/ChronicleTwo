@@ -16,6 +16,7 @@
 #include "gamedata.hpp"
 #include "inventmn.hpp"
 #include "mainloop.hpp"
+#include "menuaqua.hpp"
 #include "maintex.hpp"
 #include "map.hpp"
 #include "menuchr.hpp"
@@ -124,17 +125,6 @@ enum MENU_ITEM_KEY_ACTION {
 };
 
 // clang-format on
-void MenuAquaInit(mgCMemory *memory, int *data, int arg);
-void NameRegistInit(mgCMemory *memory, int *data, int arg);
-void MenuNPCQuestViewInit(mgCMemory *memory, int *data, int arg);
-int  GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int slot, int arg);
-int  GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values, short *marks, int type,
-                       int arg);
-void MenuFormUpdataAttachInfo(CMenuPosDataForm *form, CGameDataUsed *item, int item_no, int reset,
-                              short *b);
-void SetSwordBlurEffect(CCharacter2 *chara, mgCMemory *stack, int chara_no);
-void SetupUnitMan(CScene *scene, CUserDataManager *user_data, int unit, ROBO_INFO_DATA *robo);
-void InitSpectol();
 
 static void MenuItemDebugKey();
 
@@ -149,35 +139,8 @@ struct MenuCharaReadBuffers {
     u_int *outline; /**< Loaded outline data. */
 };
 
-extern CDC2Mes      *MenuDCMsg[9];
-extern CGameDataUsed SpectolTransBefore;
-extern CGameDataUsed SpectolInfoStay;
-extern CMenuItemInfo class_menu_item_info;
-void                 MenuWeaponStatusInfoFormSet(CGameDataUsed *item, CDataWeapon *data);
-extern mgCMemory     MainCharaReadStack;
-extern CGamePad      GamePad__2;
-extern mgCMemory     MenuItemMemory;
-extern mgCMemory     MenuItemMemory2;
-extern mgCMemory     MenuItemMainMemory;
-extern mgCMemory     MenuItemBGDataMemory;
-int                  ReadBGSync();
-
-int         AfterSpectolFusion(CGameDataUsed *item, CGameDataUsed *part);
-void        local_item_infoview_set(MENUFORMPARTS_TYPE *part, CGameDataUsed *item);
-int         MenuItemSelectDiffer(int select);
-void        MenuItemCharaActWepInfoDraw(CMenuPosDataForm *form, CGameDataUsed *equip, int chara_no, int flag);
-int         MenuAquaKey();
-int         NameRegistKey();
-int         MenuNPCQuestViewKey();
-void        MenuAquaDraw();
-void        NameRegistDraw();
-void        MenuNPCQuestViewDraw();
 static void MenuItemDebugDraw();
-void        MenuItemInfoCursorSet(int mode);
-void        MenuItemCharaViewCheck(CHARA_DATA *chara, int chara_no, int flag);
 static void MenuPosFormValueSetCharaRobo(ROBO_DATA *robo, int flag);
-void        MenuPosFormValueSetMonster(MOS_CHANGE_PARAM *monster, CHARA_DATA *chara);
-int         CheckFishCondition();
 
 /**
  *
@@ -765,19 +728,6 @@ static float SpectolFramePosValue = 1.39999998f;
  *
  */
 static s8 menu_camera_reference_id = -1;
-
-void MenuAquaInit(mgCMemory *memory, int *data, int arg);
-void NameRegistInit(mgCMemory *memory, int *data, int arg);
-
-int  GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int slot, int arg);
-int  GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values, short *marks, int type,
-                       int arg);
-void MenuFormUpdataAttachInfo(CMenuPosDataForm *form, CGameDataUsed *item, int item_no, int reset,
-                              short *b);
-
-void SetupUnitMan(CScene *scene, CUserDataManager *user_data, int unit, ROBO_INFO_DATA *robo);
-void InitSpectol();
-void MenuItemDebugKey();
 
 /**
  *
@@ -1778,8 +1728,6 @@ int CheckEquipFishRod(CGameDataUsed *item) {
     return result;
 }
 
-void TransSpectolDataSave(CGameDataUsed *item, int count);
-
 int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
     CDC2Mes          *message = MenuDCMsg[ask_para.mes_no];
     CMenuPosDataForm *form = MenuMesForm[ask_para.mes_no];
@@ -2501,11 +2449,6 @@ void SetPreCmdGiftBoxSelect(CBaseMenuClass *menu, CGameDataUsed *item) {
     menu->SetAskParam(&param);
 }
 
-/**
- *
- * Checks whether fishing is available on the current map and battle state.
- *
- */
 int CheckFishCondition() {
     CScene          *scene;
     DNG_BATTLE_AREA *battle_scene;
@@ -2622,22 +2565,12 @@ void SetSpectolInfo(CGameDataUsed *item, CGameDataUsed *part) {
     SpectolInfo[1] = part;
 }
 
-/**
- *
- * Initializes the second spectol information panel when present.
- *
- */
 void InitSpectol() {
     if (SpectolInfo[1] != NULL) {
         SpectolInfo[1]->Init();
     }
 }
 
-/**
- *
- * Applies an attachment's spectol values to a weapon and counts raised stats.
- *
- */
 int AfterSpectolFusion(CGameDataUsed *item, CGameDataUsed *part) {
     WEAPON_USED *target;
     ATTACH_USED *spectol;
@@ -2789,11 +2722,6 @@ void SpectolFrameCalc(CActionChara *chara, int active) {
     }
 }
 
-/**
- *
- * Saves the source item state and consumes the amount converted to spectol.
- *
- */
 void TransSpectolDataSave(CGameDataUsed *item, int count) {
     memcpy(&SpectolTransBefore, item, sizeof(CGameDataUsed));
 
@@ -3750,20 +3678,10 @@ int CMenuKeyFunc::GetItemAll(CGameDataUsed *item, MENU_SWAPITEM_INFO *info) {
     return 1;
 }
 
-/**
- *
- * Fills an item's available command messages in an ask-mode parameter record.
- *
- */
 int GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int slot, int arg) {
     return GetItemCommandMsg(item, param->cmd_msg, param->cmd_color, param->cmd_shade, param->cmd_mark, slot, arg);
 }
 
-/**
- *
- * Builds the commands, colors, values, and markers available for an item.
- *
- */
 int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values, short *marks, int type,
                       int arg) {
     /**
@@ -4505,8 +4423,6 @@ int CMenuKeyFunc::GetDebugInputKey(int &held, int &pressed) {
     return 1;
 }
 
-static int MenuDataSwap(CGameDataUsed *destination, CGameDataUsed *source, int quantity);
-
 int CMenuKeyFunc::MenuSwapItem(CGameDataUsed *item, MENU_SWAPITEM_INFO *swap, int quantity, bool flag) {
     if (item == NULL) {
         return 0;
@@ -5023,11 +4939,6 @@ void MenuPosFormValueSetWeapon(CGameDataUsed *item) {
     }
 }
 
-/**
- *
- * Updates an attachment or weapon form with current and changed status values.
- *
- */
 void MenuFormUpdataAttachInfo(CMenuPosDataForm *form, CGameDataUsed *item, int item_no, int reset, s16 *before) {
     s16 param[10];
     int raised[10];
@@ -5666,8 +5577,6 @@ void CMenuItemInfo::CheckLoadInfo(int chara) {
         MenuLoadInfo.update_scene = 0;
     }
 }
-
-extern CGameDataUsed MenuMoveTempGameDataUsed;
 
 int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
     /**
@@ -7801,7 +7710,6 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
     return 1;
 }
 
-extern mgCMemory MenuDebugStack;
 #pragma inline_depth(5)
 
 /**
@@ -9925,11 +9833,6 @@ done:
     return 1;
 }
 
-/**
- *
- * Assigns an item's number to a visible information form part.
- *
- */
 void local_item_infoview_set(MENUFORMPARTS_TYPE *part, CGameDataUsed *item) {
     if (part != NULL) {
         part->etc_info[0] = 0;
@@ -9938,11 +9841,6 @@ void local_item_infoview_set(MENUFORMPARTS_TYPE *part, CGameDataUsed *item) {
     }
 }
 
-/**
- *
- * Updates a character's equipped weapon indicators and warning colors.
- *
- */
 void MenuItemCharaActWepInfoDraw(CMenuPosDataForm *form, CGameDataUsed *equip, int chara_no, int flag) {
     /**
      *
@@ -10057,11 +9955,6 @@ void MenuItemCharaActWepInfoDraw(CMenuPosDataForm *form, CGameDataUsed *equip, i
     }
 }
 
-/**
- *
- * Updates a character's visible health and equipment preview forms.
- *
- */
 void MenuItemCharaViewCheck(CHARA_DATA *chara, int chara_no, int flag) {
     CMenuPosDataForm *form = CMenuItemInfoPt->view_form[chara_no];
 
@@ -10237,11 +10130,6 @@ static void MenuPosFormValueSetCharaRobo(ROBO_DATA *robo, int flag) {
     form->SetNumber("corep", GetDispVolumeForFloat(robo->abs.now));
 }
 
-/**
- *
- * Updates monster transformation status and health on its menu form.
- *
- */
 void MenuPosFormValueSetMonster(MOS_CHANGE_PARAM *monster, CHARA_DATA *chara) {
     CMenuPosDataForm *form = CMenuItemInfoPt->view_form[4];
 
@@ -10662,11 +10550,6 @@ void MenuWeaponBuildUpDraw(int &tex_block) {
     }
 }
 
-/**
- *
- * Updates the weapon upgrade status form for a selected weapon.
- *
- */
 void MenuWeaponStatusInfoFormSet(CGameDataUsed *item, CDataWeapon *data) {
     int i;
 
@@ -11465,11 +11348,6 @@ int CMenuItemInfo::LRCheck(int key) {
     return 0;
 }
 
-/**
- *
- * Sets the item information cursor indicators for the active menu mode.
- *
- */
 void MenuItemInfoCursorSet(int mode) {
     MENU_ITEM_CURSOR_INFO *info = &MenuItemCursorInfo;
     info->enable = 0;
@@ -12191,8 +12069,6 @@ int MenuItemKey() {
             return 0;
     }
 }
-
-int CheckFishCondition();
 
 void MenuItemDraw() {
     DrawMenuFillBox(0x80, 0, 0, 0);

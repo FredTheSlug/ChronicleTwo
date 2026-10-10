@@ -5,7 +5,13 @@
 #include <libvu0.h>
 
 #include "character.hpp"
+#include "menucls1.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "savedata.hpp"
+#include "userdata.hpp"
+#include "water.hpp"
 
 /**
  * @file
@@ -14,18 +20,7 @@
  * fishing tournament menus that pick fish from it and hand out prizes.
  */
 
-class CDC2Mes;
-class CGameDataUsed;
-class CGyoRaceData;
-class CUserDataManager;
-class CWaterFrame;
-class ClsMes;
-class mgCFrame;
-class mgCTexture;
-struct BREEDFISH_USED;
-
 class CAquaFish;
-class CAquaFishEff;
 
 /**
  *
@@ -110,6 +105,95 @@ enum AQUA_MENU_MODE {
 enum AQUA_CAMERA_CTRL {
     AQUA_CAMERA_CTRL_FREE = 0, /**< Both sticks turn, raise and zoom the camera. */
     AQUA_CAMERA_CTRL_FOOD = 1, /**< The right stick turns and raises the camera at a fixed distance while the left positions the food. */
+};
+
+/**
+ *
+ * Fish slots of a tank, as the aquarium's per-fish tables count them.
+ *
+ */
+enum AQUA_FISH_SLOT {
+    AQUA_FISH_SLOT_NUM = 6, /**< Fish slots of a tank, enough for the largest tank. */
+};
+
+/**
+ *
+ * Item numbers of the foods that Max can drop into the aquarium.
+ *
+ */
+enum AQUA_FOOD_ITEM {
+    AQUA_FOOD_ITEM_TOGECCHI = 312,      /**< Togecchi food. */
+    AQUA_FOOD_ITEM_MIMI = 313,          /**< Mimi food. */
+    AQUA_FOOD_ITEM_EVY = 314,           /**< Evy food. */
+    AQUA_FOOD_ITEM_CARROT = 315,        /**< Carrot, which changes the sex of the fish that eats it. */
+    AQUA_FOOD_ITEM_POTATO_CAKE = 316,   /**< Potato Cake food. */
+    AQUA_FOOD_ITEM_MINON = 317,         /**< Minon food. */
+    AQUA_FOOD_ITEM_BATTON = 318,        /**< Batton food. */
+    AQUA_FOOD_ITEM_PETITE_FISH = 319,   /**< Petite Fish food. */
+    AQUA_FOOD_ITEM_ELECTRIC_WORM = 360, /**< Electric Worm, which turns the fish that eats it into an electric fish. */
+};
+
+/**
+ *
+ * Sounds of the aquarium's sound bank, as Aqua_SpSndID plays them.
+ *
+ */
+enum AQUA_SE {
+    AQUA_SE_OPEN = 0,       /**< Plays when the aquarium's sounds are loaded. */
+    AQUA_SE_EAT = 1,        /**< A fish eats the food. */
+    AQUA_SE_BREED = 2,      /**< Two fish pair in the breeding tank. */
+    AQUA_SE_BATTLE_HIT = 3, /**< A fish takes a hit in a battle. */
+    AQUA_SE_DEAD = 4,       /**< A fish dies. */
+};
+
+/**
+ *
+ * Icon that floats above a fish, as CAquaFishEff::type holds it.
+ *
+ */
+enum AQUA_FISH_EFF {
+    AQUA_FISH_EFF_NONE = 0,  /**< No icon. */
+    AQUA_FISH_EFF_PAIR = 1,  /**< Shown when a fish starts to chase a partner, and at random after it eats. */
+    AQUA_FISH_EFF_GROW = 2,  /**< Shown when a fish's battle parameter rises, and at random after it eats. */
+    AQUA_FISH_EFF_LONG = 3,  /**< Shows the icon of AQUA_FISH_EFF_EAGER for 25000 steps; unused. */
+    AQUA_FISH_EFF_EAGER = 4, /**< Shown when a fish heads for food or swings at another fish. */
+    AQUA_FISH_EFF_SPARE = 5, /**< Icon below that of AQUA_FISH_EFF_GROW, with no time to show; unused. */
+};
+
+/**
+ *
+ * Messages of the aquarium's message file.
+ *
+ */
+enum AQUA_MES {
+    AQUA_MES_TITLE_FIRST = 0x0,            /**< Title of the first tank. */
+    AQUA_MES_TITLE_SECOND = 0x1,           /**< Title of the second tank. */
+    AQUA_MES_TITLE_BREED = 0x2,            /**< Title of the breeding tank. */
+    AQUA_MES_MENU_FIRST = 0xA,             /**< Command menu of the first tank. */
+    AQUA_MES_MENU_SECOND = 0xB,            /**< Command menu of the second tank. */
+    AQUA_MES_MENU_BREED = 0xC,             /**< Command menu of the breeding tank. */
+    AQUA_MES_HELP_VIEW = 0x32,             /**< Button help while viewing the tank. */
+    AQUA_MES_HELP_FOOD = 0x34,             /**< Button help while positioning the food. */
+    AQUA_MES_GUIDE_SELECT = 0xC8,          /**< Guidance to choose a fish. */
+    AQUA_MES_GUIDE_TAKE_OUT = 0xD2,        /**< Guidance to choose the fish to take out. */
+    AQUA_MES_GUIDE_MOVE = 0xDC,            /**< Guidance to choose the fish to move to another tank. */
+    AQUA_MES_BRED = 0x12C,                 /**< Names the parents and the fish born of them. */
+    AQUA_MES_ELECTRIC_STAYS = 0x12D,       /**< Says that an electric fish cannot leave its tank. */
+    AQUA_MES_NO_SPACE = 0x12E,             /**< Says that Max has no room to carry the fish. */
+    AQUA_MES_ELECTRIC = 0x12F,             /**< Names the fish that ate an Electric Worm and became an electric fish. */
+    AQUA_MES_BREED_REFUSE_MALE = 0x130,    /**< Says why a male fish cannot enter the breeding tank; the female's message follows it. */
+    AQUA_MES_BREED_REFUSE_FEMALE = 0x131,  /**< Says why a female fish cannot enter the breeding tank. */
+    AQUA_MES_RENAME_GUIDE = 0x132,         /**< Introduces renaming a fish. */
+    AQUA_MES_BREED_NOT_READY = 0x133,      /**< Gives the feedings that the fish needs before it can breed. */
+    AQUA_MES_DEAD = 0x134,                 /**< Names the fish that died. */
+    AQUA_MES_FULL = 0x136,                 /**< Names the fish that will eat no more. */
+    AQUA_MES_BECAME_FEMALE = 0x137,        /**< Names the fish that became female. */
+    AQUA_MES_BECAME_MALE = 0x138,          /**< Names the fish that became male. */
+    AQUA_MES_RENAME_BLOCKED = 0x139,       /**< Says that the fish cannot be renamed. */
+    AQUA_MES_FOOD_LIST = 0x320,            /**< Question listing the eight ordinary foods. */
+    AQUA_MES_FOOD_LIST_ELECTRIC = 0x321,   /**< Question listing the ordinary foods and the Electric Worm. */
+    AQUA_MES_SWITCH_FROM_FIRST = 0x384,    /**< Question of the tank to view from the first tank; the other tanks' follow it. */
+    AQUA_MES_MOVE_FROM_FIRST = 0x3E8,      /**< Question of the tank to move a fish to from the first tank; the other tanks' follow it. */
 };
 
 /**
@@ -247,7 +331,7 @@ public:
      * @address 0x20E7C0
      * @size 0x88
      */
-    int Generate(float *pos);
+    int Generate(float *start_pos);
 
     /**
      *
@@ -359,6 +443,61 @@ struct AQUA_FISH_ROUND {
 };
 
 STATIC_ASSERT(sizeof(AQUA_FISH_ROUND) == 0x10);
+
+/**
+ *
+ * Icon that floats above a fish of the aquarium for a time.
+ *
+ */
+class CAquaFishEff {
+public:
+    CAquaFish  *fish;    /**< Fish that the icon floats above; NULL for none. */
+    mgCTexture *texture; /**< Texture of the icons. */
+    u16         type;    /**< Icon shown, an AQUA_FISH_EFF value. */
+    s32         timer;   /**< Steps left to show the icon. */
+
+    /**
+     *
+     * Clears the icon and its fish.
+     *
+     * @mangled Initialize__12CAquaFishEffFv
+     * @address 0x210A90
+     * @size 0x14
+     */
+    void Initialize();
+
+    /**
+     *
+     * Shows an icon for the time that the icon's type gives.
+     *
+     * @mangled StartFishEffect__12CAquaFishEffFi
+     * @address 0x210AB0
+     * @size 0x24
+     */
+    void StartFishEffect(int effect_kind);
+
+    /**
+     *
+     * Counts down the icon's time, hiding it when the time runs out.
+     *
+     * @mangled Step__12CAquaFishEffFv
+     * @address 0x210AE0
+     * @size 0x40
+     */
+    void Step();
+
+    /**
+     *
+     * Draws the icon bobbing above the fish, fading out at the end of its time.
+     *
+     * @mangled Draw__12CAquaFishEffFv
+     * @address 0x210B20
+     * @size 0x350
+     */
+    void Draw();
+};
+
+STATIC_ASSERT(sizeof(CAquaFishEff) == 0x10);
 
 /**
  *
@@ -589,61 +728,6 @@ STATIC_ASSERT(sizeof(CAquaFish) == 0x940);
 
 /**
  *
- * Icon that floats above a fish of the aquarium for a time.
- *
- */
-class CAquaFishEff {
-public:
-    CAquaFish  *fish;    /**< Fish that the icon floats above; NULL for none. */
-    mgCTexture *texture; /**< Texture of the icons. */
-    u16         type;    /**< Icon shown, 1 to 5; 0 for none. */
-    s32         timer;   /**< Steps left to show the icon. */
-
-    /**
-     *
-     * Clears the icon and its fish.
-     *
-     * @mangled Initialize__12CAquaFishEffFv
-     * @address 0x210A90
-     * @size 0x14
-     */
-    void Initialize();
-
-    /**
-     *
-     * Shows an icon for the time that the icon's type gives.
-     *
-     * @mangled StartFishEffect__12CAquaFishEffFi
-     * @address 0x210AB0
-     * @size 0x24
-     */
-    void StartFishEffect(int effect_kind);
-
-    /**
-     *
-     * Counts down the icon's time, hiding it when the time runs out.
-     *
-     * @mangled Step__12CAquaFishEffFv
-     * @address 0x210AE0
-     * @size 0x40
-     */
-    void Step();
-
-    /**
-     *
-     * Draws the icon bobbing above the fish, fading out at the end of its time.
-     *
-     * @mangled Draw__12CAquaFishEffFv
-     * @address 0x210B20
-     * @size 0x350
-     */
-    void Draw();
-};
-
-STATIC_ASSERT(sizeof(CAquaFishEff) == 0x10);
-
-/**
- *
  * Food that Max drops into the aquarium, a character that falls, sinks and
  * sways until a fish eats it.
  *
@@ -754,7 +838,7 @@ public:
      * @address 0x211670
      * @size 0x16A8
      */
-    void Initialize(mgCMemory *memory);
+    void Initialize(mgCMemory *stack);
 
     /**
      *
@@ -919,9 +1003,9 @@ public:
     CAquaMes          mes;                /**< Message windows of the menu. */
     mgCMemory         mes_stack;          /**< Memory of the message windows and the menu's images. */
     s16               menu_tex_block;     /**< Texture block of the menu's images. */
-    mgCMemory         fish_stack[6];      /**< Memory of each fish's model. */
-    CAquaFish        *fish[6];            /**< Fish in each slot of the tank; NULL for none. */
-    s16               fish_tex_block[6];  /**< Texture block of each fish's images. */
+    mgCMemory         fish_stack[AQUA_FISH_SLOT_NUM]; /**< Memory of each fish's model. */
+    CAquaFish        *fish[AQUA_FISH_SLOT_NUM]; /**< Fish in each slot of the tank; NULL for none. */
+    s16               fish_tex_block[AQUA_FISH_SLOT_NUM]; /**< Texture block of each fish's images. */
     s16               sel_fish;           /**< Slot of the fish under the cursor; -1 for none. */
     char              target_name[0x20];  /**< Name of target_fish for the messages. */
     char              partner_name[0x20]; /**< Name of partner_fish for the messages. */
@@ -935,7 +1019,7 @@ public:
     s32               food_time; /**< Steps left before dropped food is taken away. */
     u8                unk_344[0x40];
     u8                drop_root_draw; /**< Nonzero to draw the line below the held food. */
-    s16               unk_386;
+    s16               reserve_tex_block; /**< Fifth texture block that the menu was given, kept but unused. */
     s16               love_phase;     /**< Stage of the breeding or electric-food transition. @see AQUA_EVENT_PHASE */
     s16               love_time;      /**< Steps spent in love_phase. */
     s16               love_tex_block; /**< Texture block of love_chara's images. */
@@ -1123,8 +1207,8 @@ public:
  *
  */
 struct FISH_PRIZE_INFO {
-    s32 unk_0;
-    s32 unk_4;
+    s32 item_no; /**< Item number of the prize. */
+    s32 num;     /**< Number of the item given. */
 };
 
 STATIC_ASSERT(sizeof(FISH_PRIZE_INFO) == 0x8);
@@ -1149,7 +1233,7 @@ int GetUseableEsaNo(int *out);
  * @address 0x20EE30
  * @size 0x74
  */
-float SetFishAdjustScale(int length, int item_no, float scale, float max);
+float SetFishAdjustScale(int length, int item_no, float base_scale, float max_scale);
 
 /**
  *
@@ -1201,7 +1285,7 @@ int GetFishImageColor(int item_no, int sex);
  * @address 0x213970
  * @size 0xFC
  */
-int FishIMGReplace(u_long128 *data, CCharacter2 *chara, int item_no, BREEDFISH_USED *fish);
+int FishIMGReplace(u_long128 *data, CCharacter2 *character, int item_no, BREEDFISH_USED *fish);
 
 /**
  *
@@ -1394,7 +1478,7 @@ void InitFishPrize();
  * @address 0x21BB80
  * @size 0x50
  */
-int LoadFishPrize(int type);
+int LoadFishPrize(int goods_type);
 
 /**
  *
@@ -1405,7 +1489,7 @@ int LoadFishPrize(int type);
  * @address 0x21BBD0
  * @size 0xC4
  */
-int LoadFishPrize(int type, mgCMemory *pool);
+int LoadFishPrize(int goods_type, mgCMemory *pool);
 
 /**
  *
@@ -1529,7 +1613,7 @@ void GyoraceMenuDraw();
  * @address 0x21E400
  * @size 0x12C
  */
-void DrawSubGameTitle(mgCTexture *tex, int large, int x, int y, int w);
+void DrawSubGameTitle(mgCTexture *texture, int large, int x, int y, int width);
 
 /**
  *
@@ -1539,7 +1623,7 @@ void DrawSubGameTitle(mgCTexture *tex, int large, int x, int y, int w);
  * @address 0x21E530
  * @size 0x224
  */
-void DrawSubGameListFix(mgCTexture *tex, int x, int y, int w, int h);
+void DrawSubGameListFix(mgCTexture *texture, int x, int y, int width, int height);
 
 /**
  *
@@ -1550,7 +1634,7 @@ void DrawSubGameListFix(mgCTexture *tex, int x, int y, int w, int h);
  * @address 0x21E760
  * @size 0x298
  */
-void DrawSubGameScrlList(mgCTexture *tex, int *box, int *thumb);
+void DrawSubGameScrlList(mgCTexture *texture, int *box, int *thumb);
 
 /**
  *
@@ -1560,7 +1644,7 @@ void DrawSubGameScrlList(mgCTexture *tex, int *box, int *thumb);
  * @address 0x21EA00
  * @size 0xCC
  */
-void DrawSubGameUnderLine(mgCTexture *tex, int x, int y, int w);
+void DrawSubGameUnderLine(mgCTexture *texture, int x, int y, int width);
 
 /**
  *
@@ -1611,3 +1695,43 @@ extern CGyoRaceData *GyoraceData;
  * @size 0x24
  */
 extern CDC2Mes *MenuDCMsg[9];
+
+/**
+ *
+ * Memory of the fish name entry opened from the aquarium.
+ *
+ * @mangled Aquarium_NameregistStack
+ * @address 0x1EFB410
+ * @size 0x30
+ */
+extern mgCMemory Aquarium_NameregistStack;
+
+/**
+ *
+ * The aquarium menu.
+ *
+ * @mangled Aquarium
+ * @address 0x1EFB530
+ * @size 0x3D0
+ */
+extern CAquarium Aquarium;
+
+/**
+ *
+ * Memory of the fish race's fish selection screen.
+ *
+ * @mangled GyoraceFishSelStack
+ * @address 0x1EFB900
+ * @size 0x30
+ */
+extern mgCMemory GyoraceFishSelStack;
+
+/**
+ *
+ * Memory of the saved fish race menu.
+ *
+ * @mangled GyoraceStack
+ * @address 0x1EFB990
+ * @size 0x30
+ */
+extern mgCMemory GyoraceStack;

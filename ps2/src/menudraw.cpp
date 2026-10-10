@@ -132,7 +132,9 @@ struct menu_tile_color {
 };
 
 /**
+ *
  * Provides a rectangle initialized with zero coordinates and dimensions.
+ *
  */
 struct ZeroedRect : mgRect<int> {
     ZeroedRect() { Set(0, 0, 0, 0); }
@@ -238,62 +240,86 @@ struct board_line_width {
 } __attribute__((aligned(16)));
 
 /**
+ *
  * Selects the number of digit places used by menu number drawing.
+ *
  */
 static signed char MenuDrawNumberKeta;
 
 /**
+ *
  * Marks completion of the main menu frame movement.
+ *
  */
 static u8 MenuMainFrame_ActionEndFlag;
 
 /**
+ *
  * Holds the common creation-board texture.
+ *
  */
 static mgCTexture *Tex_CommonBoard;
 
 /**
+ *
  * Holds the material rows and controls drawn on the common creation board.
+ *
  */
 static MENUFORM_MAKEBRD_INFO CommonBoardDrawInfo;
 
 /**
+ *
  * Selects the source item-icon texture and palette.
+ *
  */
 static short use_trans_rect;
 
 /**
+ *
  * Tracks the phase of the enabled-item opacity pulse.
+ *
  */
 static float use_item_enable_alpha_angle;
 
 /**
+ *
  * Holds the current enabled-item opacity.
+ *
  */
 static int use_item_enable_alpha;
 
 /**
+ *
  * Holds horizontal offsets for the spectrum icon raster effect.
+ *
  */
 static float *spectol_raster_xtbl;
 
 /**
+ *
  * Holds the Geostone download panel texture.
+ *
  */
 static mgCTexture *Tex_MenuDl;
 
 /**
+ *
  * Holds the total size displayed by the Geostone download panel.
+ *
  */
 static int MenuDl_TotalSize;
 
 /**
+ *
  * Holds the processed size displayed by the Geostone download panel.
+ *
  */
 static int MenuDl_ProcessSize;
 
 /**
+ *
  * Gives the Geostone download and completion text for each language.
+ *
  */
 static char *tbl_1689[7][2] = {
     {" ",                                                         " "                                                          },
@@ -306,17 +332,23 @@ static char *tbl_1689[7][2] = {
 };
 
 /**
+ *
  * Holds the top-left position of the main menu frame.
+ *
  */
 static float MenuMainFrame_LeftTop_Pos[2];
 
 /**
+ *
  * Tracks the missing-material quantity blink phase.
+ *
  */
 static float make_object_husoku_number_blink;
 
 /**
+ *
  * Tracks the animated menu cursor rotation.
+ *
  */
 static float menu_cursor_rotation_angle;
 
@@ -342,12 +374,16 @@ static menu_line_origin at_3527;
 static menu_memo_pos at_3531;
 
 /**
+ *
  * Holds the repeated form-part quadrilateral screen coordinates.
+ *
  */
 static float putpostbl_3410[8];
 
 /**
+ *
  * Holds the repeated form-part quadrilateral texture coordinates.
+ *
  */
 static int getpostbl_3411[8];
 
@@ -355,47 +391,65 @@ static void MenuFrameImageDraw(mgCDrawPrim *prim, mgCTexture *tex, mgRect<float>
                                int alpha, int dtype);
 
 /**
+ *
  * Holds the item-board icon drawing colour.
+ *
  */
 static u8 localrgba_3166[4];
 
 /**
+ *
  * Tracks the item-board effect animation phase.
+ *
  */
 static float item_board_counter;
 
 /**
+ *
  * Selects the main menu frame display mode.
+ *
  */
 static short MenuMainFrame_Display_Mode;
 
 /**
+ *
  * Tracks the main menu frame display transition.
+ *
  */
 static float MenuMainFrame_Display_Mode_Cnt;
 
 /**
+ *
  * Sets the main menu frame display transition speed.
+ *
  */
 static float MenuMainFrame_Display_Mode_Cnt_Rate;
 
 /**
+ *
  * Holds the centre of the main menu frame lens.
+ *
  */
 static float MenuMainFrame_Lenze_Pos[2];
 
 /**
+ *
  * Holds horizontal and vertical main menu frame movement rates.
+ *
  */
 static float MenuMainFrame_MoveRate[2];
 
 /**
+ *
  * Tracks the main menu frame movement phase.
+ *
  */
 static float MenuMainFrame_MoveRate_Cnt;
 
 /**
+ *
  * Tracks the rotating circular menu frame phase.
+ *
  */
 static float MenuWakuRotCnt;
 
@@ -404,137 +458,191 @@ void SetPartEffectInfoRandFunc(MENU_PARTS_EFFECT_STRUCT1 *effect);
 void SetPartEffectInfoRandFunc(MENU_PARTS_EFFECT_STRUCT1 *effect, short *values, int count);
 
 /**
+ *
  * Holds the total number of item-board rows.
+ *
  */
 static int MenuItemBrdMaxLine;
 
 /**
+ *
  * Holds the number of visible item-board rows.
+ *
  */
 static int MenuItemBrdViewLine;
 
 /**
+ *
  * Holds the item-board scroll cursor length.
+ *
  */
 static float MenuItemBrdScrlCurLen;
 
 /**
+ *
  * Tracks the item icon animation phase.
+ *
  */
 static float DrawItemCounter;
 
 /**
+ *
  * Tracks the item icon blink cycle.
+ *
  */
 static signed char DrawItemDefCounter;
 
 /**
+ *
  * Holds the current item-board scroll bar position.
+ *
  */
 static float MenuItemBrdScrlBarY;
 
 /**
+ *
  * Holds the next vertical position of the item-board cells.
+ *
  */
 static float MenuItemBrdUnderBrdPosY_Next;
 
 /**
+ *
  * Holds the weapon build-up line effect texture.
+ *
  */
 static mgCTexture *MenuVerticalLineTex;
 
 /**
+ *
  * Sets the upper limit of the weapon build-up line effect.
+ *
  */
 static float MenuVerticalLineUpLimmit;
 
 /**
+ *
  * Holds the weapon build-up line effect particles.
+ *
  */
 static CEffVerticalLine *MenuVerticalLine;
 
 /**
+ *
  * Holds the number of weapon build-up line effect particles.
+ *
  */
 static int MenuVerticalLineNum;
 
 /**
+ *
  * Character followed by the weapon build-up effect, or NULL.
+ *
  */
 static CCharacter2 *MenuVerticalLineChara;
 
 /**
+ *
  * Holds the vertical range of the weapon build-up line effect.
+ *
  */
 static float MenuVerticalRange;
 
 /**
+ *
  * Holds the current character position for weapon build-up effects.
+ *
  */
 static float MenuVerticalLineCharaPos[4];
 
 /**
+ *
  * Holds the secondary character position for weapon build-up effects.
+ *
  */
 static float MenuVerticalLineCharaPos2[4];
 
 /**
+ *
  * Holds the positions of the shared level-up sparks.
+ *
  */
 static float l_levelup_pos[32][3];
 
 /**
+ *
  * Holds the velocities of the shared level-up sparks.
+ *
  */
 static float l_levelup_vec[32][3];
 
 /**
+ *
  * Tracks the lifetime of each shared level-up spark.
+ *
  */
 static signed char l_levelup_counter[32];
 
 /**
+ *
  * Tracks the generation interval of each shared level-up spark.
+ *
  */
 static signed char l_levelup_generate_counter[32];
 
 /**
+ *
  * Marks the boiled-fish icon effect as active.
+ *
  */
 static short fish_boiled_runflag;
 
 /**
+ *
  * Tracks the boiled-fish icon effect duration.
+ *
  */
 static short fish_boiled_count;
 
 /**
+ *
  * Holds the positions of the boiled-fish icon effect particles.
+ *
  */
 static float fish_boiled_positin[8][2];
 
 /**
+ *
  * Tracks the sway phase of each boiled-fish icon effect particle.
+ *
  */
 static float fish_boiled_amp_count[8];
 
 /**
+ *
  * Holds the opacity of each boiled-fish icon effect particle.
+ *
  */
 static float fish_boiled_alpha[8];
 
 /**
+ *
  * Holds the size multiplier of each boiled-fish icon effect particle.
+ *
  */
 static float fish_boiled_streatch_rate[8];
 
 /**
+ *
  * Holds the texture used by the boiled-fish icon effect.
+ *
  */
 static mgCTexture *fish_boiled_effect_tex;
 
 /**
+ *
  * Holds the generated item-icon texture name.
+ *
  */
 static char temp_3925[32];
 
@@ -581,7 +689,9 @@ void InitInitBuildUpInfoEffectPos();
 #include "common.h"
 
 /**
+ *
  * Defines the three texture-coordinate vertices of each spectrum fragment.
+ *
  */
 static s16 spectol_break_pos[16][3][2] = {
     {{0, 0},
@@ -635,7 +745,9 @@ static s16 spectol_break_pos[16][3][2] = {
 };
 
 /**
+ *
  * Defines the direction angles associated with each spectrum fragment.
+ *
  */
 static float spectol_break_angle[16][6] = {
     {0.0f, 0.0f, 0.0f,         0.0f,         -0.785398006f, -0.785398006f},
@@ -657,7 +769,9 @@ static float spectol_break_angle[16][6] = {
 };
 
 /**
+ *
  * Gives the item icon texture rectangles for the two source textures.
+ *
  */
 static MENU_SHORT_RECT item_transtbl[2] = {
     {224, 736, 32, 32},
@@ -665,7 +779,9 @@ static MENU_SHORT_RECT item_transtbl[2] = {
 };
 
 /**
+ *
  * Gives the RGBA overlays for the nine paint item icons.
+ *
  */
 static int paint_color_table_1234[9][4] = {
     {233, 0,   0,   64},
@@ -680,17 +796,23 @@ static int paint_color_table_1234[9][4] = {
 };
 
 /**
+ *
  * Gives the vertical offsets of the spectrum icon raster lines.
+ *
  */
 static s8 spectol_y_addtbl_1245[40] = {1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1};
 
 /**
+ *
  * Gives the texture rectangles used by the gift-box window frame.
+ *
  */
 static short MenuWindowHelpTable_1346[36] = {0, 0, 22, 24, 23, 0, 2, 24, 24, 0, 22, 24, 0, 25, 22, 1, 22, 25, 2, 1, 24, 25, 22, 1, 0, 68, 22, 24, 22, 68, 2, 24, 24, 68, 22, 24};
 
 /**
+ *
  * Gives the left, centre and right texture rectangles of each download-panel row.
+ *
  */
 static MENU_SHORT_RECT table_1650[3][3] = {
     {{0, 0, 32, 32},
@@ -705,7 +827,9 @@ static MENU_SHORT_RECT table_1650[3][3] = {
 };
 
 /**
+ *
  * Gives the three texture rectangles of active and inactive material-board rows.
+ *
  */
 static s16 get_onoffbrdtbl_1789[2][3][4] = {
     {{66, 72, 6, 30},
@@ -717,17 +841,23 @@ static s16 get_onoffbrdtbl_1789[2][3][4] = {
 };
 
 /**
+ *
  * Gives the target movement counts for each main menu frame mode.
+ *
  */
 static float tbl_2072[8] = {10.0f, 14.0f, 24.0f, 27.0f, 24.0f, 24.0f, 24.0f, 24.0f};
 
 /**
+ *
  * Gives the RGB colours used by the menu star particles.
+ *
  */
 static int star_color_table[9] = {255, 111, 111, 34, 230, 23, 0, 0, 128};
 
 /**
+ *
  * Identifies the texture rectangles used by the item-board frame.
+ *
  */
 enum MENU_ITEM_FRAME_PART {
     MENU_ITEM_FRAME_TOP_LEFT = 0,      /**< Top-left corner. */
@@ -745,7 +875,9 @@ enum MENU_ITEM_FRAME_PART {
 };
 
 /**
+ *
  * Selects texture rectangles for the top and bottom item-board frame segments.
+ *
  */
 static s16 frmtbl0_2922[16] = {
     MENU_ITEM_FRAME_TOP_LEFT,
@@ -767,7 +899,9 @@ static s16 frmtbl0_2922[16] = {
 };
 
 /**
+ *
  * Selects texture rectangles for the side item-board frame segments.
+ *
  */
 static s16 frmtbl1_2938[10] = {
     MENU_ITEM_FRAME_LEFT,
@@ -783,12 +917,16 @@ static s16 frmtbl1_2938[10] = {
 };
 
 /**
+ *
  * Gives the oscillation rates for each remaining fish bounce count.
+ *
  */
 static float rottbl_3145[3] = {0.130899698f, 0.112199739f, 0.0872664675f};
 
 /**
+ *
  * Gives the base position offsets for the main menu icons.
+ *
  */
 static short baseposoffset_tbl_4194[23][2] = {
     {0,   0},
@@ -817,7 +955,9 @@ static short baseposoffset_tbl_4194[23][2] = {
 };
 
 /**
+ *
  * Gives language-specific destination offsets for main menu icon movement.
+ *
  */
 static short actposoffsettbl1_4195[3][18][2] = {
     {{0, 0},
@@ -877,7 +1017,9 @@ static short actposoffsettbl1_4195[3][18][2] = {
 };
 
 /**
+ *
  * Gives the RGBA colours of the two level-up spark kinds.
+ *
  */
 static int l_levelup_color[2][4] = {
     {79,  125, 75,  128},
@@ -885,12 +1027,16 @@ static int l_levelup_color[2][4] = {
 };
 
 /**
+ *
  * Gives the normal gift-box item icon colour.
+ *
  */
 static u8 rgbatbl_1379[4] = {128, 128, 128, 128};
 
 /**
+ *
  * Gives the glyph coordinates for active and inactive creation-board buttons.
+ *
  */
 static s8 get_btntbl_1810[2][2] = {
     {80, 88},
@@ -898,17 +1044,23 @@ static s8 get_btntbl_1810[2][2] = {
 };
 
 /**
+ *
  * Holds the centre position used by circular menu frames.
+ *
  */
 static float MenuWakuPutXY[2] = {0.0f, 0.0f};
 
 /**
+ *
  * Gives the normal item-board icon colour.
+ *
  */
 static u8 static_rgba_table_3128[4] = {128, 128, 128, 128};
 
 /**
+ *
  * Selects the primitive kind and vertex count for repeated form-part drawing.
+ *
  */
 static u8 menu_prim_tbl[2][2] = {
     {MG_PRIM_SPRITE,         2},
@@ -916,22 +1068,30 @@ static u8 menu_prim_tbl[2][2] = {
 };
 
 /**
+ *
  * Holds the main menu icon base position.
+ *
  */
 static short basepos_4190[2] = {44, 96};
 
 /**
+ *
  * Holds the main menu icon left boundary position.
+ *
  */
 static short farleft_4191[2] = {-260, 0};
 
 /**
+ *
  * Holds the shared main menu icon movement offset.
+ *
  */
 static short xyoffset_4192[2] = {20, 43};
 
 /**
+ *
  * Holds the main menu icon action destination position.
+ *
  */
 static short actpos_4193[2] = {44, 16};
 
@@ -1023,12 +1183,12 @@ static void ConvMGFRECTtoFLOATtbl(mgRect<float> rect, float *corners) {
  *
  */
 void SetPartEffectInfoRandFunc(MENU_PARTS_EFFECT_STRUCT1 *effect) {
-    if (effect != 0) {
+    if (effect != NULL) {
         int rand_a = rand();
         int rand_b = rand();
 
         switch (effect->type) {
-            case 9:
+            case MENU_PARTS_EFFECT_SPARKLE:
                 effect->param[0] = 0.0f;
                 effect->param[1] = 34.0f + (float) (rand_a % 20);
                 effect->param[2] = 2.0f + (float) (rand_a % 30);
@@ -1038,7 +1198,7 @@ void SetPartEffectInfoRandFunc(MENU_PARTS_EFFECT_STRUCT1 *effect) {
                 effect->param[6] = (float) (rand_a % 9);
                 effect->param[7] = 3.0f + (float) (rand_b % 6);
                 return;
-            case 6:
+            case MENU_PARTS_EFFECT_STRETCH:
                 effect->param[0] = 0.0f;
                 effect->param[1] = 320.0f;
                 effect->param[2] = 16.0f;
@@ -1062,18 +1222,18 @@ void SetPartEffectInfoRandFunc(MENU_PARTS_EFFECT_STRUCT1 *effect, short *values,
 }
 
 void SetSpriteEnv(mgCDrawPrim *prim, int mode) {
-    if (prim != 0) {
-        prim->Initialize(0, 0);
+    if (prim != NULL) {
+        prim->Initialize(NULL, NULL);
         prim->Coord(0);
 
         switch (mode) {
-            case 0:
-            case 4:
-            case 6:
+            case MENU_SPRITE_ENV_TEXTURE:
+            case MENU_SPRITE_ENV_ADD:
+            case MENU_SPRITE_ENV_SHADED:
                 prim->AlphaBlendEnable(1);
                 prim->Bilinear(0);
 
-                if (mode == 4) {
+                if (mode == MENU_SPRITE_ENV_ADD) {
                     prim->AlphaBlend(MG_ALPHA_BLEND_ADD);
                     prim->Bilinear(1);
                 } else {
@@ -1088,15 +1248,15 @@ void SetSpriteEnv(mgCDrawPrim *prim, int mode) {
                 prim->TextureMapEnable(1);
                 prim->AntiAliasing(0);
 
-                if (mode == 6) {
+                if (mode == MENU_SPRITE_ENV_SHADED) {
                     prim->Shading(1);
                     prim->Bilinear(1);
                     return;
                 }
 
                 break;
-            case 1:
-            case 2:
+            case MENU_SPRITE_ENV_COLOR:
+            case MENU_SPRITE_ENV_COLOR_AA:
                 prim->AlphaTestEnable(1);
                 prim->AlphaTest(1, 0);
                 prim->AlphaBlendEnable(1);
@@ -1104,7 +1264,7 @@ void SetSpriteEnv(mgCDrawPrim *prim, int mode) {
                 prim->TextureMapEnable(0);
                 prim->DepthTestEnable(1);
 
-                if (mode == 2) {
+                if (mode == MENU_SPRITE_ENV_COLOR_AA) {
                     prim->DepthTestEnable(0);
                     prim->AntiAliasing(1);
                 }
@@ -1112,7 +1272,7 @@ void SetSpriteEnv(mgCDrawPrim *prim, int mode) {
                 prim->ZMask(MG_Z_MASK_MASKED);
                 prim->Shading(1);
                 return;
-            case 5:
+            case MENU_SPRITE_ENV_OPAQUE:
                 prim->AlphaTestEnable(0);
                 prim->AlphaTest(1, 0);
                 prim->AlphaBlendEnable(0);
@@ -1123,7 +1283,7 @@ void SetSpriteEnv(mgCDrawPrim *prim, int mode) {
                 prim->TextureMapEnable(1);
                 prim->Bilinear(1);
                 return;
-            case 3:
+            case MENU_SPRITE_ENV_COLOR_NO_DEPTH:
                 prim->AlphaTestEnable(1);
                 prim->AlphaTest(1, 0);
                 prim->AlphaBlendEnable(1);
@@ -1162,7 +1322,7 @@ void PrimQuad(mgCTexture *texture, float x, float y, mgRect<int> cell, int alpha
               int blue) {
 
     mgCDrawPrim prim;
-    SetSpriteEnv(&prim, 0);
+    SetSpriteEnv(&prim, MENU_SPRITE_ENV_TEXTURE);
     prim.Begin(MG_PRIM_SPRITE);
     prim.Texture(texture);
     prim.Color(red, green, blue, alpha);
@@ -1172,7 +1332,7 @@ void PrimQuad(mgCTexture *texture, float x, float y, mgRect<int> cell, int alpha
 
 void PrimQuad(mgCDrawPrim *prim, mgCTexture *texture, float x, float y, mgRect<int> cell, int alpha,
               int red, int green, int blue) {
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(texture);
     prim->Color(red, green, blue, alpha);
@@ -1184,7 +1344,7 @@ void PrimQuad(mgCTexture *texture, mgRect<int> dest, mgRect<int> source, int alp
               int blue) {
 
     mgCDrawPrim prim;
-    SetSpriteEnv(&prim, 0);
+    SetSpriteEnv(&prim, MENU_SPRITE_ENV_TEXTURE);
     prim.Begin(MG_PRIM_SPRITE);
     prim.Texture(texture);
     prim.Color(red, green, blue, alpha);
@@ -1194,7 +1354,7 @@ void PrimQuad(mgCTexture *texture, mgRect<int> dest, mgRect<int> source, int alp
 
 void PrimQuad(mgCDrawPrim *prim, mgCTexture *texture, mgRect<int> dest, mgRect<int> source, int alpha,
               int red, int green, int blue) {
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(texture);
     prim->Color(red, green, blue, alpha);
@@ -1226,7 +1386,7 @@ void MenuClipRectCheck(mgRect<int> &rect) {
 
 void SetMenuScissor(mgRect<int> rect) {
     mgCDrawPrim *prim = GetMenuPrim();
-    prim->Initialize(0, 0);
+    prim->Initialize(NULL, NULL);
     prim->Begin(MG_PRIM_POINT);
     prim->Direct(SCE_GS_SCISSOR_1, rect.left | ((s64) rect.right << 16) | ((s64) rect.top << 32) | ((s64) rect.bottom << 48));
     prim->End();
@@ -1234,7 +1394,7 @@ void SetMenuScissor(mgRect<int> rect) {
 
 void ResetMenuScissor() {
     mgCDrawPrim *prim = GetMenuPrim();
-    prim->Initialize(0, 0);
+    prim->Initialize(NULL, NULL);
     prim->Begin(MG_PRIM_POINT);
     prim->Direct(SCE_GS_SCISSOR_1, ((s64) (mgScreenWidth - 1) << 16) | ((s64) (mgScreenHeight - 1) << 48));
     prim->End();
@@ -1249,7 +1409,7 @@ int SetModeMenuDrawItemBoard(int mode) {
     MenuDrawItemInfoNum = 0;
     party = GetUserDataMan()->GetNowPartyMember();
 
-    if (mode == 0) {
+    if (mode == MENU_ITEM_BOARD_BAG) {
         for (k = 0; k < 150; k++) {
             MenuDrawItemInfo[k] = &MenuUserParam.used_data[k];
         }
@@ -1257,15 +1417,15 @@ int SetModeMenuDrawItemBoard(int mode) {
         MenuDrawItemInfoNum = GetNowBagMax(1);
     }
 
-    if (mode == 1) {
-        if (party & 1) {
+    if (mode == MENU_ITEM_BOARD_WEAPON) {
+        if (party & (1 << USER_CHARA_MAX)) {
             MenuDrawItemInfo[MenuDrawItemInfoNum] = &MenuUserParam.chara[0]->equip[0];
             MenuDrawItemInfoNum++;
             MenuDrawItemInfo[MenuDrawItemInfoNum] = &MenuUserParam.chara[0]->equip[1];
             MenuDrawItemInfoNum++;
         }
 
-        if (party & 2) {
+        if (party & (1 << USER_CHARA_MONICA)) {
             MenuDrawItemInfo[MenuDrawItemInfoNum] = &MenuUserParam.chara[1]->equip[0];
             MenuDrawItemInfoNum++;
             MenuDrawItemInfo[MenuDrawItemInfoNum] = &MenuUserParam.chara[1]->equip[1];
@@ -1282,8 +1442,8 @@ int SetModeMenuDrawItemBoard(int mode) {
         }
     }
 
-    if (mode == 2) {
-        if (party & 4) {
+    if (mode == MENU_ITEM_BOARD_RIDEPOD_ARM) {
+        if (party & (1 << USER_CHARA_ROBO)) {
             MenuDrawItemInfo[MenuDrawItemInfoNum] = &MenuUserParam.robo->parts[0];
             MenuDrawItemInfoNum++;
         }
@@ -1298,8 +1458,8 @@ int SetModeMenuDrawItemBoard(int mode) {
         }
     }
 
-    if (mode == 3) {
-        if (party & 4) {
+    if (mode == MENU_ITEM_BOARD_ENERGY_PACK) {
+        if (party & (1 << USER_CHARA_ROBO)) {
             MenuDrawItemInfo[MenuDrawItemInfoNum] = &MenuUserParam.robo->parts[2];
             MenuDrawItemInfoNum++;
         }
@@ -1314,7 +1474,7 @@ int SetModeMenuDrawItemBoard(int mode) {
         }
     }
 
-    if (mode == 4) {
+    if (mode == MENU_ITEM_BOARD_FISH) {
         if (0 < GetUserItemHaveNum(0x135)) {
             CFishAquarium *aquarium = GetAquariumData();
 
@@ -1389,7 +1549,7 @@ void DrawOneItem(mgCDrawPrim *prim, mgRect<float> rect, int item, int mode, MENU
         mgCTexture *tex = GetMenuItemIconTexInfo(item, mode);
 
         if (tex != NULL) {
-            if (mode != 0) {
+            if (mode != MENU_ICON_MODE_NORMAL) {
                 textures->ReloadCLUT(tex, (sceVif1Packet *) NULL);
             }
 
@@ -1418,12 +1578,12 @@ void DrawOneItem(mgCDrawPrim *prim, mgRect<float> rect, int item, int mode, MENU
             int   uv_right = uv.left + uv.right;
             int   uv_bottom = uv.top + uv.bottom;
 
-            if (mode != 1) {
-                SetSpriteEnv(prim, 0);
+            if (mode != MENU_ICON_MODE_SPECTRUM) {
+                SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
                 prim->Begin(MG_PRIM_SPRITE);
                 prim->Texture(tex);
 
-                if (mode == 0) {
+                if (mode == MENU_ICON_MODE_NORMAL) {
                     mgRect<float> shadow(3.0f + rect.left, 3.0f + rect.top, rect.right, rect.bottom);
                     prim->Color(0, 0, 0, rgba[3] * 40 / 128);
                     prim->TextureCrd(uv.left, uv.top);
@@ -1432,7 +1592,7 @@ void DrawOneItem(mgCDrawPrim *prim, mgRect<float> rect, int item, int mode, MENU
                     prim->Vertex(shadow.left + shadow.right, shadow.top + shadow.bottom, 0.0f);
                 }
 
-                if ((item_flag & (int) MENU_ITEM_ICON_HIGHLIGHT) || item == 0x128) {
+                if ((item_flag & MENU_ITEM_ICON_HIGHLIGHT) || item == 0x128) {
                     int add = 0x30;
 
                     if (DrawItemDefCounter < 40) {
@@ -1483,7 +1643,7 @@ void DrawOneItem(mgCDrawPrim *prim, mgRect<float> rect, int item, int mode, MENU
                     prim->Begin(MG_PRIM_SPRITE);
                 }
 
-                if (mode == 2) {
+                if (mode == MENU_ICON_MODE_DIMMED) {
                     prim->Color(0x14, 0x14, 0x14, rgba[3] >> 2);
                     prim->TextureCrd(uv.left, uv.top);
                     prim->Vertex(rect.left, rect.top, 0.0f);
@@ -1506,8 +1666,8 @@ void DrawOneItem(mgCDrawPrim *prim, mgRect<float> rect, int item, int mode, MENU
                     prim->TextureCrd(mark_u + 16, mark_v + 16);
                     prim->Vertex(16.0f + mark_x, 16.0f + mark_y, 0.0f);
                 }
-            } else if (mode == 1) {
-                SetSpriteEnv(prim, 4);
+            } else if (mode == MENU_ICON_MODE_SPECTRUM) {
+                SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
                 prim->AntiAliasing(0);
                 prim->Begin(MG_PRIM_SPRITE);
                 prim->Texture(tex);
@@ -1546,7 +1706,7 @@ void DrawOneItem(mgCDrawPrim *prim, mgRect<float> rect, int item, int mode, MENU
 
             prim->End();
 
-            if (item_flag & (int) MENU_ITEM_ICON_BUILD_UP) {
+            if (item_flag & MENU_ITEM_ICON_BUILD_UP) {
                 float mark_x;
                 float mark_right;
                 float mark_y;
@@ -1594,25 +1754,25 @@ void DrawOneItem(mgCDrawPrim *prim, mgRect<float> rect, int item, int mode, MENU
  */
 void MenuWindowHelp(mgCDrawPrim *prim, mgCTexture *texture, float x, float y, float width, float height,
                     short *table) {
-    if (texture != 0) {
+    if (texture != NULL) {
         mgRect<int> top;
         mgRect<int> middle;
         mgRect<int> bottom;
 
-        if (table == 0) {
+        if (table == NULL) {
             table = MenuWindowHelpTable_1346;
         }
 
-        SetSpriteEnv(prim, 0);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(texture);
         prim->Color(128, 128, 128, 128);
         top.Set((int) x, (int) y, (int) width, 24);
         Menu3DivideTextureDraw(prim, top, table, 1);
         middle.Set((int) x, (int) (24.0f + y), (int) width, (int) height);
-        Menu3DivideTextureDraw(prim, middle, table + 12, 1);
+        Menu3DivideTextureDraw(prim, middle, &table[12], 1);
         bottom.Set((int) x, (int) (24.0f + y + height), (int) width, 24);
-        Menu3DivideTextureDraw(prim, bottom, table + 24, 1);
+        Menu3DivideTextureDraw(prim, bottom, &table[24], 1);
         prim->End();
     }
 }
@@ -1705,8 +1865,13 @@ static void SetMenuDrawNumberKeta(char value) {
     MenuDrawNumberKeta = value;
 }
 
+/**
+ *
+ * Returns its argument unchanged.
+ *
+ */
 template <typename T>
-static inline T Ident(T v) { return v; }
+static inline T Ident(T value) { return value; }
 
 /**
  *
@@ -1721,11 +1886,11 @@ int DrawMenuNumber(mgCDrawPrim *prim, int number, int align, mgRect<int> rect, m
     int y = rect.top;
     int padding = MenuDrawNumberKeta;
 
-    if (align == (int) MENU_NUMBER_ALIGN_CENTER) {
+    if (align == MENU_NUMBER_ALIGN_CENTER) {
         x = (int) ((float) x + 0.5f * (float) step_x * (float) (digits - 1));
     }
 
-    if (align == (int) MENU_NUMBER_ALIGN_LEFT) {
+    if (align == MENU_NUMBER_ALIGN_LEFT) {
         if (padding < 0) {
             x += step_x * (digits - 1);
         } else {
@@ -1773,9 +1938,9 @@ void PrimDrawNumber(mgCDrawPrim *prim, int number, int alignment, int x, int y,
 
 void PrimDrawNumber2(mgCDrawPrim *prim, int number, int digit_count, int x, int y,
                      mgRect<int> texture_rect, int spacing, int vertical_spacing) {
-    SetMenuDrawNumberKeta((char) digit_count);
+    SetMenuDrawNumberKeta(digit_count);
     mgRect<int> rect(x, y, texture_rect.right, texture_rect.bottom);
-    DrawMenuNumber(prim, number, (int) MENU_NUMBER_ALIGN_RIGHT, rect, texture_rect, texture_rect.right + spacing, vertical_spacing);
+    DrawMenuNumber(prim, number, MENU_NUMBER_ALIGN_RIGHT, rect, texture_rect, texture_rect.right + spacing, vertical_spacing);
 }
 
 void PrimFillRect4(mgCDrawPrim *prim, mgRect<float> rect, float *rgba0, float *rgba1, float *rgba2, float *rgba3) {
@@ -1803,7 +1968,7 @@ void MenuReloadTexture(int &loaded_tex, int tex_no) {
 
     if (loaded_tex != tex_no) {
         loaded_tex = tex_no;
-        manager->ReloadTexture(loaded_tex, (sceVif1Packet *) 0);
+        manager->ReloadTexture(loaded_tex, (sceVif1Packet *) NULL);
     }
 }
 
@@ -1814,20 +1979,20 @@ void MenuReloadCLUT(int index) {
     t.tex[0] = MenuCharaChangeCLUT_Tex;
     t.tex[1] = MenuCharaChangeBase_Tex;
 
-    if (t.tex[index] != 0) {
-        mgTexManager.ReloadCLUT(t.tex[index], (sceVif1Packet *) 0);
+    if (t.tex[index] != NULL) {
+        mgTexManager.ReloadCLUT(t.tex[index], (sceVif1Packet *) NULL);
     }
 }
 
 void DrawMenuFillBox(int alpha, int red, int green, int blue) {
-    DrawMenuFillBox(0.0f, 0.0f, (float) mgScreenWidth, (float) mgScreenHeight, alpha, red, green, blue);
+    DrawMenuFillBox(0.0f, 0.0f, mgScreenWidth, mgScreenHeight, alpha, red, green, blue);
 }
 
 void DrawMenuFillBox(float x, float y, float width, float height, int alpha, int red, int green, int blue) {
     mgCDrawPrim *prim;
 
     prim = GetMenuPrim();
-    SetSpriteEnv(prim, 1);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_COLOR);
     prim->DepthTestEnable(0);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Color(red, green, blue, alpha);
@@ -1838,7 +2003,7 @@ void DrawMenuFillBox(float x, float y, float width, float height, int alpha, int
 
 void DrawMenuFillBox(mgCDrawPrim *prim, float x, float y, float width, float height, int alpha, int red,
                      int green, int blue) {
-    SetSpriteEnv(prim, 1);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_COLOR);
     prim->DepthTestEnable(0);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Color(red, green, blue, alpha);
@@ -1847,8 +2012,13 @@ void DrawMenuFillBox(mgCDrawPrim *prim, float x, float y, float width, float hei
     prim->End();
 }
 
+/**
+ *
+ * Generates the points of a scribbled line that wanders down and up within a box.
+ *
+ */
 void GenarateRandamLine(int *origin, int width, int height, int *points, int count, int unused) {
-    int   rising = 1;
+    int   rising = true;
     float sway;
     float progress;
     int   offset = 0;
@@ -1870,13 +2040,13 @@ void GenarateRandamLine(int *origin, int width, int height, int *points, int cou
             offset += step;
 
             if (offset > height) {
-                rising = 0;
+                rising = false;
             }
         } else {
             offset -= step;
 
             if (offset < 0) {
-                rising = 1;
+                rising = true;
             }
         }
     }
@@ -1904,7 +2074,7 @@ void DrawRandamLine(mgCDrawPrim *prim, int *points, int smoothing, int count, u8
     int   k;
     int   total;
 
-    if (prim == 0 || points == 0) {
+    if (prim == NULL || points == NULL) {
         return;
     }
 
@@ -1914,7 +2084,7 @@ void DrawRandamLine(mgCDrawPrim *prim, int *points, int smoothing, int count, u8
         source[i][2] = 0;
     }
 
-    SetSpriteEnv(prim, 3);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_COLOR_NO_DEPTH);
     prim->Begin(MG_PRIM_LINE_STRIP);
     CreatSmoothPass(smoothed, source, count, smoothing, 0, count);
     prim->Color(color[0], color[1], color[2], color[3]);
@@ -1940,32 +2110,32 @@ void InitMenuDl(mgCTexture *texture, int total_size) {
 
 int StepMenuDl(int step) {
     if (MenuDl_TotalSize <= 0) {
-        return 1;
+        return true;
     }
 
     MenuDl_ProcessSize += step;
 
     if (MenuDl_TotalSize <= MenuDl_ProcessSize) {
         MenuDl_ProcessSize = MenuDl_TotalSize;
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int StepMenuDl2(int progress) {
     if (MenuDl_TotalSize <= 0) {
-        return 1;
+        return true;
     }
 
     MenuDl_ProcessSize = progress;
 
     if (MenuDl_TotalSize <= progress) {
         MenuDl_ProcessSize = MenuDl_TotalSize;
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void DrawMenuDl(int &tex_block, int x, int y, int w, int alpha) {
@@ -1986,7 +2156,7 @@ void DrawMenuDl(int &tex_block, int x, int y, int w, int alpha) {
         MenuReloadTexture(tex_block, Tex_MenuDl->block);
         left = (mgScreenWidth - w) >> 1;
         prim = GetMenuPrim();
-        SetSpriteEnv(prim, 0);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(Tex_MenuDl);
         prim->Color(0x80, 0x80, 0x80, alpha);
@@ -2032,7 +2202,7 @@ void DrawMenuDl(int alpha) {
     int  caption_height;
     int  caption_width;
 
-    if (Tex_MenuDl != 0) {
+    if (Tex_MenuDl != NULL) {
         if (alpha < 0) {
             alpha = 0;
         }
@@ -2040,7 +2210,7 @@ void DrawMenuDl(int alpha) {
         loaded_tex_no = -1;
         int panel_width = 0x10E;
 
-        if (LanguageCode == 2 || LanguageCode == 4 || LanguageCode == 5) {
+        if (LanguageCode == LANG_FRENCH || LanguageCode == LANG_ITALIAN || LanguageCode == LANG_SPANISH) {
             panel_width = 0x13A;
         }
 
@@ -2048,7 +2218,7 @@ void DrawMenuDl(int alpha) {
         int         language = LanguageCode;
         mgCTexture *texture = mgTexManager.GetTexture("gaiji", -1);
 
-        if (texture != 0) {
+        if (texture != NULL) {
             MenuReloadTexture(loaded_tex_no, texture->block);
             int step = StepMenuDl(0);
             memset(text, 0, sizeof(text));
@@ -2079,7 +2249,7 @@ void CalcCommonBrdDrawInfo(float *pos, MENUFORM_MAKEBRD_INFO *info, ClsMes *mes)
     Tex_CommonBoard = mgTexManager.GetTexture("makebrd", -1);
     board_w = 188.0f;
 
-    if (LanguageCode > 0) {
+    if (LanguageCode > LANG_JAPANESE) {
         board_w = 208.0f;
     }
 
@@ -2160,7 +2330,7 @@ void CommonBoardDraw(float *pos, int &tex_block) {
     int   board_w = (int) MakeBoardDrawInfo[4];
     float board_x = pos[0];
     float board_y = pos[1];
-    SetSpriteEnv(prim, 1);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_COLOR);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Color(0x28, 0x24, 0x23, 0x80);
     float fill_y;
@@ -2169,7 +2339,7 @@ void CommonBoardDraw(float *pos, int &tex_block) {
     prim->Vertex(fill_x, fill_y, 0.0f);
     prim->Vertex(fill_x + board_w + 20.0f, fill_y + heights[1] + heights[2], 0.0f);
     prim->End();
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Bilinear(0);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(Tex_CommonBoard);
@@ -2304,7 +2474,7 @@ void CommonBoardDraw(float *pos, int &tex_block) {
 
     PrimQuad(prim, mgRect<int>(count_x + 0x22, arrow_y, 0x10, 0x16), mgRect<int>(0x70, 0x48, 0x10, 0x16));
     prim->Color(0x80, 0x80, 0x80, 0x80);
-    PrimDrawNumber(prim, CommonBoardDrawInfo.make_num, (int) MENU_NUMBER_ALIGN_CENTER, count_x + 0x15, count_y + 5, mgRect<int>(number_uv.uv[0][0], number_uv.uv[0][1], 10, 13), 0, 0);
+    PrimDrawNumber(prim, CommonBoardDrawInfo.make_num, MENU_NUMBER_ALIGN_CENTER, count_x + 0x15, count_y + 5, mgRect<int>(number_uv.uv[0][0], number_uv.uv[0][1], 10, 13), 0, 0);
     prim->End();
 }
 
@@ -2321,7 +2491,7 @@ void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int reverse, int alp
         cursor_hand hand = {
             {{40.0f, 0.0f}, {40.0f, 24.0f}, {0.0f, 24.0f}}
         };
-        SetSpriteEnv(prim, 0);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         hand.corner[0][0] = scale * width.width[reverse];
         hand.corner[0][1] *= scale;
         hand.corner[1][0] = scale * width.width[reverse];
@@ -2349,8 +2519,8 @@ void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int reverse, int alp
     }
 }
 
-void MenuCursorDraw(mgCTexture *texture, float *position, float value, int flag) {
-    MenuCursorDraw(texture, position, value, 0, flag, 1.0f);
+void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int alpha) {
+    MenuCursorDraw(tex, pos, rot, 0, alpha, 1.0f);
 }
 
 void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float x, float y, mgRect<int> tex_rect, int unused,
@@ -2359,7 +2529,7 @@ void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float x, float y, m
     int         column;
     int         row;
     y -= tex_rect.bottom;
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(tex);
 
@@ -2395,10 +2565,10 @@ void DrawMenuMainFrmImg(int &loaded_tex_no, mgRect<int> dest, mgRect<int> source
                         int blue, int alpha, int unused) {
     mgCTexture *texture = MenuPosData->common_tex;
 
-    if (texture != 0) {
+    if (texture != NULL) {
         MenuReloadTexture(loaded_tex_no, texture->block);
         mgCDrawPrim *prim = GetMenuPrim();
-        SetSpriteEnv(prim, 5);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_OPAQUE);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(texture);
         prim->Color(red, green, blue, alpha);
@@ -2421,19 +2591,19 @@ float GetMenuMainFrameCount() {
 
 void MenuMainFrameModeSet(int mode, int restart) {
     MenuMainFrame_Display_Mode = mode;
-    MenuMainFrame_ActionEndFlag = 0;
+    MenuMainFrame_ActionEndFlag = false;
     MenuMainFrame_MoveRate[0] = 1.0f;
 
     if (restart != 0) {
         switch (MenuMainFrame_Display_Mode) {
-            case 0:
+            case MENU_MAIN_FRAME_OPEN:
                 MenuMainFrame_Display_Mode_Cnt = 0.0f;
                 MenuMainFrame_Display_Mode_Cnt_Rate = 0.7f;
                 break;
-            case 2:
-            case 4:
-            case 6:
-            case 8:
+            case MENU_MAIN_FRAME_SLIDE_LEFT:
+            case MENU_MAIN_FRAME_LEAVE_RIGHT:
+            case MENU_MAIN_FRAME_LEAVE_DOWN:
+            case MENU_MAIN_FRAME_LEAVE_UP:
                 MenuMainFrame_Display_Mode_Cnt = 10.0f;
                 MenuMainFrame_Lenze_Pos[0] = 350.0f;
                 MenuMainFrame_Lenze_Pos[1] = 240.0f;
@@ -2445,7 +2615,7 @@ void MenuMainFrameModeSet(int mode, int restart) {
     MenuMainFrame_MoveRate[1] = GetMenuMainFrameCount();
     MenuMainFrame_MoveRate_Cnt = 0.0f;
 
-    if (MenuMainFrame_Display_Mode >= 4) {
+    if (MenuMainFrame_Display_Mode >= MENU_MAIN_FRAME_LEAVE_RIGHT) {
         MenuMainFrame_MoveRate_Cnt = (PI / 12.0f);
     }
 }
@@ -2459,11 +2629,11 @@ void MenuMainFrameStep() {
     static signed char MainFrameStepFlag = 0;
 
     switch (MenuMainFrame_Display_Mode) {
-        case 0:
-        case 1: {
+        case MENU_MAIN_FRAME_OPEN:
+        case MENU_MAIN_FRAME_CLOSE: {
             mgRect<int> *image;
 
-            if (MenuMainFrame_Display_Mode == 0) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_OPEN) {
                 if (MenuMainFrame_Display_Mode_Cnt < 10.0f) {
                     CalcMenuAdd(&MenuMainFrame_Display_Mode_Cnt, MenuMainFrame_Display_Mode_Cnt_Rate, 10.0f);
 
@@ -2477,19 +2647,19 @@ void MenuMainFrameStep() {
                 } else {
                     MainFrameStepFlag = 0;
                     MenuMainFrame_Display_Mode_Cnt = 10.0f;
-                    MenuMainFrame_ActionEndFlag = 1;
+                    MenuMainFrame_ActionEndFlag = true;
                 }
             }
 
             int mode = MenuMainFrame_Display_Mode;
 
-            if (mode == 1) {
+            if (mode == MENU_MAIN_FRAME_CLOSE) {
                 if (0.0f < MenuMainFrame_Display_Mode_Cnt) {
                     MenuMainFrame_Display_Mode_Cnt -= 1.0f;
                 }
 
                 if (MainFrameStepFlag > 0) {
-                    MenuMainFrame_ActionEndFlag = 1;
+                    MenuMainFrame_ActionEndFlag = true;
                 }
 
                 if (MenuMainFrame_Display_Mode_Cnt < 0.0f) {
@@ -2512,7 +2682,7 @@ void MenuMainFrameStep() {
             image->top = (int) (MenuMainFrame_Lenze_Pos[1] - image_half_height);
 
             if (image->right > mgScreenWidth) {
-                if (mode == 1) {
+                if (mode == MENU_MAIN_FRAME_CLOSE) {
                     image->right = mgScreenWidth;
                 } else {
                     image->right = mgScreenWidth;
@@ -2535,108 +2705,108 @@ void MenuMainFrameStep() {
 
             break;
         }
-        case 2:
+        case MENU_MAIN_FRAME_SLIDE_LEFT:
             MenuMainFrame_Lenze_Pos[0] -= 11.285714f;
 
             if (MenuMainFrame_Lenze_Pos[0] < 158.0f) {
                 MenuMainFrame_Lenze_Pos[0] = 158.0f;
-                MenuMainFrame_ActionEndFlag = 1;
+                MenuMainFrame_ActionEndFlag = true;
             }
 
             break;
-        case 3:
+        case MENU_MAIN_FRAME_SLIDE_BACK:
             MenuMainFrame_Lenze_Pos[0] += 11.285714f;
 
             if (!(MenuMainFrame_Lenze_Pos[0] < 350.0f)) {
                 MenuMainFrame_Lenze_Pos[0] = 350.0f;
-                MenuMainFrame_ActionEndFlag = 1;
+                MenuMainFrame_ActionEndFlag = true;
             }
 
             break;
-        case 4:
-        case 5: {
+        case MENU_MAIN_FRAME_LEAVE_RIGHT:
+        case MENU_MAIN_FRAME_RETURN_RIGHT: {
             MenuMainFrame_MoveRate_Cnt += 0.08726647f;
             float move = MenuMainFrame_MoveRate[0] * sinf(MenuMainFrame_MoveRate_Cnt);
 
-            if (MenuMainFrame_Display_Mode == 4 && move < 0.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_LEAVE_RIGHT && move < 0.0f) {
                 move = -move;
             }
 
-            if (MenuMainFrame_Display_Mode == 5 && move > 0.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_RETURN_RIGHT && move > 0.0f) {
                 move = -move;
             }
 
             MenuMainFrame_Lenze_Pos[0] += move;
 
-            if (MenuMainFrame_Display_Mode == 4) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_LEAVE_RIGHT) {
                 if (!(MenuMainFrame_Lenze_Pos[0] < 860.0f)) {
                     MenuMainFrame_Lenze_Pos[0] = 860.0f;
-                    MenuMainFrame_ActionEndFlag = 1;
+                    MenuMainFrame_ActionEndFlag = true;
                 }
             } else if (MenuMainFrame_Lenze_Pos[0] <= 350.0f) {
                 MenuMainFrame_Lenze_Pos[0] = 350.0f;
-                MenuMainFrame_ActionEndFlag = 1;
+                MenuMainFrame_ActionEndFlag = true;
             }
 
             break;
         }
-        case 6:
-        case 7: {
+        case MENU_MAIN_FRAME_LEAVE_DOWN:
+        case MENU_MAIN_FRAME_RETURN_DOWN: {
             MenuMainFrame_MoveRate_Cnt += 0.09817477f;
             float move = MenuMainFrame_MoveRate[1] * sinf(MenuMainFrame_MoveRate_Cnt);
 
-            if (MenuMainFrame_Display_Mode == 6 && move < 0.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_LEAVE_DOWN && move < 0.0f) {
                 move = -move;
             }
 
-            if (MenuMainFrame_Display_Mode == 7 && move > 0.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_RETURN_DOWN && move > 0.0f) {
                 move = -move;
             }
 
             MenuMainFrame_Lenze_Pos[1] += move;
 
-            if (MenuMainFrame_Display_Mode == 6 && !(MenuMainFrame_Lenze_Pos[1] < 720.0f)) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_LEAVE_DOWN && !(MenuMainFrame_Lenze_Pos[1] < 720.0f)) {
                 MenuMainFrame_Lenze_Pos[1] = 720.0f;
-                MenuMainFrame_ActionEndFlag = 1;
+                MenuMainFrame_ActionEndFlag = true;
             }
 
-            if (MenuMainFrame_Display_Mode == 7 && MenuMainFrame_Lenze_Pos[1] <= 240.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_RETURN_DOWN && MenuMainFrame_Lenze_Pos[1] <= 240.0f) {
                 MenuMainFrame_Lenze_Pos[1] = 240.0f;
-                MenuMainFrame_ActionEndFlag = 1;
+                MenuMainFrame_ActionEndFlag = true;
             }
 
             break;
         }
-        case 8:
-        case 9: {
+        case MENU_MAIN_FRAME_LEAVE_UP:
+        case MENU_MAIN_FRAME_RETURN_UP: {
             MenuMainFrame_MoveRate_Cnt += 0.08726647f;
             float move = MenuMainFrame_MoveRate[1] * sinf(MenuMainFrame_MoveRate_Cnt);
 
-            if (MenuMainFrame_Display_Mode == 8 && move > 0.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_LEAVE_UP && move > 0.0f) {
                 move = -move;
             }
 
-            if (MenuMainFrame_Display_Mode == 9 && move < 0.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_RETURN_UP && move < 0.0f) {
                 move = -move;
             }
 
             MenuMainFrame_Lenze_Pos[1] += move;
 
-            if (MenuMainFrame_Display_Mode == 8 && MenuMainFrame_Lenze_Pos[1] <= -260.0f) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_LEAVE_UP && MenuMainFrame_Lenze_Pos[1] <= -260.0f) {
                 MenuMainFrame_Lenze_Pos[1] = -260.0f;
-                MenuMainFrame_ActionEndFlag = 1;
+                MenuMainFrame_ActionEndFlag = true;
             }
 
-            if (MenuMainFrame_Display_Mode == 9 && !(MenuMainFrame_Lenze_Pos[1] < 240.0f)) {
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_RETURN_UP && !(MenuMainFrame_Lenze_Pos[1] < 240.0f)) {
                 MenuMainFrame_Lenze_Pos[1] = 240.0f;
-                MenuMainFrame_ActionEndFlag = 1;
+                MenuMainFrame_ActionEndFlag = true;
             }
 
             break;
         }
     }
 
-    if (MenuMainFrame_Display_Mode >= 2) {
+    if (MenuMainFrame_Display_Mode >= MENU_MAIN_FRAME_SLIDE_LEFT) {
         MenuMainFrame_PutRect.left = (int) (MenuMainFrame_Lenze_Pos[0] - 350.0f * scale);
         MenuMainFrame_PutRect.top = (int) (MenuMainFrame_Lenze_Pos[1] - 240.0f * scale);
     }
@@ -2662,8 +2832,8 @@ void MenuMainFrameDraw(int &loaded_tex, int unused) {
     scale = 1.5f - 0.5f * progress;
 
     switch (MenuMainFrame_Display_Mode) {
-        case 0:
-        case 1:
+        case MENU_MAIN_FRAME_OPEN:
+        case MENU_MAIN_FRAME_CLOSE:
             alpha = 128.0f * progress;
             break;
     }
@@ -2688,7 +2858,7 @@ void MenuMainFrameDraw(int &loaded_tex, int unused) {
     size = 3.0 * 16.0 * scale;
     MenuReloadTexture(loaded_tex, background->block);
     mgCDrawPrim *prim = GetMenuPrim();
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Bilinear(1);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(background);
@@ -2726,9 +2896,9 @@ void MenuMainFrameImgDraw(int &loaded_tex_no) {
     dest = MenuMainIMG_PutRect;
 
     switch (MenuMainFrame_Display_Mode) {
-        case 0:
-        case 1:
-            if (MenuMainFrame_Display_Mode == 1) {
+        case MENU_MAIN_FRAME_OPEN:
+        case MENU_MAIN_FRAME_CLOSE:
+            if (MenuMainFrame_Display_Mode == MENU_MAIN_FRAME_CLOSE) {
                 alpha = 0x80;
             }
 
@@ -2784,7 +2954,7 @@ void DrawMenuWakuRect(mgCTexture *tex, mgRect<float> rect, mgRect<int> tex_rect,
 
         if (scissor.right > 1) {
             SetMenuScissor(scissor);
-            SetSpriteEnv(prim, 4);
+            SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
             prim->Begin(MG_PRIM_SPRITE);
             prim->Texture(tex);
             prim->Color(r, g, b, a);
@@ -2816,7 +2986,7 @@ void DrawMenuWakuRect(mgCTexture *tex, mgRect<float> rect, mgRect<int> tex_rect,
 
             prim->End();
             SetMenuScissor(mgRect<int>(0, scissor.top + 1, mgScreenWidth - 1, scissor.bottom - 1));
-            SetSpriteEnv(prim, 4);
+            SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
             prim->Begin(MG_PRIM_TRIANGLE_FAN);
             count = (int) (3.0f + rect.bottom / piece_w);
             waku_edge_pos side_edge = {
@@ -2893,17 +3063,17 @@ void DrawWakuCircle(mgCDrawPrim *prim, mgCTexture *tex, mgRect<float> rect, mgRe
  *
  */
 void MENU_BASETEXINFO_Init(MENU_BASETEXINFO *info) {
-    info->name = 0;
-    info->tex_name = 0;
+    info->name = NULL;
+    info->tex_name = NULL;
     info->rect.Set(0, 0, 0, 0);
     info->tex_block = 0;
 }
 
 void MenuPosDataTypeInit(MENUFORMPARTS_TYPE *part) {
     part->name = NULL;
-    part->active = 0;
-    part->draw_flag = 1;
-    part->dtype = 0;
+    part->active = false;
+    part->draw_flag = true;
+    part->dtype = MENUFORMPARTS_DTYPE_NORMAL;
     part->vibe_cnt[1] = 0;
     part->vibe_cnt[0] = 0;
     part->viber[0] = 10;
@@ -2923,20 +3093,20 @@ void MenuPosDataTypeInit(MENUFORMPARTS_TYPE *part) {
     part->picture_scale = 1.0f;
     part->effect_num = 0;
     part->effect = NULL;
-    part->alpha_blend = 1;
+    part->alpha_blend = MG_ALPHA_BLEND_NORMAL;
     part->bilinear = 0;
     part->item_flag = 0;
     part->tex = NULL;
-    part->shadow = 0;
+    part->shadow = false;
 }
 
-void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int value34, int value38) {
+void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int item_no, int original_item_no) {
     if (part != NULL) {
         part->draw_flag = visible != 0;
         part->etc_info[0] = 0;
-        part->etc_info[1] = value34;
+        part->etc_info[1] = item_no;
 
-        part->etc_info[2] = value38;
+        part->etc_info[2] = original_item_no;
         Func_MenuItemIconSetEffectOne(part);
     }
 }
@@ -2944,11 +3114,11 @@ void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int value34,
 void CMenuPosDataForm::Initialize() {
     int i;
     name = NULL;
-    active = 0;
-    draw_flag = 1;
+    active = false;
+    draw_flag = true;
     y = 0;
     x = 0;
-    dtype = 0;
+    dtype = MENUFORM_DTYPE_NORMAL;
     vibe_cnt[1] = 0;
     vibe_cnt[0] = 0;
     clip_h = -1;
@@ -2972,9 +3142,9 @@ void CMenuPosDataForm::Initialize() {
     chara = NULL;
     chara_tex_block = 0;
     secondary_tex_block = 0;
-    step_stop = 0;
+    step_stop = false;
     action_no = -1;
-    action_state = -1;
+    action_state = MENUFORM_ACTION_STATE_NONE;
     action_num = 0;
     action = NULL;
     sub_no = 0;
@@ -2987,7 +3157,7 @@ MENUFORMPARTS_TYPE *CMenuPosDataForm::GetPartInfo(char *name) {
 
     while (i < parts_num) {
         if (strcmp(parts[i].name, name) == 0) {
-            return parts + i;
+            return &parts[i];
         }
 
         i++;
@@ -3010,7 +3180,7 @@ void Func_MallocPartEffectInfo(MENUFORMPARTS_TYPE *part, mgCMemory *memory, int 
 
     if (part != NULL) {
         bytes = effect_count * sizeof(MENU_PARTS_EFFECT_STRUCT1);
-        part->effect_num = (signed char) effect_count;
+        part->effect_num = effect_count;
 
         if (bytes & 0xF) {
             blocks = (bytes >> 4) + 1;
@@ -3216,20 +3386,20 @@ int CMenuPosDataForm::GetNowPosRGBA(MENUFORMPARTS_TYPE *part, MENU_BASETEXINFO *
     short                      color;
 
     if (part == NULL) {
-        return 0;
+        return false;
     }
 
     effect = part->effect;
 
     if (effect == NULL || part->effect_num <= 0) {
-        return 0;
+        return false;
     }
 
     center_x = tex_info->rect.right + (x + part->x);
     center_y = tex_info->rect.bottom + (y + part->y);
 
     for (i = 0; i < part->effect_num && effect != NULL; i++, effect++) {
-        if (effect->type == MENU_PARTS_EFFECT_UNK_1) {
+        if (effect->type == MENU_PARTS_EFFECT_FILLBOX) {
             if (effect->param[0] <= effect->param[1]) {
                 rgba[0] = effect->param[2];
                 rgba[1] = effect->param[3];
@@ -3314,7 +3484,7 @@ int CMenuPosDataForm::GetNowPosRGBA(MENUFORMPARTS_TYPE *part, MENU_BASETEXINFO *
         }
     }
 
-    return 1;
+    return true;
 }
 
 void CMenuPosDataForm::MenuPartsStep() {
@@ -3329,19 +3499,19 @@ void CMenuPosDataForm::MenuPartsStep() {
 
         if (part != NULL && (effect = part->effect) != NULL) {
             for (j = 0; j < part->effect_num; j++, effect++) {
-                finished = 0;
+                finished = false;
 
-                if (effect->type == MENU_PARTS_EFFECT_UNK_100) {
+                if (effect->type == MENU_PARTS_EFFECT_ICON_COUNTER) {
                     continue;
                 }
 
-                if (effect->type == MENU_PARTS_EFFECT_UNK_9) {
+                if (effect->type == MENU_PARTS_EFFECT_SPARKLE) {
                     effect->param[0] += 1.0f;
 
                     if (effect->param[0] >= effect->param[1]) {
                         SetPartEffectInfoRandFunc(effect);
                     }
-                } else if (effect->type == MENU_PARTS_EFFECT_UNK_1) {
+                } else if (effect->type == MENU_PARTS_EFFECT_FILLBOX) {
                     effect->param[0] += 1.0f;
 
                     if (effect->param[0] > effect->param[1]) {
@@ -3351,7 +3521,7 @@ void CMenuPosDataForm::MenuPartsStep() {
                     effect->param[0] += 1.0f;
 
                     if (effect->param[0] >= effect->param[1]) {
-                        finished = 1;
+                        finished = true;
                         effect->param[0] = 0.0f;
                     }
                 } else if (effect->type == MENU_PARTS_EFFECT_ROT || effect->type == MENU_PARTS_EFFECT_HURIKO ||
@@ -3361,14 +3531,14 @@ void CMenuPosDataForm::MenuPartsStep() {
 
                         if (effect->param[0] >= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     } else if (effect->param[1] < 0.0f) {
                         effect->param[0] -= 1.0f;
 
                         if (effect->param[0] <= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     }
                 } else if (effect->type == MENU_PARTS_EFFECT_STRETCH || effect->type == MENU_PARTS_EFFECT_STRETCH_REP ||
@@ -3378,14 +3548,14 @@ void CMenuPosDataForm::MenuPartsStep() {
 
                         if (effect->param[0] <= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     } else if (effect->param[1] > 0.0f) {
                         effect->param[0] += 1.0f;
 
                         if (effect->param[0] >= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     }
                 } else if (effect->type == MENU_PARTS_EFFECT_UNK_12) {
@@ -3393,14 +3563,19 @@ void CMenuPosDataForm::MenuPartsStep() {
                 }
 
                 if (finished != 0 && effect->repeat == 0) {
-                    effect->active = 0;
+                    effect->active = false;
                 }
             }
         }
     }
 }
 
-static void DrawItemIconEffect2(mgCDrawPrim *prim, mgCTexture *tex, MENUFORMPARTS_TYPE *parts, mgRect<float> rect) {
+/**
+ *
+ * Draws the sparkles of a spectrumised item icon.
+ *
+ */
+static void DrawItemIconEffect2(mgCDrawPrim *prim, mgCTexture *tex, MENUFORMPARTS_TYPE *part, mgRect<float> rect) {
     MENU_PARTS_EFFECT_STRUCT1 *effect;
     int                        i;
     int                        k;
@@ -3416,8 +3591,8 @@ static void DrawItemIconEffect2(mgCDrawPrim *prim, mgCTexture *tex, MENUFORMPART
     float                      dx;
     float                      dy;
 
-    if (parts != NULL && parts->effect != NULL) {
-        effect = parts->effect + 2;
+    if (part != NULL && part->effect != NULL) {
+        effect = &part->effect[2];
         mgRect<float> star_rect;
         float         corners[4][2];
         int           uv[8];
@@ -3426,7 +3601,7 @@ static void DrawItemIconEffect2(mgCDrawPrim *prim, mgCTexture *tex, MENUFORMPART
         star_rect.right = 8.0f;
         star_rect.bottom = 8.0f;
         ConvMGIRECTtoINTtbl(star_light, uv);
-        SetSpriteEnv(prim, 4);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
         prim->Begin(MG_PRIM_TRIANGLE_STRIP);
         prim->Texture(tex);
 
@@ -3474,7 +3649,7 @@ void MenuItemBrdSetInfo(int unused, int pos, int max_line, int view_line) {
     }
 
     MenuItemBrdScrlCurLen = 256.0f / hidden_lines;
-    MenuItemBrdCalcManner = 1;
+    MenuItemBrdCalcManner = MENU_ITEM_BRD_CALC_JUMP;
     Func_MenuItemBrdPosStep(pos);
 }
 
@@ -3519,7 +3694,7 @@ void MenuItemBrdFrameDraw(int x, int y, int &tex_block, int a, int r, int g, int
         mgRect<int> clip(clip_left, clip_top, clip_right, (int) (put_y + 50.0f));
         MenuClipRectCheck(clip);
         SetMenuScissor(clip);
-        SetSpriteEnv(prim, 0);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         prim->Bilinear(1);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(tex);
@@ -3540,7 +3715,7 @@ void MenuItemBrdFrameDraw(int x, int y, int &tex_block, int a, int r, int g, int
         PrimQuad(prim, mgRect<int>((int) put_x, (int) clip_left, 32, 32), *parts[11]);
         prim->End();
         ResetMenuScissor();
-        SetSpriteEnv(prim, 0);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         put_y = y;
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(tex);
@@ -3647,7 +3822,7 @@ void MenuItemBrdDraw(float *pos, mgRect<int> clip_rect, int &tex_block, int a, i
         MenuReloadTexture(tex_block, tex->block);
         last_row = GetNowBagMax(0) / 6;
         mgRect<int> put(0, 0, 0, 0);
-        SetSpriteEnv(prim, 0);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(tex);
         prim->Color(r, g, b, a);
@@ -3712,14 +3887,19 @@ void MenuItemBrdDraw(float *pos, mgRect<int> clip_rect, int &tex_block, int a, i
     }
 }
 
-static inline int UsedItemNo(CGameDataUsed *u) { return u->item_no; }
+/**
+ *
+ * Returns the item number of a used item.
+ *
+ */
+static inline int UsedItemNo(CGameDataUsed *used) { return used->item_no; }
 
 void MenuItemModeItemDraw(int &tex_block, mgRect<int> clip_rect, float *pos, MENUFORMPARTS_TYPE *parts,
                           mgCTexture *num_tex, mgRect<int> num_rect, int unused_arg) {
     float              height;
     mgCTextureManager *textures;
     mgCDrawPrim       *prim;
-    int                icon_mode;
+    MENU_ICON_MODE     icon_mode;
     mgCTexture        *effect_tex;
     int                left;
     int                y;
@@ -3808,14 +3988,14 @@ void MenuItemModeItemDraw(int &tex_block, mgRect<int> clip_rect, float *pos, MEN
                 num_vertical_spacing = (int) (parts->y);
             }
 
-            icon_mode = 0;
+            icon_mode = MENU_ICON_MODE_NORMAL;
 
-            if (item_no == (int) ITEM_ID_SPECTOL) {
+            if (item_no == ITEM_ID_SPECTOL) {
                 item_no = used->GetSpectolNo();
-                icon_mode = 1;
-            } else if (item_no == 0x1AA) {
+                icon_mode = MENU_ICON_MODE_SPECTRUM;
+            } else if (item_no == MENU_ICON_ITEM_BOILED_FISH) {
                 item_no = used->data.item.num;
-                icon_mode = 3;
+                icon_mode = MENU_ICON_MODE_BOILED_FISH;
             } else if (used->used_type == USED_ITEM_TYPE_FISH && effect != NULL) {
                 float *wait = &MenuPosData->fish_jump_wait[no];
 
@@ -3862,7 +4042,7 @@ void MenuItemModeItemDraw(int &tex_block, mgRect<int> clip_rect, float *pos, MEN
                         prim->Color(rgba[0], rgba[1], rgba[2], rgba[3]);
                     }
 
-                    PrimDrawNumber(prim, num, (int) MENU_NUMBER_ALIGN_RIGHT, num_x, num_y, num_rect, num_space, num_vertical_spacing);
+                    PrimDrawNumber(prim, num, MENU_NUMBER_ALIGN_RIGHT, num_x, num_y, num_rect, num_space, num_vertical_spacing);
                     prim->End();
                 }
             } else {
@@ -3883,15 +4063,15 @@ void MenuItemModeItemDraw(int &tex_block, mgRect<int> clip_rect, float *pos, MEN
                     prim->Begin(MG_PRIM_SPRITE);
                     prim->Texture(num_tex);
                     prim->Color(rgba[0], rgba[1], rgba[2], rgba[3]);
-                    PrimDrawNumber(prim, num, (int) MENU_NUMBER_ALIGN_RIGHT, num_x, num_y, num_rect, num_space, num_vertical_spacing);
+                    PrimDrawNumber(prim, num, MENU_NUMBER_ALIGN_RIGHT, num_x, num_y, num_rect, num_space, num_vertical_spacing);
                     prim->End();
                 }
 
                 memcpy(rgba, localrgba_3166, sizeof(localrgba_3166));
             }
 
-            if (icon_mode != 0) {
-                if (icon_mode == 1) {
+            if (icon_mode != MENU_ICON_MODE_NORMAL) {
+                if (icon_mode == MENU_ICON_MODE_SPECTRUM) {
                     DrawItemIconEffect2(prim, effect_tex, parts, item_rect);
                 }
 
@@ -3914,13 +4094,13 @@ void MenuItemModeItemDraw(int &tex_block, mgRect<int> clip_rect, float *pos, MEN
 }
 
 int CMenuPosDataForm::MenuFormStep() {
-    int ended = 0;
+    int ended = false;
     int next[2];
     int calc;
     int i;
 
     if (step_stop != 0) {
-        return 0;
+        return false;
     }
 
     GetNextMovePos(next);
@@ -3930,13 +4110,13 @@ int CMenuPosDataForm::MenuFormStep() {
         counter = 0;
     }
 
-    if (dtype == 13 || dtype == 15) {
+    if (dtype == MENUFORM_DTYPE_POLY || dtype == MENUFORM_DTYPE_MAPPART) {
         if (counter > 15) {
             counter = 15;
         }
     }
 
-    if (dtype == 24) {
+    if (dtype == MENUFORM_DTYPE_BG_TILE) {
         MENUFORMPARTS_TYPE *part = parts;
         MENU_BASETEXINFO   *texture = MenuPosData->GetTexGetInfo(part->tex_info_no);
 
@@ -3960,13 +4140,13 @@ int CMenuPosDataForm::MenuFormStep() {
         } else if (part->etc_info[1] > 0 && next[1] >= 0) {
             next[1] = -texture->rect.bottom;
         }
-    } else if (dtype != 20) {
+    } else if (dtype != MENUFORM_DTYPE_MSGFORM) {
         MenuPartsStep();
     }
 
     if (CheckMoveEnd(next[0], next[1]) != 0) {
-        ended = 1;
-        action_state = 4;
+        ended = true;
+        action_state = MENUFORM_ACTION_STATE_END;
     }
 
     for (i = 0; i < 4; i++) {
@@ -3983,19 +4163,19 @@ int CMenuPosDataForm::MenuFormStep() {
         }
     }
 
-    x = (float) next[0];
-    y = (float) next[1];
+    x = next[0];
+    y = next[1];
     return ended;
 }
 
 int CMenuPosDataForm::CheckMoveEnd(int target_x, int target_y) {
-    int finished = 0;
+    int finished = false;
 
-    if (x == (float) target_x) {
-        finished = 1;
+    if (x == target_x) {
+        finished = true;
 
-        if (y != (float) target_y) {
-            finished = 0;
+        if (y != target_y) {
+            finished = false;
         }
     }
 
@@ -4003,15 +4183,15 @@ int CMenuPosDataForm::CheckMoveEnd(int target_x, int target_y) {
 }
 
 int CMenuPosDataForm::CheckMoveEnd() {
-    if (action != NULL && action_state == 4) {
-        return 1;
+    if (action != NULL && action_state == MENUFORM_ACTION_STATE_END) {
+        return true;
     }
 
-    if (x == (float) next_x && y == (float) next_y) {
-        return 1;
+    if (x == next_x && y == next_y) {
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CMenuPosDataForm::SetAction(char *action) {
@@ -4020,7 +4200,7 @@ void CMenuPosDataForm::SetAction(char *action) {
     while (i < action_num) {
         if (strcmp(action, this->action[i].name) == 0) {
             action_no = i;
-            action_state = 1;
+            action_state = MENUFORM_ACTION_STATE_RUN;
             return;
         }
 
@@ -4046,7 +4226,7 @@ int CMenuPosDataForm::GetNextMovePos(int *pos) {
     int                    target[2];
 
     if (pos == NULL || active == 0) {
-        return 1;
+        return true;
     }
 
     int now[2] = {(int) x, (int) y};
@@ -4118,7 +4298,7 @@ int CMenuPosDataForm::GetNextMovePos(int *pos) {
 
     pos[0] = now[0];
     pos[1] = now[1];
-    return 1;
+    return true;
 }
 
 void Menu3DivideTextureDraw(mgCDrawPrim *prim, mgRect<int> rect, short *tex_tbl, int vertical) {
@@ -4228,7 +4408,7 @@ void CMenuPosDataForm::MenuFormDrawNormal(int x, int y, float sway_x, float sway
         }
 
         if (part->dtype < MENUFORMPARTS_DTYPE_BG || part->dtype >= MENUFORMPARTS_DTYPE_NETA) {
-            SetSpriteEnv(prim, 0);
+            SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         }
 
         prim->AlphaBlend(part->alpha_blend);
@@ -4401,16 +4581,16 @@ void CMenuPosDataForm::MenuFormDrawNormal(int x, int y, float sway_x, float sway
                 MenuInventAlbumPictureDraw(&this->x, tex_block);
                 break;
             case MENUFORMPARTS_DTYPE_SQ_BETA: {
-                SetSpriteEnv(prim, 1);
+                SetSpriteEnv(prim, MENU_SPRITE_ENV_COLOR);
                 float alpha_rate = 1.0f;
 
-                if (rgba_bit & 8) {
+                if (rgba_bit & MENUFORM_RGBA_BIT_ALPHA) {
                     prim->DepthTestEnable(0);
                     alpha_rate = (u_int) color[3] / 128.0f;
                 }
 
                 switch (part->etc_info[0]) {
-                    case 0: {
+                    case MENUFORMPARTS_FILL_FLAT: {
                         top_left = top_right = bottom_left = bottom_right = part->effect->param;
                         prim->Begin(MG_PRIM_SPRITE);
                         prim->Color((int) part->effect->param[0], (int) part->effect->param[1], (int) part->effect->param[2], (int) (part->effect->param[3] * alpha_rate));
@@ -4418,19 +4598,19 @@ void CMenuPosDataForm::MenuFormDrawNormal(int x, int y, float sway_x, float sway
                         prim->Vertex(put.left + put.right, put.top + put.bottom, 0.0f);
                         break;
                     }
-                    case 1:
+                    case MENUFORMPARTS_FILL_VERTICAL:
                         top_left = top_right = part->effect[0].param;
                         bottom_left = bottom_right = part->effect[1].param;
                         prim->Begin(MG_PRIM_TRIANGLE_STRIP);
                         PrimFillRect4(prim, put, top_left, top_right, bottom_left, bottom_right);
                         break;
-                    case 2:
+                    case MENUFORMPARTS_FILL_HORIZONTAL:
                         top_left = bottom_left = part->effect[0].param;
                         top_right = bottom_right = part->effect[1].param;
                         prim->Begin(MG_PRIM_TRIANGLE_STRIP);
                         PrimFillRect4(prim, put, top_left, top_right, bottom_left, bottom_right);
                         break;
-                    case 3:
+                    case MENUFORMPARTS_FILL_CORNERS:
                         top_left = part->effect[0].param;
                         bottom_left = part->effect[1].param;
                         top_right = part->effect[2].param;
@@ -4442,7 +4622,7 @@ void CMenuPosDataForm::MenuFormDrawNormal(int x, int y, float sway_x, float sway
 
                 prim->End();
 
-                if (rgba_bit & 8) {
+                if (rgba_bit & MENUFORM_RGBA_BIT_ALPHA) {
                     top_left[3] = (int) color[3];
                     bottom_left[3] = (int) color[3];
                     top_right[3] = (int) color[3];
@@ -4554,7 +4734,7 @@ void CMenuPosDataForm::MenuFormDraw(int x, int y, int &tex_block) {
                 MenuReloadTexture(tex_block, chara_tex_block);
                 chara->DrawDirect();
 
-                if (GetNowLoopNo() == (int) LOOP_DUNGEON && FxScriptMan != NULL) {
+                if (GetNowLoopNo() == LOOP_DUNGEON && FxScriptMan != NULL) {
                     FxScriptMan->PauseFromLevel(3, 2);
                     FxScriptMan->PauseFromLevel(1, 2);
                     chara->DrawEffect();
@@ -4633,7 +4813,7 @@ void CPosDataManage::Initialize() {
     tex_info_num = 0;
     form = NULL;
     form_num = 0;
-    step_stop = 0;
+    step_stop = false;
 }
 
 MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(int no) {
@@ -4641,7 +4821,7 @@ MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(int no) {
         return NULL;
     }
 
-    return tex_info + no;
+    return &tex_info[no];
 }
 
 MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(char *name) {
@@ -4652,8 +4832,8 @@ MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(char *name) {
     }
 
     for (i = 0; i < tex_info_num; i++) {
-        if (tex_info[i].name != 0 && strcmp(name, tex_info[i].name) == 0) {
-            return tex_info + i;
+        if (tex_info[i].name != NULL && strcmp(name, tex_info[i].name) == 0) {
+            return &tex_info[i];
         }
     }
 
@@ -4665,7 +4845,7 @@ int CPosDataManage::GetTexGetInfoTblNo(char *name) {
 
     if (name != NULL) {
         for (i = 0; i < tex_info_num; i++) {
-            if (tex_info[i].name != 0 && strcmp(tex_info[i].name, name) == 0) {
+            if (tex_info[i].name != NULL && strcmp(tex_info[i].name, name) == 0) {
                 return i;
             }
         }
@@ -4682,7 +4862,7 @@ void CPosDataManage::TexGetInfoClear(int from, int to) {
     }
 
     for (i = from; i < to; i++) {
-        MENU_BASETEXINFO_Init(tex_info + i);
+        MENU_BASETEXINFO_Init(&tex_info[i]);
     }
 }
 
@@ -4693,7 +4873,7 @@ void CPosDataManage::ResetTextureBlockNo(char *name, int block) {
     info = GetTexGetInfo(0);
 
     for (i = 0; i < tex_info_num; i++, info++) {
-        if (info->tex_name != 0 && strcmp(info->tex_name, name) == 0) {
+        if (info->tex_name != NULL && strcmp(info->tex_name, name) == 0) {
             info->tex_block = block;
         }
     }
@@ -4736,10 +4916,10 @@ void CPosDataManage::EtcTblClear(int from, int to) {
         end = etc_tbl_num;
     }
 
-    p = etc_tbl + from;
+    p = &etc_tbl[from];
 
     for (i = 0; i < end - from; i++, p++) {
-        p->name = 0;
+        p->name = NULL;
     }
 }
 
@@ -4758,7 +4938,7 @@ MENU_ETCINFO *CPosDataManage::GetEtcTbl(char *name) {
 
     if (0 < n) {
         do {
-            if (p->name != 0 && strcmp(p->name, name) == 0) {
+            if (p->name != NULL && strcmp(p->name, name) == 0) {
                 return p;
             }
 
@@ -4809,7 +4989,7 @@ MENU_ETCINFO2 *CPosDataManage::GetEtcTbl2(char *name) {
 
     if (0 < n) {
         do {
-            if (p->name != 0 && strcmp(p->name, name) == 0) {
+            if (p->name != NULL && strcmp(p->name, name) == 0) {
                 return p;
             }
 
@@ -4848,12 +5028,12 @@ void CPosDataManage::EtcTbl2Clear(int from, int to) {
 
     count = end - from;
     i = 0;
-    p = etc_tbl2 + from;
+    p = &etc_tbl2[from];
 
     if (0 < count) {
         do {
             i++;
-            p->name = 0;
+            p->name = NULL;
             p++;
         } while (i < count);
     }
@@ -4876,7 +5056,7 @@ CMenuPosDataForm *CPosDataManage::GetFormInfo(char *name) {
     i = 0;
 
     while (form != NULL && i < form_num) {
-        if (form->name == 0) {
+        if (form->name == NULL) {
             break;
         }
 
@@ -4897,7 +5077,7 @@ CMenuPosDataForm *CPosDataManage::GetFormInfo(int no) {
         return NULL;
     }
 
-    return form + no;
+    return &form[no];
 }
 
 void CPosDataManage::FormInfoClear(int from, int to) {
@@ -4912,7 +5092,7 @@ void CPosDataManage::FormInfoClear(int from, int to) {
     }
 
     for (i = from; i < to; i++) {
-        (form + i)->Initialize();
+        form[i].Initialize();
     }
 }
 
@@ -4920,8 +5100,8 @@ void CPosDataManage::SetFormPos(char *name, int *pos) {
     CMenuPosDataForm *form = GetFormInfo(name);
 
     if (form != NULL) {
-        form->x = (float) pos[0];
-        form->y = (float) pos[1];
+        form->x = pos[0];
+        form->y = pos[1];
     }
 }
 
@@ -4937,9 +5117,9 @@ void CPosDataManage::InitDrawList() {
         next = NULL;
 
         for (j = 1; j < form_num - i; j++) {
-            if (form[j].name != 0) {
+            if (form[j].name != NULL) {
                 i += j;
-                next = form + j;
+                next = &form[j];
                 break;
             }
         }
@@ -4974,121 +5154,121 @@ CMenuPosDataForm *CPosDataManage::GetDrawTopList() {
 }
 
 void CPosDataManage::FormReLink(char *form, char *target) {
-    CMenuPosDataForm *a = GetFormInfo(form);
-    CMenuPosDataForm *b = GetFormInfo(target);
-    CMenuPosDataForm *old_top;
-    CMenuPosDataForm *old_next;
+    CMenuPosDataForm *first = GetFormInfo(form);
+    CMenuPosDataForm *second = GetFormInfo(target);
+    CMenuPosDataForm *first_prev;
+    CMenuPosDataForm *first_next;
 
-    if (a == NULL || b == NULL) {
+    if (first == NULL || second == NULL) {
         return;
     }
 
-    old_top = a->prev;
-    old_next = a->next;
-    a->prev = b->prev;
-    a->next = b->next;
-    b->prev = old_top;
-    b->next = old_next;
+    first_prev = first->prev;
+    first_next = first->next;
+    first->prev = second->prev;
+    first->next = second->next;
+    second->prev = first_prev;
+    second->next = first_next;
 
-    if (b->prev != NULL) {
-        b->prev->next = b;
+    if (second->prev != NULL) {
+        second->prev->next = second;
     }
 
-    if (b->next != NULL) {
-        b->next->prev = b;
+    if (second->next != NULL) {
+        second->next->prev = second;
     }
 
-    if (a->next != NULL) {
-        a->next->prev = a;
+    if (first->next != NULL) {
+        first->next->prev = first;
     }
 
-    if (a->prev != NULL) {
-        a->prev->next = a;
+    if (first->prev != NULL) {
+        first->prev->next = first;
     }
 }
 
 void CPosDataManage::FormReLink2(char *form, char *target, char *third, char *fourth) {
-    CMenuPosDataForm *a = GetFormInfo(form);
-    CMenuPosDataForm *t = GetFormInfo(third);
-    CMenuPosDataForm *g = GetFormInfo(target);
-    CMenuPosDataForm *f = GetFormInfo(fourth);
-    CMenuPosDataForm *g_next;
-    CMenuPosDataForm *f_next;
-    CMenuPosDataForm *t_top;
-    CMenuPosDataForm *a_top;
+    CMenuPosDataForm *first_form = GetFormInfo(form);
+    CMenuPosDataForm *third_form = GetFormInfo(third);
+    CMenuPosDataForm *target_form = GetFormInfo(target);
+    CMenuPosDataForm *fourth_form = GetFormInfo(fourth);
+    CMenuPosDataForm *target_next;
+    CMenuPosDataForm *fourth_next;
+    CMenuPosDataForm *third_prev;
+    CMenuPosDataForm *first_prev;
 
-    if (a == NULL || t == NULL) {
+    if (first_form == NULL || third_form == NULL) {
         return;
     }
 
-    a_top = a->prev;
-    g_next = NULL;
-    t_top = t->prev;
-    f_next = NULL;
+    first_prev = first_form->prev;
+    target_next = NULL;
+    third_prev = third_form->prev;
+    fourth_next = NULL;
 
-    if (g != NULL) {
-        g_next = g->next;
+    if (target_form != NULL) {
+        target_next = target_form->next;
     }
 
-    if (f != NULL) {
-        f_next = f->next;
+    if (fourth_form != NULL) {
+        fourth_next = fourth_form->next;
     }
 
-    if (g == t_top) {
-        t->prev = a_top;
-        a_top->next = t;
-        a->prev = f;
-        f->next = a;
-        g->next = f_next;
-        f_next->prev = g;
-    } else if (f == a_top) {
-        a->prev = a_top;
-        t_top->next = a;
-        t->prev = g;
-        g->next = t;
-        f->next = g_next;
-        g_next->prev = f;
+    if (target_form == third_prev) {
+        third_form->prev = first_prev;
+        first_prev->next = third_form;
+        first_form->prev = fourth_form;
+        fourth_form->next = first_form;
+        target_form->next = fourth_next;
+        fourth_next->prev = target_form;
+    } else if (fourth_form == first_prev) {
+        first_form->prev = first_prev;
+        third_prev->next = first_form;
+        third_form->prev = target_form;
+        target_form->next = third_form;
+        fourth_form->next = target_next;
+        target_next->prev = fourth_form;
     } else {
-        t->prev = a_top;
+        third_form->prev = first_prev;
 
-        if (a_top != NULL) {
-            a_top->next = t;
+        if (first_prev != NULL) {
+            first_prev->next = third_form;
         }
 
-        if (g_next != NULL) {
-            f->next = g_next;
-            g_next->prev = f;
+        if (target_next != NULL) {
+            fourth_form->next = target_next;
+            target_next->prev = fourth_form;
         }
 
-        a->prev = t_top;
+        first_form->prev = third_prev;
 
-        if (t_top != NULL) {
-            t_top->next = a;
+        if (third_prev != NULL) {
+            third_prev->next = first_form;
         }
 
-        if (f_next != NULL) {
-            g->next = f_next;
-            f_next->prev = g;
+        if (fourth_next != NULL) {
+            target_form->next = fourth_next;
+            fourth_next->prev = target_form;
         }
     }
 }
 
 void CPosDataManage::FormStep() {
     CMenuPosDataForm *form = GetDrawTopList();
-    int               was_visible;
+    int               was_stopped;
 
     if (form != NULL) {
         do {
-            was_visible = form->step_stop;
+            was_stopped = form->step_stop;
 
             if (step_stop != 0) {
-                form->step_stop = 1;
+                form->step_stop = true;
             }
 
             form->MenuFormStep();
 
-            if (was_visible == 0) {
-                form->step_stop = 0;
+            if (was_stopped == 0) {
+                form->step_stop = false;
             }
 
             form = form->next;
@@ -5139,12 +5319,12 @@ void CPosDataManage::ClearPos() {
 }
 
 void CMenuPosDataManage::AttachCommonTexInfo() {
-    common_tex = (&mgTexManager)->GetTexture("menuwork2", -1);
-    unk_40 = NULL;
-    icon_effect_tex = (&mgTexManager)->GetTexture("menueff0", -1);
-    effect_tex = (&mgTexManager)->GetTexture("spectre", -1);
-    item_icon_tex[0][0] = (&mgTexManager)->GetTexture("wepicon", -1);
-    item_icon_tex[0][1] = (&mgTexManager)->GetTexture("itemicon", -1);
+    common_tex = mgTexManager.GetTexture("menuwork2", -1);
+    unused_tex[0] = NULL;
+    icon_effect_tex = mgTexManager.GetTexture("menueff0", -1);
+    effect_tex = mgTexManager.GetTexture("spectre", -1);
+    item_icon_tex[0][0] = mgTexManager.GetTexture("wepicon", -1);
+    item_icon_tex[0][1] = mgTexManager.GetTexture("itemicon", -1);
 }
 
 int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
@@ -5159,7 +5339,7 @@ int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
     short(*act_offset)[2];
     int highlight;
 
-    if (LanguageCode > 0) {
+    if (LanguageCode > LANG_JAPANESE) {
         language = 1;
     }
 
@@ -5186,12 +5366,12 @@ int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
             }
 
             target.pos[1] = basepos_4190[1] + xyoffset_4192[1] * slot;
-            highlight = 1;
+            highlight = true;
 
             if (select >= 0 && select == icon && (mode == 2 || mode == 3)) {
                 target.pos[0] = actpos_4193[0] + act_offset[icon][0];
                 target.pos[1] = actpos_4193[1] + act_offset[icon][1];
-                highlight = 0;
+                highlight = false;
             }
 
             form->rgba[0] = 0xA0;
@@ -5206,11 +5386,11 @@ int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
             form->rgba_bit = 0;
 
             if (select == icon && highlight != 0) {
-                form->rgba_bit = 7;
+                form->rgba_bit = MENUFORM_RGBA_BIT_RGB;
             }
 
-            form->SetNextMovePos(target.pos, 2);
-            form->draw_flag = 1;
+            form->SetNextMovePos(target.pos, MENUFORM_MTYPE_I);
+            form->draw_flag = true;
 
             if (form->CheckMoveEnd(target.pos[0], target.pos[1]) != 0) {
                 arrived++;
@@ -5221,10 +5401,10 @@ int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
     }
 
     if (arrived >= count - 1) {
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int CheckItemUseVariable(CGameDataUsed *item, CItemUseTarget *target) {
@@ -5239,7 +5419,7 @@ int CheckItemUseVariable(CGameDataUsed *item, CItemUseTarget *target) {
     result = state;
 
     if (CheckBuildUp(target->target.item, NULL, NULL, NULL) != 0) {
-        result = state | (int) MENU_ITEM_ICON_BUILD_UP;
+        result = state | MENU_ITEM_ICON_BUILD_UP;
     }
 
     return result;
@@ -5290,7 +5470,7 @@ void Func_MenuItemBrdPrepare2(MENUFORMPARTS_TYPE *parts, CGameDataUsed *items,
     if (0 < count) {
 
         do {
-            if (item_no == (int) ITEM_ID_RIDEPOD_FUEL) {
+            if (item_no == ITEM_ID_RIDEPOD_FUEL) {
                 parts->item_flag = 0;
             } else {
                 CItemUseTarget target;
@@ -5306,7 +5486,7 @@ void Func_MenuItemBrdPrepare2(MENUFORMPARTS_TYPE *parts, CGameDataUsed *items,
 
 int NowUseNeedItemCheck(CUserDataManager *manager) {
     int            needs;
-    int            in_battle;
+    int            items_disabled;
     int            limit;
     int            party;
     int            active_chara;
@@ -5320,10 +5500,10 @@ int NowUseNeedItemCheck(CUserDataManager *manager) {
     }
 
     needs = 0;
-    in_battle = 0;
+    items_disabled = false;
 
     if ((GetMainScene()->battle_area.floor_status & DNG_FLOOR_DISABLE_ITEMS) != 0) {
-        in_battle = 1;
+        items_disabled = true;
     }
 
     active_chara = manager->active_chr_no;
@@ -5331,96 +5511,96 @@ int NowUseNeedItemCheck(CUserDataManager *manager) {
     charas[0] = manager->GetCharaDataPtr(USER_CHARA_MAX);
     charas[1] = manager->GetCharaDataPtr(USER_CHARA_MONICA);
 
-    if ((party & 4) != 0) {
+    if ((party & (1 << USER_CHARA_ROBO)) != 0) {
         robo = &manager->robo_data;
 
         if (robo != NULL) {
             if (robo->AddPoint(0.0f) < 0.2f) {
-                needs |= (int) MENU_ITEM_NEED_REFUEL_RIDEPOD;
+                needs |= MENU_ITEM_NEED_REFUEL_RIDEPOD;
             }
         }
 
         limit = GetShiledKitLimmit(manager->CheckRobotCore());
 
         if (robo->shield_kit_num < limit) {
-            needs |= (int) MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT;
+            needs |= MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT;
         }
     }
 
-    if (active_chara == 0 || active_chara == 1) {
+    if (active_chara == USER_CHARA_MAX || active_chara == USER_CHARA_MONICA) {
         chara = charas[active_chara];
 
-        if (active_chara == 0 || (active_chara == 1 && (party & 2) != 0)) {
+        if (active_chara == USER_CHARA_MAX || (active_chara == USER_CHARA_MONICA && (party & (1 << USER_CHARA_MONICA)) != 0)) {
             if (chara->hp.GetRate() < 0.2f) {
-                needs |= (int) MENU_ITEM_NEED_RESTORE_HP;
+                needs |= MENU_ITEM_NEED_RESTORE_HP;
             }
 
-            if ((chara->status_attr & (int) CHARA_STATUS_POISON) != 0) {
-                needs |= (int) MENU_ITEM_NEED_CURE_POISON;
+            if ((chara->status_attr & CHARA_STATUS_POISON) != 0) {
+                needs |= MENU_ITEM_NEED_CURE_POISON;
             }
 
-            if ((chara->status_attr & (int) CHARA_STATUS_SLOW) != 0) {
-                needs |= (int) MENU_ITEM_NEED_CURE_SLOW;
+            if ((chara->status_attr & CHARA_STATUS_SLOW) != 0) {
+                needs |= MENU_ITEM_NEED_CURE_SLOW;
             }
 
-            if ((chara->status_attr & 0x4) != 0) {
-                needs |= 0x400;
+            if ((chara->status_attr & CHARA_STATUS_UNK_4) != 0) {
+                needs |= MENU_ITEM_NEED_CURE_STATUS_UNK_4;
             }
 
-            if ((chara->status_attr & 0x8) != 0) {
-                needs |= 0x800;
+            if ((chara->status_attr & CHARA_STATUS_UNK_8) != 0) {
+                needs |= MENU_ITEM_NEED_CURE_STATUS_UNK_8;
             }
 
-            if ((chara->status_attr & (int) CHARA_STATUS_POWER) != 0) {
-                needs |= 0x1000;
+            if ((chara->status_attr & CHARA_STATUS_POWER) != 0) {
+                needs |= MENU_ITEM_NEED_POWER;
             }
 
-            if ((chara->status_attr & 0x20) != 0) {
-                needs |= 0x2000;
+            if ((chara->status_attr & CHARA_STATUS_UNK_20) != 0) {
+                needs |= MENU_ITEM_NEED_CURE_STATUS_UNK_20;
             }
 
-            if ((chara->status_attr & 0x40) != 0) {
-                needs |= 0x4000;
+            if ((chara->status_attr & CHARA_STATUS_UNK_40) != 0) {
+                needs |= MENU_ITEM_NEED_CURE_STATUS_UNK_40;
             }
         }
 
         weapon = &chara->equip[0];
 
         if (weapon->GetWHp(NULL) < 0.2f) {
-            needs |= (int) MENU_ITEM_NEED_REPAIR_MELEE;
+            needs |= MENU_ITEM_NEED_REPAIR_MELEE;
         }
 
         if (chara->equip[1].GetWHp(NULL) < 0.2f) {
-            if (active_chara == 0) {
-                needs |= (int) MENU_ITEM_NEED_REPAIR_GUN;
+            if (active_chara == USER_CHARA_MAX) {
+                needs |= MENU_ITEM_NEED_REPAIR_GUN;
             }
 
-            if (active_chara == 1) {
-                needs |= (int) MENU_ITEM_NEED_REPAIR_MAGIC;
+            if (active_chara == USER_CHARA_MONICA) {
+                needs |= MENU_ITEM_NEED_REPAIR_MAGIC;
             }
         }
-    } else if (active_chara == 2) {
+    } else if (active_chara == USER_CHARA_ROBO) {
 
         if (((ROBO_DATA *) &manager->robo_data)->parts[0].GetWHp(NULL) < 0.2f) {
-            needs |= (int) MENU_ITEM_NEED_REPAIR_RIDEPOD;
+            needs |= MENU_ITEM_NEED_REPAIR_RIDEPOD;
         }
-    } else if (active_chara == 3) {
+    } else if (active_chara == USER_CHARA_MONSTER) {
         if (charas[1]->hp.GetRate() < 0.2f) {
-            needs |= (int) MENU_ITEM_NEED_RESTORE_HP;
+            needs |= MENU_ITEM_NEED_RESTORE_HP;
         }
     }
 
-    needs |= 0x30;
+    needs |= MENU_ITEM_NEED_UNUSED_10 | MENU_ITEM_NEED_MONICA_IN_PARTY;
 
-    if ((party & 2) == 0) {
-        needs &= ~0x20;
+    if ((party & (1 << USER_CHARA_MONICA)) == 0) {
+        needs &= ~MENU_ITEM_NEED_MONICA_IN_PARTY;
     }
 
-    if (in_battle != 0) {
-        needs &= ~0x6F01;
+    if (items_disabled != 0) {
+        needs &= ~MENU_ITEM_NEED_RECOVERY;
     }
 
-    return needs | 0x40;
+    return needs | MENU_ITEM_NEED_UNUSED_40;
 }
 
 void Func_MenuIconDrawPrepare(MENUFORMPARTS_TYPE *part, CGameDataUsed *item, int need_item) {
@@ -5442,28 +5622,28 @@ void Func_MenuIconDrawPrepare(MENUFORMPARTS_TYPE *part, CGameDataUsed *item, int
                 if (item_info != NULL) {
                     flags = item_info->use_flags;
 
-                    if ((flags & (int) ITEM_USE_FLAG_RESTORE_HP) != 0 && (need_item & (int) MENU_ITEM_NEED_RESTORE_HP) != 0) {
-                        part->item_flag |= (int) MENU_ITEM_ICON_HIGHLIGHT;
-                    } else if (((flags & (int) ITEM_USE_FLAG_CURE_POISON) != 0 && (need_item & (int) MENU_ITEM_NEED_CURE_POISON) != 0) ||
-                               ((flags & (int) ITEM_USE_FLAG_CURE_STATUS_UNK_4) != 0 && (need_item & 0x400) != 0) ||
-                               ((flags & (int) ITEM_USE_FLAG_CURE_STATUS_UNK_8) != 0 && (need_item & 0x800) != 0) ||
-                               ((flags & (int) ITEM_USE_FLAG_CURE_SLOW) != 0 && (need_item & (int) MENU_ITEM_NEED_CURE_SLOW) != 0) ||
-                               ((flags & (int) ITEM_USE_FLAG_CURE_STATUS_UNK_20) != 0 && (need_item & 0x2000) != 0) ||
-                               ((flags & (int) ITEM_USE_FLAG_CURE_STATUS_UNK_40) != 0 && (need_item & 0x4000) != 0)) {
-                        part->item_flag |= (int) MENU_ITEM_ICON_HIGHLIGHT;
-                    } else if ((flags & (int) ITEM_USE_FLAG_REPAIR) != 0 &&
-                               ((item_no == (int) ITEM_ID_MELEE_REPAIR &&
-                                 ((need_item & (int) MENU_ITEM_NEED_REPAIR_MELEE) != 0 || (need_item & (int) MENU_ITEM_NEED_REPAIR_RIDEPOD) != 0)) ||
-                                (item_no == (int) ITEM_ID_GUN_REPAIR && (need_item & (int) MENU_ITEM_NEED_REPAIR_GUN) != 0) ||
-                                (item_no == (int) ITEM_ID_MAGIC_REPAIR && (need_item & (int) MENU_ITEM_NEED_REPAIR_MAGIC) != 0) ||
-                                (item_no == (int) ITEM_ID_RIDEPOD_FUEL && (need_item & (int) MENU_ITEM_NEED_REFUEL_RIDEPOD) != 0))) {
-                        part->item_flag |= (int) MENU_ITEM_ICON_HIGHLIGHT;
-                    } else if (item_no == 0x1A7 && (need_item & (int) MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT) != 0) {
-                        part->item_flag |= (int) MENU_ITEM_ICON_HIGHLIGHT;
+                    if ((flags & ITEM_USE_FLAG_RESTORE_HP) != 0 && (need_item & MENU_ITEM_NEED_RESTORE_HP) != 0) {
+                        part->item_flag |= MENU_ITEM_ICON_HIGHLIGHT;
+                    } else if (((flags & ITEM_USE_FLAG_CURE_POISON) != 0 && (need_item & MENU_ITEM_NEED_CURE_POISON) != 0) ||
+                               ((flags & ITEM_USE_FLAG_CURE_STATUS_UNK_4) != 0 && (need_item & MENU_ITEM_NEED_CURE_STATUS_UNK_4) != 0) ||
+                               ((flags & ITEM_USE_FLAG_CURE_STATUS_UNK_8) != 0 && (need_item & MENU_ITEM_NEED_CURE_STATUS_UNK_8) != 0) ||
+                               ((flags & ITEM_USE_FLAG_CURE_SLOW) != 0 && (need_item & MENU_ITEM_NEED_CURE_SLOW) != 0) ||
+                               ((flags & ITEM_USE_FLAG_CURE_STATUS_UNK_20) != 0 && (need_item & MENU_ITEM_NEED_CURE_STATUS_UNK_20) != 0) ||
+                               ((flags & ITEM_USE_FLAG_CURE_STATUS_UNK_40) != 0 && (need_item & MENU_ITEM_NEED_CURE_STATUS_UNK_40) != 0)) {
+                        part->item_flag |= MENU_ITEM_ICON_HIGHLIGHT;
+                    } else if ((flags & ITEM_USE_FLAG_REPAIR) != 0 &&
+                               ((item_no == ITEM_ID_MELEE_REPAIR &&
+                                 ((need_item & MENU_ITEM_NEED_REPAIR_MELEE) != 0 || (need_item & MENU_ITEM_NEED_REPAIR_RIDEPOD) != 0)) ||
+                                (item_no == ITEM_ID_GUN_REPAIR && (need_item & MENU_ITEM_NEED_REPAIR_GUN) != 0) ||
+                                (item_no == ITEM_ID_MAGIC_REPAIR && (need_item & MENU_ITEM_NEED_REPAIR_MAGIC) != 0) ||
+                                (item_no == ITEM_ID_RIDEPOD_FUEL && (need_item & MENU_ITEM_NEED_REFUEL_RIDEPOD) != 0))) {
+                        part->item_flag |= MENU_ITEM_ICON_HIGHLIGHT;
+                    } else if (item_no == 0x1A7 && (need_item & MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT) != 0) {
+                        part->item_flag |= MENU_ITEM_ICON_HIGHLIGHT;
                     } else if (item_no == 0x128 || item_no == 0x184) {
-                        part->item_flag |= (int) MENU_ITEM_ICON_HIGHLIGHT;
-                    } else if (item_no == 0x185 && (need_item & 0x20) != 0) {
-                        part->item_flag |= (int) MENU_ITEM_ICON_HIGHLIGHT;
+                        part->item_flag |= MENU_ITEM_ICON_HIGHLIGHT;
+                    } else if (item_no == 0x185 && (need_item & MENU_ITEM_NEED_MONICA_IN_PARTY) != 0) {
+                        part->item_flag |= MENU_ITEM_ICON_HIGHLIGHT;
                     }
                 }
             }
@@ -5485,7 +5665,7 @@ void CheckItemBoardFunc_MenuIconDrawPrepare(CUserDataManager *manager, MENUFORMP
         Func_MenuIconDrawPrepare(&parts[i], item, need_item);
 
         if (CheckBuildUp(item, NULL, NULL, NULL) != 0) {
-            parts[i].item_flag |= (int) MENU_ITEM_ICON_BUILD_UP;
+            parts[i].item_flag |= MENU_ITEM_ICON_BUILD_UP;
         }
 
         item++;
@@ -5496,11 +5676,11 @@ void MenuItemBrdScrlBarStep(int line, int height, int mode) {
     int pos =
         CalcScrlBarPutPos(height, 252.0f, line, (float) (MenuItemBrdMaxLine - MenuItemBrdViewLine));
 
-    if (mode == 0) {
+    if (mode == MENU_ITEM_BRD_CALC_EASE) {
         CalcMenu1((float) pos, &MenuItemBrdScrlBarY, 4.0f, 4.0f, 0);
     }
 
-    if (mode == 1) {
+    if (mode == MENU_ITEM_BRD_CALC_JUMP) {
         MenuItemBrdScrlBarY = (float) pos;
     }
 }
@@ -5513,16 +5693,16 @@ void Func_MenuItemBrdPosStep(int top_line) {
         form->GetPutPosXY(NULL, pos[0], pos[1]);
     }
 
-    __typeof__(pos[0]) x = pos[0];
+    int x = pos[0];
     MenuItemBrdUnderBrdPosXY[0] = x + 16;
     MenuItemBrdUnderBrdPosY_Next = pos[1] + 26;
     MenuItemBrdUnderBrdPosY_Next -= 50.0f * top_line;
 
-    if (MenuItemBrdCalcManner == 0) {
+    if (MenuItemBrdCalcManner == MENU_ITEM_BRD_CALC_EASE) {
         CalcMenu1(MenuItemBrdUnderBrdPosY_Next, &MenuItemBrdUnderBrdPosXY[1], 4.0f, 2.0f, 0);
     }
 
-    if (MenuItemBrdCalcManner == 1) {
+    if (MenuItemBrdCalcManner == MENU_ITEM_BRD_CALC_JUMP) {
         MenuItemBrdUnderBrdPosXY[1] = MenuItemBrdUnderBrdPosY_Next;
     }
 
@@ -5552,13 +5732,13 @@ void CMenuPosDataManage::GetPosMenuItemBrdKoma(int *position, int item_index, in
 }
 
 void CMenuPosDataManage::GetPosMenuItemOnItemBrd(int *pos, int item_no, int clip) {
-    this->GetPosMenuItemBrdKoma(pos, item_no, clip);
+    GetPosMenuItemBrdKoma(pos, item_no, clip);
     pos[0] += 4;
     pos[1] += 4;
 }
 
 void CMenuPosDataManage::GetPosMenuItemBrdForEffect(int *pos, int item_no, int clip) {
-    this->GetPosMenuItemOnItemBrd(pos, item_no, clip);
+    GetPosMenuItemOnItemBrd(pos, item_no, clip);
     pos[0] += 0x12;
     pos[1] += 0x15;
 }
@@ -5576,20 +5756,20 @@ void Func_MenuItemIconSetEffectOne(MENUFORMPARTS_TYPE *part) {
 
     short first[10] = {GetRandI(20), 160, 16, 20, 0, 120};
     SetPartEffectInfoRandFunc(part->effect, first, 8);
-    part->effect[0].type = MENU_PARTS_EFFECT_UNK_100;
-    part->effect[0].active = 1;
-    part->effect[0].repeat = 1;
+    part->effect[0].type = MENU_PARTS_EFFECT_ICON_COUNTER;
+    part->effect[0].active = true;
+    part->effect[0].repeat = true;
     short second[10] = {GetRandI(30), 160, 16, 20, 0, 120};
     SetPartEffectInfoRandFunc(&part->effect[1], second, 8);
-    part->effect[1].type = MENU_PARTS_EFFECT_UNK_100;
-    part->effect[1].active = 1;
-    part->effect[1].repeat = 1;
+    part->effect[1].type = MENU_PARTS_EFFECT_ICON_COUNTER;
+    part->effect[1].active = true;
+    part->effect[1].repeat = true;
     short sparkle[10] = {0};
 
     for (i = 2; i < 8; i++) {
-        Func_SetPartEffectInfo(&part->effect[i], MENU_PARTS_EFFECT_UNK_9, sparkle);
-        part->effect[i].active = 1;
-        part->effect[i].repeat = 1;
+        Func_SetPartEffectInfo(&part->effect[i], MENU_PARTS_EFFECT_SPARKLE, sparkle);
+        part->effect[i].active = true;
+        part->effect[i].repeat = true;
     }
 }
 
@@ -5598,7 +5778,7 @@ void MenuItemBrdItemIconEffectMalloc(mgCMemory *memory, MENUFORMPARTS_TYPE *part
 
     for (i = 0; i < count; i++) {
         MenuPosDataTypeInit(&parts[i]);
-        parts[i].active = 1;
+        parts[i].active = true;
         Func_MallocPartEffectInfo(&parts[i], memory, 8);
         Func_MenuItemIconSetEffectOne(&parts[i]);
     }
@@ -5717,19 +5897,19 @@ void CMenuPosDataManage::SearchTransPalletNo() {
 void CMenuPosDataManage::InitializeCMenuPosDataManage() {
     Initialize();
     common_tex = NULL;
-    unk_40 = NULL;
-    unk_44 = NULL;
-    unk_48 = NULL;
+    unused_tex[0] = NULL;
+    unused_tex[1] = NULL;
+    unused_tex[2] = NULL;
     icon_effect_tex = NULL;
     effect_tex = NULL;
     item_icon_tex[0][0] = NULL;
     item_icon_tex[0][1] = NULL;
     item_icon_tex[1][0] = NULL;
     item_icon_tex[1][1] = NULL;
-    pallet[2][0] = 0;
-    pallet[2][1] = 0;
-    item_icon_tex[3][0] = 0;
-    item_icon_tex[3][1] = 0;
+    pallet[2][0] = NULL;
+    pallet[2][1] = NULL;
+    item_icon_tex[3][0] = NULL;
+    item_icon_tex[3][1] = NULL;
     memset(fish_jump_wait, 0, sizeof(fish_jump_wait));
     memset(fish_jump_height, 0, sizeof(fish_jump_height));
     memset(fish_jump_count, 2, sizeof(fish_jump_count));
@@ -5850,11 +6030,11 @@ int MenuCapture(int block, mgCMemory *stack, int draw) {
         prim->End();
     }
 
-    return 1;
+    return true;
 }
 
 void SetBGFrameForMenu(int tex_block, char *name) {
-    (&mgTexManager)->ReloadTexture(tex_block, (sceVif1Packet *) NULL);
+    mgTexManager.ReloadTexture(tex_block, (sceVif1Packet *) NULL);
     mgCTexture   frame;
     mgRect<int>  src;
     mgRect<int>  half;
@@ -5869,7 +6049,7 @@ void SetBGFrameForMenu(int tex_block, char *name) {
     prim->AlphaTestEnable(0);
     prim->ZMask(MG_Z_MASK_MASKED);
     prim->TextureMapEnable(1);
-    background = (&mgTexManager)->GetTexture(name, -1);
+    background = mgTexManager.GetTexture(name, -1);
     background->Bilinear(1);
     mgSetPkMoveImage(&frame, src, background, 0, 0, 0);
 }
@@ -5885,17 +6065,17 @@ static void MenuFrameImageDraw(mgCDrawPrim *prim, mgCTexture *tex, mgRect<float>
     int env;
 
     if (tex != NULL && prim != NULL) {
-        prim_type = 6;
-        env = 6;
+        prim_type = MG_PRIM_SPRITE;
+        env = MENU_SPRITE_ENV_SHADED;
 
         if (dtype == MENUFORMPARTS_DTYPE_BG) {
-            env = 5;
+            env = MENU_SPRITE_ENV_OPAQUE;
         }
 
         if (dtype == MENUFORMPARTS_DTYPE_FADE_TOP || dtype == MENUFORMPARTS_DTYPE_FADE_BOTTOM ||
             dtype == MENUFORMPARTS_DTYPE_FADE_RIGHT || dtype == MENUFORMPARTS_DTYPE_FADE_LEFT) {
-            prim_type = 4;
-            env = 6;
+            prim_type = MG_PRIM_TRIANGLE_STRIP;
+            env = MENU_SPRITE_ENV_SHADED;
         }
 
         SetSpriteEnv(prim, env);
@@ -5945,9 +6125,9 @@ static void MenuFrameImageDraw(mgCDrawPrim *prim, mgCTexture *tex, mgRect<float>
 }
 
 void CRepairEffect::Initialize() {
-    active = 0;
+    active = false;
     particle = NULL;
-    unk_1c = NULL;
+    sub_tex = NULL;
     tex = NULL;
     particle_num = 0;
 }
@@ -5961,7 +6141,7 @@ void CRepairEffect::Generate(mgCMemory *memory, int particle_count) {
 
     alpha = 0x80;
     counter = 0;
-    active = 1;
+    active = true;
     particle_num = particle_count;
     size = particle_num * sizeof(REPAIR_EFFECT_PARTICLE);
 
@@ -5976,21 +6156,21 @@ void CRepairEffect::Generate(mgCMemory *memory, int particle_count) {
 
     for (; i < particle_num; i++) {
         p = &particle[i];
-        p->active = 1;
-        p->unk_0 = 128.0f;
-        p->unk_4 = 128.0f;
-        p->unk_8 = 64.0f;
+        p->active = true;
+        p->color[0] = 128.0f;
+        p->color[1] = 128.0f;
+        p->color[2] = 64.0f;
         p->alpha = 90.0f + GetRandF(20.0f);
-        p->y = (float) y + GetRandF(40.0f) - 22.0f;
+        p->y = y + GetRandF(40.0f) - 22.0f;
         side = GetRandI(34);
-        p->x = (float) (x + side);
+        p->x = x + side;
         p->vx = GetRandF(0.16f);
 
         if (side < 19) {
             p->vx = -p->vx;
         }
 
-        p->unk_14 = 0;
+        p->vy = 0.0f;
         p->counter = 0;
     }
 }
@@ -6009,7 +6189,7 @@ void CRepairEffect::Step() {
         }
 
         for (i = 0; i < particle_num; i++) {
-            p = particle + i;
+            p = &particle[i];
 
             if (p->active != 0) {
                 p->counter++;
@@ -6018,7 +6198,7 @@ void CRepairEffect::Step() {
                 p->alpha -= 1.7f;
 
                 if (p->alpha <= 0.0f) {
-                    p->active = 0;
+                    p->active = false;
                 }
 
                 alive_count++;
@@ -6026,7 +6206,7 @@ void CRepairEffect::Step() {
         }
 
         if (alive_count == 0) {
-            active = 0;
+            active = false;
         }
 
         counter++;
@@ -6040,7 +6220,7 @@ void CRepairEffect::Draw() {
 
     if (active != 0 && tex != NULL) {
         prim = GetMenuPrim();
-        SetSpriteEnv(prim, 4);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(tex);
         prim->Color(0xC4, 0xC4, 0x80, alpha);
@@ -6074,9 +6254,9 @@ void CRepairEffect::Draw() {
 void CRepairManager::Initialize() {
     int i;
 
-    data_ready = 0;
+    data_ready = false;
     tex_block = -1;
-    unk_1a4 = 0;
+    sub_tex = NULL;
     tex = NULL;
     model = NULL;
     data = NULL;
@@ -6086,7 +6266,7 @@ void CRepairManager::Initialize() {
         effect_stack[i].stSetBuffer(0, 0);
     }
 
-    keep = 0;
+    keep = false;
 }
 
 void CRepairManager::SetStack(mgCMemory *memory, int mode) {
@@ -6119,14 +6299,14 @@ void CRepairManager::SetStack(mgCMemory *memory, int mode) {
 }
 
 void CRepairManager::Clear() {
-    this->Initialize();
+    Initialize();
 }
 
 void CRepairManager::LoadDataBG(mgCMemory *memory) {
     int          size;
     unsigned int blocks;
 
-    bg_load = 0;
+    bg_load = false;
 
     if (data_ready == 0 || data == NULL) {
         memory->stack_used = 0;
@@ -6145,7 +6325,7 @@ void CRepairManager::LoadDataBG(mgCMemory *memory) {
 
         memory->Alloc(blocks);
         SetStack(memory, 0);
-        bg_load = 1;
+        bg_load = true;
     }
 }
 
@@ -6153,26 +6333,26 @@ void CRepairManager::CheckDataBG(int block) {
     int pack_size;
 
     if (data_ready == 0) {
-        (&mgTexManager)->DeleteBlock(block);
-        tex_block = (short) block;
+        mgTexManager.DeleteBlock(block);
+        tex_block = block;
         MenuEnterIMG(block, (u8 *) GetPackFile(data, "repair_powder2d.img", &pack_size), "_2");
-        tex = (&mgTexManager)->GetTexture("menueff0_2", -1);
-        data_ready = 1;
-        bg_load = 0;
+        tex = mgTexManager.GetTexture("menueff0_2", -1);
+        data_ready = true;
+        bg_load = false;
     }
 }
 
 void CRepairManager::SetRepairData(mgCMemory *memory, int block, unsigned int *pack) {
     int pack_size;
 
-    tex_block = (short) block;
+    tex_block = block;
     data = pack;
     MenuEnterIMG(block, (u8 *) GetPackFile(pack, "repair_powder2d.img", &pack_size), "_2");
-    tex = (&mgTexManager)->GetTexture("menueff0_2", -1);
-    data_ready = 1;
-    bg_load = 0;
+    tex = mgTexManager.GetTexture("menueff0_2", -1);
+    data_ready = true;
+    bg_load = false;
     SetStack(memory, 1);
-    keep = 1;
+    keep = true;
 }
 
 void CRepairManager::GeneratePoly(float *pos, int block) {
@@ -6235,7 +6415,7 @@ void CRepairManager::Generate(int x, int y) {
             effect->Initialize();
             effect->x = x;
             effect->y = y;
-            effect->unk_1c = unk_1a4;
+            effect->sub_tex = sub_tex;
             effect->tex = tex;
             effect->Generate(memory, 0x20);
         }
@@ -6250,16 +6430,16 @@ int CRepairManager::IsRun() {
     int i;
     int running;
 
-    running = 0;
+    running = false;
 
     for (i = 0; i < 8; i++) {
         if (effect[i] != NULL) {
-            running = 1;
+            running = true;
         }
     }
 
-    if (this->IsRunModel() != 0) {
-        running = 1;
+    if (IsRunModel() != 0) {
+        running = true;
     }
 
     return running;
@@ -6322,26 +6502,26 @@ void CRepairManager::Draw() {
 }
 
 void CLevelUpEffect::Initialize() {
-    active = 0;
+    active = false;
     chara = NULL;
     tex = NULL;
 }
 
-void CLevelUpEffect::Generate(mgCTexture *spark_texture, int param, int x, int y) {
+void CLevelUpEffect::Generate(mgCTexture *spark_texture, int effect_kind, int x, int y) {
     tex = spark_texture;
-    kind = param;
-    pos[0] = (float) (x - 0x10);
-    pos[1] = (float) y;
+    kind = effect_kind;
+    pos[0] = x - 0x10;
+    pos[1] = y;
     counter = 0;
     chara = NULL;
-    active = 1;
+    active = true;
 }
 
-void CLevelUpEffect::Generate(mgCTexture *spark_texture, int param, CCharacter2 *target) {
+void CLevelUpEffect::Generate(mgCTexture *spark_texture, int effect_kind, CCharacter2 *target) {
     int i;
 
-    active = 1;
-    kind = param;
+    active = true;
+    kind = effect_kind;
     chara = target;
     tex = spark_texture;
     chara->GetPosition(pos);
@@ -6378,13 +6558,13 @@ void CLevelUpEffect::Step() {
             offset = 0;
 
             do {
-                generate_counter = l_levelup_generate_counter + i;
+                generate_counter = &l_levelup_generate_counter[i];
 
                 if (*generate_counter > 0) {
 
                     spark_pos = (float *) ((u8 *) l_levelup_pos + offset);
                     spark_vec = (float *) ((u8 *) l_levelup_vec + offset);
-                    counter = l_levelup_counter + i;
+                    counter = &l_levelup_counter[i];
                     spark_pos[0] += spark_vec[0];
                     spark_pos[1] += spark_vec[1];
                     spark_pos[2] += spark_vec[2];
@@ -6409,14 +6589,14 @@ void CLevelUpEffect::Step() {
             } while (i < 32);
 
             if (alive <= 0) {
-                active = 0;
+                active = false;
                 chara = NULL;
             }
         } else {
             this->counter = this->counter + 1;
 
             if (this->counter > 30) {
-                active = 0;
+                active = false;
             }
         }
     }
@@ -6437,7 +6617,7 @@ void CLevelUpEffect::Draw() {
     if (active != 0 && tex != NULL) {
         if (chara != NULL) {
             prim = GetMenuPrim();
-            SetSpriteEnv(prim, 4);
+            SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
             prim->Coord(1);
             prim->DepthTestEnable(1);
             prim->Begin(MG_PRIM_SPRITE);
@@ -6492,30 +6672,30 @@ int CLevelUpEffectManager::IsRun() {
 
     for (i = 0; i < 8; i++) {
         if (effect[i].IsRun() != 0) {
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
-void CLevelUpEffectManager::Generate(int param, int x, int y) {
+void CLevelUpEffectManager::Generate(int effect_kind, int x, int y) {
     int i;
 
     for (i = 0; i < 8; i++) {
         if (effect[i].IsRun() == 0) {
-            effect[i].Generate(label_tex, param, x, y);
+            effect[i].Generate(label_tex, effect_kind, x, y);
             break;
         }
     }
 }
 
-void CLevelUpEffectManager::Generate(int param, CCharacter2 *chara) {
+void CLevelUpEffectManager::Generate(int effect_kind, CCharacter2 *chara) {
     int i;
 
     for (i = 0; i < 8; i++) {
         if (effect[i].IsRun() == 0) {
-            effect[i].Generate(spark_tex, param, chara);
+            effect[i].Generate(spark_tex, effect_kind, chara);
             break;
         }
     }
@@ -6538,10 +6718,10 @@ void CLevelUpEffectManager::Draw() {
 }
 
 void CStarDust::Generate(int pos_x, int pos_y, int life_base, int life_range) {
-    x = (float) pos_x;
-    y = (float) pos_y;
+    x = pos_x;
+    y = pos_y;
     life = life_base + GetRandI(life_range);
-    active = 1;
+    active = true;
 }
 
 void CStarDust::Step() {
@@ -6549,7 +6729,7 @@ void CStarDust::Step() {
         life -= 1;
 
         if (life < 0) {
-            active = 0;
+            active = false;
         }
     }
 }
@@ -6560,7 +6740,7 @@ void CStarDust::Draw(mgCTexture *texture, int u, int v) {
     mgCDrawPrim *prim;
 
     if ((active != 0) && (texture != NULL)) {
-        remaining = (short) (life);
+        remaining = life;
         alpha = 0x80;
 
         if (remaining < 8) {
@@ -6568,7 +6748,7 @@ void CStarDust::Draw(mgCTexture *texture, int u, int v) {
         }
 
         prim = GetMenuPrim();
-        SetSpriteEnv(prim, 4);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(texture);
         prim->Color(0x80, 0x80, 0x80, alpha);
@@ -6592,7 +6772,7 @@ CStarDust *CheckNotRunStarDust(CStarDust *dusts, int count) {
     if (0 < count) {
         do {
             if (dusts[i].active == 0) {
-                return dusts + i;
+                return &dusts[i];
             }
 
             i++;
@@ -6606,7 +6786,7 @@ int CheckRunStarDust(CStarDust *dusts, int count) {
     int i;
 
     if (dusts == NULL || count <= 0) {
-        return 0;
+        return false;
     }
 
     i = 0;
@@ -6614,53 +6794,51 @@ int CheckRunStarDust(CStarDust *dusts, int count) {
     if (0 < count) {
         do {
             if (dusts[i].active != 0) {
-                return 1;
+                return true;
             }
 
             i++;
         } while (i < count);
     }
 
-    return 0;
+    return false;
 }
 
 void CEffVerticalLine::Generate(float *center, float range, float height) {
-    CEffVerticalLine *line = this;
     float             half_range;
 
-    line->speed = 0.005f + GetRandF(0.1f);
+    speed = 0.005f + GetRandF(0.1f);
     half_range = range / 2.0f;
-    line->pos[0] = (center[0] + GetRandF(1.9f * range)) - 1.9f * half_range;
-    line->pos[1] = center[1] - 0.76f * range;
-    line->pos[2] = (center[2] + GetRandF(1.7f * range)) - 1.7f * half_range;
-    line->pos[3] = center[3];
-    line->w = 1.0f + GetRandF(0.4f);
-    line->h = 0.7f + GetRandF(0.5f);
-    line->r = GetRandF(26.0f);
-    line->g = 72.0f + GetRandF(26.0f);
-    line->b = 96.0f + GetRandF(26.0f);
-    line->alpha = 138.0f + GetRandF(32.0f);
-    line->angle = GetRandF(0.029637668f);
-    line->angle_add = 0.059275337f;
+    pos[0] = (center[0] + GetRandF(1.9f * range)) - 1.9f * half_range;
+    pos[1] = center[1] - 0.76f * range;
+    pos[2] = (center[2] + GetRandF(1.7f * range)) - 1.7f * half_range;
+    pos[3] = center[3];
+    w = 1.0f + GetRandF(0.4f);
+    h = 0.7f + GetRandF(0.5f);
+    r = GetRandF(26.0f);
+    g = 72.0f + GetRandF(26.0f);
+    b = 96.0f + GetRandF(26.0f);
+    alpha = 138.0f + GetRandF(32.0f);
+    angle = GetRandF(0.029637668f);
+    angle_add = 0.059275337f;
 }
 
 void CEffVerticalLine::Step() {
-    CEffVerticalLine *line = this;
-    line->pos[1] += line->speed;
-    line->h += 1.5f * line->speed;
+    pos[1] += speed;
+    h += 1.5f * speed;
 
-    if (line->speed < 0.26f) {
-        line->speed += 0.005f;
+    if (speed < 0.26f) {
+        speed += 0.005f;
     } else {
-        line->speed += 0.009f;
+        speed += 0.009f;
     }
 
-    float phase = line->angle_add;
-    phase = line->angle + phase;
-    line->angle = phase;
+    float phase = angle_add;
+    phase = angle + phase;
+    angle = phase;
 
     if (PI <= phase) {
-        line->angle = PI;
+        angle = PI;
     }
 }
 
@@ -6671,7 +6849,7 @@ void CEffVerticalLine::Draw() {
     mgCDrawPrim prim;
     float       alpha;
 
-    SetSpriteEnv(&prim, 4);
+    SetSpriteEnv(&prim, MENU_SPRITE_ENV_ADD);
     prim.Coord(1);
     prim.DepthTestEnable(1);
     prim.Begin(MG_PRIM_SPRITE);
@@ -6738,10 +6916,9 @@ void InitBuildUpInfoEffect(mgCMemory *memory, mgCTexture *texture, int num, floa
     MenuVerticalLineChara = NULL;
 
     if (memory != NULL) {
-        size = num << 6;
+        size = num * sizeof(CEffVerticalLine);
         blocks = (size & 0xF) != 0 ? (size >> 4) + 1 : size >> 4;
-        MenuVerticalLine =
-            (CEffVerticalLine *) operator new[](size, memory->Alloc(blocks + 2));
+        MenuVerticalLine = new (memory->Alloc(blocks + 2)) CEffVerticalLine[num];
         InitInitBuildUpInfoEffectPos();
     }
 }
@@ -6749,10 +6926,10 @@ void InitBuildUpInfoEffect(mgCMemory *memory, mgCTexture *texture, int num, floa
 void SetBuildUpInfoChara(CCharacter2 *chara, float range) {
     int same;
 
-    same = 1;
+    same = true;
 
     if (MenuVerticalLineChara != chara) {
-        same = 0;
+        same = false;
     }
 
     MenuVerticalRange = range;
@@ -6804,7 +6981,7 @@ void InitFishBoiledEffect(int *position, mgCTexture *texture) {
     int i;
 
     fish_boiled_effect_tex = texture;
-    fish_boiled_runflag = 0;
+    fish_boiled_runflag = false;
 
     if (position != NULL) {
         for (i = 0; i < 8; i++) {
@@ -6814,7 +6991,7 @@ void InitFishBoiledEffect(int *position, mgCTexture *texture) {
             fish_boiled_streatch_rate[i] = 0.4f + GetRandF(0.4f);
         }
 
-        fish_boiled_runflag = 1;
+        fish_boiled_runflag = true;
     }
 
     fish_boiled_count = 0;
@@ -6827,25 +7004,25 @@ int StepFishBoiledEffect() {
     finished = 0;
 
     if (fish_boiled_runflag == 0) {
-        return 0;
+        return false;
     }
 
     for (i = 0; i < 8; i++) {
         fish_boiled_positin[i][1] -= 0.5f;
         fish_boiled_amp_count[i] = mgAngleLimit(0.052359879f + fish_boiled_amp_count[i]);
 
-        if (CalcMenuAdd(&(&fish_boiled_alpha)[0][i], -2.0f, 0.0f) != 0) {
+        if (CalcMenuAdd(&fish_boiled_alpha[i], -2.0f, 0.0f) != 0) {
             finished++;
         }
     }
 
     if (finished >= 8) {
         fish_boiled_runflag = 0;
-        fish_boiled_effect_tex = 0;
-        return 0;
+        fish_boiled_effect_tex = NULL;
+        return false;
     }
 
-    return 1;
+    return true;
 }
 
 void DrawFishBoiledEffect() {
@@ -6858,12 +7035,12 @@ void DrawFishBoiledEffect() {
         return;
     }
 
-    if (fish_boiled_effect_tex == 0) {
+    if (fish_boiled_effect_tex == NULL) {
         return;
     }
 
     prim = GetMenuPrim();
-    SetSpriteEnv(prim, 4);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(fish_boiled_effect_tex);
 
@@ -6894,7 +7071,7 @@ void SetEffectSpectolBreak(mgCMemory *memory, CMenuEffect *effect, int item_no) 
     params.v[2] = rect.left;
     params.v[3] = rect.top;
     params.v[4] = use_trans_rect;
-    effect->PresetEffect(memory, icon_texture, 0x13, params.v);
+    effect->PresetEffect(memory, icon_texture, MENU_EFFECT_TYPE_SPECTOL_FLASH, params.v);
     effect->EffectStart();
     MenuSePlay(-1);
 }
@@ -6919,11 +7096,11 @@ void SetEffectSpectolFusion(mgCMemory *memory, CMenuEffect **effects, CGameDataU
 
     memory->stack_used = 0;
     memory->lock = 0;
-    effects[0]->PresetEffect(memory, MenuPosData->effect_tex, 10,
+    effects[0]->PresetEffect(memory, MenuPosData->effect_tex, MENU_EFFECT_TYPE_FUSION_SWIRL,
                              params.v);
     icon_texture = GetMenuItemIconTexInfo(item->item_no, 0);
     params.v[2] = item->item_no;
-    effects[1]->PresetEffect(memory, icon_texture, 0x15, params.v);
+    effects[1]->PresetEffect(memory, icon_texture, MENU_EFFECT_TYPE_FUSION_ITEM, params.v);
     effects[0]->EffectStart();
     effects[1]->EffectStart();
 }
@@ -6931,49 +7108,49 @@ void SetEffectSpectolFusion(mgCMemory *memory, CMenuEffect **effects, CGameDataU
 void CMenuEffect::Initialize() {
     tex_block = 0;
     tex = NULL;
-    type = -1;
-    run = 0;
+    type = MENU_EFFECT_TYPE_NONE;
+    run = false;
     info_num = 0;
     info = NULL;
     alpha = 128;
 }
 
 void CMenuEffect::PresetEffect(mgCMemory *memory, mgCTexture *texture, int kind, int *base) {
-    int *info;
+    int *block;
 
-    info = MenuCommonInfo->tex_block;
+    block = MenuCommonInfo->tex_block;
     type = kind;
 
     switch (kind) {
-        case 10:
-            SetTexInfo(texture, info);
+        case MENU_EFFECT_TYPE_FUSION_SWIRL:
+            SetTexInfo(texture, block);
             info_num = 0x60;
             SetMemory(memory);
-            SetBaseInfo(base, 1, 1, 4);
+            SetBaseInfo(base, true, true, 4);
             break;
-        case 0:
-            SetTexInfo(texture, info);
+        case MENU_EFFECT_TYPE_GATHER:
+            SetTexInfo(texture, block);
             info_num = 0x80;
             SetMemory(memory);
-            SetBaseInfo(base, 1, 1, 4);
+            SetBaseInfo(base, true, true, 4);
             break;
-        case 4:
-            SetTexInfo(texture, info);
+        case MENU_EFFECT_TYPE_FLASH:
+            SetTexInfo(texture, block);
             info_num = 1;
             SetMemory(memory);
-            SetBaseInfo(base, 1, 1, 4);
+            SetBaseInfo(base, true, true, 4);
             break;
-        case 19:
-            SetTexInfo(texture, info);
+        case MENU_EFFECT_TYPE_SPECTOL_FLASH:
+            SetTexInfo(texture, block);
             info_num = 0x70;
             SetMemory(memory);
-            SetBaseInfo(base, 1, 1, 7);
+            SetBaseInfo(base, true, true, 7);
             break;
-        case 21:
-            SetTexInfo(texture, info);
+        case MENU_EFFECT_TYPE_FUSION_ITEM:
+            SetTexInfo(texture, block);
             info_num = 1;
             SetMemory(memory);
-            SetBaseInfo(base, 1, 1, 4);
+            SetBaseInfo(base, true, true, 4);
             break;
     }
 }
@@ -6982,7 +7159,7 @@ void CMenuEffect::SetMemory(mgCMemory *memory) {
     unsigned int bytes;
     unsigned int blocks;
 
-    bytes = (unsigned int) (info_num << 6);
+    bytes = info_num * sizeof(MENU_EFFECT_INFO);
 
     if (bytes & 0xF) {
         blocks = (bytes >> 4) + 1;
@@ -6993,15 +7170,15 @@ void CMenuEffect::SetMemory(mgCMemory *memory) {
     info = (MENU_EFFECT_INFO *) memory->Alloc(blocks);
 }
 
-void CMenuEffect::SetTexInfo(mgCTexture *texture, int *params) {
+void CMenuEffect::SetTexInfo(mgCTexture *texture, int *block) {
     tex = texture;
 
-    if (params != NULL) {
-        tex_block = params[0];
+    if (block != NULL) {
+        tex_block = block[0];
     }
 }
 
-void CMenuEffect::SetBaseInfo(int *values, int preset, int kind, int count) {
+void CMenuEffect::SetBaseInfo(int *values, int preset, int initial, int count) {
     int i;
 
     for (i = 0; i < count; i++) {
@@ -7009,161 +7186,161 @@ void CMenuEffect::SetBaseInfo(int *values, int preset, int kind, int count) {
     }
 
     if (preset != 0) {
-        PresetInfoAll(kind);
+        PresetInfoAll(initial);
     }
 }
 
 void CMenuEffect::EffectStart() {
-    run = 1;
+    run = true;
     counter = 0;
 }
 
-void CMenuEffect::PresetInfoAll(int kind) {
+void CMenuEffect::PresetInfoAll(int initial) {
     int i;
 
     for (i = 0; i < info_num; i++) {
-        PresetInfo(&info[i], i, kind);
+        PresetInfo(&info[i], i, initial);
     }
 }
 
-void CMenuEffect::PresetInfo(MENU_EFFECT_INFO *particle, int no, int mode) {
+void CMenuEffect::PresetInfo(MENU_EFFECT_INFO *particle, int no, int initial) {
     switch (type) {
-        case 0: {
+        case MENU_EFFECT_TYPE_GATHER: {
             float life = GetRandI(90) + 100;
-            particle->unk_4 = life;
-            particle->unk_0 = GetRandI((int) life);
-            particle->unk_8 = 0.0f;
-            particle->unk_14 = GetRandI(4);
-            particle->unk_18 = GetRandI(100);
-            particle->unk_1c = base_info[2] + GetRandI(44);
-            particle->unk_20 = -(GetRandI(5) + 6);
+            particle->life = life;
+            particle->frame = GetRandI((int) life);
+            particle->corner = 0.0f;
+            particle->variant = GetRandI(4);
+            particle->period = GetRandI(100);
+            particle->radius = base_info[2] + GetRandI(44);
+            particle->radius_speed = -(GetRandI(5) + 6);
 
-            if (mode != 0) {
-                particle->unk_24 = GetRandI(3) + 3;
+            if (initial != 0) {
+                particle->cycles = GetRandI(3) + 3;
             }
 
-            particle->unk_28 = GetRandI(32) + 128;
+            particle->alpha = GetRandI(32) + 128;
             break;
         }
-        case 1:
-            particle->unk_0 = GetRandI(3);
-            particle->unk_14 = GetRandI(4) - 2;
-            particle->unk_18 = GetRandI(9) + 10;
-            particle->unk_1c = -(GetRandI(3) + 2);
+        case MENU_EFFECT_TYPE_FALL:
+            particle->frame = GetRandI(3);
+            particle->vx = GetRandI(4) - 2;
+            particle->vy = GetRandI(9) + 10;
+            particle->gravity = -(GetRandI(3) + 2);
             break;
-        case 2:
-            particle->unk_0 = 0.0f;
-            particle->unk_14 = GetRandI(20) - 10;
-            particle->unk_18 = GetRandI(20) - 10;
-            particle->unk_1c = 128.0f;
-            particle->unk_20 = GetRandI(3) + 5;
+        case MENU_EFFECT_TYPE_BURST:
+            particle->frame = 0.0f;
+            particle->vx = GetRandI(20) - 10;
+            particle->vy = GetRandI(20) - 10;
+            particle->burst_alpha = 128.0f;
+            particle->fade_speed = GetRandI(3) + 5;
             break;
-        case 4:
-            particle->unk_0 = 0.0f;
-            particle->unk_14 = 0.0f;
-            particle->unk_18 = 0.0f;
-            particle->unk_1c = 0.0f;
-            particle->unk_20 = 0.0f;
-            particle->unk_28 = 128.0f;
+        case MENU_EFFECT_TYPE_FLASH:
+            particle->frame = 0.0f;
+            particle->w = 0.0f;
+            particle->h = 0.0f;
+            particle->half_w = 0.0f;
+            particle->half_h = 0.0f;
+            particle->alpha = 128.0f;
             break;
-        case 10:
-        case 12: {
+        case MENU_EFFECT_TYPE_FUSION_SWIRL:
+        case MENU_EFFECT_TYPE_SWIRL: {
             float life = GetRandI(30) + 120;
-            particle->unk_4 = life;
-            particle->unk_0 = GetRandI((int) life);
-            particle->unk_8 = GetRandI(3);
-            particle->unk_14 = GetRandI(4);
-            particle->unk_18 = GetRandI(100) + 70;
-            particle->unk_30 = GetRandI(20);
-            particle->unk_34 = GetRandI(20);
-            particle->unk_38 = GetRandI(5) + 14;
-            particle->unk_3c = GetRandI(4) + 4;
-            particle->unk_28 = GetRandI(32) + 128;
-            particle->unk_2c = -GetRandI(5) - 1;
-            particle->unk_1c = base_info[2] + GetRandI(44);
-            particle->unk_20 = -(GetRandI(3) + 2);
+            particle->life = life;
+            particle->frame = GetRandI((int) life);
+            particle->corner = GetRandI(3);
+            particle->variant = GetRandI(4);
+            particle->period = GetRandI(100) + 70;
+            particle->sway_x = GetRandI(20);
+            particle->sway_y = GetRandI(20);
+            particle->sway_period = GetRandI(5) + 14;
+            particle->pulse = GetRandI(4) + 4;
+            particle->alpha = GetRandI(32) + 128;
+            particle->alpha_speed = -GetRandI(5) - 1;
+            particle->radius = base_info[2] + GetRandI(44);
+            particle->radius_speed = -(GetRandI(3) + 2);
 
-            if (mode != 0) {
-                particle->unk_24 = GetRandI(2) + 3;
+            if (initial != 0) {
+                particle->cycles = GetRandI(2) + 3;
             }
 
             break;
         }
-        case 11:
-            particle->unk_0 = 0.0f;
-            particle->unk_4 = 64.0f;
+        case MENU_EFFECT_TYPE_STILL:
+            particle->frame = 0.0f;
+            particle->life = 64.0f;
             break;
-        case 21:
-            particle->unk_0 = 0.0f;
-            particle->unk_4 = base_info[2];
-            particle->unk_14 = 8.0f;
-            particle->unk_18 = 0.88f;
+        case MENU_EFFECT_TYPE_FUSION_ITEM:
+            particle->frame = 0.0f;
+            particle->item_no = base_info[2];
+            particle->shake = 8.0f;
+            particle->shake_decay = 0.88f;
             break;
-        case 15:
-            particle->unk_0 = 0.0f;
-            particle->unk_4 = 1.0f;
+        case MENU_EFFECT_TYPE_SQUARE:
+            particle->frame = 0.0f;
+            particle->interval = 1.0f;
 
-            if (mode != 0) {
-                particle->unk_14 = no * ((float) base_info[2] / info_num);
+            if (initial != 0) {
+                particle->half_size = no * ((float) base_info[2] / info_num);
             } else {
-                particle->unk_14 = base_info[2];
+                particle->half_size = base_info[2];
             }
 
-            particle->unk_18 = -1.0f;
-            particle->unk_1c = 0.0f;
-            particle->unk_28 = 0.0f;
-            particle->unk_2c = 1.0f;
+            particle->size_step = -1.0f;
+            particle->radius = 0.0f;
+            particle->alpha = 0.0f;
+            particle->alpha_speed = 1.0f;
 
-            if (mode != 0) {
-                particle->unk_24 = 1.0f;
+            if (initial != 0) {
+                particle->cycles = 1.0f;
             }
 
             break;
-        case 16:
-            particle->unk_0 = 0.0f;
-            particle->unk_14 = GetRandI(4) + 1;
-            particle->unk_18 = GetRandI(4) + 1;
+        case MENU_EFFECT_TYPE_SCATTER:
+            particle->frame = 0.0f;
+            particle->vx = GetRandI(4) + 1;
+            particle->vy = GetRandI(4) + 1;
 
             if (GetRandI(2) != 0) {
-                particle->unk_14 = -particle->unk_14;
+                particle->vx = -particle->vx;
             }
 
             if (GetRandI(2) != 0) {
-                particle->unk_18 = -particle->unk_18;
+                particle->vy = -particle->vy;
             }
 
-            particle->x = base_info[0] + particle->unk_14 * GetRandI(3);
-            particle->y = base_info[1] + particle->unk_18 * GetRandI(3);
-            particle->unk_28 = 128.0f;
-            particle->unk_2c = -6.0f;
-            particle->unk_24 = 1.0f;
+            particle->x = base_info[0] + particle->vx * GetRandI(3);
+            particle->y = base_info[1] + particle->vy * GetRandI(3);
+            particle->alpha = 128.0f;
+            particle->alpha_speed = -6.0f;
+            particle->cycles = 1.0f;
             break;
-        case 19:
-            particle->unk_0 = GetRandI(8) + 4;
-            particle->unk_4 = no;
-            particle->unk_14 = 10.0f;
-            particle->unk_18 = -particle->unk_14 - 12.0f;
-            particle->unk_1c = -particle->unk_14 - 13.0f;
+        case MENU_EFFECT_TYPE_SPECTOL_FLASH:
+            particle->frame = GetRandI(8) + 4;
+            particle->piece = no;
+            particle->grow = 10.0f;
+            particle->offset_x = -particle->grow - 12.0f;
+            particle->offset_y = -particle->grow - 13.0f;
 
             if (no == 0) {
-                particle->unk_30 = 168.0f;
+                particle->peak_alpha = 168.0f;
             } else {
-                particle->unk_30 = 0.0f;
+                particle->peak_alpha = 0.0f;
             }
 
             break;
-        case 18: {
-            particle->unk_0 = GetRandI(12);
-            particle->unk_4 = no % 16;
+        case MENU_EFFECT_TYPE_SPECTOL_BREAK: {
+            particle->frame = GetRandI(12);
+            particle->piece = no % 16;
             int left = base_info[0] - 16;
             int top = base_info[1] - 16;
-            int piece = (int) particle->unk_4;
+            int piece = (int) particle->piece;
             particle->x = left + spectol_break_pos[piece][0][0];
             particle->y = top + spectol_break_pos[piece][0][1];
-            particle->unk_14 = spectol_break_angle[piece][2];
-            particle->unk_18 = spectol_break_angle[piece][4];
-            particle->unk_1c = 4.0f * (0.98f + GetRandF(0.02f));
-            particle->unk_20 = GetRandI(3);
+            particle->vertex1_angle = spectol_break_angle[piece][2];
+            particle->vertex2_angle = spectol_break_angle[piece][4];
+            particle->bounce = 4.0f * (0.98f + GetRandF(0.02f));
+            particle->star_color = GetRandI(3);
 
             if (piece >= 48) {
                 particle->x = left + GetRandI(32);
@@ -7172,19 +7349,19 @@ void CMenuEffect::PresetInfo(MENU_EFFECT_INFO *particle, int no, int mode) {
 
             float speed = (1.0f + GetRandF(0.01f)) * GetRandF(3.0f);
             speed += GetRandF(0.005f);
-            int corner = (int) particle->unk_4 % 8;
+            int corner = (int) particle->piece % 8;
 
             if (corner >= 4) {
-                particle->unk_24 = speed;
+                particle->piece_vx = speed;
 
                 if (speed < 0.0f) {
-                    particle->unk_24 = 0.0f;
+                    particle->piece_vx = 0.0f;
                 }
             } else {
-                particle->unk_24 = -speed;
+                particle->piece_vx = -speed;
 
-                if (particle->unk_24 > 0.0f) {
-                    particle->unk_24 = 0.0f;
+                if (particle->piece_vx > 0.0f) {
+                    particle->piece_vx = 0.0f;
                 }
             }
 
@@ -7194,146 +7371,151 @@ void CMenuEffect::PresetInfo(MENU_EFFECT_INFO *particle, int no, int mode) {
                 rate = 0.8f;
             }
 
-            if (particle->unk_4 < 8.0f) {
-                particle->unk_28 = -(GetRandF(2.7f * rate) * (1.0f + GetRandF(0.01f))) - 3.0f;
-                particle->unk_38 = base_info[1] - GetRandF(5.0f) - 6.0f;
+            if (particle->piece < 8.0f) {
+                particle->piece_vy = -(GetRandF(2.7f * rate) * (1.0f + GetRandF(0.01f))) - 3.0f;
+                particle->floor_y = base_info[1] - GetRandF(5.0f) - 6.0f;
             } else {
-                particle->unk_28 = -(GetRandF(4.0f * rate) * (1.0f + GetRandF(0.01f))) - 1.0f;
-                particle->unk_38 = base_info[1] + GetRandF(13.0f) + 3.0f;
+                particle->piece_vy = -(GetRandF(4.0f * rate) * (1.0f + GetRandF(0.01f))) - 1.0f;
+                particle->floor_y = base_info[1] + GetRandF(13.0f) + 3.0f;
             }
 
-            particle->unk_3c = 0.0f;
-            particle->unk_2c = 0.0f;
-            particle->unk_8 = 0.66f + GetRandF(0.032f);
-            particle->unk_30 = 138.0f;
+            particle->pulse = 0.0f;
+            particle->piece_gravity = 0.0f;
+            particle->damping = 0.66f + GetRandF(0.032f);
+            particle->piece_alpha = 138.0f;
 
             if (piece < 48) {
-                particle->unk_34 = 0.0f;
+                particle->spark_flag = 0.0f;
             } else {
-                particle->unk_34 = 96.0f;
+                particle->spark_flag = 96.0f;
             }
 
             break;
         }
-        case 20:
-            particle->unk_0 = GetRandI(80);
-            particle->unk_4 = 0.0f;
-            particle->unk_14 = GetRandI(8) + 2;
-            particle->unk_18 = 0.0f;
-            particle->unk_1c = 0.0f;
-            particle->unk_20 = GetRandI(3);
+        case MENU_EFFECT_TYPE_SPECTOL_GATHER:
+            particle->frame = GetRandI(80);
+            particle->piece = 0.0f;
+            particle->orbit = GetRandI(8) + 2;
+            particle->ring_size = 0.0f;
+            particle->shrinking = 0.0f;
+            particle->star_color = GetRandI(3);
             break;
     }
 }
 
-static inline int EffectType(CMenuEffect *e) { return e->type; }
+/**
+ *
+ * Returns the kind of a menu effect.
+ *
+ */
+static inline int EffectType(CMenuEffect *effect) { return effect->type; }
 
 void CMenuEffect::Step() {
-    end = 0;
+    end = false;
 
     if (run != 0) {
         if (info != NULL) {
             MENU_EFFECT_INFO *particle = info;
             int               prev_type = EffectType(this);
             int               i;
-            int               done = 1;
+            int               done = true;
 
             switch (prev_type) {
-                case 0:
+                case MENU_EFFECT_TYPE_GATHER:
                     for (i = 0; i < info_num; i++, particle++) {
-                        if (particle->unk_24 > 0.0f) {
-                            float radius = particle->unk_1c;
-                            float angle = PI / particle->unk_18 * particle->unk_0;
+                        if (particle->cycles > 0.0f) {
+                            float radius = particle->radius;
+                            float angle = PI / particle->period * particle->frame;
                             particle->x = base_info[0] + radius * cosf(angle);
                             particle->y = base_info[1] + radius * sinf(angle);
-                            particle->unk_1c += particle->unk_20;
-                            particle->unk_28 -= 8.0f;
+                            particle->radius += particle->radius_speed;
+                            particle->alpha -= 8.0f;
 
                             if (radius < 40.0f) {
-                                particle->unk_28 -= 20.0f;
+                                particle->alpha -= 20.0f;
                             }
 
-                            if (particle->unk_28 < 0.0f) {
-                                particle->unk_28 = 0.0f;
+                            if (particle->alpha < 0.0f) {
+                                particle->alpha = 0.0f;
                             }
 
-                            particle->unk_0 += 1.0f;
+                            particle->frame += 1.0f;
 
-                            if (particle->unk_24 > 1.0f && particle->unk_1c < 3.0f) {
-                                particle->unk_24 -= 1.0f;
-                                PresetInfo(particle, i, 0);
+                            if (particle->cycles > 1.0f && particle->radius < 3.0f) {
+                                particle->cycles -= 1.0f;
+                                PresetInfo(particle, i, false);
                             }
 
-                            if (particle->unk_24 == 1.0f && particle->unk_1c < 2.0f) {
-                                particle->unk_24 -= 1.0f;
+                            if (particle->cycles == 1.0f && particle->radius < 2.0f) {
+                                particle->cycles -= 1.0f;
                             }
 
-                            done = 0;
+                            done = false;
                         }
                     }
 
                     if (done != 0) {
-                        run = 0;
+                        run = false;
                     }
 
                     break;
-                case 1:
+                case MENU_EFFECT_TYPE_FALL:
                     for (i = 0; i < info_num; i++) {
                         MENU_EFFECT_INFO *drop = &info[i];
 
                         if (drop->y < 520.0f) {
-                            done = 0;
-                            drop->x = base_info[0] + drop->unk_14 * drop->unk_0;
-                            drop->y = base_info[1] + drop->unk_18 * drop->unk_0 + 0.25f * (drop->unk_1c * drop->unk_0);
-                            drop->unk_0++;
+                            done = false;
+                            drop->x = base_info[0] + drop->vx * drop->frame;
+                            drop->y = base_info[1] + drop->vy * drop->frame + 0.25f * (drop->gravity * drop->frame);
+                            drop->frame++;
                         }
                     }
 
                     if (done != 0) {
-                        run = 0;
+                        run = false;
                     }
 
                     break;
-                case 2:
+                case MENU_EFFECT_TYPE_BURST:
                     for (i = 0; i < info_num; i++) {
                         MENU_EFFECT_INFO *spark = &info[i];
 
-                        if (spark->unk_1c > 0.0f) {
-                            spark->x += spark->unk_14;
-                            spark->y += spark->unk_18;
+                        if (spark->burst_alpha > 0.0f) {
+                            spark->x += spark->vx;
+                            spark->y += spark->vy;
 
-                            if (spark->unk_14 > 0.0f) {
-                                spark->unk_14 -= 1.0f;
+                            if (spark->vx > 0.0f) {
+                                spark->vx -= 1.0f;
                             }
 
-                            if (spark->unk_14 < 0.0f) {
-                                spark->unk_14 += 1.0f;
+                            if (spark->vx < 0.0f) {
+                                spark->vx += 1.0f;
                             }
 
-                            if (spark->unk_18 > 0.0f) {
-                                spark->unk_18 -= 1.0f;
+                            if (spark->vy > 0.0f) {
+                                spark->vy -= 1.0f;
                             }
 
-                            if (spark->unk_18 < 0.0f) {
-                                spark->unk_18 += 1.0f;
+                            if (spark->vy < 0.0f) {
+                                spark->vy += 1.0f;
                             }
 
-                            spark->unk_1c -= spark->unk_20;
+                            spark->burst_alpha -= spark->fade_speed;
 
-                            if (spark->unk_1c < 0.0f) {
-                                spark->unk_1c = 0.0f;
+                            if (spark->burst_alpha < 0.0f) {
+                                spark->burst_alpha = 0.0f;
                             }
 
-                            done = 0;
+                            done = false;
                         }
                     }
 
                     if (done != 0) {
-                        run = 0;
+                        run = false;
                     }
 
                     break;
-                case 3:
+                case MENU_EFFECT_TYPE_FADE:
                     alpha = 128 - counter * 3;
 
                     if (alpha < 0) {
@@ -7341,317 +7523,317 @@ void CMenuEffect::Step() {
                     }
 
                     break;
-                case 4:
-                    particle->x = base_info[0] - particle->unk_1c;
-                    particle->y = base_info[1] - particle->unk_20;
-                    particle->unk_14 = 2.0f * particle->unk_1c;
-                    particle->unk_18 = 2.0f * particle->unk_20;
-                    particle->unk_0++;
+                case MENU_EFFECT_TYPE_FLASH:
+                    particle->x = base_info[0] - particle->half_w;
+                    particle->y = base_info[1] - particle->half_h;
+                    particle->w = 2.0f * particle->half_w;
+                    particle->h = 2.0f * particle->half_h;
+                    particle->frame++;
 
-                    if (particle->unk_0 < 70.0f && (int) particle->unk_0 % 2 != 0) {
-                        particle->unk_1c += 1.0f;
-                        particle->unk_20 += 1.0f;
-                        particle->unk_28 += 1.0f;
-                    } else if (70.0f <= particle->unk_0 && particle->unk_0 < 112.0f &&
-                               (int) particle->unk_0 % 4 == 0) {
-                        particle->unk_1c += 2.0f;
-                        particle->unk_20 += 2.0f;
-                        particle->unk_28 += 5.0f;
-                    } else if (112.0f <= particle->unk_0) {
-                        particle->unk_1c -= 6.0f;
-                        particle->unk_20 -= 6.0f;
-                        particle->unk_28 -= 13.0f;
+                    if (particle->frame < 70.0f && (int) particle->frame % 2 != 0) {
+                        particle->half_w += 1.0f;
+                        particle->half_h += 1.0f;
+                        particle->alpha += 1.0f;
+                    } else if (70.0f <= particle->frame && particle->frame < 112.0f &&
+                               (int) particle->frame % 4 == 0) {
+                        particle->half_w += 2.0f;
+                        particle->half_h += 2.0f;
+                        particle->alpha += 5.0f;
+                    } else if (112.0f <= particle->frame) {
+                        particle->half_w -= 6.0f;
+                        particle->half_h -= 6.0f;
+                        particle->alpha -= 13.0f;
                     }
 
-                    if (particle->unk_28 > 255.0f) {
-                        particle->unk_28 = 255.0f;
+                    if (particle->alpha > 255.0f) {
+                        particle->alpha = 255.0f;
                     }
 
-                    if (particle->unk_28 < 0.0f) {
-                        particle->unk_28 = 0.0f;
+                    if (particle->alpha < 0.0f) {
+                        particle->alpha = 0.0f;
                     }
 
-                    if (particle->unk_1c < 0.0f) {
-                        particle->unk_1c = 0.0f;
+                    if (particle->half_w < 0.0f) {
+                        particle->half_w = 0.0f;
                     }
 
-                    if (particle->unk_20 < 0.0f) {
-                        particle->unk_20 = 0.0f;
+                    if (particle->half_h < 0.0f) {
+                        particle->half_h = 0.0f;
                     }
 
-                    if (particle->unk_28 <= 0.0f && particle->unk_1c <= 0.0f) {
-                        run = 0;
-                        type = -1;
+                    if (particle->alpha <= 0.0f && particle->half_w <= 0.0f) {
+                        run = false;
+                        type = MENU_EFFECT_TYPE_NONE;
                     }
 
                     break;
-                case 10:
-                case 12: {
-                    int faded = 1;
+                case MENU_EFFECT_TYPE_FUSION_SWIRL:
+                case MENU_EFFECT_TYPE_SWIRL: {
+                    int faded = true;
 
                     for (i = 0; i < info_num; i++, particle++) {
-                        particle->unk_28 += particle->unk_2c;
+                        particle->alpha += particle->alpha_speed;
 
-                        if (particle->unk_28 < 0.0f) {
-                            particle->unk_28 = 0.0f;
+                        if (particle->alpha < 0.0f) {
+                            particle->alpha = 0.0f;
                         }
 
-                        if (particle->unk_24 > 0.0f) {
-                            float angle = PI / particle->unk_18 * particle->unk_0;
-                            float radius = particle->unk_1c;
+                        if (particle->cycles > 0.0f) {
+                            float angle = PI / particle->period * particle->frame;
+                            float radius = particle->radius;
                             particle->x = base_info[0] + radius * cosf(angle);
                             particle->y = base_info[1] + radius * sinf(angle);
-                            int dx = particle->unk_30 * sinf(PI * particle->unk_0 / particle->unk_38);
+                            int dx = particle->sway_x * sinf(PI * particle->frame / particle->sway_period);
                             particle->x += dx;
-                            int dy = particle->unk_34 * sinf(PI * particle->unk_0 / particle->unk_38);
+                            int dy = particle->sway_y * sinf(PI * particle->frame / particle->sway_period);
                             particle->y += dy;
-                            particle->unk_1c += particle->unk_20;
-                            particle->unk_0 += 1.0f;
+                            particle->radius += particle->radius_speed;
+                            particle->frame += 1.0f;
 
-                            if (particle->unk_24 > 1.0f && particle->unk_1c < 3.0f) {
-                                particle->unk_24 -= 1.0f;
-                                PresetInfo(particle, i, 0);
+                            if (particle->cycles > 1.0f && particle->radius < 3.0f) {
+                                particle->cycles -= 1.0f;
+                                PresetInfo(particle, i, false);
                             }
 
-                            if (particle->unk_24 == 1.0f && particle->unk_1c < 2.0f) {
-                                particle->unk_24 -= 1.0f;
+                            if (particle->cycles == 1.0f && particle->radius < 2.0f) {
+                                particle->cycles -= 1.0f;
                             }
 
-                            done = 0;
+                            done = false;
                         }
 
-                        if (particle->unk_28 > 0.0f) {
-                            faded = 0;
+                        if (particle->alpha > 0.0f) {
+                            faded = false;
                         }
                     }
 
                     if (done != 0 && faded != 0) {
-                        run = 0;
+                        run = false;
                     }
 
                     break;
                 }
-                case 11:
+                case MENU_EFFECT_TYPE_STILL:
                     break;
-                case 21:
-                    particle->unk_0 += 1.0f;
-                    particle->x = base_info[0] + particle->unk_14 * sinf(GetRandF(TWO_PI));
-                    particle->y = base_info[1] + particle->unk_14 * sinf(GetRandF(TWO_PI));
+                case MENU_EFFECT_TYPE_FUSION_ITEM:
+                    particle->frame += 1.0f;
+                    particle->x = base_info[0] + particle->shake * sinf(GetRandF(TWO_PI));
+                    particle->y = base_info[1] + particle->shake * sinf(GetRandF(TWO_PI));
 
-                    if ((int) particle->unk_0 % 2 != 0) {
-                        particle->unk_14 *= particle->unk_18;
+                    if ((int) particle->frame % 2 != 0) {
+                        particle->shake *= particle->shake_decay;
                     }
 
-                    particle->unk_1c = particle->unk_20 = particle->unk_24 = 200.0f;
+                    particle->red = particle->green = particle->blue = 200.0f;
                     break;
-                case 15:
+                case MENU_EFFECT_TYPE_SQUARE:
                     for (i = 0; i < info_num; i++, particle++) {
-                        particle->unk_0++;
+                        particle->frame++;
 
-                        if ((int) particle->unk_0 % 2 != 0) {
-                            particle->unk_28 += particle->unk_2c;
+                        if ((int) particle->frame % 2 != 0) {
+                            particle->alpha += particle->alpha_speed;
                         }
 
-                        if (particle->unk_28 <= 0.0f) {
-                            particle->unk_28 = 0.0f;
+                        if (particle->alpha <= 0.0f) {
+                            particle->alpha = 0.0f;
                         }
 
-                        if (particle->unk_28 > 164.0f) {
-                            particle->unk_28 = 164.0f;
+                        if (particle->alpha > 164.0f) {
+                            particle->alpha = 164.0f;
                         }
 
-                        if (particle->unk_24 > 0.0f) {
-                            if ((int) particle->unk_0 % (int) particle->unk_4 == 0) {
-                                particle->unk_14 += particle->unk_18;
+                        if (particle->cycles > 0.0f) {
+                            if ((int) particle->frame % (int) particle->interval == 0) {
+                                particle->half_size += particle->size_step;
 
-                                if (particle->unk_14 <= 0.0f) {
-                                    particle->unk_24 -= 1.0f;
-                                    particle->unk_14 = 0.0f;
-                                    PresetInfo(particle, i, 0);
+                                if (particle->half_size <= 0.0f) {
+                                    particle->cycles -= 1.0f;
+                                    particle->half_size = 0.0f;
+                                    PresetInfo(particle, i, false);
                                 }
                             }
 
-                            done = 0;
-                            particle->x = base_info[0] - particle->unk_14;
-                            particle->y = base_info[1] - particle->unk_14;
+                            done = false;
+                            particle->x = base_info[0] - particle->half_size;
+                            particle->y = base_info[1] - particle->half_size;
                         }
 
-                        if (particle->unk_24 <= 0.0f) {
-                            particle->unk_28 = 0.0f;
+                        if (particle->cycles <= 0.0f) {
+                            particle->alpha = 0.0f;
                         }
                     }
 
                     if (done != 0) {
-                        run = 0;
+                        run = false;
                     }
 
                     break;
-                case 16:
+                case MENU_EFFECT_TYPE_SCATTER:
                     for (i = 0; i < info_num; i++, particle++) {
-                        particle->unk_28 += particle->unk_2c;
+                        particle->alpha += particle->alpha_speed;
 
-                        if (particle->unk_24 > 0.0f) {
-                            particle->x += particle->unk_14;
-                            particle->y += particle->unk_18;
-                            particle->unk_0++;
-                            done = 0;
+                        if (particle->cycles > 0.0f) {
+                            particle->x += particle->vx;
+                            particle->y += particle->vy;
+                            particle->frame++;
+                            done = false;
 
-                            if (particle->unk_24 > 1.0f && particle->unk_28 < 10.0f) {
-                                particle->unk_24 -= 1.0f;
+                            if (particle->cycles > 1.0f && particle->alpha < 10.0f) {
+                                particle->cycles -= 1.0f;
                             }
                         }
                     }
 
                     if (done != 0) {
-                        run = 0;
+                        run = false;
                     }
 
                     break;
-                case 19: {
+                case MENU_EFFECT_TYPE_SPECTOL_FLASH: {
                     int ended = 0;
 
                     for (i = 0; i < 1; i++, particle++) {
-                        particle->unk_0 += 1.0f;
-                        particle->unk_28 = particle->unk_30 * sinf(0.07853982f * particle->unk_0);
+                        particle->frame += 1.0f;
+                        particle->alpha = particle->peak_alpha * sinf(0.07853982f * particle->frame);
                         particle->x = base_info[0] - 16;
                         particle->y = base_info[1] - 12;
 
-                        if (particle->unk_28 <= 0.0f) {
-                            particle->unk_28 = 0.0f;
+                        if (particle->alpha <= 0.0f) {
+                            particle->alpha = 0.0f;
                             ended++;
                         }
                     }
 
                     if (ended > 0) {
-                        type = 18;
-                        PresetInfoAll(0);
+                        type = MENU_EFFECT_TYPE_SPECTOL_BREAK;
+                        PresetInfoAll(false);
                         counter = 0;
                     }
 
                     break;
                 }
-                case 18: {
+                case MENU_EFFECT_TYPE_SPECTOL_BREAK: {
                     int ended = 0;
 
                     for (i = 0; i < info_num; i++, particle++) {
-                        particle->unk_0++;
+                        particle->frame++;
 
-                        if (particle->unk_0 > 26.0f) {
-                            particle->unk_30 -= 2.0f;
+                        if (particle->frame > 26.0f) {
+                            particle->piece_alpha -= 2.0f;
                         }
 
-                        if (particle->unk_30 < 0.0f) {
-                            particle->unk_30 = 0.0f;
+                        if (particle->piece_alpha < 0.0f) {
+                            particle->piece_alpha = 0.0f;
                             ended++;
                         }
 
                         if (particle->y <= mgScreenHeight && particle->x <= mgScreenWidth) {
-                            particle->x += particle->unk_24;
-                            particle->y += particle->unk_28;
+                            particle->x += particle->piece_vx;
+                            particle->y += particle->piece_vy;
 
-                            if ((int) particle->unk_0 % 6 == 0) {
-                                particle->unk_24 *= particle->unk_8;
-                                particle->unk_28 += particle->unk_2c;
+                            if ((int) particle->frame % 6 == 0) {
+                                particle->piece_vx *= particle->damping;
+                                particle->piece_vy += particle->piece_gravity;
                             }
 
-                            if (particle->unk_38 <= base_info[1] && particle->unk_28 > 2.0f &&
-                                particle->unk_38 < particle->y) {
-                                particle->unk_28 = -(0.8f * particle->unk_1c);
-                                particle->unk_2c = -1.0f;
-                                particle->unk_38 += 3.5f * (1.0f + GetRandF(0.004f) - 0.002f);
+                            if (particle->floor_y <= base_info[1] && particle->piece_vy > 2.0f &&
+                                particle->floor_y < particle->y) {
+                                particle->piece_vy = -(0.8f * particle->bounce);
+                                particle->piece_gravity = -1.0f;
+                                particle->floor_y += 3.5f * (1.0f + GetRandF(0.004f) - 0.002f);
 
-                                if (particle->unk_1c > 2.9f) {
-                                    particle->unk_1c -= 1.6f;
+                                if (particle->bounce > 2.9f) {
+                                    particle->bounce -= 1.6f;
                                 }
                             }
 
-                            if (particle->unk_38 > base_info[1] && particle->unk_28 > 2.0f &&
-                                particle->unk_38 < particle->y) {
-                                particle->unk_28 = -(0.9f * particle->unk_1c);
-                                particle->unk_2c = 2.0f;
-                                particle->unk_38 += 3.6f * (1.0f + GetRandF(0.004f) - 0.002f);
+                            if (particle->floor_y > base_info[1] && particle->piece_vy > 2.0f &&
+                                particle->floor_y < particle->y) {
+                                particle->piece_vy = -(0.9f * particle->bounce);
+                                particle->piece_gravity = 2.0f;
+                                particle->floor_y += 3.6f * (1.0f + GetRandF(0.004f) - 0.002f);
 
-                                if (particle->unk_1c > 2.6f) {
-                                    particle->unk_1c -= 1.1f;
+                                if (particle->bounce > 2.6f) {
+                                    particle->bounce -= 1.1f;
                                 }
                             }
 
-                            if (particle->unk_38 < base_info[1]) {
-                                if ((int) particle->unk_0 % 6 == 0) {
-                                    particle->unk_2c += 1.0f;
+                            if (particle->floor_y < base_info[1]) {
+                                if ((int) particle->frame % 6 == 0) {
+                                    particle->piece_gravity += 1.0f;
                                 }
-                            } else if ((int) particle->unk_0 % 12 == 0) {
-                                particle->unk_2c += 1.0f;
+                            } else if ((int) particle->frame % 12 == 0) {
+                                particle->piece_gravity += 1.0f;
                             }
 
-                            if ((int) particle->unk_0 % 12 == 0) {
-                                particle->unk_2c += 1.0f;
+                            if ((int) particle->frame % 12 == 0) {
+                                particle->piece_gravity += 1.0f;
                             }
                         }
                     }
 
                     if (ended >= 48 && counter > 90) {
-                        type = 20;
-                        PresetInfoAll(0);
+                        type = MENU_EFFECT_TYPE_SPECTOL_GATHER;
+                        PresetInfoAll(false);
                         tex = MenuPosData->icon_effect_tex;
                         counter = 0;
                     }
 
                     break;
                 }
-                case 20: {
+                case MENU_EFFECT_TYPE_SPECTOL_GATHER: {
                     int gathered = 0;
 
                     for (i = 0; i < info_num - 1; i++, particle++) {
-                        particle->unk_0 += 1.0f;
+                        particle->frame += 1.0f;
                         particle->x += (base_info[4] - particle->x) / 9.0f;
                         particle->y += (base_info[5] - particle->y) / 9.0f;
                         int fade;
 
                         if (abs((int) (particle->x - base_info[4])) < 9 && abs((int) (particle->y - base_info[5])) < 9) {
-                            particle->x = base_info[4] + particle->unk_14 * sinf(0.07853982f * particle->unk_0);
-                            particle->y = base_info[5] + particle->unk_14 * cosf(0.07853982f * particle->unk_0);
+                            particle->x = base_info[4] + particle->orbit * sinf(0.07853982f * particle->frame);
+                            particle->y = base_info[5] + particle->orbit * cosf(0.07853982f * particle->frame);
                             fade = -5;
                             gathered++;
                         } else {
                             fade = 3;
-                            done = 0;
+                            done = false;
                         }
 
-                        particle->unk_30 += fade;
+                        particle->piece_alpha += fade;
 
-                        if (particle->unk_30 < 0.0f) {
-                            particle->unk_30 = 0.0f;
+                        if (particle->piece_alpha < 0.0f) {
+                            particle->piece_alpha = 0.0f;
                         }
 
-                        if (particle->unk_30 > 128.0f) {
-                            particle->unk_30 = 128.0f;
+                        if (particle->piece_alpha > 128.0f) {
+                            particle->piece_alpha = 128.0f;
                         }
                     }
 
-                    particle->unk_0++;
-                    particle->x = base_info[4] - particle->unk_18;
-                    particle->y = base_info[5] - particle->unk_18;
+                    particle->frame++;
+                    particle->x = base_info[4] - particle->ring_size;
+                    particle->y = base_info[5] - particle->ring_size;
 
                     if (gathered < info_num * 14 / 15) {
-                        particle->unk_18 += 2.0f;
+                        particle->ring_size += 2.0f;
 
-                        if (!(particle->unk_18 < 30.0f)) {
-                            particle->unk_18 = 30.0f;
+                        if (!(particle->ring_size < 30.0f)) {
+                            particle->ring_size = 30.0f;
                         }
-                    } else if ((int) particle->unk_0 % 2 == 0) {
-                        particle->unk_1c = 1.0f;
-                        particle->unk_18 -= 1.0f;
+                    } else if ((int) particle->frame % 2 == 0) {
+                        particle->shrinking = 1.0f;
+                        particle->ring_size -= 1.0f;
 
-                        if (particle->unk_18 < 0.0f) {
-                            particle->unk_18 = 0.0f;
+                        if (particle->ring_size < 0.0f) {
+                            particle->ring_size = 0.0f;
                         }
                     }
 
-                    particle->unk_30 = 7.0f * particle->unk_18;
+                    particle->piece_alpha = 7.0f * particle->ring_size;
 
-                    if (done != 0 && particle->unk_18 <= 0.0f) {
-                        run = 0;
+                    if (done != 0 && particle->ring_size <= 0.0f) {
+                        run = false;
                     }
 
                     break;
@@ -7659,7 +7841,7 @@ void CMenuEffect::Step() {
             }
 
             if (prev_type != type) {
-                end = 1;
+                end = true;
             }
 
             counter++;
@@ -7690,22 +7872,22 @@ void CMenuEffect::Draw() {
         int i;
 
         switch (type) {
-            case 18:
+            case MENU_EFFECT_TYPE_SPECTOL_BREAK:
                 prim->AlphaBlend(MG_ALPHA_BLEND_NORMAL);
                 prim->Begin(MG_PRIM_TRIANGLE);
                 prim->Texture(tex);
 
                 for (i = 0; i < 48; i++, particle++) {
-                    int piece = (int) particle->unk_4;
-                    prim->Color(color[0], color[1], color[2], (int) particle->unk_30);
+                    int piece = (int) particle->piece;
+                    prim->Color(color[0], color[1], color[2], (int) particle->piece_alpha);
                     s16(*corner)[2] = spectol_break_pos[piece];
                     prim->TextureCrd(base_info[2] + corner[0][0], base_info[3] + corner[0][1]);
                     prim->Vertex(particle->x, particle->y, 0.0f);
                     prim->TextureCrd(base_info[2] + corner[1][0], base_info[3] + corner[1][1]);
-                    float angle = particle->unk_14 + 0.05235988f * particle->unk_0;
+                    float angle = particle->vertex1_angle + 0.05235988f * particle->frame;
                     prim->Vertex(particle->x + 10.0f * cosf(angle), particle->y + 10.0f * sinf(angle), 0.0f);
                     prim->TextureCrd(base_info[2] + corner[2][0], base_info[3] + corner[2][1]);
-                    angle = particle->unk_18 + 0.05235988f * particle->unk_0;
+                    angle = particle->vertex2_angle + 0.05235988f * particle->frame;
                     prim->Vertex(particle->x + 10.0f * cosf(angle), particle->y + 10.0f * sinf(angle), 0.0f);
                 }
 
@@ -7715,7 +7897,7 @@ void CMenuEffect::Draw() {
                 prim->Texture(MenuPosData->icon_effect_tex);
 
                 for (; i < info_num || i < 80; i++, particle++) {
-                    prim->Color(color[0], color[1], color[2], (int) particle->unk_30);
+                    prim->Color(color[0], color[1], color[2], (int) particle->piece_alpha);
                     prim->TextureCrd(0, 32);
                     prim->Vertex(particle->x, particle->y, 0.0f);
                     prim->TextureCrd(8, 40);
@@ -7724,33 +7906,33 @@ void CMenuEffect::Draw() {
 
                 prim->End();
                 return;
-            case 19: {
-                int size = (int) (32.0f + 2.0f * particle->unk_14);
+            case MENU_EFFECT_TYPE_SPECTOL_FLASH: {
+                int size = (int) (32.0f + 2.0f * particle->grow);
                 prim->Begin(MG_PRIM_SPRITE);
                 prim->Texture(MenuPosData->icon_effect_tex);
-                prim->Color(0x80, 0x80, 0x80, (int) particle->unk_28);
+                prim->Color(0x80, 0x80, 0x80, (int) particle->alpha);
                 mgRect<int> put((int) particle->x, (int) particle->y, size, size);
                 PrimQuad(prim, put, star_light);
                 prim->End();
                 return;
             }
-            case 21: {
+            case MENU_EFFECT_TYPE_FUSION_ITEM: {
                 rect.Set(particle->x, particle->y, 32.0f, 40.0f);
                 item_color item_rgba = {
                     {0, 0, 0, 0}
                 };
-                item_rgba.rgba[0] = particle->unk_1c;
-                item_rgba.rgba[1] = particle->unk_20;
-                item_rgba.rgba[2] = particle->unk_20;
-                item_rgba.rgba[3] = particle->unk_28;
-                DrawOneItem(prim, rect, (int) particle->unk_4, 0, NULL, item_rgba.rgba, 0);
+                item_rgba.rgba[0] = particle->red;
+                item_rgba.rgba[1] = particle->green;
+                item_rgba.rgba[2] = particle->green;
+                item_rgba.rgba[3] = particle->alpha;
+                DrawOneItem(prim, rect, (int) particle->item_no, 0, NULL, item_rgba.rgba, 0);
                 return;
             }
-            case 4:
+            case MENU_EFFECT_TYPE_FLASH:
                 uv.Set(0x60, 0, 16, 16);
-                rect.Set(particle->x, particle->y, particle->unk_14, particle->unk_18);
+                rect.Set(particle->x, particle->y, particle->w, particle->h);
                 break;
-            case 10:
+            case MENU_EFFECT_TYPE_FUSION_SWIRL:
                 rect.Set(0.0f, 0.0f, 32.0f, 32.0f);
                 corner_uv[0].Set(0, 0, 32, 32);
                 corner_uv[1].Set(32, 0, 32, 32);
@@ -7761,15 +7943,15 @@ void CMenuEffect::Draw() {
                 }
 
                 break;
-            case 12:
+            case MENU_EFFECT_TYPE_SWIRL:
                 rect.Set(0.0f, 0.0f, 32.0f, 32.0f);
                 break;
-            case 15:
+            case MENU_EFFECT_TYPE_SQUARE:
                 uv.Set(0, 0, 32, 32);
                 color[0] = color[1] = 0x20;
                 color[2] = 0x60;
                 break;
-            case 16:
+            case MENU_EFFECT_TYPE_SCATTER:
                 rect.Set(0.0f, 0.0f, 32.0f, 32.0f);
                 uv.Set(0x40, 0, 32, 32);
                 break;
@@ -7779,39 +7961,39 @@ void CMenuEffect::Draw() {
         prim->Texture(tex);
 
         for (i = 0; i < info_num; i++, particle++) {
-            if (type == 0) {
-                color[3] = (int) particle->unk_28;
-            } else if (type == 2) {
-                color[3] = (int) particle->unk_1c;
-            } else if (type == 10) {
-                uv = corner_uv[(int) particle->unk_8];
-                float angle = (PI / 8.0f) * particle->unk_0;
+            if (type == MENU_EFFECT_TYPE_GATHER) {
+                color[3] = (int) particle->alpha;
+            } else if (type == MENU_EFFECT_TYPE_BURST) {
+                color[3] = (int) particle->burst_alpha;
+            } else if (type == MENU_EFFECT_TYPE_FUSION_SWIRL) {
+                uv = corner_uv[(int) particle->corner];
+                float angle = (PI / 8.0f) * particle->frame;
 
                 while (PI <= angle) {
                     angle -= TWO_PI;
                 }
 
-                rect.right = rect.bottom = 32.0f + particle->unk_3c * sinf(angle);
-                color[3] = (int) particle->unk_28;
-            } else if (type == 12) {
+                rect.right = rect.bottom = 32.0f + particle->pulse * sinf(angle);
+                color[3] = (int) particle->alpha;
+            } else if (type == MENU_EFFECT_TYPE_SWIRL) {
                 uv = corner_uv[3];
-            } else if (type == 15) {
-                float size = 2.0f * particle->unk_14;
+            } else if (type == MENU_EFFECT_TYPE_SQUARE) {
+                float size = 2.0f * particle->half_size;
                 rect.Set(particle->x, particle->y, size, size);
-                color[3] = (int) particle->unk_28;
-            } else if (type == 20) {
+                color[3] = (int) particle->alpha;
+            } else if (type == MENU_EFFECT_TYPE_SPECTOL_GATHER) {
                 if (i == info_num - 1) {
-                    float size = 2.0f * particle->unk_18;
+                    float size = 2.0f * particle->ring_size;
                     rect.Set(particle->x, particle->y, size, size);
                     uv.Set(0x40, 0, 32, 32);
                 } else {
-                    int *star_color = &star_color_table[(int) particle->unk_20 * 3];
+                    int *star_color = &star_color_table[(int) particle->star_color * 3];
                     color[0] = star_color[0];
                     color[1] = star_color[1];
                     color[2] = star_color[2];
                 }
 
-                color[3] = (int) particle->unk_30;
+                color[3] = (int) particle->piece_alpha;
             }
 
             prim->Color(color[0], color[1], color[2], color[3]);

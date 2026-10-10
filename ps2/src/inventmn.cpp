@@ -44,7 +44,7 @@ struct CursorPos {
 
 /**
  *
- * Column and row counts of the inventory photo grid.
+ * Row and column counts of the carried photo grid.
  *
  */
 static int maxtbl_5171[2] = {
@@ -52,7 +52,7 @@ static int maxtbl_5171[2] = {
 
 /**
  *
- * Visible column and row counts of the inventory photo grid.
+ * Visible row and column counts of the carried photo grid.
  *
  */
 static int viewnum_5172[2] = {
@@ -79,7 +79,7 @@ static char *gaiji_table_4737[3] = {
 
 /**
  *
- * Column and row counts of the photo album grid.
+ * Row and column counts of the album photo grid.
  *
  */
 static int maxtbl_album_5223[2] = {
@@ -87,7 +87,7 @@ static int maxtbl_album_5223[2] = {
 
 /**
  *
- * Visible column and row counts of the photo album grid.
+ * Visible row and column counts of the album photo grid.
  *
  */
 static int viewnum_album_5224[2] = {
@@ -95,11 +95,11 @@ static int viewnum_album_5224[2] = {
 
 /**
  *
- * Grid overlay codes used while navigating the album.
+ * What each direction does at the album grid's edge, as MenuGlidKeyCheck takes it.
  *
  */
 static int overcode_album_5225[4] = {
-    0, 0, 2, 0};
+    MENU_CURSOR_LIMIT_CLAMP, MENU_CURSOR_LIMIT_CLAMP, MENU_CURSOR_LIMIT_EXIT, MENU_CURSOR_LIMIT_CLAMP};
 
 /**
  *
@@ -147,18 +147,18 @@ static ItemNameList2 at_3765;
 
 /**
  *
- * Selects the confirmation prompt shown for an inventory action.
+ * Step of the photo command window, as the extended question's ask_mode holds it.
  *
  */
 enum INVENT_ASK_MODE {
-    INVENT_ASK_COMMAND = 0,
-    INVENT_ASK_ZOOM = 1,
-    INVENT_ASK_DELETE = 2,
-    INVENT_ASK_TO_ALBUM = 3,
-    INVENT_ASK_DELETE_UNUSED = 4,
-    INVENT_ASK_SET_BOARD = 5,
-    INVENT_ASK_FROM_ALBUM = 6,
-    INVENT_ASK_DELETE_ALL = 7
+    INVENT_ASK_COMMAND       = 0, /**< Choosing a command from the photo command window. */
+    INVENT_ASK_ZOOM          = 1, /**< Showing the photo enlarged. */
+    INVENT_ASK_DELETE        = 2, /**< Asking whether to delete the photo. */
+    INVENT_ASK_TO_ALBUM      = 3, /**< Asking whether to move the photo into the album. */
+    INVENT_ASK_DELETE_UNUSED = 4, /**< Asking whether to delete every photo that shows no idea. */
+    INVENT_ASK_SET_BOARD     = 5, /**< Placing the photo's idea on the idea board. */
+    INVENT_ASK_FROM_ALBUM    = 6, /**< Asking whether to move the album photo to the carried photos. */
+    INVENT_ASK_DELETE_ALL    = 7  /**< Asking whether to delete every photo. */
 };
 
 /**
@@ -185,17 +185,17 @@ static int digit_tbl3_5641[8] = {
 
 /**
  *
- * Maps inventory commands to their message numbers.
+ * Message numbers of the photo commands' names.
  *
  */
 enum INVENT_COMMAND_MSG {
-    INVENT_CMD_ZOOM = 0x1518,
-    INVENT_CMD_DELETE = 0x1519,
-    INVENT_CMD_TO_ALBUM = 0x151A,
-    INVENT_CMD_FROM_ALBUM = 0x151B,
-    INVENT_CMD_DELETE_UNUSED = 0x151C,
-    INVENT_CMD_SET_BOARD = 0x151D,
-    INVENT_CMD_DELETE_ALL = 0x151E
+    INVENT_CMD_ZOOM          = 0x1518, /**< Zoom. */
+    INVENT_CMD_DELETE        = 0x1519, /**< Delete the photo. */
+    INVENT_CMD_TO_ALBUM      = 0x151A, /**< Move the photo into the album. */
+    INVENT_CMD_FROM_ALBUM    = 0x151B, /**< Move the album photo to the carried photos. */
+    INVENT_CMD_DELETE_UNUSED = 0x151C, /**< Delete every photo that shows no idea. */
+    INVENT_CMD_SET_BOARD     = 0x151D, /**< Place the photo's idea on the idea board. */
+    INVENT_CMD_DELETE_ALL    = 0x151E  /**< Delete every photo. */
 };
 
 /**
@@ -262,7 +262,7 @@ static CMemoryCardManager *MCManagerPtr;
 
 /**
  *
- * Selects the ordering applied to the photo list.
+ * Key the next PictureSeiton call sorts the photos by, an INVENT_PHOTO_SORT.
  *
  */
 static signed char pict_seiton_case;
@@ -476,7 +476,7 @@ static s8 convtbl_3726[7] = {
  * Defines each scoop and the event flag that reveals it.
  *
  */
-static SCOOP_DATA scoop_table[53] = {
+static SCOOP_DATA scoop_table[INVENT_SCOOP_TABLE_NUM] = {
     {1000, 300, 1 },
     {1001, 300, 2 },
     {1002, 300, 3 },
@@ -593,7 +593,7 @@ void Copy_USER_PICTURE_INFO(USER_PICTURE_INFO *src, USER_PICTURE_INFO *dst) {
 }
 
 void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
-    char               work_tmp[(0x2000)];
+    char               work_tmp[0x2000];
     USER_PICTURE_INFO  info_tmp;
     int                i;
     int                j;
@@ -617,97 +617,97 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
                 continue;
             }
 
-            swap = 0;
+            swap = false;
 
-            if (pict_seiton_case == 0) {
+            if (pict_seiton_case == INVENT_PHOTO_SORT_NETA) {
                 if (a->used == 0 && b->used == 1) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 key_a = a->neta_id;
 
                 if (key_a < 0 && 0 < b->neta_id) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 if (0 < key_a) {
                     key_b = b->neta_id;
 
                     if (0 < key_b && key_b < key_a) {
-                        swap = 1;
+                        swap = true;
                     }
                 }
             }
 
-            if (pict_seiton_case == 1) {
+            if (pict_seiton_case == INVENT_PHOTO_SORT_MAP) {
                 if (a->used == 0 && b->used == 1) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 key_a = a->map_no;
 
                 if (key_a < 0 && 0 <= b->map_no) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 if (0 <= key_a) {
                     key_b = b->map_no;
 
                     if (0 <= key_b && key_b < key_a) {
-                        swap = 1;
+                        swap = true;
                     }
                 }
             }
 
-            if (pict_seiton_case == 2) {
+            if (pict_seiton_case == INVENT_PHOTO_SORT_NPC) {
                 if (a->used == 0 && b->used == 1) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 key_a = a->npc_no;
 
                 if (key_a < 0 && 0 <= b->npc_no) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 if (0 <= key_a) {
                     key_b = b->npc_no;
 
                     if (0 <= key_b && key_b < key_a) {
-                        swap = 1;
+                        swap = true;
                     }
                 }
             }
 
-            if (pict_seiton_case == 3) {
+            if (pict_seiton_case == INVENT_PHOTO_SORT_MONSTER) {
                 if (a->used == 0 && b->used == 1) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 key_a = a->monster_no;
 
                 if (key_a < 0 && 0 <= b->monster_no) {
-                    swap = 1;
+                    swap = true;
                 }
 
                 if (0 <= key_a) {
                     key_b = b->monster_no;
 
                     if (0 <= key_b && key_b < key_a) {
-                        swap = 1;
+                        swap = true;
                     }
                 }
             }
 
             if (swap != 0) {
-                memcpy(work_tmp, a->image, (0x2000));
-                memcpy(a->image, b->image, (0x2000));
-                memcpy(b->image, work_tmp, (0x2000));
+                memcpy(work_tmp, a->image, 0x2000);
+                memcpy(a->image, b->image, 0x2000);
+                memcpy(b->image, work_tmp, 0x2000);
                 memcpy(&info_tmp, a, sizeof(USER_PICTURE_INFO));
                 memcpy(a, b, sizeof(USER_PICTURE_INFO));
                 memcpy(b, &info_tmp, sizeof(USER_PICTURE_INFO));
-                a->image = work_base + i * (0x2000);
-                b->image = work_base + j * (0x2000);
+                a->image = work_base + i * 0x2000;
+                b->image = work_base + j * 0x2000;
             }
 
             if (swap != 0) {
@@ -719,8 +719,8 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
 
     pict_seiton_case++;
 
-    if (pict_seiton_case >= 4) {
-        pict_seiton_case = 0;
+    if (pict_seiton_case >= INVENT_PHOTO_SORT_NUM) {
+        pict_seiton_case = INVENT_PHOTO_SORT_NETA;
     }
 }
 
@@ -730,14 +730,14 @@ void AttachPictTex(int block, mgCTexture **textures, USER_PICTURE_INFO *info, in
     int                base = 0;
     int                i;
 
-    if (count == (50)) {
-        base = (50);
+    if (count == INVENT_ALBUM_PHOTO_NUM) {
+        base = INVENT_ALBUM_PHOTO_NUM;
     }
 
     for (i = 0; i < count; i++) {
         sprintf(name, "neta%d", i + base);
         manager->DeleteTexture(name, block);
-        manager->EnterTexture(block, name, NULL, (64), (64), (0x10), 0, 0, 0);
+        manager->EnterTexture(block, name, NULL, 64, 64, 0x10, 0, 0, 0);
         textures[i] = manager->GetTexture(name, -1);
 
         if (textures[i] != NULL) {
@@ -775,12 +775,11 @@ int CheckPhotoDataNoNeed(USER_PICTURE_INFO *photos, int count, int *unneeded) {
 int IsTakePhoto() {
     CUserDataManager *user = GetUserDataMan();
 
-    if (user != NULL && (user)->active_chr_no == 0 &&
-        user->SearchEquip(0, 0x171) != 0) {
-        return 1;
+    if (user != NULL && user->active_chr_no == USER_CHARA_MAX && user->SearchEquip(USER_CHARA_MAX, 0x171) != 0) {
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CDC2AlbumData::Initialize() {
@@ -803,11 +802,11 @@ void CDC2AlbumData::RelateAlbumPicData() {
         }
 
         i++;
-    } while (i < 50);
+    } while (i < INVENT_ALBUM_PHOTO_NUM);
 }
 
 void CDC2AlbumData::DeletePhotoData(int index) {
-    if (index < 0 || index >= 50) {
+    if (index < 0 || index >= INVENT_ALBUM_PHOTO_NUM) {
         return;
     }
 
@@ -815,7 +814,7 @@ void CDC2AlbumData::DeletePhotoData(int index) {
 }
 
 USER_PICTURE_INFO *CDC2AlbumData::GetAlbumPhotoInfo(int slot) {
-    if (slot < 0 || slot >= 50) {
+    if (slot < 0 || slot >= INVENT_ALBUM_PHOTO_NUM) {
         return NULL;
     }
 

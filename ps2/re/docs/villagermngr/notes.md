@@ -100,6 +100,7 @@ Add's return type is the node pointer (callers write type/args into it).
   flag 4, step 3; 3 -> req 6, when ex_time > 3 step 4, parts 2, req 7, flag 2; 4 -> on motion_end
   step 5, req place->motion; 5 -> step 6, parts 2; 6 -> ex_mode 0, parts 0. After the switch, steps
   2/4 jump to 6 unless now_motion is 5, 6 or 7.
+- `VLGR_PARTS_MODE`: parts_mode 0 none, 1 posing hands shown (hand_R/hand_L hidden, v_R/v_L shown by CScene::StepVillager for villager 14), 2 normal hands restored.
 Fields are declared `s32`, not the enum types (MWCC may size enums below int).
 
 ## Signatures

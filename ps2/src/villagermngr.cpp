@@ -31,12 +31,12 @@ void CVillagerData::Initialize() {
     route = NULL;
     route_time = 0;
     req_motion = 0;
-    ex_mode = 0;
+    ex_mode = false;
     ex_step = 0;
     ex_time = 0;
     motion_flag = 0;
     motion_end = 0;
-    parts_mode = 0;
+    parts_mode = VLGR_PARTS_MODE_NONE;
     mgZeroVectorW(pos);
     mgZeroVector(rot);
 }
@@ -109,8 +109,8 @@ void CVillagerMngr::ExMode(int chara_id) {
 
     if (villager != NULL) {
         if (villager->ex_mode == 0) {
-            villager->ex_mode = 1;
-            villager->ex_step = 1;
+            villager->ex_mode = true;
+            villager->ex_step = VLGR_EX_STEP_START;
         }
 
         villager->ex_time = 0;
@@ -131,7 +131,7 @@ int CVillagerMngr::Register(int vlgr_id, int chara_id, CVillagerPlaceInfo *place
     CVillagerData *villager = NewData();
 
     if (villager == NULL) {
-        return 0;
+        return false;
     }
 
     villager->Initialize();
@@ -146,7 +146,7 @@ int CVillagerMngr::Register(int vlgr_id, int chara_id, CVillagerPlaceInfo *place
         villager->rot[1] = place->pos[3];
     }
 
-    return 1;
+    return true;
 }
 
 void CVillagerMngr::DeleteCharaID(int chara_id) {
@@ -171,23 +171,28 @@ int CVillagerMngr::CheckStay(int chara_id) {
     CVillagerData *villager = GetData(chara_id);
 
     if (villager == NULL) {
-        return 0;
+        return false;
     }
 
     if (villager->ex_mode != 0) {
-        return 0;
+        return false;
     }
 
     if (stop != 0) {
-        return 1;
+        return true;
     }
 
     return villager->stay;
 }
 
+/**
+ *
+ * Views a vector as floats or as one quadword for whole-vector copies.
+ *
+ */
 union VillagerVector {
-    float     v[4];
-    u_long128 qw;
+    float     v[4]; /**< Components of the vector. */
+    u_long128 qw;   /**< The vector as one quadword. */
 };
 
 void CVillagerMngr::Step() {
@@ -209,7 +214,7 @@ void CVillagerMngr::Step() {
                             villager->ex_step = VLGR_EX_STEP_IN;
                             villager->req_motion = VLGR_MOTION_CAMERA_IN;
                             villager->motion_flag = 2;
-                            villager->parts_mode = 1;
+                            villager->parts_mode = VLGR_PARTS_MODE_POSE;
                             break;
                         case VLGR_EX_STEP_IN:
                             villager->req_motion = VLGR_MOTION_NONE;
@@ -226,7 +231,7 @@ void CVillagerMngr::Step() {
 
                             if (villager->ex_time > 3) {
                                 villager->ex_step = VLGR_EX_STEP_OUT;
-                                villager->parts_mode = 2;
+                                villager->parts_mode = VLGR_PARTS_MODE_NORMAL;
                                 villager->req_motion = VLGR_MOTION_CAMERA_OUT;
                                 villager->motion_flag = 2;
                             }
@@ -241,11 +246,11 @@ void CVillagerMngr::Step() {
                             break;
                         case VLGR_EX_STEP_RESTORE:
                             villager->ex_step = VLGR_EX_STEP_END;
-                            villager->parts_mode = 2;
+                            villager->parts_mode = VLGR_PARTS_MODE_NORMAL;
                             break;
                         case VLGR_EX_STEP_END:
-                            villager->ex_mode = 0;
-                            villager->parts_mode = 0;
+                            villager->ex_mode = false;
+                            villager->parts_mode = VLGR_PARTS_MODE_NONE;
                             break;
                     }
 
@@ -493,27 +498,27 @@ int CVillagerMngr::GetTalkRect(int chara_id, float *rect) {
     index = mngr->SearchDataIDatCharaID(chara_id);
 
     if (index < 0) {
-        return 0;
+        return false;
     }
 
     villager = mngr->GetData(index);
 
     if (villager == NULL) {
-        return 0;
+        return false;
     }
 
     place = villager->place;
 
     if (place == NULL) {
-        return 0;
+        return false;
     }
 
     *(u_long128 *) rect = *(u_long128 *) place->talk_offset;
 
     if (mgDistVector(rect) != 0.0f) {
-        is_empty = 0;
+        is_empty = false;
     } else {
-        is_empty = 1;
+        is_empty = true;
     }
 
     return is_empty ^ 1;

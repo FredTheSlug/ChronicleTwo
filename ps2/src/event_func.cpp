@@ -6145,6 +6145,11 @@ static int _DNGMAP_SET_FADE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the script the next position of the before camera.
+ *
+ */
 static int _GET_BEFORE_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
     float      position[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
@@ -6160,6 +6165,11 @@ static int _GET_BEFORE_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the script the next reference point of the before camera.
+ *
+ */
 static int _GET_BEFORE_CAMERA_NEXT_REF(RS_STACKDATA *stack, int argc) {
     float      position[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
@@ -6175,6 +6185,11 @@ static int _GET_BEFORE_CAMERA_NEXT_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the next position of the active camera, from direct arguments or an argument list.
+ *
+ */
 static int _SET_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
     float            position[4];
     mgCCameraFollow *camera;
@@ -6205,6 +6220,11 @@ static int _SET_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Finds the first collision point along a segment against the event's collision polygons and treasure boxes.
+ *
+ */
 static int _CHK_INTERSECTION_POINT(RS_STACKDATA *stack, int argc) {
     float                from[4];
     float                to[4];
@@ -6334,6 +6354,11 @@ static int _CHK_INTERSECTION_POINT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Finds the collision points of a radius-wide pipe swept along a segment against the event's collision polygons and treasure boxes.
+ *
+ */
 static int _CHK_INTERSECTION_POINT_PIPE(RS_STACKDATA *stack, int argc) {
     float                from[4];
     float                to[4];
@@ -6469,6 +6494,11 @@ static int _CHK_INTERSECTION_POINT_PIPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the position the active follow camera tracks, from three stack values.
+ *
+ */
 static int _SET_FCAMERA_FOLLOW(RS_STACKDATA *stack, int arg_count) {
     float            position[4];
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
@@ -6482,6 +6512,11 @@ static int _SET_FCAMERA_FOLLOW(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Sets the position the active follow camera tracks, from three stack values.
+ *
+ */
 static int _SET_FCAMERA_FOLLOW_A(RS_STACKDATA *stack, int arg_count) {
     float            position[4];
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
@@ -6495,6 +6530,11 @@ static int _SET_FCAMERA_FOLLOW_A(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Sets the follow offset of the active follow camera, from three stack values.
+ *
+ */
 static int _SET_FCAMERA_FOLLOW_OFS(RS_STACKDATA *stack, int arg_count) {
     float            offset[4];
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
@@ -6508,6 +6548,11 @@ static int _SET_FCAMERA_FOLLOW_OFS(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Turns the following of the active follow camera on or off.
+ *
+ */
 static int _SET_FCAMERA_FOLLOW_FLAG(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6524,6 +6569,11 @@ static int _SET_FCAMERA_FOLLOW_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Advances the active follow camera by the step count on the stack.
+ *
+ */
 static int _FCAMERA_STEP(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6535,6 +6585,11 @@ static int _FCAMERA_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the angle of the active follow camera.
+ *
+ */
 static int _SET_FCAMERA_ANGLE(RS_STACKDATA *stack, int arg_count) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6546,6 +6601,11 @@ static int _SET_FCAMERA_ANGLE(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Sets the height of the active follow camera.
+ *
+ */
 static int _SET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int arg_count) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6557,6 +6617,11 @@ static int _SET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Sets the distance of the active follow camera.
+ *
+ */
 static int _SET_FCAMERA_DIST(RS_STACKDATA *stack, int arg_count) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6568,6 +6633,11 @@ static int _SET_FCAMERA_DIST(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Gives the yaw and pitch of the direction from one stack point to another.
+ *
+ */
 static int _GET_REF_ANGLE(RS_STACKDATA *stack, int argc) {
     float  from[4];
     float  direction[4];
@@ -6599,6 +6669,11 @@ static int _GET_REF_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the dungeon stage id in the save data.
+ *
+ */
 static int _DNG_SET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -6616,6 +6691,11 @@ static int _DNG_SET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the dungeon stage id from the save data.
+ *
+ */
 static int _DNG_GET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -6633,6 +6713,11 @@ static int _DNG_GET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns the following and control of the active camera on or off.
+ *
+ */
 static int _SET_CAMERA_CTRL(RS_STACKDATA *stack, int argc) {
     CCameraControl *camera = (CCameraControl *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6651,6 +6736,11 @@ static int _SET_CAMERA_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the angle of the active follow camera.
+ *
+ */
 static int _GET_FCAMERA_ANGLE(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6662,6 +6752,11 @@ static int _GET_FCAMERA_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the height of the active follow camera.
+ *
+ */
 static int _GET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6673,6 +6768,11 @@ static int _GET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the distance of the active follow camera.
+ *
+ */
 static int _GET_FCAMERA_DIST(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6684,6 +6784,11 @@ static int _GET_FCAMERA_DIST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives whether the invention with the id on the stack has already been created.
+ *
+ */
 static int _GET_INVENTION_ID(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -6709,8 +6814,12 @@ static int _GET_INVENTION_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Requests a map jump to the map named in the jump flags, or to the outside when that name is exit.
+ *
+ */
 static int _FUNCTION_MAP_JUMP(RS_STACKDATA *stack, int argc) {
-
     u32 *request = &EventScene->map_jump_flags;
 
     if (!(*request & 0x10A)) {
@@ -6730,6 +6839,11 @@ static int _FUNCTION_MAP_JUMP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the door mode parameters from the scene's door data.
+ *
+ */
 static int _FUNCTION_DOOR_MODE(RS_STACKDATA *stack, int argc) {
     EdEventInfo.func_iparam[0] = 0;
     EdEventInfo.func_iparam[1] = EventScene->door_place_no[0];
@@ -6742,6 +6856,11 @@ static int _FUNCTION_DOOR_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the player's money.
+ *
+ */
 static int _GET_MONEY(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -6759,6 +6878,11 @@ static int _GET_MONEY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds the money on the stack to the player's money.
+ *
+ */
 static int _ADD_MONEY(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -6776,6 +6900,11 @@ static int _ADD_MONEY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the number of the item with the id on the stack that the player holds.
+ *
+ */
 static int _GET_ITEM_NUM(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -6796,40 +6925,45 @@ static int _GET_ITEM_NUM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives whether one of the event buttons, selected by the id on the stack, is pressed this frame.
+ *
+ */
 static int _CHECK_BUTTON(RS_STACKDATA *stack, int argc) {
     int button = GetStackInt(stack++);
     int pressed = 0;
     int pad_down = GamePad__2.GetPadDown();
 
     switch (button) {
-        case 0:
-            if (LanguageCode == 0) {
-                if (pad_down & 0x40) {
+        case EVENT_BUTTON_CANCEL:
+            if (LanguageCode == LANG_JAPANESE) {
+                if (pad_down & PAD_CROSS) {
                     pressed = 1;
                 }
-            } else if (pad_down & 0x20) {
+            } else if (pad_down & PAD_CIRCLE) {
                 pressed = 1;
             }
 
             break;
-        case 1:
-            if (LanguageCode == 0) {
-                if (pad_down & 0x20) {
+        case EVENT_BUTTON_CONFIRM:
+            if (LanguageCode == LANG_JAPANESE) {
+                if (pad_down & PAD_CIRCLE) {
                     pressed = 1;
                 }
-            } else if (pad_down & 0x40) {
+            } else if (pad_down & PAD_CROSS) {
                 pressed = 1;
             }
 
             break;
-        case 2:
-            if (pad_down & 0x80) {
+        case EVENT_BUTTON_SQUARE:
+            if (pad_down & PAD_SQUARE) {
                 pressed = 1;
             }
 
             break;
-        case 3:
-            if (pad_down & 0x100) {
+        case EVENT_BUTTON_SELECT:
+            if (pad_down & PAD_SELECT) {
                 pressed = 1;
             }
 
@@ -6842,17 +6976,32 @@ static int _CHECK_BUTTON(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the language code of the game.
+ *
+ */
 static int _GET_LANGUAGE(RS_STACKDATA *stack, int argc) {
     SetStack(stack, LanguageCode);
     return true;
 }
 
+/**
+ *
+ * Gives whether the player holds the inventory item with the id on the stack.
+ *
+ */
 static int _CHECK_INVENT_ITEM(RS_STACKDATA *stack, int argc) {
     int item = GetStackInt(stack++);
     SetStack(stack, CheckInventItem(item));
     return true;
 }
 
+/**
+ *
+ * Turns a villager's staying in place on or off, by the flag on the stack.
+ *
+ */
 static int _SET_AI(RS_STACKDATA *stack, int argc) {
     int enabled = GetStackInt(stack++);
     int chara_no = GetStackInt(stack);
@@ -6866,6 +7015,11 @@ static int _SET_AI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives whether the photo with the id on the stack is held, checked against the optional value after it.
+ *
+ */
 static int _CHECK_INVENT_PHOTO(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 2: {
@@ -6888,6 +7042,11 @@ static int _CHECK_INVENT_PHOTO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the number of pictures the player holds.
+ *
+ */
 static int _GET_PHOTO_NUM(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -6910,10 +7069,20 @@ static int _GET_PHOTO_NUM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _SET_CONTENTS_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets or resets a scene status for the type and number on the stack, depending on the optional flag.
+ *
+ */
 static int _SET_STATUS(RS_STACKDATA *stack, int argc) {
     int type = GetStackInt(stack++);
     int no = GetStackInt(stack++);
@@ -6933,6 +7102,11 @@ static int _SET_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Starts the sub-game of the type on the stack with the scene's texture block.
+ *
+ */
 static int _GOTO_SUBGAME(RS_STACKDATA *stack, int argc) {
     int         type = GetStackInt(stack);
     SubGameInfo info;
@@ -6942,6 +7116,11 @@ static int _GOTO_SUBGAME(RS_STACKDATA *stack, int argc) {
     return sgInitSubGame(type, &info) != 0;
 }
 
+/**
+ *
+ * Sets a fishing race value or runs a race step, by the sub-command on the stack.
+ *
+ */
 static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     int     digit[8];
     char    text[0x14];
@@ -6955,19 +7134,19 @@ static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     int     i;
 
     switch (GetStackInt(stack++)) {
-        case 0:
+        case EVENT_SET_GYORACE_AQUARIUM_NO:
             SetGyoRaceAquariumNo(GetStackInt(stack));
             break;
-        case 1:
+        case EVENT_SET_GYORACE_RANKING:
             SetGyoRaceRanking(GetStackInt(stack));
             break;
-        case 2:
+        case EVENT_SET_GYORACE_CLASS:
             SetGyoRaceClass(GetStackInt(stack));
             break;
-        case 3:
+        case EVENT_SET_GYORACE_RACE_NO:
             SetGyoRaceNo(GetStackInt(stack));
             break;
-        case 4: {
+        case EVENT_SET_GYORACE_ADD_TOUR: {
             CSaveData *save_data = GetSaveData();
 
             if (save_data == NULL) {
@@ -6977,7 +7156,7 @@ static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
             save_data->AddTourCountEtc(1);
             break;
         }
-        case 5:
+        case EVENT_SET_GYORACE_FISH_NAME:
             mes = GetEventMessage(GetStackInt(stack++));
 
             if (mes == NULL) {
@@ -6996,7 +7175,7 @@ static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 6:
+        case EVENT_SET_GYORACE_FISH_TIME:
             mes = GetEventMessage(GetStackInt(stack++));
 
             if (mes == NULL) {
@@ -7027,7 +7206,7 @@ static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
             digit[5] = -1;
             digit[6] = hundredths / 10;
             digit[7] = hundredths % 10;
-            memset(text, 0, 0x14);
+            memset(text, 0, sizeof(text));
 
             switch (digit[0]) {
                 case 0:
@@ -7105,7 +7284,7 @@ static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
 
             strcpy(mes->name[name_no - 1], text);
             break;
-        case 7:
+        case EVENT_SET_GYORACE_LOAD_PRIZE:
             InitFishPrize();
             LoadFishPrize(0);
             break;
@@ -7116,24 +7295,29 @@ static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives a fishing race value, by the sub-command on the stack.
+ *
+ */
 static int _GET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     FISH_PRIZE_INFO info;
     int             race_no;
 
     switch (GetStackInt(stack++)) {
-        case 0:
+        case EVENT_GET_GYORACE_AQUARIUM_NO:
             SetStack(stack++, GetGyoRaceAquariumNo());
             break;
-        case 1:
+        case EVENT_GET_GYORACE_RANKING:
             SetStack(stack++, GetGyoRaceRanking());
             break;
-        case 2:
+        case EVENT_GET_GYORACE_CLASS:
             SetStack(stack++, GetGyoRaceClass());
             break;
-        case 3:
+        case EVENT_GET_GYORACE_RACE_NO:
             SetStack(stack++, GetGyoRaceNo());
             break;
-        case 4:
+        case EVENT_GET_GYORACE_PRIZE:
             race_no = GetStackInt(stack++);
 
             if (!GetFishPrize(race_no, GetStackInt(stack++) - 1, &info)) {
@@ -7143,7 +7327,7 @@ static int _GET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
             SetStack(stack++, info.unk_0);
             SetStack(stack++, info.unk_4);
             break;
-        case 5: {
+        case EVENT_GET_GYORACE_TOUR: {
             CSaveData *save = GetSaveData();
 
             if (save == NULL) {
@@ -7160,13 +7344,18 @@ static int _GET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a save data value, by the sub-command on the stack.
+ *
+ */
 static int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     CSaveData        *save;
     CUserDataManager *user;
-    MOS_CHANGE_PARAM *bajji;
+    MOS_CHANGE_PARAM *badge;
 
     switch (GetStackInt(stack++)) {
-        case 0:
+        case EVENT_SET_SAVEDATA_GAME_PROGRESS:
             save = GetSaveData();
 
             if (save == NULL) {
@@ -7175,7 +7364,7 @@ static int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
 
             save->game_progress = GetStackInt(stack);
             break;
-        case 1:
+        case EVENT_SET_SAVEDATA_ENABLE_BADGE:
             save = GetSaveData();
 
             if (save == NULL) {
@@ -7188,15 +7377,15 @@ static int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
                 return false;
             }
 
-            bajji = user->GetMonsterBajjiDataPtrMosId(GetStackInt(stack));
+            badge = user->GetMonsterBajjiDataPtrMosId(GetStackInt(stack));
 
-            if (bajji == NULL) {
+            if (badge == NULL) {
                 return false;
             }
 
-            bajji->enable = 1;
+            badge->enable = 1;
             break;
-        case 2:
+        case EVENT_SET_SAVEDATA_REPAIR_WEAPONS:
             save = GetSaveData();
 
             if (save == NULL) {
@@ -7211,7 +7400,7 @@ static int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
 
             user->AllWeaponRepair();
             break;
-        case 3:
+        case EVENT_SET_SAVEDATA_SKIP_LOAD_BGM:
             save = GetSaveData();
 
             if (save == NULL) {
@@ -7220,7 +7409,7 @@ static int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
 
             save->skip_load_bgm = GetStackInt(stack);
             break;
-        case 4:
+        case EVENT_SET_SAVEDATA_DELETE_EREKI:
             DeleteErekiFish();
             break;
         default:
@@ -7230,6 +7419,11 @@ static int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives a save data value, by the sub-command on the stack.
+ *
+ */
 static int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
@@ -7240,10 +7434,10 @@ static int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
 
     switch (command) {
-        case 0:
+        case EVENT_GET_SAVEDATA_GAME_PROGRESS:
             SetStack(stack, save->game_progress);
             break;
-        case 1: {
+        case EVENT_GET_SAVEDATA_BADGE: {
             CUserDataManager *user_data = &save->user_data;
 
             if (user_data == NULL) {
@@ -7260,7 +7454,7 @@ static int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
             SetStack(stack, badge->enable);
             break;
         }
-        case 2: {
+        case EVENT_GET_SAVEDATA_EREKI: {
             CUserDataManager *user_data = &save->user_data;
 
             if (user_data == NULL) {
@@ -7270,7 +7464,7 @@ static int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
             SetStack(stack, user_data->CheckElectricFish());
             break;
         }
-        case 3: {
+        case EVENT_GET_SAVEDATA_BAIT: {
             int               rod_no = GetStackInt(stack++);
             CUserDataManager *user_data = &save->user_data;
 
@@ -7287,14 +7481,14 @@ static int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
             SetStack(stack, bait->item_no);
             break;
         }
-        case 4:
+        case EVENT_GET_SAVEDATA_PLAY_TIME:
             PlayTimeCount(1);
             SetStack(stack, (int) save->play_time);
             break;
-        case 5:
+        case EVENT_GET_SAVEDATA_CAPTION_OFF:
             SetStack(stack, GetConfigCaptionOff());
             break;
-        case 6:
+        case EVENT_GET_SAVEDATA_TOUR_TYPE:
             SetStack(stack, save->CheckNowTourType());
             break;
         default:
@@ -7304,6 +7498,11 @@ static int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Clears the monster battle state and releases the battle textures.
+ *
+ */
 static int _DEL_MONSTER(RS_STACKDATA *stack, int argc) {
     mgCMemory         *monster_stack;
     int                j;
@@ -7353,21 +7552,26 @@ static int _DEL_MONSTER(RS_STACKDATA *stack, int argc) {
         manager->DeleteBlock(j);
     }
 
-    sndInitPort(5);
+    sndInitPort(SND_PORT_ENEMY);
     return true;
 }
 
+/**
+ *
+ * Sets a menu value or runs a menu step, by the sub-command on the stack.
+ *
+ */
 static int _SET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
 
-    if (command == 0) {
+    if (command == EVENT_SET_MENU_KEYWORD) {
         char *topic = GetStackString(stack++);
         char *keyword = GetStackString(stack++);
         SetEventKeyword(keyword, topic, GetStackInt(stack));
         return true;
     }
 
-    if (command == 1) {
+    if (command == EVENT_SET_MENU_FINISH_TOUR) {
         AquaFishFatigueClear();
         CSaveData *save_data = GetSaveData();
 
@@ -7379,21 +7583,21 @@ static int _SET_MENU_ETC(RS_STACKDATA *stack, int argc) {
         return true;
     }
 
-    if (command == 2) {
+    if (command == EVENT_SET_MENU_UNUSED_2) {
         return true;
     }
 
-    if (command == 3) {
+    if (command == EVENT_SET_MENU_DL_SWITCH) {
         DrawDownLoadAnaunceSwitch(GetStackInt(stack));
         return true;
     }
 
-    if (command == 4) {
+    if (command == EVENT_SET_MENU_DL_INIT) {
         InitMenuDl(NULL, 0);
         return true;
     }
 
-    if (command == 5) {
+    if (command == EVENT_SET_MENU_DL_ANNOUNCE) {
         int        stack_no = GetStackInt(stack++);
         int        town_no = GetStackInt(stack);
         mgCMemory *memory = EventScene->GetStack(stack_no);
@@ -7408,11 +7612,11 @@ static int _SET_MENU_ETC(RS_STACKDATA *stack, int argc) {
         return true;
     }
 
-    if (command == 6) {
+    if (command == EVENT_SET_MENU_UNUSED_6) {
         return true;
     }
 
-    if (command == 7) {
+    if (command == EVENT_SET_MENU_DL_ANNOUNCE_END) {
         InitDownLoadAnaunce(NULL);
         return true;
     }
@@ -7420,6 +7624,11 @@ static int _SET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Gives a menu value, by the sub-command on the stack.
+ *
+ */
 static int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     float size;
     float weight;
@@ -7428,17 +7637,17 @@ static int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     int   status;
     int   command = GetStackInt(stack++);
 
-    if (command == 0) {
+    if (command == EVENT_GET_MENU_SPHEDA_CLEAR) {
         SetStack(stack, GetCountSphedaClear());
         return true;
     }
 
-    if (command == 1) {
+    if (command == EVENT_GET_MENU_SQUARE_EVENT) {
         SetStack(stack, GetSquareEvent());
         return true;
     }
 
-    if (command == 2) {
+    if (command == EVENT_GET_MENU_FISH_RECORD) {
         CSaveData *save_data = GetSaveData();
 
         if (save_data == NULL) {
@@ -7456,7 +7665,7 @@ static int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
         return true;
     }
 
-    if (command == 3 || command == 4 || command == 5) {
+    if (command == EVENT_GET_MENU_KNOW_SCOOP || command == EVENT_GET_MENU_CHECK_SCOOP || command == EVENT_GET_MENU_SCOOP_TOTAL) {
         CSaveData *save_data = GetSaveData();
 
         if (save_data == NULL) {
@@ -7480,19 +7689,19 @@ static int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
             return false;
         }
 
-        if (command == 3) {
+        if (command == EVENT_GET_MENU_KNOW_SCOOP) {
             result = scoop->KnowScoop();
             SetStack(stack, result);
             return true;
         }
 
-        if (command == 4) {
+        if (command == EVENT_GET_MENU_CHECK_SCOOP) {
             result = scoop->CheckScoop();
             SetStack(stack, result);
             return true;
         }
 
-        if (command == 5) {
+        if (command == EVENT_GET_MENU_SCOOP_TOTAL) {
             result = scoop->GetScoopTotal(&total);
             SetStack(stack++, result);
             SetStack(stack, total);
@@ -7500,19 +7709,19 @@ static int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
         }
     }
 
-    if (command == 6) {
+    if (command == EVENT_GET_MENU_DONY_SHOP) {
         SetStack(stack++, GetDonyShopLineUp(NULL, &status));
         SetStack(stack, status);
         return true;
     }
 
-    if (command == 7) {
+    if (command == EVENT_GET_MENU_DL_STEP) {
         result = StepDownLoadAnaunce(GetStackInt(stack++));
         SetStack(stack, result);
         return true;
     }
 
-    if (command == 8) {
+    if (command == EVENT_GET_MENU_DL_MENU_STEP) {
         SetStack(stack, StepMenuDl3());
         return true;
     }
@@ -7520,6 +7729,11 @@ static int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Gives the analyze flag of a map condition, from the analyze id on the stack.
+ *
+ */
 static int _GET_ANALYZE(RS_STACKDATA *stack, int argc) {
     int        analyze_id = GetStackInt(stack++);
     int        map_no = analyze_id / 100 - 1;
@@ -7540,6 +7754,11 @@ static int _GET_ANALYZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the analyze percentage of the map on the stack.
+ *
+ */
 static int _GET_DIORAMA_PERCENT(RS_STACKDATA *stack, int argc) {
     int        map_no = GetStackInt(stack++);
     CSaveData *save = GetSaveData();
@@ -7559,7 +7778,9 @@ static int _GET_DIORAMA_PERCENT(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Runs a georama script command and returns its status.
+ *
  */
 static int _GEORAMA_FUNC(RS_STACKDATA *stack, int argc) {
     GeoFuncParam param;
@@ -7568,6 +7789,11 @@ static int _GEORAMA_FUNC(RS_STACKDATA *stack, int argc) {
     return GeoramaFunc(&param, stack, argc);
 }
 
+/**
+ *
+ * Gives the scene character id that matches the id on the stack.
+ *
+ */
 static int _GET_CHARA_ID(RS_STACKDATA *stack, int arg_count) {
     int id = GetStackInt(stack++);
     int chara_id = EventScene->SearchCharaID(id);
@@ -7575,11 +7801,21 @@ static int _GET_CHARA_ID(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Requests a switch to edit mode.
+ *
+ */
 static int _GOTO_EDITMODE(RS_STACKDATA *stack, int argc) {
     EdEventInfo.request = EVENT_REQUEST_EDIT_MODE;
     return true;
 }
 
+/**
+ *
+ * Gives the current chapter of the save data.
+ *
+ */
 static int _GET_CHAPTER(RS_STACKDATA *stack, int argc) {
     CSaveData *save;
 
@@ -7593,6 +7829,11 @@ static int _GET_CHAPTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives a value of the villager training table, at the column and row on the stack.
+ *
+ */
 static int _GET_NPC_TRAIN_ETC(RS_STACKDATA *stack, int argc) {
     NpcTrainTable table = {
         {
@@ -7629,6 +7870,11 @@ static int _GET_NPC_TRAIN_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Registers a villager with its character number, using the memory stack when two arguments are given.
+ *
+ */
 static int _REGISTER_VILLAGER(RS_STACKDATA *stack, int argc) {
     int no = GetStackInt(stack++);
     int chara_no = GetStackInt(stack++);
@@ -7650,21 +7896,31 @@ static int _REGISTER_VILLAGER(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Turns the drawing of the eye view on or off.
+ *
+ */
 static int _EYE_VIEW_DRAW_ON_OFF(RS_STACKDATA *stack, int argc) {
     EventScene->EyeViewDrawOnOff(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Sets or clears a quest request, by the sub-command on the stack.
+ *
+ */
 static int _SET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
     int quest_no = GetStackInt(stack++);
     int flag = GetStackInt(stack);
 
     switch (command) {
-        case 0:
+        case EVENT_SET_QUEST_FLAG:
             QuestRequestSetFlag(quest_no, flag);
             break;
-        case 1:
+        case EVENT_SET_QUEST_CLEAR:
             QuestRequestClear(quest_no, flag);
             break;
         default:
@@ -7674,12 +7930,17 @@ static int _SET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the status of a quest request, by the sub-command on the stack.
+ *
+ */
 static int _GET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
     int quest_no = GetStackInt(stack++);
 
     switch (command) {
-        case 0:
+        case EVENT_GET_QUEST_STATUS:
             SetStack(stack, GetQuestRequestStatus(quest_no));
             break;
         default:
@@ -7689,11 +7950,21 @@ static int _GET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the number of the previous interior map.
+ *
+ */
 static int _GET_OLD_INTERIOR_MAP_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, GetOldInteriorMapNo());
     return true;
 }
 
+/**
+ *
+ * Sets a field of the scene's event data, selected by the field on the stack.
+ *
+ */
 static int _SET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     CSceneEventData *event_data;
     RS_STACKDATA    *value;
@@ -7707,34 +7978,34 @@ static int _SET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     value = stack + 1;
 
     switch (GetStackInt(stack)) {
-        case 0:
+        case EVENT_DATA_FLAG:
             event_data->event.flag = GetStackInt(value);
             break;
-        case 1:
+        case EVENT_DATA_EVENT_NO:
             event_data->event.event_no = GetStackInt(value);
             break;
-        case 2:
+        case EVENT_DATA_POINT_NO:
             event_data->event.point_no = GetStackInt(value);
             break;
-        case 3:
+        case EVENT_DATA_ARG1:
             event_data->event.arg1 = GetStackInt(value);
             break;
-        case 4:
+        case EVENT_DATA_ARG2:
             event_data->event.arg2 = GetStackInt(value);
             break;
-        case 5:
+        case EVENT_DATA_ARG3:
             event_data->event.arg3 = GetStackInt(value);
             break;
-        case 6:
+        case EVENT_DATA_MAP_CHECK_TYPE:
             event_data->map_event.check_type = GetStackInt(value);
             break;
-        case 7:
+        case EVENT_DATA_MAP_EVENT_NO:
             event_data->map_event.event_no = GetStackInt(value);
             break;
-        case 13:
+        case EVENT_DATA_CHARA_SLOT:
             event_data->chara_slot = GetStackInt(value);
             break;
-        case 14:
+        case EVENT_DATA_CHARA_NO:
             event_data->chara_no = GetStackInt(value);
             break;
         default:
@@ -7744,6 +8015,11 @@ static int _SET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Starts, stops or sets up the event stopwatch, by the sub-command on the stack.
+ *
+ */
 static int _STOPWATCH(RS_STACKDATA *stack, int argc) {
     CSaveData *save_data = GetSaveData();
 
@@ -7753,7 +8029,7 @@ static int _STOPWATCH(RS_STACKDATA *stack, int argc) {
 
     int mode = GetStackInt(stack++);
 
-    if (mode == 0) {
+    if (mode == EVENT_STOPWATCH_START) {
         PlayTimeCount(1);
         EdEventInfo.stopwatch_start = save_data->play_time;
 
@@ -7764,7 +8040,7 @@ static int _STOPWATCH(RS_STACKDATA *stack, int argc) {
         return true;
     }
 
-    if (mode == 1) {
+    if (mode == EVENT_STOPWATCH_STOP) {
         if (EdEventInfo.stopwatch_start == 0) {
             EdEventInfo.stopwatch_start = 0;
             SetStack(stack, -1);
@@ -7780,12 +8056,12 @@ static int _STOPWATCH(RS_STACKDATA *stack, int argc) {
         }
     }
 
-    if (mode == 2) {
+    if (mode == EVENT_STOPWATCH_SET_LIMIT) {
         EdEventInfo.stopwatch_limit = GetStackInt(stack);
         return true;
     }
 
-    if (mode == 3) {
+    if (mode == EVENT_STOPWATCH_SET_LAYOUT) {
         EdEventInfo.stopwatch_x = GetStackInt(stack++);
         EdEventInfo.stopwatch_y = GetStackInt(stack++);
         EdEventInfo.stopwatch_style = GetStackInt(stack);
@@ -7795,6 +8071,11 @@ static int _STOPWATCH(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Requests a map change that restarts or resets the town's edit event, by the sub-command on the stack.
+ *
+ */
 static int _SET_FUNC_ETC(RS_STACKDATA *stack, int argc) {
     u32 *flags;
 
@@ -7809,12 +8090,12 @@ static int _SET_FUNC_ETC(RS_STACKDATA *stack, int argc) {
     }
 
     switch (GetStackInt(stack)) {
-        case 0:
+        case EVENT_SET_FUNC_RESTART_EDIT:
             *flags |= 0x80;
-            EdEventInfo.request = 0x13;
+            EdEventInfo.request = EVENT_REQUEST_RESTART_EDIT;
             break;
-        case 1:
-            EdEventInfo.request = 0x12;
+        case EVENT_SET_FUNC_RESET_EDIT:
+            EdEventInfo.request = EVENT_REQUEST_RESET_EDIT;
             break;
         default:
             return false;
@@ -7823,10 +8104,20 @@ static int _SET_FUNC_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the character with the id.
+ *
+ */
 static CCharacter2 *GetChara(int id) {
     return GetCharacter(id);
 }
 
+/**
+ *
+ * Gives the position of the character with the id on the stack.
+ *
+ */
 static int _GET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     float         pos[4];
     RS_STACKDATA *out;
@@ -7846,6 +8137,11 @@ static int _GET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the screen position of the character with the id on the stack.
+ *
+ */
 static int _GET_CHARA_TALK_POS(RS_STACKDATA *stack, int argc) {
     int           screen_pos[2];
     RS_STACKDATA *out;
@@ -7864,6 +8160,11 @@ static int _GET_CHARA_TALK_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns the character with the id on the stack toward a target position, at the rate on the stack.
+ *
+ */
 static int _TURN_CHARA(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     float        target[4];
@@ -7894,6 +8195,11 @@ static int _TURN_CHARA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the position of a character, from direct arguments or an argument list.
+ *
+ */
 static int _SET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
@@ -7933,6 +8239,11 @@ static int _SET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the rotation of a character, from direct arguments or an argument list.
+ *
+ */
 static int _SET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     float        rot[4];
     CCharacter2 *chara;
@@ -7970,6 +8281,11 @@ static int _SET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the rotation of the character with the id on the stack.
+ *
+ */
 static int _GET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     float         pos[4];
     RS_STACKDATA *out;
@@ -7989,6 +8305,11 @@ static int _GET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the motion of a character, from direct arguments or an argument list.
+ *
+ */
 static int _SET_MOTION(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     char        *name;
@@ -8054,7 +8375,7 @@ static int _SET_MOTION(RS_STACKDATA *stack, int argc) {
     chara->SetMotion(name, flags);
 
     if (argc >= 4) {
-        if (step != -1.0f && (flags & 4)) {
+        if (step != -1.0f && (flags & CHARA_MOTION_RESTART)) {
             chara->NormalDrive();
             chara->SetStep(step);
         }
@@ -8063,6 +8384,11 @@ static int _SET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the step of the character with the id on the stack.
+ *
+ */
 static int _SET_STEP(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara = GetChara(GetStackInt(stack++));
 
@@ -8074,6 +8400,11 @@ static int _SET_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns the texture animation of a character's texture bank on or off, optionally for one named animation.
+ *
+ */
 static int _SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
     int                chara_id;
     int                enable;
@@ -8108,6 +8439,11 @@ static int _SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the scale of a character, from direct arguments or an argument list.
+ *
+ */
 static int _SET_SCALE(RS_STACKDATA *stack, int argc) {
     float        scale[4];
     CCharacter2 *chara;
@@ -8142,6 +8478,11 @@ static int _SET_SCALE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame of one character as the reference of a frame of another character.
+ *
+ */
 static int _SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     int          chara_id;
     char        *frame_name;
@@ -8188,6 +8529,11 @@ static int _SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Deletes the reference of a character's frame.
+ *
+ */
 static int _DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     mgCFrame    *frame;
     CCharacter2 *chara;
@@ -8208,6 +8554,11 @@ static int _DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns the clipping of a character's shadow off or back on, by the flag after the id.
+ *
+ */
 static int _SHADOW_CLIP_OFF(RS_STACKDATA *stack, int argc) {
     int          chara_id;
     CCharacter2 *chara;
@@ -8236,6 +8587,11 @@ static int _SHADOW_CLIP_OFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the angle from a character's position toward a target position on the stack.
+ *
+ */
 static int _GET_COORDINATE_ANGLE(RS_STACKDATA *stack, int argc) {
     float target[4];
     float pos[4];
@@ -8267,6 +8623,11 @@ static int _GET_COORDINATE_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the body width of the character with the id on the stack.
+ *
+ */
 static int _GET_CHARA_WIDTH(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     CCharacter2  *chara;
@@ -8282,6 +8643,11 @@ static int _GET_CHARA_WIDTH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the body height of the character with the id on the stack.
+ *
+ */
 static int _GET_CHARA_HEIGHT(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     CCharacter2  *chara;
@@ -8297,6 +8663,11 @@ static int _GET_CHARA_HEIGHT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the body depth of the character with the id on the stack.
+ *
+ */
 static int _GET_CHARA_WEIGHT(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     CCharacter2  *chara;
@@ -8312,6 +8683,11 @@ static int _GET_CHARA_WEIGHT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Shows or hides a character, optionally with a fade.
+ *
+ */
 static int _SET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     CCharacter2 *character;
     int          show;
@@ -8347,6 +8723,11 @@ static int _SET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives whether a character is shown, and its fade when two values are requested.
+ *
+ */
 static int _GET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     CCharacter2 *character;
 
@@ -8363,6 +8744,11 @@ static int _GET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets whether a character's D-animation is enabled.
+ *
+ */
 static int _CHARA_DA_ENABLE(RS_STACKDATA *stack, int argc) {
     CCharacter2  *chara;
     RS_STACKDATA *next_slot;
@@ -8377,6 +8763,11 @@ static int _CHARA_DA_ENABLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the frame wait of a character's current motion.
+ *
+ */
 static int _GET_MOT_NOW_WAIT(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;
@@ -8392,6 +8783,11 @@ static int _GET_MOT_NOW_WAIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives whether the motion of a character has ended.
+ *
+ */
 static int _CHECK_MOTION_END(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;
@@ -8407,6 +8803,11 @@ static int _CHECK_MOTION_END(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the motion of an action character, from direct arguments or an argument list.
+ *
+ */
 static int _ACTCHR_SET_MOTION(RS_STACKDATA *stack, int argc) {
     CActionChara *chara;
     char         *name;
@@ -8472,7 +8873,7 @@ static int _ACTCHR_SET_MOTION(RS_STACKDATA *stack, int argc) {
     chara->SetMotion(name, flags, 1);
 
     if (argc >= 4) {
-        if (step != -1.0f && (flags & 4)) {
+        if (step != -1.0f && (flags & CHARA_MOTION_RESTART)) {
             chara->NormalDrive();
             chara->SetStep(step);
         }
@@ -8481,6 +8882,11 @@ static int _ACTCHR_SET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the second sound effect bank of an action character.
+ *
+ */
 static int _SET_CHARA_EX_SOUNDID(RS_STACKDATA *stack, int argc) {
     CActionChara *chara;
     RS_STACKDATA *next_slot;
@@ -8496,6 +8902,11 @@ static int _SET_CHARA_EX_SOUNDID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Copies the sound information of an action character.
+ *
+ */
 static int _ACTCHR_SOUND_INFO_COPY(RS_STACKDATA *stack, int argc) {
     CActionChara *chara;
 
@@ -8513,10 +8924,20 @@ static int _ACTCHR_SOUND_INFO_COPY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the message window with the id.
+ *
+ */
 static ClsMes *GetMes(int id) {
     return GetEventMessage(id);
 }
 
+/**
+ *
+ * Makes a message window from a message number or a string on the stack, optionally giving its character count.
+ *
+ */
 static int _MES_MAKE(RS_STACKDATA *stack, int argc) {
     int     id;
     ClsMes *mes;
@@ -8589,6 +9010,11 @@ static int _MES_MAKE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Closes a message window and resets its state.
+ *
+ */
 static int _MES_CLOSE(RS_STACKDATA *stack, int argc) {
     ClsMes *mes;
 
@@ -8600,7 +9026,7 @@ static int _MES_CLOSE(RS_STACKDATA *stack, int argc) {
 
     mes->draw_speed = mes->GetDrawSpeedDef();
     mes->mes_no = -1;
-    mes->text_ptr = 0;
+    mes->text_ptr = NULL;
     mes->open = 0;
     mes->fade = 0;
     mes->fukidashi_centre_x = -1;
@@ -8608,6 +9034,11 @@ static int _MES_CLOSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Advances a message window to its next page while it waits for one.
+ *
+ */
 static int _MES_NEXTPAGE(RS_STACKDATA *stack, int argc) {
     ClsMes *mes;
 
@@ -8629,6 +9060,11 @@ static int _MES_NEXTPAGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the automatic placement of a message window, from four values or from two characters.
+ *
+ */
 static int _SET_MES_AUTOSET(RS_STACKDATA *stack, int argc) {
     int           values[4];
     int           chara_values[4];
@@ -8675,6 +9111,11 @@ static int _SET_MES_AUTOSET(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the balloon tail of a message window.
+ *
+ */
 static int _SET_MES_SHIPPO(RS_STACKDATA *stack, int argc) {
     ClsMes *mes;
 
@@ -8697,6 +9138,11 @@ static int _SET_MES_SHIPPO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the balloon position of a message window.
+ *
+ */
 static int _SET_MES_POS(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -8712,6 +9158,11 @@ static int _SET_MES_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the draw speed of a message window, and optionally its default.
+ *
+ */
 static int _SET_MES_DRAWSPEED(RS_STACKDATA *stack, int argc) {
     ClsMes *mes = GetMes(GetStackInt(stack++));
 
@@ -8728,6 +9179,11 @@ static int _SET_MES_DRAWSPEED(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the selected option of a message window.
+ *
+ */
 static int _SET_MES_CURSOR(RS_STACKDATA *stack, int argc) {
     int           cursor;
     ClsMes       *mes;
@@ -8750,6 +9206,11 @@ static int _SET_MES_CURSOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the button that advances a message window.
+ *
+ */
 static int _SET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -8765,6 +9226,11 @@ static int _SET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the window mode of a message window on or off.
+ *
+ */
 static int _SET_MES_WIN_FLAG(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -8785,6 +9251,11 @@ static int _SET_MES_WIN_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives whether a message window has finished showing its text.
+ *
+ */
 static int _CHECK_MES_COMPLETE(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
@@ -8796,10 +9267,15 @@ static int _CHECK_MES_COMPLETE(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    SetStack(next_slot, mes->State() == (int) CLSMES_SHOWN);
+    SetStack(next_slot, mes->State() == CLSMES_SHOWN);
     return true;
 }
 
+/**
+ *
+ * Gives whether a message window waits for a page advance.
+ *
+ */
 static int _CHECK_MES_WAIT(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
@@ -8811,10 +9287,15 @@ static int _CHECK_MES_WAIT(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    SetStack(next_slot, mes->State() == (int) CLSMES_PAGE_WAIT);
+    SetStack(next_slot, mes->State() == CLSMES_PAGE_WAIT);
     return true;
 }
 
+/**
+ *
+ * Gives whether a message window is closed.
+ *
+ */
 static int _CHECK_MES(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
@@ -8826,10 +9307,15 @@ static int _CHECK_MES(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    SetStack(next_slot, mes->State() == (int) CLSMES_CLOSED);
+    SetStack(next_slot, mes->State() == CLSMES_CLOSED);
     return true;
 }
 
+/**
+ *
+ * Sets a message window to balloon style.
+ *
+ */
 static int _SET_MES_FUKIDASHI(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -8846,6 +9332,11 @@ static int _SET_MES_FUKIDASHI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the window mode of a message window from the stack.
+ *
+ */
 static int _SET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -8861,6 +9352,11 @@ static int _SET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Applies a preset to a message window.
+ *
+ */
 static int _SET_MES_PRESET(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -8876,6 +9372,11 @@ static int _SET_MES_PRESET(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an item message slot of a message window to a value on the stack.
+ *
+ */
 static int _SET_MES_ITEM_DIRECT(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *args;
@@ -8899,6 +9400,11 @@ static int _SET_MES_ITEM_DIRECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an item message slot of a message window to the message number of an item.
+ *
+ */
 static int _SET_MES_ITEM(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *args;
@@ -8922,6 +9428,11 @@ static int _SET_MES_ITEM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a value of a message window, or its first value when the slot is 0.
+ *
+ */
 static int _SET_MES_VALUE(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *args;
@@ -8948,6 +9459,11 @@ static int _SET_MES_VALUE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the state of a message window.
+ *
+ */
 static int _GET_MES_STATUS(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
@@ -8963,6 +9479,11 @@ static int _GET_MES_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives a party character's message for the kind on the stack, and an extra value for kind 4.
+ *
+ */
 static int _GET_PARTY_CHARA_MES_NO(RS_STACKDATA *stack, int argc) {
     int           npc_id;
     int           kind;
@@ -8980,6 +9501,11 @@ static int _GET_PARTY_CHARA_MES_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the text buffer of a message window to the system or the default buffer, by the kind on the stack.
+ *
+ */
 static int _MES_SET_BUFF(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     int           kind;
@@ -9004,6 +9530,11 @@ static int _MES_SET_BUFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the window mode of a message window.
+ *
+ */
 static int _GET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
@@ -9020,11 +9551,21 @@ static int _GET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives whether the event's voice stream is playing.
+ *
+ */
 static int _GET_MES_VOICE(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EdEventInfo.stream_playing);
     return true;
 }
 
+/**
+ *
+ * Sets the top line of the selection of a message window.
+ *
+ */
 static int _SET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -9040,6 +9581,11 @@ static int _SET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the top line of the selection of a message window.
+ *
+ */
 static int _GET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
@@ -9056,6 +9602,11 @@ static int _GET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the close time of a message window.
+ *
+ */
 static int _SET_MES_CLOSE_CNT(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -9071,6 +9622,11 @@ static int _SET_MES_CLOSE_CNT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a message window option, by the sub-command on the stack.
+ *
+ */
 static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
     char    text[0x100];
     int     i;
@@ -9083,16 +9639,16 @@ static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
 
     switch (command) {
-        case 0:
+        case EVENT_SET_MES_LINE_INDENT:
             mes->line_indent_on = GetStackInt(stack);
             break;
-        case 1:
+        case EVENT_SET_MES_CURSOR_CENTERING:
             mes->cursor_centering = GetStackInt(stack);
             break;
-        case 2:
+        case EVENT_SET_MES_HALF_FONT_WIDTH:
             mes->SetHalfFontWPercent(GetStackFloat(stack));
             break;
-        case 3:
+        case EVENT_SET_MES_AQUARIUM_FISH:
             strcpy(text, "\x8B\x9B\x82\xF0\x91\x49\x82\xD7");
 
             for (i = 0; i < 6; i++) {
@@ -9106,7 +9662,7 @@ static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
 
             mes->MakeMesWin(text, 0, 1);
             break;
-        case 4:
+        case EVENT_SET_MES_ABS_WINDOW:
             if (argc > 4) {
                 mes->abs_win.x = GetStackInt(stack++);
                 mes->abs_win.y = GetStackInt(stack++);
@@ -9115,7 +9671,7 @@ static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
             mes->abs_win.width = GetStackInt(stack++);
             mes->abs_win.height = GetStackInt(stack);
             break;
-        case 5: {
+        case EVENT_SET_MES_LINE_SHADE: {
             int line = GetStackInt(stack++);
             int shade = GetStackInt(stack);
 
@@ -9125,12 +9681,12 @@ static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
 
             break;
         }
-        case 6: {
+        case EVENT_SET_MES_LINE_ALPHA: {
             int line = GetStackInt(stack++);
             mes->line_alpha[line] = GetStackInt(stack);
             break;
         }
-        case 7: {
+        case EVENT_SET_MES_DEFAULT_COLOR: {
             int red = GetStackInt(stack++);
             int green = GetStackInt(stack++);
             int blue = GetStackInt(stack++);
@@ -9138,14 +9694,14 @@ static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
             mes->SetDefColor(red | (green << 8 | (alpha << 24 | blue << 16)));
             break;
         }
-        case 8:
+        case EVENT_SET_MES_FUCHI:
             mes->fuchi = GetStackInt(stack);
             break;
-        case 9:
+        case EVENT_SET_MES_TEXT_OFFSET:
             mes->abs_text_off_x = GetStackInt(stack++);
             mes->abs_text_off_y = GetStackInt(stack);
             break;
-        case 10:
+        case EVENT_SET_MES_ALPHA:
             mes->alpha = GetStackInt(stack);
             break;
         default:
@@ -9155,6 +9711,11 @@ static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives a message window option, by the sub-command on the stack.
+ *
+ */
 static int _GET_MES_ETC(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *value = stack + 1;
@@ -9165,13 +9726,13 @@ static int _GET_MES_ETC(RS_STACKDATA *stack, int argc) {
     }
 
     switch (GetStackInt(value++)) {
-        case 0:
+        case EVENT_GET_MES_LINE_INDENT:
             SetStack(value, mes->line_indent_on);
             break;
-        case 1:
+        case EVENT_GET_MES_CURSOR_CENTERING:
             SetStack(value, mes->cursor_centering);
             break;
-        case 2: {
+        case EVENT_GET_MES_AQUARIUM_FISH: {
             CUserDataManager *user_data = &GetSaveData()->user_data;
 
             if (user_data == NULL) {
@@ -9188,7 +9749,7 @@ static int _GET_MES_ETC(RS_STACKDATA *stack, int argc) {
             SetStack(value, fish_num);
             break;
         }
-        case 3: {
+        case EVENT_GET_MES_VILLAGER_INFO: {
             CVillagerInfo *info = GetVillagerInfo(GetStackInt(value++));
 
             if (info == NULL) {
@@ -9223,7 +9784,7 @@ int _LOAD_MES_sub(char *file_name, int stack_no, ClsMes *mes) {
 
     src = GetLoadBGBuff(file_name, &size);
 
-    if (src == 0) {
+    if (src == NULL) {
         return false;
     }
 
@@ -9243,6 +9804,11 @@ int _LOAD_MES_sub(char *file_name, int stack_no, ClsMes *mes) {
     return true;
 }
 
+/**
+ *
+ * Loads a message file into a message window, or clears its data when given two arguments.
+ *
+ */
 static int _LOAD_MES(RS_STACKDATA *stack, int argc) {
     ClsMes *mes = GetMes(GetStackInt(stack++));
 
@@ -9266,6 +9832,11 @@ static int _LOAD_MES(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Loads the monster talk message file of the current dungeon into a message window.
+ *
+ */
 static int _LOAD_MES_MONS_TALK(RS_STACKDATA *stack, int argc) {
     char    path[0x80];
     ClsMes *mes = GetMes(GetStackInt(stack++));
@@ -9279,6 +9850,11 @@ static int _LOAD_MES_MONS_TALK(RS_STACKDATA *stack, int argc) {
     return _LOAD_MES_sub(path, stack_no, mes);
 }
 
+/**
+ *
+ * Plays the system sound effect for the kind on the stack.
+ *
+ */
 static int _MES_SE_PLAY(RS_STACKDATA *stack, int argc) {
     switch (GetStackInt(stack)) {
         case 0:
@@ -9288,16 +9864,21 @@ static int _MES_SE_PLAY(RS_STACKDATA *stack, int argc) {
             sndSePlay(SystemSND_ID, 0x19, 0);
             return true;
         case 2:
-            sndSePlay(SystemSND_ID, 0, 0);
+            sndSePlay(SystemSND_ID, SYSTEM_SE_CURSOR, 0);
             return true;
         case 3:
-            sndSePlay(SystemSND_ID, 1, 0);
+            sndSePlay(SystemSND_ID, SYSTEM_SE_DECIDE, 0);
             return true;
         default:
             return false;
     }
 }
 
+/**
+ *
+ * Sets a name slot of a message window from a string on the stack.
+ *
+ */
 static int _SET_MES_STR(RS_STACKDATA *stack, int argc) {
     ClsMes *mes = GetMes(GetStackInt(stack++));
 
@@ -9315,6 +9896,11 @@ static int _SET_MES_STR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the button that advances a message window.
+ *
+ */
 static int _GET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
@@ -9330,6 +9916,11 @@ static int _GET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives a fishing tournament value, by the sub-command on the stack.
+ *
+ */
 static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     int                    shown;
     int                    i;
@@ -9348,7 +9939,7 @@ static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     char                   size_column[0x28];
 
     switch (GetStackInt(stack++)) {
-        case 0:
+        case EVENT_GET_FISHING_RECORDS:
             tournament = GetFishTournament();
             shown = 0;
 
@@ -9432,7 +10023,7 @@ static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 1:
+        case EVENT_GET_FISHING_PRIZE:
             if (GetFishPrize(0, GetStackInt(stack++) - 1, &prize) == 0) {
                 return false;
             }
@@ -9440,7 +10031,7 @@ static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
             SetStack(stack++, prize.unk_0);
             SetStack(stack, prize.unk_4);
             break;
-        case 2:
+        case EVENT_GET_FISHING_ENTRY_LEFT:
             tournament = GetFishTournament();
 
             if (tournament == NULL) {
@@ -9449,7 +10040,7 @@ static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
 
             SetStack(stack, tournament->EntryRemain());
             break;
-        case 3:
+        case EVENT_GET_FISHING_TOP_WEIGHT:
             tournament = GetFishTournament();
 
             if (tournament == NULL) {
@@ -9458,7 +10049,7 @@ static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
 
             SetStack(stack, tournament->CalcTopWeight());
             break;
-        case 4:
+        case EVENT_GET_FISHING_RANK:
             tournament = GetFishTournament();
 
             if (tournament == NULL) {
@@ -9474,6 +10065,11 @@ static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the far drawing distance of a character.
+ *
+ */
 static int _SET_CHARA_FAR_DIST(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara = GetChara(GetStackInt(stack++));
 
@@ -9485,6 +10081,11 @@ static int _SET_CHARA_FAR_DIST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns the lighting of a character's model, or of one named frame, on or off.
+ *
+ */
 static int _SET_MODEL_LIGHT_SWITCH(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     CCharacter2 *chara = GetChara(chara_no);
@@ -9527,6 +10128,11 @@ static int _SET_MODEL_LIGHT_SWITCH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the light colour of a character's model, or of one named frame.
+ *
+ */
 static int _SET_MODEL_LIGHT_COLOR(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     CCharacter2 *chara = GetChara(chara_no);
@@ -9565,11 +10171,21 @@ static int _SET_MODEL_LIGHT_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the bonus-content flag.
+ *
+ */
 static int _GET_OMAKE_FLAG(RS_STACKDATA *stack, int argc) {
     SetStack(stack, OmakeFlag);
     return true;
 }
 
+/**
+ *
+ * Sets the wind power and direction, or resets the wind when the power is negative.
+ *
+ */
 static int _SET_WIND(RS_STACKDATA *stack, int argc) {
     float dir[4];
     float power = GetStackFloat(stack++);
@@ -9587,6 +10203,11 @@ static int _SET_WIND(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the bonus-content flag.
+ *
+ */
 static int _SET_OMAKE_FLAG(RS_STACKDATA *stack, int argc) {
     OmakeFlag = GetStackInt(stack);
     return true;

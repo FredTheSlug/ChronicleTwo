@@ -10858,10 +10858,20 @@ static int _SET_OMAKE_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Returns the currently active camera.
+ *
+ */
 static CCameraControl *GetCamera() {
     return (CCameraControl *) GetActiveCamera();
 }
 
+/**
+ *
+ * Sets the active camera position from direct arguments or an argument list.
+ *
+ */
 static int _SET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera;
@@ -10892,6 +10902,11 @@ static int _SET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stores the active camera position into three stack slots.
+ *
+ */
 static int _GET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
@@ -10912,6 +10927,11 @@ static int _GET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the active camera reference point from direct arguments or an argument list.
+ *
+ */
 static int _SET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera;
@@ -10942,6 +10962,11 @@ static int _SET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stores the active camera reference point into three stack slots.
+ *
+ */
 static int _GET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
@@ -10962,6 +10987,11 @@ static int _GET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the active camera speed.
+ *
+ */
 static int _SET_CAMERA_SPEED(RS_STACKDATA *stack, int argc) {
     mgCCamera *camera = GetCamera();
 
@@ -10973,6 +11003,11 @@ static int _SET_CAMERA_SPEED(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Advances the active follow camera by the given step count.
+ *
+ */
 static int _CAMERA_STEP(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = GetCamera();
 
@@ -10984,6 +11019,11 @@ static int _CAMERA_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stores the position of the previous event camera into three stack slots.
+ *
+ */
 static int _GET_BEFORE_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
@@ -10999,6 +11039,11 @@ static int _GET_BEFORE_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stores the reference point of the previous event camera into three stack slots.
+ *
+ */
 static int _GET_BEFORE_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
@@ -11014,84 +11059,181 @@ static int _GET_BEFORE_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_MOVE_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_ROT_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_ROT_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_CLEAR_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_WAIT_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_ROT_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_SET_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_DELAY_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_MOTION_TRG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_MOTION_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_MOTION_STOP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_MOTION_NEXT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_ANIME_TRG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_ANIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_SE_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
 /**
+ *
  * Sets an event text sprite visibility and returns the update status.
+ *
  */
 static int _IMG_SET_DRAW(RS_STACKDATA *stack, int argc) {
     int draw;
@@ -11101,7 +11243,9 @@ static int _IMG_SET_DRAW(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event text sprite source rectangle and returns the update status.
+ *
  */
 static int _IMG_SET_GET(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
@@ -11112,7 +11256,9 @@ static int _IMG_SET_GET(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event text sprite destination rectangle and returns the update status.
+ *
  */
 static int _IMG_SET_PUT(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
@@ -11122,6 +11268,11 @@ static int _IMG_SET_PUT(RS_STACKDATA *stack, int argc) {
     return esMother.SetPut(index, x, y, width, GetStackInt(stack));
 }
 
+/**
+ *
+ * Sets an event text sprite name and returns the update status.
+ *
+ */
 static int _IMG_SET_NAME(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     char *name = GetStackString(stack);
@@ -11129,7 +11280,9 @@ static int _IMG_SET_NAME(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event text sprite movement and returns the update status.
+ *
  */
 static int _IMG_SET_MOVE(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
@@ -11139,7 +11292,9 @@ static int _IMG_SET_MOVE(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event text sprite fade and returns the update status.
+ *
  */
 static int _IMG_SET_FADE(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
@@ -11148,7 +11303,9 @@ static int _IMG_SET_FADE(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event text sprite color and returns the update status.
+ *
  */
 static int _IMG_SET_COLOR(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
@@ -11158,6 +11315,11 @@ static int _IMG_SET_COLOR(RS_STACKDATA *stack, int argc) {
     return esMother.SetColor(index, r, g, b, GetStackInt(stack));
 }
 
+/**
+ *
+ * Returns the event sprite at the given index, or NULL when the index is out of range.
+ *
+ */
 static CEventSprite2 *GetEventSprite(int index) {
     if (index < 0 || index >= EVENT_SPRITE2_NUM) {
         return NULL;
@@ -11166,6 +11328,11 @@ static CEventSprite2 *GetEventSprite(int index) {
     return &EventSprite2[index];
 }
 
+/**
+ *
+ * Initializes an event sprite.
+ *
+ */
 static int _SPRITE_INIT(RS_STACKDATA *stack, int argc) {
     CEventSprite2 *sprite;
 
@@ -11179,6 +11346,11 @@ static int _SPRITE_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite draw flag.
+ *
+ */
 static int _SPRITE_SET_DRAW(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            value = GetStackInt(stack);
@@ -11192,6 +11364,11 @@ static int _SPRITE_SET_DRAW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite type.
+ *
+ */
 static int _SPRITE_SET_TYPE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            value = GetStackInt(stack);
@@ -11205,6 +11382,11 @@ static int _SPRITE_SET_TYPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite texture from a file name and texture block.
+ *
+ */
 static int _SPRITE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     char          *name = GetStackString(stack++);
@@ -11219,6 +11401,11 @@ static int _SPRITE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite position, with screen-type sprites offset vertically.
+ *
+ */
 static int _SPRITE_SET_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     mgZeroVector(pos);
@@ -11246,6 +11433,11 @@ static int _SPRITE_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite display size.
+ *
+ */
 static int _SPRITE_SET_PUTSIZE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            width = GetStackInt(stack++);
@@ -11265,6 +11457,11 @@ static int _SPRITE_SET_PUTSIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite texture coordinate rectangle.
+ *
+ */
 static int _SPRITE_SET_UVSIZE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            x = GetStackInt(stack++);
@@ -11281,6 +11478,11 @@ static int _SPRITE_SET_UVSIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite RGBA color.
+ *
+ */
 static int _SPRITE_SET_COLOR(RS_STACKDATA *stack, int argc) {
     float color[4];
     int   index = GetStackInt(stack++);
@@ -11298,6 +11500,11 @@ static int _SPRITE_SET_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite scale.
+ *
+ */
 static int _SPRITE_SET_SCALE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     float          scale_x = GetStackFloat(stack++);
@@ -11312,6 +11519,11 @@ static int _SPRITE_SET_SCALE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an event sprite alpha blend mode.
+ *
+ */
 static int _SPRITE_SET_ALPHAB(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            value = GetStackInt(stack);
@@ -11325,21 +11537,41 @@ static int _SPRITE_SET_ALPHAB(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Returns whether the camera sequence is still running.
+ *
+ */
 static int _CMRS_CHECK(RS_STACKDATA *stack, int argc) {
     SetStack(stack, (u8) ((CameraSeq.CheckEnd() != 0) ^ 1));
     return true;
 }
 
+/**
+ *
+ * Clears the camera sequence.
+ *
+ */
 static int _CMRS_INIT(RS_STACKDATA *stack, int argc) {
     CameraSeq.Clear();
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on the camera sequence PR step.
+ *
+ */
 static int _CMRS_PRDELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.PRDelay(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the camera sequence position from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_SET_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
@@ -11365,6 +11597,11 @@ static int _CMRS_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the camera sequence reference point from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_SET_REF(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
@@ -11390,26 +11627,51 @@ static int _CMRS_SET_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on the camera sequence AHD step.
+ *
+ */
 static int _CMRS_AHDDELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.AHDDelay(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the camera sequence angle.
+ *
+ */
 static int _CMRS_SET_ANGLE(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetAngle(GetStackFloat(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the camera sequence height.
+ *
+ */
 static int _CMRS_SET_HEIGHT(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetHeight(GetStackFloat(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the camera sequence distance.
+ *
+ */
 static int _CMRS_SET_DIST(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetDist(GetStackFloat(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the camera sequence angle, height and distance.
+ *
+ */
 static int _CMRS_SET_AHD(RS_STACKDATA *stack, int argc) {
     float angle = GetStackFloat(stack++);
     float height = GetStackFloat(stack++);
@@ -11418,6 +11680,11 @@ static int _CMRS_SET_AHD(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Moves the camera sequence position and reference point over a number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_MOVE(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float ref[4];
@@ -11449,6 +11716,11 @@ static int _CMRS_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Moves the camera sequence position and reference point with wait and rate parameters, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_MOVE2(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float ref[4];
@@ -11488,6 +11760,11 @@ static int _CMRS_MOVE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Moves the camera sequence reference point over a number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_MOVE_REF(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   frames;
@@ -11516,16 +11793,31 @@ static int _CMRS_MOVE_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes the camera sequence path.
+ *
+ */
 static int _CMRS_INIT_PAS(RS_STACKDATA *stack, int argc) {
     CameraSeq.InitPas();
     return true;
 }
 
+/**
+ *
+ * Sets the frame of the camera sequence path.
+ *
+ */
 static int _CMRS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetPasFrm(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Adds a path point to the camera sequence from two vectors, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     float first[4];
     float second[4];
@@ -11554,11 +11846,21 @@ static int _CMRS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Starts the camera sequence path.
+ *
+ */
 static int _CMRS_START_PAS(RS_STACKDATA *stack, int argc) {
     CameraSeq.StartPas();
     return true;
 }
 
+/**
+ *
+ * Starts slowing the camera sequence PR step at the given rate and frame.
+ *
+ */
 static int _CMRS_PR_SLOWING(RS_STACKDATA *stack, int argc) {
     float rate = GetStackFloat(stack++);
     int   frame = GetStackInt(stack);
@@ -11566,16 +11868,31 @@ static int _CMRS_PR_SLOWING(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Holds the camera sequence PR position.
+ *
+ */
 static int _CMRS_PR_KEEP(RS_STACKDATA *stack, int argc) {
     CameraSeq.PRKeep();
     return true;
 }
 
+/**
+ *
+ * Returns the camera sequence PR position.
+ *
+ */
 static int _CMRS_PR_RETURN(RS_STACKDATA *stack, int argc) {
     CameraSeq.PRReturn();
     return true;
 }
 
+/**
+ *
+ * Moves the camera sequence by angle, height and distance over a number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_MOVE_AHD(RS_STACKDATA *stack, int argc) {
     float angle;
     float height;
@@ -11610,6 +11927,11 @@ static int _CMRS_MOVE_AHD(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Syncs the camera sequence to a scene object, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     float offset[4];
     float angle;
@@ -11675,6 +11997,11 @@ static int _CMRS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Moves the camera sequence by angle, height and distance with wait and rate parameters, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_MOVE_AHD2(RS_STACKDATA *stack, int argc) {
     float angle;
     float height;
@@ -11715,11 +12042,21 @@ static int _CMRS_MOVE_AHD2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Releases the object the camera sequence is synced to.
+ *
+ */
 static int _CMRS_RELEASE_OBJ(RS_STACKDATA *stack, int argc) {
     CameraSeq.ReleaseSyncObj();
     return true;
 }
 
+/**
+ *
+ * Starts slowing the camera sequence AHD step at the given rate and frame.
+ *
+ */
 static int _CMRS_AHD_SLOWING(RS_STACKDATA *stack, int argc) {
     float rate = GetStackFloat(stack++);
     int   frame = GetStackInt(stack);
@@ -11727,26 +12064,51 @@ static int _CMRS_AHD_SLOWING(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Holds the camera sequence AHD position.
+ *
+ */
 static int _CMRS_AHD_KEEP(RS_STACKDATA *stack, int argc) {
     CameraSeq.AHDKeep();
     return true;
 }
 
+/**
+ *
+ * Returns the camera sequence AHD position.
+ *
+ */
 static int _CMRS_AHD_RETURN(RS_STACKDATA *stack, int argc) {
     CameraSeq.AHDReturn();
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on the camera sequence fade.
+ *
+ */
 static int _CMRS_FADE_DELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.FadeDelay(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Initializes the camera sequence fade.
+ *
+ */
 static int _CMRS_FADE_INIT(RS_STACKDATA *stack, int argc) {
     CameraSeq.FadeInit();
     return true;
 }
 
+/**
+ *
+ * Fades the camera sequence in over a number of frames, with an optional color.
+ *
+ */
 static int _CMRS_FADE_IN(RS_STACKDATA *stack, int argc) {
     float r = 0.0f;
     float g = 0.0f;
@@ -11763,6 +12125,11 @@ static int _CMRS_FADE_IN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Fades the camera sequence out over a number of frames, with an optional color.
+ *
+ */
 static int _CMRS_FADE_OUT(RS_STACKDATA *stack, int argc) {
     float r = 0.0f;
     float g = 0.0f;
@@ -11779,11 +12146,21 @@ static int _CMRS_FADE_OUT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on the camera sequence quake.
+ *
+ */
 static int _CMRS_QUAKE_DELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.QuakeDelay(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Starts a camera quake with a per-axis amplitude.
+ *
+ */
 static int _CMRS_QUAKE(RS_STACKDATA *stack, int argc) {
     float amplitude[4];
     amplitude[0] = GetStackFloat(stack++);
@@ -11794,6 +12171,11 @@ static int _CMRS_QUAKE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Starts a second camera quake variant with a per-axis amplitude.
+ *
+ */
 static int _CMRS_QUAKE2(RS_STACKDATA *stack, int argc) {
     float amplitude[4];
     amplitude[0] = GetStackFloat(stack++);
@@ -11804,11 +12186,21 @@ static int _CMRS_QUAKE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on the camera sequence character attachment.
+ *
+ */
 static int _CMRS_CHARA_DELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.CharaDelay(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Attaches the camera sequence to a character with a kind and factor.
+ *
+ */
 static int _CMRS_CHARA_ATTACH(RS_STACKDATA *stack, int argc) {
     int   kind;
     float factor;
@@ -11819,6 +12211,11 @@ static int _CMRS_CHARA_ATTACH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Moves the camera sequence position over a number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _CMRS_MOVE_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   frames;
@@ -11847,6 +12244,11 @@ static int _CMRS_MOVE_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Returns whether an object sequence is still running.
+ *
+ */
 static int _OBJS_CHECK(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -11860,6 +12262,11 @@ static int _OBJS_CHECK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Clears an object sequence.
+ *
+ */
 static int _OBJS_INIT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -11873,6 +12280,11 @@ static int _OBJS_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the event object handle that an object sequence follows.
+ *
+ */
 static int _OBJS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -11888,6 +12300,11 @@ static int _OBJS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on an object sequence position.
+ *
+ */
 static int _OBJS_POS_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -11903,6 +12320,11 @@ static int _OBJS_POS_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence position from a slot and direct arguments or an argument list.
+ *
+ */
 static int _OBJS_SET_POS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         pos[4];
@@ -11938,6 +12360,11 @@ static int _OBJS_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Moves an object sequence to a position over a number of frames, with an optional ground flag, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_MOVE(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index;
@@ -11989,6 +12416,11 @@ static int _OBJS_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Moves an object sequence to a position with an ease type and rate, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_MOVE2(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index;
@@ -12034,6 +12466,11 @@ static int _OBJS_MOVE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes an object sequence path.
+ *
+ */
 static int _OBJS_INIT_PAS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12047,6 +12484,11 @@ static int _OBJS_INIT_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the frame of an object sequence path.
+ *
+ */
 static int _OBJS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12062,6 +12504,11 @@ static int _OBJS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds a path point to an object sequence, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         pos[4];
@@ -12097,6 +12544,11 @@ static int _OBJS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Starts an object sequence path at an optional frame.
+ *
+ */
 static int _OBJS_START_PAS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     int           seq_no;
@@ -12119,6 +12571,11 @@ static int _OBJS_START_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Makes an object sequence jump to a position with a height over a number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_JUMP(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float height;
@@ -12161,6 +12618,11 @@ static int _OBJS_JUMP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence position from a frame of an event object handle, with an optional frame count and offset.
+ *
+ */
 static int _OBJS_SET_EOH_FRAME_POS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         offset[4];
@@ -12212,6 +12674,11 @@ static int _OBJS_SET_EOH_FRAME_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds an offset to an object sequence position over an optional number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_ADD_POS(RS_STACKDATA *stack, int argc) {
     float add[4];
     int   index;
@@ -12255,6 +12722,11 @@ static int _OBJS_ADD_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Attaches an object sequence to the camera with a rate and frame.
+ *
+ */
 static int _OBJS_ATTACH_CAMERA(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     int           slot;
@@ -12273,6 +12745,11 @@ static int _OBJS_ATTACH_CAMERA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on an object sequence rotation.
+ *
+ */
 static int _OBJS_ROT_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12288,6 +12765,11 @@ static int _OBJS_ROT_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence rotation from a slot and direct arguments or an argument list.
+ *
+ */
 static int _OBJS_SET_ROT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         rot[4];
@@ -12323,6 +12805,11 @@ static int _OBJS_SET_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Rotates an object sequence to a rotation over a number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_ROTATION(RS_STACKDATA *stack, int argc) {
     float rot[4];
     int   index;
@@ -12360,6 +12847,11 @@ static int _OBJS_ROTATION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Rotates an object sequence with an ease type and rate, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_ROTATION2(RS_STACKDATA *stack, int argc) {
     float rot[4];
     int   index;
@@ -12405,6 +12897,11 @@ static int _OBJS_ROTATION2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence reference position over a number of frames, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_REFERENCE(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index;
@@ -12442,6 +12939,11 @@ static int _OBJS_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on an object sequence motion.
+ *
+ */
 static int _OBJS_MOTION_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12457,6 +12959,11 @@ static int _OBJS_MOTION_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence motion by name with an optional type, blend and normal drive, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_SET_MOTION(RS_STACKDATA *stack, int argc) {
     int   index;
     int   type = 0;
@@ -12529,6 +13036,11 @@ static int _OBJS_SET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Queues the next motion of an object sequence by name with an optional type and blend, from direct arguments or an argument list.
+ *
+ */
 static int _OBJS_NEXT_MOTION(RS_STACKDATA *stack, int argc) {
     int   index;
     int   type = 0;
@@ -12585,6 +13097,11 @@ static int _OBJS_NEXT_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Waits on an object sequence motion.
+ *
+ */
 static int _OBJS_MOTION_WAIT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12598,6 +13115,11 @@ static int _OBJS_MOTION_WAIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence step.
+ *
+ */
 static int _OBJS_SET_STEP(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     float         step = GetStackFloat(stack);
@@ -12611,6 +13133,11 @@ static int _OBJS_SET_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence change step, using 0.2 when the given step is not positive.
+ *
+ */
 static int _OBJS_CHENGE_STEP(RS_STACKDATA *stack, int argc) {
     float step = 0.2f;
     int   index = GetStackInt(stack++);
@@ -12633,6 +13160,11 @@ static int _OBJS_CHENGE_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the motion trigger of an object sequence.
+ *
+ */
 static int _OBJS_SEQ_MOT_TRG(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12646,6 +13178,11 @@ static int _OBJS_SEQ_MOT_TRG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Waits on the motion trigger of an object sequence.
+ *
+ */
 static int _OBJS_SEQ_MOT_TRG_WAIT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12659,6 +13196,11 @@ static int _OBJS_SEQ_MOT_TRG_WAIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Resets an object sequence motion.
+ *
+ */
 static int _OBJS_RESET_MOTION(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12672,6 +13214,11 @@ static int _OBJS_RESET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the current motion time of an object sequence.
+ *
+ */
 static int _OBJS_SET_MOTION_NOW_TIME(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     float         time = GetStackFloat(stack);
@@ -12685,6 +13232,11 @@ static int _OBJS_SET_MOTION_NOW_TIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the motion wait time of an object sequence.
+ *
+ */
 static int _OBJS_SET_MOTION_WAIT_TIME(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     float         time = GetStackFloat(stack);
@@ -12698,6 +13250,11 @@ static int _OBJS_SET_MOTION_WAIT_TIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on an object sequence texture animation.
+ *
+ */
 static int _OBJS_TEXA_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12713,6 +13270,11 @@ static int _OBJS_TEXA_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Enables or disables an object sequence texture animation, with an optional texture name.
+ *
+ */
 static int _OBJS_TEX_ANIME(RS_STACKDATA *stack, int argc) {
     int   index = GetStackInt(stack++);
     int   on = GetStackInt(stack++);
@@ -12732,6 +13294,11 @@ static int _OBJS_TEX_ANIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on an object sequence color.
+ *
+ */
 static int _OBJS_COLOR_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12747,6 +13314,11 @@ static int _OBJS_COLOR_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence RGBA color over an optional number of frames.
+ *
+ */
 static int _OBJS_SET_COLOR(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         color[4];
@@ -12774,6 +13346,11 @@ static int _OBJS_SET_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on an object sequence scale.
+ *
+ */
 static int _OBJS_SCALE_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12789,6 +13366,11 @@ static int _OBJS_SCALE_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets an object sequence scale with an optional flag.
+ *
+ */
 static int _OBJS_SET_SCALE(RS_STACKDATA *stack, int argc) {
     float scale[4];
     int   index;
@@ -12813,6 +13395,11 @@ static int _OBJS_SET_SCALE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a frame delay on an object sequence sound effect.
+ *
+ */
 static int _OBJS_SE_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12828,6 +13415,11 @@ static int _OBJS_SE_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Plays a sound effect for an object sequence.
+ *
+ */
 static int _OBJS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     int           snd_id = GetStackInt(stack++);
@@ -12842,6 +13434,11 @@ static int _OBJS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Resets the DA position of an object sequence.
+ *
+ */
 static int _OBJS_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12855,6 +13452,11 @@ static int _OBJS_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Switches an object sequence to normal drive.
+ *
+ */
 static int _OBJS_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
@@ -12868,15 +13470,30 @@ static int _OBJS_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing.
+ *
+ */
 static int _ASQ_CHECK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes a sound port.
+ *
+ */
 static int _SND_INIT_PORT(RS_STACKDATA *stack, int argc) {
     sndInitPort(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Loads a sound effect from a default event SE file or a named file into a sound port and records its sound ID.
+ *
+ */
 static int _SND_LOAD_SOUND(RS_STACKDATA *stack, int argc) {
     char       path[0x80];
     int        port;
@@ -12886,13 +13503,13 @@ static int _SND_LOAD_SOUND(RS_STACKDATA *stack, int argc) {
 
     switch (argc) {
         case 2:
-            port = 4;
+            port = SND_PORT_EVENT;
             memory = &BuffEventSnd;
             break;
         case 3:
             port = GetStackInt(stack++);
 
-            if (port == 8) {
+            if (port == SND_PORT_MENU) {
                 memory = &BuffEventSnd2;
             } else {
                 memory = &BuffEventSnd;
@@ -12939,6 +13556,11 @@ static int _SND_LOAD_SOUND(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stores the sound ID of the last loaded sound, or of an environment, base, battle or source sound selected by a kind.
+ *
+ */
 static int _GET_SND_ID(RS_STACKDATA *stack, int argc) {
     int snd_id;
     int src_no;
@@ -12974,6 +13596,11 @@ static int _GET_SND_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pauses a sound effect.
+ *
+ */
 static int _SND_SE_PAUSE(RS_STACKDATA *stack, int argc) {
     u32 se_id;
 
@@ -12982,6 +13609,11 @@ static int _SND_SE_PAUSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Plays a sound effect on a voice, with optional volume and pan.
+ *
+ */
 static int _SND_SE_PLAY(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 2: {
@@ -13010,6 +13642,11 @@ static int _SND_SE_PLAY(RS_STACKDATA *stack, int argc) {
     }
 }
 
+/**
+ *
+ * Stops a sound effect.
+ *
+ */
 static int _SND_SE_STOP(RS_STACKDATA *stack, int argc) {
     u32 se_id;
 
@@ -13018,6 +13655,11 @@ static int _SND_SE_STOP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a sound effect volume, given as an integer or a float.
+ *
+ */
 static int _SND_SET_SE_VOL(RS_STACKDATA *stack, int argc) {
     u32 se_id;
     int voice;
@@ -13026,10 +13668,10 @@ static int _SND_SET_SE_VOL(RS_STACKDATA *stack, int argc) {
     voice = GetStackInt(stack++);
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             sndSetSeVol(se_id, voice, GetStackInt(stack), 0);
             break;
-        case 1:
+        case RS_FLOAT:
             sndSetSeVolf(se_id, voice, GetStackFloat(stack), 0);
             break;
         default:
@@ -13039,6 +13681,11 @@ static int _SND_SET_SE_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a sound effect pan over a time.
+ *
+ */
 static int _SND_SET_SE_PAN(RS_STACKDATA *stack, int argc) {
     int se_id = GetStackInt(stack++);
     int pan = GetStackInt(stack++);
@@ -13047,6 +13694,11 @@ static int _SND_SET_SE_PAN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets a sound effect pitch over a time.
+ *
+ */
 static int _SND_SET_SE_PITCH(RS_STACKDATA *stack, int argc) {
     int se_id = GetStackInt(stack++);
     int pitch = GetStackInt(stack++);
@@ -13055,11 +13707,21 @@ static int _SND_SET_SE_PITCH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stops all sound effects of the given sound.
+ *
+ */
 static int _SND_SE_ALL_STOP(RS_STACKDATA *stack, int argc) {
     sndSeAllStop(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Loads a BGM by number into the read buffer.
+ *
+ */
 static int _LOAD_BGM(RS_STACKDATA *stack, int argc) {
     int bgm_no;
 
@@ -13072,6 +13734,11 @@ static int _LOAD_BGM(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadBGM(bgm_no, read_buffer);
 }
 
+/**
+ *
+ * Plays a BGM by number, with an optional second argument.
+ *
+ */
 static int _PLAY_BGM(RS_STACKDATA *stack, int argc) {
     int bgm_no;
 
@@ -13088,6 +13755,11 @@ static int _PLAY_BGM(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Stops the BGM.
+ *
+ */
 static int _STOP_BGM(RS_STACKDATA *stack, int argc) {
     EventScene->StopBGM(GetStackInt(stack));
     return true;
@@ -13325,6 +13997,11 @@ int VpkFileNameFromVoiceNo(char *name, int voice_no) {
     return false;
 }
 
+/**
+ *
+ * Opens the event voice stream from a voice number, voice pack or file name.
+ *
+ */
 static int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
     char voice_pack[0x80];
     char voice_path[0x80];
@@ -13334,7 +14011,7 @@ static int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
         case 2:
             switch (stack->type) {
                 case RS_INT: {
-                    EdEventInfo.stream_source = 1;
+                    EdEventInfo.stream_source = EVENT_STREAM_VOICE_PACK;
                     int voice_no = GetStackInt(stack++);
 
                     if (VpkFileNameFromVoiceNo(voice_pack, voice_no) == 0) {
@@ -13342,17 +14019,17 @@ static int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
                     }
 
                     sprintf(voice_path, "%07d", voice_no);
-                    CommandStreamOpenFromFPL(1, voice_pack, voice_path);
+                    CommandStreamOpenFromFPL(EVENT_STREAM_CHANNEL, voice_pack, voice_path);
                 }
                 case RS_STR:
-                    EdEventInfo.stream_source = 0;
-                    CommandStreamOpen(1, GetStackString(stack));
+                    EdEventInfo.stream_source = EVENT_STREAM_FILE;
+                    CommandStreamOpen(EVENT_STREAM_CHANNEL, GetStackString(stack));
                 default:
                     return false;
             }
         case 3:
-            EdEventInfo.stream_source = 1;
-            CommandStreamOpenFromFPL(1, GetStackString(stack++), GetStackString(stack));
+            EdEventInfo.stream_source = EVENT_STREAM_VOICE_PACK;
+            CommandStreamOpenFromFPL(EVENT_STREAM_CHANNEL, GetStackString(stack++), GetStackString(stack));
             return false;
     }
 
@@ -13369,8 +14046,13 @@ int CommandStreamPlay(int stream, int volume) {
     return true;
 }
 
+/**
+ *
+ * Plays the event voice stream with an optional volume.
+ *
+ */
 static int _STREAM_PLAY(RS_STACKDATA *stack, int argc) {
-    EdEventInfo.stream_playing = 1;
+    EdEventInfo.stream_playing = true;
     GetStackInt(stack++);
 
     switch (argc) {
@@ -13383,11 +14065,16 @@ static int _STREAM_PLAY(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Stops the event voice stream.
+ *
+ */
 static int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
-    EdEventInfo.stream_playing = 0;
+    EdEventInfo.stream_playing = false;
     GetStackInt(stack);
 
-    if (EdEventInfo.stream_source == 1) {
+    if (EdEventInfo.stream_source == EVENT_STREAM_VOICE_PACK) {
         CSnd.StreamEND(EVENT_STREAM_CHANNEL);
     } else {
         CSnd.StreamSetVol(EVENT_STREAM_CHANNEL, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
@@ -13397,12 +14084,22 @@ static int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Puts the event voice stream on standby.
+ *
+ */
 static int _STREAM_STANDBY(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
     CSnd.StreamStandBy(EVENT_STREAM_CHANNEL);
     return true;
 }
 
+/**
+ *
+ * Stores the state of the event voice stream.
+ *
+ */
 static int _STREAM_GET_STATUS(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack++);
 
@@ -13411,6 +14108,11 @@ static int _STREAM_GET_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stores the system sound ID.
+ *
+ */
 static int _GET_SYS_SND_ID(RS_STACKDATA *stack, int argc) {
 
     argc = GetSystemSndID();
@@ -13418,11 +14120,21 @@ static int _GET_SYS_SND_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stores the state of the event voice stream open request.
+ *
+ */
 static int _STREAM_OPEN_CHECK(RS_STACKDATA *stack, int argc) {
     SetStack(stack, CSnd.StreamOpenState());
     return true;
 }
 
+/**
+ *
+ * Loads an environment sound effect bank.
+ *
+ */
 static int _LOAD_SE_ENV(RS_STACKDATA *stack, int argc) {
     int bank_no;
 
@@ -13436,6 +14148,11 @@ static int _LOAD_SE_ENV(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Plays an environment BGM with an optional volume, or auto-changes it when the voice is -1.
+ *
+ */
 static int _PLAY_ENV_BGM(RS_STACKDATA *stack, int argc) {
     int voice;
     int volume;
@@ -13469,6 +14186,11 @@ static int _PLAY_ENV_BGM(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Plays a system sound effect by ID.
+ *
+ */
 static int _SYS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     int se_id;
 
@@ -13482,21 +14204,41 @@ static int _SYS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes sound effect sources.
+ *
+ */
 static int _INIT_SE_SRC(RS_STACKDATA *stack, int argc) {
     EventScene->InitSeSrc();
     return true;
 }
 
+/**
+ *
+ * Initializes environment sound effects.
+ *
+ */
 static int _INIT_SE_ENV(RS_STACKDATA *stack, int argc) {
     EventScene->InitSeEnv();
     return true;
 }
 
+/**
+ *
+ * Initializes base sound effects.
+ *
+ */
 static int _INIT_SE_BAS(RS_STACKDATA *stack, int argc) {
     EventScene->InitSeBas();
     return true;
 }
 
+/**
+ *
+ * Loads a sound effect source bank.
+ *
+ */
 static int _LOAD_SE_SRC(RS_STACKDATA *stack, int argc) {
     int src_no;
 
@@ -13509,18 +14251,38 @@ static int _LOAD_SE_SRC(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadSeSrc(src_no, read_buffer);
 }
 
+/**
+ *
+ * Does nothing and fails.
+ *
+ */
 static int _LOAD_SE_FOOT(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Does nothing and fails.
+ *
+ */
 static int _LOAD_SE_DOOR(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Does nothing and fails.
+ *
+ */
 static int _LOAD_SE_BOX(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Loads a battle sound effect bank.
+ *
+ */
 static int _LOAD_SE_BATTLE(RS_STACKDATA *stack, int argc) {
     int bank_no;
 
@@ -13533,6 +14295,11 @@ static int _LOAD_SE_BATTLE(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadSeBattle(bank_no, read_buffer);
 }
 
+/**
+ *
+ * Deletes a sound port.
+ *
+ */
 static int _SND_DELETE_PORT(RS_STACKDATA *stack, int argc) {
     sndDeletePort(GetStackInt(stack));
     return true;

@@ -8036,7 +8036,7 @@ u8 GiftBoxViewFlag;
 
 int *menu_randam_line_draw_postbl;
 
-INCLUDE_BSS(MenuCursorReverseFlag, 0x4);
+int MenuCursorReverseFlag;
 
 s8 MenuItemBrdCalcManner;
 

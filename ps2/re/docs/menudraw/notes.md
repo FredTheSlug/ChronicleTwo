@@ -284,10 +284,10 @@ active native implementations of both functions.
 
 ## Native data and matching constraints
 
-MenuCursorReverseFlag is the sole retained data marker: retail declares one byte while
-the public header exposes extern int. Its four-byte reservation contains three alignment
-bytes. Other state and initialized data are native, including GeneratePoly's inline
-literals.
+All menudraw data is native. MenuCursorReverseFlag is defined as int, matching the
+public header and the word stores in menuchr and menumain; menudraw reads it through a
+u8 cast (lbu). Retail declares one byte, and the int's four bytes cover that byte and
+its three alignment bytes. Initialized data includes GeneratePoly's inline literals.
 
 Exported extents are nine forms, 150 item pointers, three gift-box position pairs, five
 creation-board floats and 156 display-limit bytes. Counters and flags retain their

@@ -86,7 +86,7 @@ Filled by dng_main (InitDungeonMain/LoopDungeonMain), title (TitleBootInit/Title
 | 0x30 | int | tex_block_num | 0x10; loop bound (also capped at 16) |
 | 0x34 | int | mes_tex_block | 0x58/0x46/0x9A; ReloadTexture before message draws |
 | 0x38 | int | active_chara_no | = UserData+0x44d96; GetActiveChraNo returns it |
-| 0x3C | int | end_code | -> MenuPrevEndCode; reset to 0; values 1 (chara change), 5, 6, 0xB (fishing), 0x15 seen in dng_main/editloop |
+| 0x3C | int | end_code | -> MenuPrevEndCode; reset to 0; holds a MenuEndCode value (chara change, dungeon/world move, load, fishing, sub-game load); 0x15 seen in dng_main/editloop |
 | 0x40..0x50 | int[5] | result | `_GET_MENU_PARAM` returns 0x40,0x44,0x48,0x4C,0x50 |
 | 0x54 | | unk | never accessed |
 | 0x58..0x94 | int[16] | param | `_GOTO_MENU` writes args from 0x58; CItemSelect::CheckUse uses [0] as mode, [1..10] item list; MenuChapterInit/DngTreeMapInit/InitMainCharaBG take [0] |
@@ -121,6 +121,20 @@ Name not retail. Only written: +0 = MenuArg.mes_tex_block, +4 = GetTexture("mnma
 - MenuLoopType: MenuLoopType = 1 for open types 1, 0x11, 0xE, 0x15. MenuInternInit hides the
   world-map icon ("mi4") when 1 and the floor-map icon ("mi9") when 0 -> 1 = dungeon.
 - MenuInterStep / MenuInterBGReadStep: CMenuInter fields above.
+
+## MenuEndCode / MenuEtcFlag
+MenuEndCode is the value of MENU_INIT_ARG::end_code when the menu closes:
+- MENU_END_NONE (0): nothing for the game loop to do.
+- MENU_END_CHARA_CHANGE (1): the active character changed to result[0].
+- MENU_END_DNG_MOVE (5): the player chose to leave the dungeon floor.
+- MENU_END_WORLD_MOVE (6): the player chose a place on the world map.
+- MENU_END_LOAD (10): a saved game or its fish data was loaded.
+- MENU_END_FISHING (11): a fishing rod is equipped.
+- MENU_END_SUBGAME_LOAD (19): mini-game data was loaded.
+- MENU_END_CHARA_CHANGE_FADE (21): character change from the main character display, with a cross-fade.
+
+MenuEtcFlag is the bit set that SetMenuEtcFlag adds to the menu's extra state:
+- MENU_ETC_FLAG_CHARA_RELOAD (0x1): the player character's model was read again, so a running fishing game restarts.
 
 ## Globals in the header (non-local), with evidence
 - MenuMainScene CScene* (GetMainScene), MenuActiveSaveData CSaveData* (GetSaveData).

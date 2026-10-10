@@ -116,3 +116,8 @@ The former `MG_DRAWPRIM_MANUAL_CTOR` macro suppressed normal `mgCDrawPrim` const
   set `color.a = 0x80` inside each branch.
 - `x > 211` and `GetNum() > 1` give retail's `slti at` branches; `>= 212`
   and `>= 2` build the comparison in `v0`.
+
+## Reverted candidates
+
+- `DrawRoboUnitStatusBord` colour array retyped to `SP_RGBA` (`color.r/g/b/a`) does not match; it stays `int color[4]`.
+- `DrawMonsterUnitStatusBord` colour array retyped to `SP_RGBA`, and the `width` local rewrite in `DrawRoboUnitStatusBord`, match.

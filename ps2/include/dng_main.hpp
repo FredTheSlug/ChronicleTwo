@@ -54,6 +54,76 @@ enum DNG_STATUS_MODE {
 
 /**
  *
+ * Ranges of the scene's character slots that the dungeon fills.
+ *
+ */
+enum DNG_CHARA_SLOT {
+    DNG_CHARA_SLOT_PARTY = 0,    /**< First slot of the action characters; the player is in this slot. */
+    DNG_CHARA_PARTY_NUM = 8,     /**< Number of action character slots. */
+    DNG_CHARA_SLOT_EVENT = 8,    /**< First slot of the characters that events load. */
+    DNG_CHARA_EVENT_NUM = 16,    /**< Number of event character slots. */
+    DNG_CHARA_SLOT_MONSTER = 24, /**< First slot of the MONSTER_ACTIVE_MAX active monsters. */
+};
+
+/**
+ *
+ * Numbers of entries in the dungeon's shared object and effect arrays.
+ *
+ */
+enum DNG_MAIN_ARRAY_SIZE {
+    DNG_BASE_CHARACTER_NUM = 6,    /**< Stacks in BaseCharacter. */
+    DNG_EVENT_BUFFER_NUM = 4,      /**< Buffers in BuffEventData. */
+    DNG_DAMAGE_SCORE_MONS_NUM = 8, /**< Damage numbers in DamageScoreMons. */
+    DNG_ITEM_BASE_NUM = 19,        /**< Models in ItemBaseData. */
+    DNG_AFTER_WIRE_NUM = 16,       /**< Wires in afterWire. */
+    DNG_PULL_ITEM_NUM = 72,        /**< Pickup slots in PullItem. */
+    DNG_SPARC_MODEL_NUM = 3,       /**< Models in SparcModel. */
+    DNG_WEAPON_EFFECT_NUM = 8,     /**< Weapon element effects in wep_effect. */
+    DNG_ELEMENT_EFFECT_NUM = 6,    /**< Effects in Sparc_fx, thunder, tornado, chillAfterHit and fireAfterHit. */
+};
+
+/**
+ *
+ * System event scripts that the dungeon starts by number.
+ *
+ */
+enum DNG_SYSTEM_EVENT {
+    DNG_EVENT_FLOOR_START = 1000,          /**< Runs when a floor is entered without an event of its own. */
+    DNG_EVENT_TREASURE_BOX = 1100,         /**< Opens the treasure box the player stands at. */
+    DNG_EVENT_RANDOM_CIRCLE = 1120,        /**< The player has stepped into a random circle. */
+    DNG_EVENT_GEOSTONE = 1130,             /**< Examines the floor's geostone. */
+    DNG_EVENT_MONSTER_TALK = 1150,         /**< Talks to a monster that can be spoken to. */
+    DNG_EVENT_FLOOR_CLEAR = 1500,          /**< Every monster of the floor has been defeated. */
+    DNG_EVENT_RANDOM_STONE = 2500,         /**< Examines a random stone before its first explanation. */
+    DNG_EVENT_LEVEL_UP_GUIDE = 2520,       /**< Explains levelling up the first time it happens. */
+    DNG_EVENT_ROBO_BIKE_GUIDE = 2530,      /**< Explains the ridepod's wheels the first time they are used. */
+    DNG_EVENT_MAGIC_SWORD_GUIDE = 2540,    /**< Explains the magic sword counter the first time it fills. */
+};
+
+/**
+ *
+ * Kinds of footstep effect that a floor surface raises, as DngStep's surface table holds them.
+ *
+ */
+enum DNG_FOOT_EFFECT {
+    DNG_FOOT_EFFECT_NONE = -1,  /**< No effect. */
+    DNG_FOOT_EFFECT_DUST = 0,   /**< A puff of sand. */
+    DNG_FOOT_EFFECT_GRASS = 1,  /**< A puff of sand with flying grass. */
+    DNG_FOOT_EFFECT_SPLASH = 2, /**< A splash of water. */
+};
+
+/**
+ *
+ * Quick character changes the stick buttons ask ChangeSetUnit for.
+ *
+ */
+enum DNG_CHANGE_UNIT {
+    DNG_CHANGE_UNIT_PARTNER = 0, /**< Switches between Max and Monica (L3). */
+    DNG_CHANGE_UNIT_RIDE = 1,    /**< Switches a character with the ridepod or the monster form (R3). */
+};
+
+/**
+ *
  * State of the dungeon main loop that the dungeon's other code reads and changes.
  *
  */
@@ -230,7 +300,12 @@ extern CPullItemManager PullItemMan;
  */
 extern mgCFrame *TornadoModel;
 
-extern CAfterWire afterWire[16];
+/**
+ *
+ * Wires drawn behind the weapon growth pickups as they fly to the player.
+ *
+ */
+extern CAfterWire afterWire[DNG_AFTER_WIRE_NUM];
 
 /**
  *
@@ -293,7 +368,7 @@ extern mgCMemory BuffCharacter;
  * Stacks for the player's characters.
  *
  */
-extern mgCMemory BaseCharacter[6];
+extern mgCMemory BaseCharacter[DNG_BASE_CHARACTER_NUM];
 
 /**
  *
@@ -321,7 +396,7 @@ extern mgCMemory BuffEffectScriptData;
  * Buffers for event data.
  *
  */
-extern mgCMemory BuffEventData[4];
+extern mgCMemory BuffEventData[DNG_EVENT_BUFFER_NUM];
 
 /**
  *
@@ -370,7 +445,7 @@ extern CDamageScore DamageScore;
  * Damage numbers shown over monsters.
  *
  */
-extern CDamageScore DamageScoreMons[8];
+extern CDamageScore DamageScoreMons[DNG_DAMAGE_SCORE_MONS_NUM];
 
 /**
  *
@@ -482,7 +557,7 @@ extern CMiniEffPrimMan MiniEffPrimMan;
  * Models of the throwable items, one per item kind.
  *
  */
-extern CCharacter2 ItemBaseData[19];
+extern CCharacter2 ItemBaseData[DNG_ITEM_BASE_NUM];
 
 /**
  *
@@ -538,42 +613,42 @@ extern CCharacter2 LaserGunModel;
  * Pickup slots that PullItemMan hands out.
  *
  */
-extern CPullItem PullItem[72];
+extern CPullItem PullItem[DNG_PULL_ITEM_NUM];
 
 /**
  *
  * Models of the spark effect.
  *
  */
-extern mgCFrame *SparcModel[3];
+extern mgCFrame *SparcModel[DNG_SPARC_MODEL_NUM];
 
 /**
  *
  * Lightning effects of thunder-element hits.
  *
  */
-extern CThunder thunder[6];
+extern CThunder thunder[DNG_ELEMENT_EFFECT_NUM];
 
 /**
  *
  * Whirlwind effects of wind-element hits.
  *
  */
-extern CTornado tornado[6];
+extern CTornado tornado[DNG_ELEMENT_EFFECT_NUM];
 
 /**
  *
  * Frost effects left on monsters struck by ice-element hits.
  *
  */
-extern CChillAfterHit chillAfterHit[6];
+extern CChillAfterHit chillAfterHit[DNG_ELEMENT_EFFECT_NUM];
 
 /**
  *
  * Flame effects left on monsters struck by fire-element hits.
  *
  */
-extern CFireAfterHit fireAfterHit[6];
+extern CFireAfterHit fireAfterHit[DNG_ELEMENT_EFFECT_NUM];
 
 /**
  *
@@ -644,3 +719,153 @@ void EntryEventScript(int event_no);
  * @size 0xBC
  */
 void ResetEyeView(CActionChara *chara);
+
+/**
+ *
+ * Allocates the dungeon's packet, work, character, script and read buffers from the main stack.
+ *
+ * @mangled memoryInit__Fv
+ * @address 0x1CD170
+ * @size 0x2C8
+ */
+void memoryInit();
+
+/**
+ *
+ * Resets the shared effects and pickups, then fills the battle effect pools.
+ *
+ * @mangled CommonClassInit__Fv
+ * @address 0x1CFB50
+ * @size 0x11C
+ */
+void CommonClassInit();
+
+/**
+ *
+ * Draws the floor, its characters, effects and the dungeon's interface for the active camera.
+ *
+ * @mangled DngMainDraw__Fv
+ * @address 0x1D04B0
+ * @size 0x1634
+ */
+void DngMainDraw();
+
+/**
+ *
+ * Moves the floor on by one frame: the player, monsters, characters, effects, pickups and the time of day.
+ *
+ * @mangled DngStep__Fv
+ * @address 0x1D1AF0
+ * @size 0xC98
+ */
+void DngStep();
+
+/**
+ *
+ * Runs the event script one frame and switches the main loop's mode on its request, giving the new mode.
+ *
+ * @mangled RunMainEvent__Fv
+ * @address 0x1D2790
+ * @size 0x9C
+ */
+int RunMainEvent();
+
+/**
+ *
+ * Handles the field mode's input for one frame: menus, character changes, the eye view and the camera.
+ *
+ * @mangled DngMainKey__Fv
+ * @address 0x1D2830
+ * @size 0x1E4C
+ */
+int DngMainKey();
+
+/**
+ *
+ * Checks what the player stands at or has done and requests the matching system event.
+ *
+ * @mangled IsEventRun__Fv
+ * @address 0x1D4680
+ * @size 0x5DC
+ */
+void IsEventRun();
+
+/**
+ *
+ * Starts a system event script and switches the main loop to event mode, giving true when it started.
+ *
+ * @mangled EventScriptSetup__FP18SYSTEM_SCRIPT_INFO
+ * @address 0x1D4C60
+ * @size 0xF8
+ */
+int EventScriptSetup(SYSTEM_SCRIPT_INFO *script);
+
+/**
+ *
+ * Requests the death of the player's character once its hit points, or a monster form's weapon, run out.
+ *
+ * @mangled IsRunDeadEvent__FP12CActionChara
+ * @address 0x1D4D60
+ * @size 0x98
+ */
+int IsRunDeadEvent(CActionChara *chara);
+
+/**
+ *
+ * Gives the character a DNG_CHANGE_UNIT quick change switches to, or -1 when none is allowed.
+ *
+ * @mangled ChangeSetUnit__Fi
+ * @address 0x1D4E00
+ * @size 0x140
+ */
+int ChangeSetUnit(int change);
+
+/**
+ *
+ * Applies the damage and colour flashes of the player's status ailments.
+ *
+ * @mangled CheckStatusError__Fv
+ * @address 0x1D4F40
+ * @size 0x1F8
+ */
+void CheckStatusError();
+
+/**
+ *
+ * Switches the camera to the eye view, facing where the character or the ridepod's arm faces.
+ *
+ * @mangled InitEyeCamera__FP12CActionChara
+ * @address 0x1D5140
+ * @size 0x100
+ */
+void InitEyeCamera(CActionChara *chara);
+
+/**
+ *
+ * Hides the player's weapons while events ask for it, and shows them otherwise.
+ *
+ * @mangled CheckWeaponEnable__Fv
+ * @address 0x1D5240
+ * @size 0xA8
+ */
+void CheckWeaponEnable();
+
+/**
+ *
+ * Draws the debug command menu and the debug monster loader when they are open.
+ *
+ * @mangled DebugMainDraw__Fv
+ * @address 0x1D5690
+ * @size 0x538
+ */
+void DebugMainDraw();
+
+/**
+ *
+ * Starts an event script from the debug command menu.
+ *
+ * @mangled DBGCMD_RunScript__Fi
+ * @address 0x1D5BD0
+ * @size 0xB0
+ */
+void DBGCMD_RunScript(int no);

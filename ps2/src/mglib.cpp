@@ -1844,8 +1844,6 @@ int mgTransWorldPrim3DSprite(int *top_left, int *bottom_right, float *position, 
     return visible & prim_clip_check(second);
 }
 
-#pragma global_optimizer off
-
 /**
  *
  * Tests whether a built-in or user VU1 microprogram identifier is available.
@@ -1887,8 +1885,6 @@ valid:
     return true;
 }
 
-#pragma global_optimizer reset
-
 u_long128 *mgGetVuProgPacket(int id) {
     if (!CheckVuProgID(id)) {
         return NULL;
@@ -1926,8 +1922,6 @@ void mgSetUserVuProg(u_long128 **table, int count) {
     user_prog_num = count;
 }
 
-#pragma global_optimizer off
-
 void mgSetUserVuProgAdr(int index, u_long128 *adr) {
     if (index < 0 || index >= user_prog_num) {
         return;
@@ -1936,8 +1930,15 @@ void mgSetUserVuProgAdr(int index, u_long128 *adr) {
     user_prog_adr[index] = adr;
 }
 
-#pragma global_optimizer reset
-
+/**
+ *
+ * Writes the selected frame buffer to a numbered TGA image on the host device.
+ *
+ * @mangled StoreImage__Fi
+ * @address 0x146390
+ * @size 0x284
+ *
+ */
 void StoreImage(int front_buffer) {
     static int image_num = 0;
     u_char     tga[18] = {0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 0};

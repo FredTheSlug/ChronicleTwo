@@ -39,6 +39,11 @@ enum EventStorageExtent {
     EVENT_LOCAL_NUM = 0x40, /**< Words in each event-local flag and counter array. */
     PAKU_NAME_SIZE = 0x40,  /**< Bytes in each mouth-animation or motion name. */
     SEQ_NODE_NUM = 0x100,   /**< Command entries in each event sequence table. */
+    EVENT_SPRITE2_NUM = 0x30,       /**< Event sprites an event can place. */
+    EVENT_OBJECT_SEQ_NUM = 0x20,    /**< Object sequences an event can run at once. */
+    EVENT_EXT_FUNC_NUM = 0x5DC,     /**< Slots in the table of external event script commands. */
+    EVENT_SND_BUFFER_SIZE = 0x801,  /**< Quadwords in the buffer that event sound banks load into. */
+    EVENT_SND2_BUFFER_SIZE = 0x141, /**< Quadwords in the buffer that event menu-port sound banks load into. */
 };
 
 /**
@@ -758,6 +763,292 @@ enum EventArgumentCommand {
 
 /**
  *
+ * Extents of the interpreter that runs an event argument script.
+ *
+ */
+enum EventArgScriptExtent {
+    EVENT_ARG_STACK_NUM = 0x20, /**< Value slots of the argument script's stack. */
+    EVENT_ARG_CALL_NUM = 0x20,  /**< Call frames of the argument script. */
+    EVENT_ARG_FUNC_NUM = 3,     /**< Slots in the argument script's external command table. */
+};
+
+/**
+ *
+ * Sound stream channel that events open and play their voice streams on.
+ *
+ */
+enum EventStreamChannel {
+    EVENT_STREAM_CHANNEL = 1, /**< Channel of the event's voice stream. */
+};
+
+/**
+ *
+ * How the event's voice stream was opened, as ED_EVENT_INFO::stream_source holds it.
+ *
+ */
+enum EventStreamSource {
+    EVENT_STREAM_FILE = 0,       /**< Opened by name from the disc's VOICE folder. */
+    EVENT_STREAM_VOICE_PACK = 1, /**< Opened from a voice pack; it is ended rather than closed. */
+    EVENT_STREAM_WAVE = 2,       /**< Opened directly by its wave file name. */
+};
+
+/**
+ *
+ * Layouts of the event stopwatch, as ED_EVENT_INFO::stopwatch_style holds them.
+ *
+ */
+enum EventStopwatchStyle {
+    EVENT_STOPWATCH_STYLE_WINDOW = 0,    /**< Counts up as minutes and seconds inside a window. */
+    EVENT_STOPWATCH_STYLE_COUNTDOWN = 1, /**< Counts the limit down with colons, under a "Moon Falls" label. */
+};
+
+/**
+ *
+ * Sub-commands of the _STOPWATCH event script command.
+ *
+ */
+enum EventStopwatchCommand {
+    EVENT_STOPWATCH_START = 0,      /**< Starts the stopwatch at the current play time. */
+    EVENT_STOPWATCH_STOP = 1,       /**< Stops the stopwatch and gives the elapsed time. */
+    EVENT_STOPWATCH_SET_LIMIT = 2,  /**< Sets the time limit counted down from. */
+    EVENT_STOPWATCH_SET_LAYOUT = 3, /**< Sets the stopwatch's screen position and style. */
+};
+
+/**
+ *
+ * Buttons the _CHECK_BUTTON event script command can test.
+ *
+ */
+enum EventCheckButton {
+    EVENT_BUTTON_CANCEL = 0,  /**< Cross in Japanese, circle in other languages. */
+    EVENT_BUTTON_CONFIRM = 1, /**< Circle in Japanese, cross in other languages. */
+    EVENT_BUTTON_SQUARE = 2,  /**< Square button. */
+    EVENT_BUTTON_SELECT = 3,  /**< Select button. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_GYORACE_ETC event script command.
+ *
+ */
+enum EventSetGyoRaceCommand {
+    EVENT_SET_GYORACE_AQUARIUM_NO = 0, /**< Sets the aquarium the race fish comes from. */
+    EVENT_SET_GYORACE_RANKING = 1,     /**< Sets the race ranking. */
+    EVENT_SET_GYORACE_CLASS = 2,       /**< Sets the race class. */
+    EVENT_SET_GYORACE_RACE_NO = 3,     /**< Sets the race number. */
+    EVENT_SET_GYORACE_ADD_TOUR = 4,    /**< Adds one to the save data's tour count. */
+    EVENT_SET_GYORACE_FISH_NAME = 5,   /**< Copies a race result's fish name into a message name slot. */
+    EVENT_SET_GYORACE_FISH_TIME = 6,   /**< Writes a race result's time into a message name slot. */
+    EVENT_SET_GYORACE_LOAD_PRIZE = 7,  /**< Loads the race prize list. */
+};
+
+/**
+ *
+ * Sub-commands of the _GET_GYORACE_ETC event script command.
+ *
+ */
+enum EventGetGyoRaceCommand {
+    EVENT_GET_GYORACE_AQUARIUM_NO = 0, /**< Gives the aquarium the race fish comes from. */
+    EVENT_GET_GYORACE_RANKING = 1,     /**< Gives the race ranking. */
+    EVENT_GET_GYORACE_CLASS = 2,       /**< Gives the race class. */
+    EVENT_GET_GYORACE_RACE_NO = 3,     /**< Gives the race number. */
+    EVENT_GET_GYORACE_PRIZE = 4,       /**< Gives the prize of a race and rank. */
+    EVENT_GET_GYORACE_TOUR = 5,        /**< Gives the save data's tour count. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_SAVEDATA_ETC event script command.
+ *
+ */
+enum EventSetSaveDataCommand {
+    EVENT_SET_SAVEDATA_GAME_PROGRESS = 0,  /**< Sets the story progress. */
+    EVENT_SET_SAVEDATA_ENABLE_BADGE = 1,   /**< Enables a monster badge. */
+    EVENT_SET_SAVEDATA_REPAIR_WEAPONS = 2, /**< Repairs every weapon. */
+    EVENT_SET_SAVEDATA_SKIP_LOAD_BGM = 3,  /**< Sets whether loading skips the music. */
+    EVENT_SET_SAVEDATA_DELETE_EREKI = 4,   /**< Removes the electric fish. */
+};
+
+/**
+ *
+ * Sub-commands of the _GET_SAVEDATA_ETC event script command.
+ *
+ */
+enum EventGetSaveDataCommand {
+    EVENT_GET_SAVEDATA_GAME_PROGRESS = 0, /**< Gives the story progress. */
+    EVENT_GET_SAVEDATA_BADGE = 1,         /**< Gives whether a monster badge is enabled. */
+    EVENT_GET_SAVEDATA_EREKI = 2,         /**< Gives whether the electric fish is held. */
+    EVENT_GET_SAVEDATA_BAIT = 3,          /**< Gives the bait on a fishing rod. */
+    EVENT_GET_SAVEDATA_PLAY_TIME = 4,     /**< Gives the play time. */
+    EVENT_GET_SAVEDATA_CAPTION_OFF = 5,   /**< Gives whether movie captions are turned off. */
+    EVENT_GET_SAVEDATA_TOUR_TYPE = 6,     /**< Gives the kind of tour now running. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_MENU_ETC event script command.
+ *
+ */
+enum EventSetMenuCommand {
+    EVENT_SET_MENU_KEYWORD = 0,         /**< Registers a keyword under a topic. */
+    EVENT_SET_MENU_FINISH_TOUR = 1,     /**< Clears aquarium fatigue and finishes the tour. */
+    EVENT_SET_MENU_UNUSED_2 = 2,        /**< Does nothing. */
+    EVENT_SET_MENU_DL_SWITCH = 3,       /**< Shows or hides the download announcement. */
+    EVENT_SET_MENU_DL_INIT = 4,         /**< Resets the download menu. */
+    EVENT_SET_MENU_DL_ANNOUNCE = 5,     /**< Builds a town's download announcement in a scene stack. */
+    EVENT_SET_MENU_UNUSED_6 = 6,        /**< Does nothing. */
+    EVENT_SET_MENU_DL_ANNOUNCE_END = 7, /**< Releases the download announcement. */
+};
+
+/**
+ *
+ * Sub-commands of the _GET_MENU_ETC event script command.
+ *
+ */
+enum EventGetMenuCommand {
+    EVENT_GET_MENU_SPHEDA_CLEAR = 0, /**< Gives the number of Spheda courses cleared. */
+    EVENT_GET_MENU_SQUARE_EVENT = 1, /**< Gives the square event. */
+    EVENT_GET_MENU_FISH_RECORD = 2,  /**< Gives the size record of a fish. */
+    EVENT_GET_MENU_KNOW_SCOOP = 3,   /**< Gives whether a scoop is known. */
+    EVENT_GET_MENU_CHECK_SCOOP = 4,  /**< Gives the scoop check result. */
+    EVENT_GET_MENU_SCOOP_TOTAL = 5,  /**< Gives the scoop count and total. */
+    EVENT_GET_MENU_DONY_SHOP = 6,    /**< Gives Donny's shop line-up and its status. */
+    EVENT_GET_MENU_DL_STEP = 7,      /**< Steps the download announcement. */
+    EVENT_GET_MENU_DL_MENU_STEP = 8, /**< Steps the download menu. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_QUEST_ETC event script command.
+ *
+ */
+enum EventSetQuestCommand {
+    EVENT_SET_QUEST_FLAG = 0,  /**< Sets a quest request's flag. */
+    EVENT_SET_QUEST_CLEAR = 1, /**< Clears a quest request. */
+};
+
+/**
+ *
+ * Sub-commands of the _GET_QUEST_ETC event script command.
+ *
+ */
+enum EventGetQuestCommand {
+    EVENT_GET_QUEST_STATUS = 0, /**< Gives a quest request's status. */
+};
+
+/**
+ *
+ * Fields of the scene's event data that _SET_EVENT_DATA and _GET_EVENT_DATA reach.
+ *
+ */
+enum EventDataField {
+    EVENT_DATA_FLAG = 0,            /**< Flag of the triggered event. */
+    EVENT_DATA_EVENT_NO = 1,        /**< Number of the triggered event. */
+    EVENT_DATA_POINT_NO = 2,        /**< Point number of the triggered event. */
+    EVENT_DATA_ARG1 = 3,            /**< First argument of the triggered event. */
+    EVENT_DATA_ARG2 = 4,            /**< Second argument of the triggered event. */
+    EVENT_DATA_ARG3 = 5,            /**< Third argument of the triggered event. */
+    EVENT_DATA_MAP_CHECK_TYPE = 6,  /**< Check type of the map event. */
+    EVENT_DATA_MAP_EVENT_NO = 7,    /**< Event number of the map event. */
+    EVENT_DATA_MAP_TRANSFORM = 8,   /**< Position and facing of the map event. */
+    EVENT_DATA_MAP_PARTS_NO = 9,    /**< Map part number of the map event. */
+    EVENT_DATA_POSITION = 10,       /**< Position of the event. */
+    EVENT_DATA_ROTATION = 11,       /**< Rotation of the event. */
+    EVENT_DATA_SCALE = 12,          /**< Scale of the event. */
+    EVENT_DATA_CHARA_SLOT = 13,     /**< Scene character slot of the event. */
+    EVENT_DATA_CHARA_NO = 14,       /**< Character number of the event. */
+    EVENT_DATA_GAMEOBJ_NO = 15,     /**< Game object number of the event. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_FUNC_ETC event script command.
+ *
+ */
+enum EventSetFuncCommand {
+    EVENT_SET_FUNC_RESTART_EDIT = 0, /**< Flags the map change and restarts the town's edit event. */
+    EVENT_SET_FUNC_RESET_EDIT = 1,   /**< Resets the town's edit event. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_MES_ETC event script command.
+ *
+ */
+enum EventSetMesCommand {
+    EVENT_SET_MES_LINE_INDENT = 0,      /**< Sets line indenting. */
+    EVENT_SET_MES_CURSOR_CENTERING = 1, /**< Sets cursor centering. */
+    EVENT_SET_MES_HALF_FONT_WIDTH = 2,  /**< Sets the width of half-width glyphs, as a percentage. */
+    EVENT_SET_MES_AQUARIUM_FISH = 3,    /**< Opens a window listing the fish in the first aquarium tank. */
+    EVENT_SET_MES_ABS_WINDOW = 4,       /**< Sets the window rectangle. */
+    EVENT_SET_MES_LINE_SHADE = 5,       /**< Sets the shade of a line. */
+    EVENT_SET_MES_LINE_ALPHA = 6,       /**< Sets the alpha of a line. */
+    EVENT_SET_MES_DEFAULT_COLOR = 7,    /**< Sets the default text colour. */
+    EVENT_SET_MES_FUCHI = 8,            /**< Sets the text outline. */
+    EVENT_SET_MES_TEXT_OFFSET = 9,      /**< Sets the text offset inside the window. */
+    EVENT_SET_MES_ALPHA = 10,           /**< Sets the window alpha. */
+};
+
+/**
+ *
+ * Sub-commands of the _GET_MES_ETC event script command.
+ *
+ */
+enum EventGetMesCommand {
+    EVENT_GET_MES_LINE_INDENT = 0,      /**< Gives line indenting. */
+    EVENT_GET_MES_CURSOR_CENTERING = 1, /**< Gives cursor centering. */
+    EVENT_GET_MES_AQUARIUM_FISH = 2,    /**< Gives the number of fish in the first aquarium tank. */
+    EVENT_GET_MES_VILLAGER_INFO = 3,    /**< Gives two values of a villager's information. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_FISHINGTOURNAMENT_ETC event script command.
+ *
+ */
+enum EventSetFishingTournamentCommand {
+    EVENT_SET_FISHING_RANK = 0,         /**< Sets the tournament rank. */
+    EVENT_SET_FISHING_RESET_RECORD = 1, /**< Clears the tournament records. */
+    EVENT_SET_FISHING_LOAD_PRIZE = 2,   /**< Loads the tournament prize list. */
+    EVENT_SET_FISHING_COUNT_TOUR = 3,   /**< Counts a fishing tour. */
+};
+
+/**
+ *
+ * Sub-commands of the _GET_FISHINGTOURNAMENT_ETC event script command.
+ *
+ */
+enum EventGetFishingTournamentCommand {
+    EVENT_GET_FISHING_RECORDS = 0,    /**< Opens a window listing the tournament records. */
+    EVENT_GET_FISHING_PRIZE = 1,      /**< Gives the prize of a rank. */
+    EVENT_GET_FISHING_ENTRY_LEFT = 2, /**< Gives the entries left. */
+    EVENT_GET_FISHING_TOP_WEIGHT = 3, /**< Gives the heaviest catch. */
+    EVENT_GET_FISHING_RANK = 4,       /**< Gives the tournament rank. */
+};
+
+/**
+ *
+ * Sub-commands of the _SET_MOVIE_CC event script command.
+ *
+ */
+enum EventCaptionCommand {
+    EVENT_CAPTION_ENABLE = 0, /**< Turns movie captions on or off, clearing them when off. */
+    EVENT_CAPTION_SET = 1,    /**< Sets one caption's text and timing. */
+};
+
+/**
+ *
+ * Ways the _SPHIDA_SET_UP event script command sets up a Spheda course.
+ *
+ */
+enum EventSphidaSetUpKind {
+    EVENT_SPHIDA_SETUP_NORMAL = 0, /**< Sets up a dungeon course with CSphida::SetUp. */
+    EVENT_SPHIDA_SETUP_S17 = 1,    /**< Sets up a course with CSphida::s17_SetUp. */
+    EVENT_SPHIDA_SETUP_OMAKE = 2,  /**< Sets up a bonus course with CSphida::Omake_SetUp. */
+};
+
+/**
+ *
  * Kinds of game thing an event object handle refers to, as CEoh::type holds them.
  *
  */
@@ -825,7 +1116,7 @@ struct ED_EVENT_INFO {
     float              env_bgm_volume;                        /**< Volume of the environment music the event started. */
     int                env_bgm_no;                            /**< Environment music the event started. */
     int                stream_playing;                        /**< Non-zero while a voice stream the event started is playing. */
-    int                stream_from_fpl;                       /**< Non-zero when the open voice stream was opened from a voice pack. */
+    int                stream_source;                       /**< How the open voice stream was opened. @see EventStreamSource. */
     int                func_iparam[16];                       /**< Integer parameters of the door mode: character number, entry point and sound effect. */
     float              func_fparam[16];                       /**< Float parameters of the door mode: position, facing, camera position and look-at offset. */
     int                monster_talk[3];                       /**< Talk data of the monster the player spoke to in the dungeon. */
@@ -835,7 +1126,7 @@ struct ED_EVENT_INFO {
     s64                stopwatch_limit;                       /**< Time limit the stopwatch counts down from, or 0 to count up. */
     int                stopwatch_x;                           /**< Screen X position of the stopwatch. */
     int                stopwatch_y;                           /**< Screen Y position of the stopwatch. */
-    int                stopwatch_style;                       /**< Layout the stopwatch is drawn in. */
+    int                stopwatch_style;                       /**< Layout the stopwatch is drawn in. @see EventStopwatchStyle. */
     CMapParts         *dng_event_parts;                       /**< Dungeon map part the player triggered an event at. */
     int                dng_event_found;                       /**< Non-zero once a dungeon event part has been found. */
     int                pack_loaded;                           /**< Non-zero while the read buffer holds a pack file that loads search first. */
@@ -894,7 +1185,7 @@ public:
      * @address 0x260920
      * @size 0x40
      */
-    int Set(int new_kind, CObject *object, int new_flag);
+    int Set(int new_kind, CObject *new_object, int new_flag);
 
     /**
      *
@@ -904,7 +1195,7 @@ public:
      * @address 0x260960
      * @size 0x40
      */
-    int Set(int new_kind, int new_chara_no, CCharacter2 *chara);
+    int Set(int new_kind, int new_chara_no, CCharacter2 *new_chara);
 
     /**
      *
@@ -914,7 +1205,7 @@ public:
      * @address 0x2609A0
      * @size 0x40
      */
-    int Set(int new_kind, CEventSprite2 *sprite);
+    int Set(int new_kind, CEventSprite2 *new_sprite);
 
     /**
      *
@@ -924,7 +1215,7 @@ public:
      * @address 0x2609E0
      * @size 0x40
      */
-    int Set(int new_kind, mgCFrame *frame);
+    int Set(int new_kind, mgCFrame *new_frame);
 
     /**
      *
@@ -961,13 +1252,13 @@ public:
 
     /**
      *
-     * Points a handle at a map object; returns 1 on success, 0 for a bad handle number or object.
+     * Points a handle at a map object, ignoring kind; returns 1 on success, 0 for a bad handle number or object.
      *
      * @mangled Set__10CEohMotherFiiP7CObjecti
      * @address 0x260E60
      * @size 0x40
      */
-    int Set(int slot, int type, CObject *object, int flag);
+    int Set(int slot, int kind, CObject *object, int flag);
 
     /**
      *
@@ -1071,7 +1362,7 @@ public:
 
     /**
      *
-     * Asks the motion sequence of a character handle to move on; returns 1 on success.
+     * Asks the motion sequence of a character handle to move on; always returns 0.
      *
      * @mangled SetMotionTrg__10CEohMotherFi
      * @address 0x261980
@@ -1287,7 +1578,7 @@ public:
      * @address 0x262740
      * @size 0x60
      */
-    int SetFootSoundID(int slot, int id);
+    int SetFootSoundID(int slot, int sound_id);
 
     /**
      *
@@ -1307,7 +1598,7 @@ public:
      * @address 0x262850
      * @size 0x60
      */
-    int SetSoundID(int slot, unsigned int id);
+    int SetSoundID(int slot, unsigned int sound_id);
 
     /**
      *
@@ -1377,7 +1668,7 @@ public:
      * @address 0x262C50
      * @size 0x70
      */
-    int SetFootSeId(int slot, int stamp);
+    int SetFootSeId(int slot, int se_bank);
 };
 
 STATIC_ASSERT(sizeof(CEohMother) == 0x200);
@@ -1426,6 +1717,11 @@ public:
     int        list_num; /**< Number of lists. */
     mgCMemory *memory;   /**< Memory the lists and their strings are taken from. */
 
+    /**
+     *
+     * Makes an empty set of argument lists with no memory.
+     *
+     */
     CEventScriptArg();
 
     /**
@@ -1449,7 +1745,7 @@ STATIC_ASSERT(sizeof(CEventScriptArg) == 0x10);
  */
 class CRaster {
 public:
-    int   state;          /**< Progress of the effect. @see RASTER_STATE. */
+    RASTER_STATE state;   /**< Progress of the effect. @see RASTER_STATE. */
     float amplitude;      /**< Distance, in pixels, lines are moved at most. */
     float amplitude_step; /**< Change of the amplitude each frame. */
     float speed;          /**< Angle, in radians, the wave moves each frame. */
@@ -1461,6 +1757,11 @@ public:
     int   frames; /**< Number of frames the current change lasts, or -1. */
     int   frame;  /**< Frames passed in the current change. */
 
+    /**
+     *
+     * Makes a raster effect that is turned off.
+     *
+     */
     CRaster();
 
     /**
@@ -1543,6 +1844,11 @@ public:
     int         mono_flash_frame;      /**< Frames the current monochrome picture has been shown. */
     int         mono_flash_no;         /**< Monochrome picture shown now, 0 or 1. */
 
+    /**
+     *
+     * Makes a set of screen effects that are all turned off.
+     *
+     */
     CScreenEffect();
 
     /**
@@ -1643,7 +1949,7 @@ public:
      * @address 0x264150
      * @size 0x50
      */
-    void SetMonoFlashTexture(mgCTexture **texture, u_long128 **vram_images);
+    void SetMonoFlashTexture(mgCTexture **textures, u_long128 **vram_images);
 
     /**
      *
@@ -1838,7 +2144,7 @@ extern CScreenEffect EventScreenEffect;
 
 /**
  *
- * Argument list of the event script command being run.
+ * Argument lists that the running event loaded.
  *
  */
 extern CEventScriptArg EventScriptArg;
@@ -1848,14 +2154,14 @@ extern CEventScriptArg EventScriptArg;
  * Sprites that event scripts display.
  *
  */
-extern CEventSprite2 EventSprite2[0x30];
+extern CEventSprite2 EventSprite2[EVENT_SPRITE2_NUM];
 
 /**
  *
  * Object sequences that event scripts play.
  *
  */
-extern CSceneObjSeq ObjectSeq[32];
+extern CSceneObjSeq ObjectSeq[EVENT_OBJECT_SEQ_NUM];
 
 /**
  *
@@ -1866,14 +2172,14 @@ extern CSceneCmrSeq CameraSeq;
 
 /**
  *
- * Stack holding the first set of event sound data.
+ * Memory that event sound banks are loaded into.
  *
  */
 extern mgCMemory BuffEventSnd;
 
 /**
  *
- * Stack holding the second set of event sound data.
+ * Memory that event sound banks for the menu port are loaded into.
  *
  */
 extern mgCMemory BuffEventSnd2;
@@ -2213,7 +2519,7 @@ int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, unsigned int *pack,
  * @address 0x2668E0
  * @size 0x10
  */
-int _LOAD_CHARA_sub(int a, char **b, int c, unsigned int *data);
+int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, unsigned int *pack);
 
 /**
  *
@@ -2253,7 +2559,7 @@ int LoadMovie(char *name, mgCMemory *memory, bool skip);
  * @address 0x271400
  * @size 0x100
  */
-int _LOAD_MES_sub(char *name, int no, ClsMes *mes);
+int _LOAD_MES_sub(char *file_name, int stack_no, ClsMes *mes);
 
 /**
  *
@@ -2303,7 +2609,7 @@ int CommandStreamPlay(int stream, int volume);
  * @address 0x2778A0
  * @size 0x50
  */
-int CommandStreamOpen2(int port, char *name);
+int CommandStreamOpen2(int stream, char *name);
 
 /**
  *

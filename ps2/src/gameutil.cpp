@@ -493,8 +493,6 @@ Mot_List *MotionProc(mgCFrame *root, unsigned int from_frame, unsigned int to_fr
     return list->next;
 }
 
-#pragma global_optimizer off
-
 /**
  *
  * Accumulates a weighted transformed vertex and writes the resulting vertex.
@@ -519,8 +517,6 @@ static void testVUnew(float (*matrix)[4], float *vertex, float *weight, float *a
         sqc2 vf6, 0(out)
     }
 }
-
-#pragma global_optimizer reset
 
 Mot_List *MotionProc2(mgCFrame *root, tagMOTION_TYPE *motion, tagFRAME_INF *frame_info, Mot_List *list) {
     static sceVu0FVECTOR *vert;

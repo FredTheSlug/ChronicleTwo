@@ -115,29 +115,32 @@ finding; standard objdiff scores its `0xE80` body at 100%.
 - 0x6C0 action: +0 phase (battle: 0 approach,1 start,2 swing; battle-rest: 3 go, 4 rest),
   +4 timer, +8 target_no, +0xC target (vtable call 0x18 = GetPosition), +0x10 speed / +0x14
   max_speed (round), +0x30 decel (0.8 rest, 0.7 food look), +0x34 hit_count (ColCheck adds 1, or
-  6 at 8%; Thinking triggers pairing when > 0xA0 in mode 8; ParamStep raises a param when > 0xB4
+  6 at 8%; Thinking triggers pairing when > 160 in mode 8; ParamStep raises a param when > 180
   in mode 5).
 - 0x700 union: round {s16 dir (0x700), float 0x704, 0x708, 0x70C} vs battle float 0x700
   (MoveActionBattle swing angle). Proven by short and float accesses at 0x700.
 - 0x710 route[32] (0x710 + 32*0x10 = 0x910), 0x910 route_num (16..25), 0x912 route_no, 0x914
   route_time (>0x14 skips a point).
-- 0x920 eat_item (food item no copied from food+0x680; 0x13B and 0x168 are special in
-  ParamStep/ColCheck), 0x922 s8 (random 0..7 at init, reset to 0 when >7; meaning unknown),
+- 0x920 eat_item (food item no copied from food+0x680; AQUA_FOOD_ITEM_CARROT (315) and
+  AQUA_FOOD_ITEM_ELECTRIC_WORM (360) are special in ParamStep/ColCheck), 0x922 s8 (random 0..7 at init, reset to 0 when >7; meaning unknown),
   0x924 col_flags (cleared each ColCheck), 0x928 wall_time (round: >200 forces a turn),
   0x92C fatigue, 0x930 fatigue_max = `(data[+0x3C]/10 + rand(20) + 26) * 20`, 0x934 flash_count,
   0x938 data (CGameDataUsed*; BREEDFISH_USED is `data + 0x10`).
 - ParamStep return bits: 2 = fish died (HP <= 0; 0x88 bubbles emitted),
   8 = food eaten after feeding benefits were exhausted (flag 0x80),
-  0x10/0x20 = special food 0x13B toggled sex byte (+0x15 of the breed data). ColCheck return:
-  bit 1 = ate food 0x168, bit 4 = battle hit.
+  0x10/0x20 = the Carrot toggled sex byte (+0x15 of the breed data). ColCheck return:
+  bit 1 = ate an Electric Worm, bit 4 = battle hit.
 - Think modes (enum AQUA_FISH_THINK): seen in NextThink switch and Thinking switch. Mode 2 has no
   NextThink case and does nothing in Thinking. NextThink(1) always ends with swim_mode 2 (it
   writes 0 then 2), so the swim_mode 0 and 1 branches are reached only via route/think code.
 - Motion name addresses used with SetMotion (vtable 0xB0): 0x36F140, 0x36F150; SetStep is 0xB8.
 
 ## CAquaFishEff
-0 fish (vtable 0x18 GetPosition in Draw), 4 texture (`Tex_FishEffect`), 8 s16 type 1..5 (texture
-rows in Draw; its local `max_tbl` gives each type's time), 0xC timer (-1 = forever).
+0 fish (vtable 0x18 GetPosition in Draw), 4 texture (`Tex_FishEffect`), 8 u16 type, an AQUA_FISH_EFF value (texture
+rows in Draw; its local `max_tbl` gives each type's time), 0xC timer (-1 = forever). The icon names follow their uses:
+PAIR when a fish starts chasing a partner, GROW when the battle parameter rises, EAGER when a fish heads for food or
+swings at another; after eating, GROW or PAIR is picked at random. LONG (25000 steps, EAGER's icon) and SPARE
+(no time, the row below GROW) are never started.
 
 ## CFishFood (0x660..0x6A0)
 0x660 spin (x,z used), 0x670 pos, 0x680 item_no (s16), 0x684 fall_time, 0x688 sway, 0x68C
@@ -199,8 +202,12 @@ buffer, 0x32 per line), 0x225C/0x2278/0x228C (cursor), 0x258C/0x2590 widths.
   radius; 12 bytes}; `ColChkPointNum` s8[3], read with `lb` as the active tank's
   collision-point count. `aqua_bubble_generate_pos` float[3][3][4].
   `GyoracerIndexNo`/`GyoracerTacticsNo` s16[6]. `fish_save_present` FISH_PRIZE_INFO[4][3].
-  Prize script data: `FishTournamentGoods` groups of 0x44 {int num; int [8] from script; 7 unused
-  ints; ptr at 0x40 to num entries of 0x1C = {int; FISH_PRIZE_INFO[3]}}.
+  Prize script data (gyop.cfg for the fish race, uofp.cfg for the fishing tournament): "NUM n;" sizes
+  FishTournamentGoods; each "GRP count, r0..r7;" starts a fish_prize_group (0x44 bytes: prize_count, rate[8],
+  0x1C unused bytes, prizes pointer at 0x40); each "PRIZE rate, item, num, item, num, item, num;" fills a
+  fish_prize_record {rate; FISH_PRIZE_INFO rank[3]} where FISH_PRIZE_INFO is {item_no, num}. Every retail record
+  has rate 100; the group rates are never read. The fish race uses group race_class * 3 + wins (short flags
+  0x16..0x19), the tournament group GYORACE_SHORT_FLAG_TOUR_COUNT.
 - The source defines and documents the row types beside their data: aqua_food_info,
   aqua_fish_info, fish_breed_pair, aqua_col_point, fish_prize_group and fish_prize_record.
 
@@ -217,7 +224,7 @@ buffer, 0x32 per line), 0x225C/0x2278/0x228C (cursor), 0x258C/0x2590 widths.
   OmakeGyoraceSelect, ForceSetGyoList.
 - `P1` in `FishIMGReplace__FP1P...` and `LoadData__16CGyoraceFishDataFP9mgCMemoryP1` is
   `u_long128 *` (as in mg_memory). Ghidra treats LoadData as a free function; it is a member.
-- GetOmakeGyoracer2 returns `CGyoRaceData::GetData(i)` (0xA0-byte entries) when its s16 at 0 is 6;
+- GetOmakeGyoracer2 returns `CGyoRaceData::GetData(i)` (0xA0-byte entries) when its used_type is USED_ITEM_TYPE_FISH;
   typed `CGameDataUsed *` because callers use it as fish data (name at +0x10). Verify when savedata
   is done.
 - Getters of char globals (GetGyoRace*) use `lb`; declared `int`.
@@ -235,8 +242,7 @@ AQUA_EVENT_PHASE names its breeding and electric-food transitions.
 - BREEDFISH_USED is fully defined in userdata.hpp; CalcFishParam sums its
   five racing parameters at +0x26..+0x2E. Remaining unknown fields keep
   their established widths and offsets.
-- FISH_PRIZE_INFO field meanings (event_func pushes both to the script stack).
-- AQUA_BUBBLE byte 0 doubles as wobble-table row (0..4) while rising and countdown (10..19) while
+- AQUA_BUBBLE byte 0 doubles as wobble-table row (0..4) while rising and countdown (16..25) while
   popping.
 
 ## Compiler-selected float arguments
@@ -284,3 +290,28 @@ through an out-of-line `mgRect<int>::Set` call. No subsequent retail call
 reads that rectangle. The initialization is present in retail and remains
 in source. Removing it produces 47 differing words out of 166 and reduces
 the body from retail's `0x298` bytes to `0x280`; retaining it matches exactly.
+
+## Message, sound and food numbers
+
+AQUA_MES names the messages of `menu/aqua/mes/fconv<lang>.bin` that the aquarium shows, after the place each is
+shown (titles and menus per tank, button help, guidance, information and fish messages, the food and tank
+questions). The tank switch and move questions are chosen as the base plus the active tank; the breeding
+tank refusal as the base plus the fish's sex. The fish race menus' message numbers come from the shared menu
+message file and stay numeric.
+
+AQUA_SE names the sounds of `snd2/sp/SP_004.snd` by the events that play them. AQUA_FOOD_ITEM names the
+foods by their item names in `comdatmes1.cfg` (312 Togecchi .. 319 Petite Fish, 360 Electric Worm).
+
+## Declarations kept for the match
+
+`menuaqua.cpp` keeps its own unsized `extern float MenuItemBrdUnderBrdPosXY[];` and `extern char
+aquarium_fish_maxtbl[];`. With only the sized declarations of menudraw.hpp and userdata.hpp in view, MWCC treats
+the arrays as small data and addresses them gp-relative, which shifts the unit's sections. `CAquarium::Thinking`
+reads the route through `AQUA_FISH_ROUTE_VIEW`, a view of the fish from its action onwards; addressing
+`me->route_*` directly does not match.
+
+`_PRIZE_GROUP` keeps its byte-offset store into the group's rates; the typed loop does not reproduce its addressing.
+
+`CAquaFish::NextThink` keeps the file-scope `at_1346` initializer; a local initializer of `forward` does not match.
+`CAquarium::Thinking` keeps the file-scope `at_3290`, `at_3291__3`, `at_3310` and `at_3311` initializers; local
+initializers of `dir` and `steer` do not match.

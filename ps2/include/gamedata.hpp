@@ -446,12 +446,19 @@ struct ROBOPART_USED {
     u8          unk_4c[0x10];
 };
 
-#define BREEDFISH_STAT_BOOST 0
-#define BREEDFISH_STAT_ENDURANCE 1
-#define BREEDFISH_STAT_TENACITY 2
-#define BREEDFISH_STAT_STAMINA 3
-#define BREEDFISH_STAT_BATTLE 4
-#define BREEDFISH_STAT_COUNT 5
+/**
+ *
+ * Racing parameters of a fish, as indices of BREEDFISH_USED::param.
+ *
+ */
+enum BREEDFISH_STAT {
+    BREEDFISH_STAT_BOOST = 0,     /**< Boost. */
+    BREEDFISH_STAT_ENDURANCE = 1, /**< Endurance. */
+    BREEDFISH_STAT_TENACITY = 2,  /**< Tenacity. */
+    BREEDFISH_STAT_STAMINA = 3,   /**< Stamina. */
+    BREEDFISH_STAT_BATTLE = 4,    /**< Battle. */
+    BREEDFISH_STAT_COUNT = 5,     /**< Number of racing parameters. */
+};
 
 /**
  *
@@ -460,7 +467,7 @@ struct ROBOPART_USED {
  */
 struct BREEDFISH_USED {
     char  name[0x15]; /**< Name of the fish. */
-    s8    sex;        /**< Sex of the fish, 0 or 1. */
+    s8    sex;        /**< Sex of the fish, a BREEDFISH_SEX. */
     u8    kind;       /**< Fish variety used to select its displayed name. */
     u8    unk_17;
     u16   size;   /**< Size of the fish. */
@@ -472,12 +479,12 @@ struct BREEDFISH_USED {
     u16   timer;                       /**< Time left, counted down by the game clock. */
     u8    unk_32[3];
     s8    breed_feeds_remaining; /**< Feedings left before this breeding fish stops eating. */
-    u16   feeds_remaining;
-    u16   flags;      /**< BREEDFISH_FLAGS of the fish. */
-    u8    color;      /**< Colour variant of the breeding fish. */
-    s8    grow_count; /**< Food eaten towards the next growth; the fish grows past 10. */
+    u16   feeds_remaining;       /**< Feedings left before the fish stops eating. */
+    u16   flags;                 /**< BREEDFISH_FLAGS of the fish. */
+    u8    color;                 /**< Colour variant of the breeding fish. */
+    s8    grow_count;            /**< Food eaten towards the next growth; the fish grows past 10. */
     u8    unk_3c;
-    u8    race_placement_flags;
+    u8    race_placement_flags; /**< Race results; bit 0x1 marks a top-three finish in fish race 2, cleared with the fatigue. */
     u8    unk_3e[2];
     int   tank_day;  /**< Day the fish was put into the second aquarium tank. */
     float tank_hour; /**< Hour of the day the fish was put into the second aquarium tank. */
@@ -702,7 +709,7 @@ public:
 
     /**
      *
-     * Gives the display name of the item, with its level and markings as the mode asks.
+     * Gives the display name of the item in an ITEM_NAME_TYPE form.
      *
      * @mangled GetName__13CGameDataUsedFi
      * @address 0x198C20
@@ -863,7 +870,7 @@ public:
 
     /**
      *
-     * Gives whether a ridepod part of item type 0xF has no durability left.
+     * Gives whether a ridepod energy pack has no durability left.
      *
      * @mangled IsBroken__13CGameDataUsedFv
      * @address 0x199A70

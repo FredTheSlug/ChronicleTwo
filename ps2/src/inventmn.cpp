@@ -2236,7 +2236,7 @@ void CMenuInvent::InitNetaCircle(int show) {
             neta_select_state[i] = INVENT_NETA_SLOT_EMPTY;
 
             neta_select_index[i] = -1;
-            unk_622[i] = false;
+            neta_flash[i] = false;
         }
 
         CMenuPosDataForm **panel = &neta_form[i];
@@ -2757,7 +2757,7 @@ void CMenuInvent::GradationStep() {
                     for (k = 0; k < 3; k++) {
                         float now = effect->param[k];
                         int   next = now;
-                        u_int target = invent_color_tbl[create_step][row][k];
+                        u_int target = invent_color_tbl[create_success][row][k];
 
                         if (now < target) {
                             next = now + 2.0f;
@@ -2973,10 +2973,10 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                     if (answer == 0) {
                         this->key_arg_no = INVENT_MODE_THINK;
                         this->create_chara = NULL;
-                        this->create_step = false;
+                        this->create_success = false;
 
                         if (0 < this->create_item_id) {
-                            this->create_step = true;
+                            this->create_success = true;
                             InventUserDataPtr->SetCreateItemFlag(this->card_cursor, this->create_item_id);
                         } else {
                             s32 recipe_index;
@@ -3086,7 +3086,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                 this->create_show_phase = 0;
                 this->create_scale_in = 0.0f;
 
-                if (this->create_step != 0) {
+                if (this->create_success != 0) {
                     this->ExeScript("\x94\xad\x96\xbe\x90\xac\x8c\xf7");
 
                     if (this->create_chara != NULL) {
@@ -3171,7 +3171,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
             break;
         case INVENT_CREATE_STEP_SHOW: {
-            if (this->create_step != 0) {
+            if (this->create_success != 0) {
                 if (this->create_chara != NULL) {
                     float scale[4];
                     this->create_chara->GetScale(scale);
@@ -3226,13 +3226,13 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                     break;
                 case 1:
                     if (this->jingle_pending != 0) {
-                        s16 jingle_length = sndtimetbl_2868[this->create_step];
+                        s16 jingle_length = sndtimetbl_2868[this->create_success];
 
                         if (this->jingle_time > jingle_length / 2) {
                             this->jingle_pending = false;
                             this->ExeScript("MSG_WARNING");
 
-                            if (this->create_step != 0) {
+                            if (this->create_success != 0) {
                                 char *message = GetItemMessage(this->create_item_id);
 
                                 if (message != NULL) {
@@ -3256,7 +3256,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
                     this->jingle_time++;
 
-                    if (this->jingle_time > sndtimetbl_2868[this->create_step]) {
+                    if (this->jingle_time > sndtimetbl_2868[this->create_success]) {
                         MenuCommonInfo->FadeInMenuBGMVol(6);
                         this->jingle_state = false;
                     }
@@ -3299,15 +3299,15 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                 MenuCommonInfo->FadeInMenuBGMVol(6);
                 this->create_effect = NULL;
 
-                if (this->create_step != 0 ||
-                    ((s16) this->create_step == 0 && this->create_partial_match == 0)) {
+                if (this->create_success != 0 ||
+                    ((s16) this->create_success == 0 && this->create_partial_match == 0)) {
                     this->InitNetaCircle(0);
                 } else {
                     this->InitNetaCircle(1);
                 }
 
                 this->ExeScript("\x94\xad\x96\xbe\x8c\xe3\x8f\x88\x97\x9d");
-                this->create_step = false;
+                this->create_success = false;
                 CDC2Mes *color_window = MenuDCMsg[7];
 
                 if (this->create_missing_slot >= 0 && this->create_missing_slot < 0x14) {
@@ -3364,7 +3364,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             char path[64] = "menu/chara4/";
             model_blocks = 0x1020;
 
-            if (this->create_step != 0) {
+            if (this->create_success != 0) {
                 strcat(path, "c01_success.chr");
             } else {
                 if (this->create_partial_match != 0) {
@@ -3404,7 +3404,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                 action_chara->SetPosition(pos);
                 action_chara->SetRotation(rot);
 
-                if (this->create_step != 0) {
+                if (this->create_success != 0) {
                     texture_manager->TexAnimeOn(this->tex_block[1], "\x96\xda\x83\x70\x83\x60");
                     texture_manager->TexAnimeOn(this->tex_block[1], "\x82\xed\x82\xe7\x82\xa2\x8c\xfb\x82\xa0\x82\xaf");
                 } else {
@@ -3416,7 +3416,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                 pack_file = NULL;
 
                 if (pack_bg != NULL) {
-                    pack_file = (MDS_HEADER *) GetPackFile((u32 *) pack_bg->buffer, getfilename_2928[this->create_step], NULL);
+                    pack_file = (MDS_HEADER *) GetPackFile((u32 *) pack_bg->buffer, getfilename_2928[this->create_success], NULL);
                 }
 
                 this->create_effect = new (load_stack->Alloc(StackBlocks(sizeof(CActionChara)))) CActionChara;
@@ -3448,7 +3448,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                 load_stack->Align64();
                 this->create_timer = 100;
 
-                if (this->create_step != 0) {
+                if (this->create_success != 0) {
                     u8   *item_file;
                     char *item_path;
                     s32   item_size;
@@ -3497,7 +3497,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             load_stack->Align64();
             StartReadBG();
             this->create_sound_buffer = (u32 *) load_stack->stGetTop();
-            LoadFileBG(sndfileName_2951[this->create_step], (u_long128 *) this->create_sound_buffer, &sound_size);
+            LoadFileBG(sndfileName_2951[this->create_success], (u_long128 *) this->create_sound_buffer, &sound_size);
             load_stack->Alloc(align16_blocks(sound_size));
             this->create_load_state++;
             break;
@@ -3513,7 +3513,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             this->create_timer--;
 
             if (this->create_timer == 0x28) {
-                s32  wave = this->create_step;
+                s32  wave = this->create_success;
                 char wave_name[0x88];
 
                 if (wave == 1) {
@@ -3937,7 +3937,7 @@ void CMenuInvent::CalcTex() {
                     form->y = target[1];
                 }
 
-                if (unk_622[i] != 0) {
+                if (neta_flash[i] != 0) {
                     neta_flash_angle += PI / 40.0f;
 
                     if (neta_flash_angle > PI) {
@@ -4149,7 +4149,7 @@ void CMenuInvent::CalcTex() {
 
                 if (frame != NULL) {
                     if (mode == MENU_ASK_MODE_CREATE && step == INVENT_CREATE_STEP_SHOW) {
-                        if (create_step != 0) {
+                        if (create_success != 0) {
                             pos[0] += 3.0f;
                             frame->GetScale(scale);
                             pos[0] += effect_sway * sinf(effect_sway_angle);
@@ -6105,13 +6105,13 @@ inline CMenuInvent::CMenuInvent() {
     for (i = 0; i < 3; i++) {
         neta_select_index[i] = -1;
         neta_select_type[i] = neta_select_state[i] = -1;
-        unk_622[i] = false;
+        neta_flash[i] = false;
     }
 
     neta_select_num = 0;
     neta_circle_angle = 0.0f;
     neta_circle_radius = 40.0f;
-    create_step = false;
+    create_success = false;
     create_item_id = 0;
     create_partial_match = -1;
 

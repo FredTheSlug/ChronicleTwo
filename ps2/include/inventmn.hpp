@@ -692,7 +692,7 @@ public:
     CActionChara         *create_chara;          /**< Model of the item being built. */
     void                 *load_sound_buffer;     /**< Loaded sound data for the menu character sequence. */
     INVENT_MATERIAL_LIST *make_material;         /**< Materials of the recipe being built. */
-    short                 create_step;           /**< Non-zero when thinking up the invention succeeded; indexes the result's model, sound and colour tables. */
+    short                 create_success;           /**< Non-zero when thinking up the invention succeeded; indexes the result's model, sound and colour tables. */
     short                 create_item_id;        /**< Item being built. */
     int                   create_partial_match;  /**< Non-zero when the selected ideas match two parts of a recipe. */
     int                   create_photo_neta[3];  /**< Idea identifiers associated with the selected photos. */
@@ -722,7 +722,7 @@ public:
     int                   neta_select_index[3]; /**< Photo slot or notebook line of each idea on the board, or -1. */
     s8                    neta_select_type[3];  /**< Source of each idea on the board, an INVENT_NETA_SOURCE. */
     s8                    neta_select_state[3]; /**< State of each idea board slot, an INVENT_NETA_SLOT_STATE. */
-    s8                    unk_622[3];
+    s8                    neta_flash[3];        /**< Non-zero for each idea board slot whose form flashes. */
     u8                    unk_625[3];
     float                 neta_circle_radius; /**< Radius of the idea board selection circle. */
     float                 neta_circle_angle;  /**< Angle of the idea board selection circle. */

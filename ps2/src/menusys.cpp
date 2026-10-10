@@ -6530,7 +6530,7 @@ int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
 
 #pragma inline_depth reset
 
-void MenuMoveItemPos(int *item, int *pos, int phase) {
+void MenuMoveItemPos(int *row, int *pos, int phase) {
     /**
      *
      * Forms displaying the two characters and the ridepod during item movement.
@@ -6548,24 +6548,24 @@ void MenuMoveItemPos(int *item, int *pos, int phase) {
     char part_name[0x20];
 
     if (phase == 0) {
-        int kind = item[0];
+        int kind = row[0];
 
         if (kind == 0) {
-            if (item[2] == 0 || item[2] == 1 || item[2] == 2) {
-                sprintf(part_name, plist[item[2]], item[3]);
+            if (row[2] == 0 || row[2] == 1 || row[2] == 2) {
+                sprintf(part_name, plist[row[2]], row[3]);
             } else {
                 strcpy(part_name, "chara");
             }
 
-            (MenuPosData->GetFormInfo(tbl[item[1]]))
+            (MenuPosData->GetFormInfo(tbl[row[1]]))
                 ->GetPutPosXY(part_name, pos[0], pos[1]);
         } else if (kind == 1) {
-            MenuPosData->GetPosMenuItemOnItemBrd(pos, item[3], 0);
+            MenuPosData->GetPosMenuItemOnItemBrd(pos, row[3], 0);
         } else if (kind == 2) {
             MenuCommonInfo->GetItemPos(pos);
         } else if (kind == 4) {
             (MenuPosData->GetFormInfo(OverFlowFormName))
-                ->GetPutPosXY(local_over_flow_baseposname[item[3]], pos[0], pos[1]);
+                ->GetPutPosXY(local_over_flow_baseposname[row[3]], pos[0], pos[1]);
         } else if (kind == 5) {
             (MenuPosData->GetFormInfo(tbl[0]))
                 ->GetPutPosXY("esa0", pos[0], pos[1]);
@@ -6573,10 +6573,10 @@ void MenuMoveItemPos(int *item, int *pos, int phase) {
     }
 
     if (phase == 1) {
-        int kind = item[0];
+        int kind = row[0];
 
         if (kind == 1) {
-            MenuPosData->GetPosMenuItemOnItemBrd(pos, item[3], 0);
+            MenuPosData->GetPosMenuItemOnItemBrd(pos, row[3], 0);
         } else if (kind == 2) {
             MenuCommonInfo->GetItemPos(pos);
         }
@@ -6721,16 +6721,16 @@ int CMenuItemInfo::GetActiveCharaIDForItemCmd() {
 }
 
 int CMenuItemInfo::GetActiveCharaNo() {
-    int var_v0;
+    int chara_no;
 
-    var_v0 = MenuCommonInfo->GetActiveCharaNo();
+    chara_no = MenuCommonInfo->GetActiveCharaNo();
 
-    if ((var_v0 == 3) && (sub_view == 1)) {
+    if ((chara_no == 3) && (sub_view == 1)) {
         sub_view = 0;
-        var_v0 = 3;
+        chara_no = 3;
     }
 
-    return var_v0;
+    return chara_no;
 }
 
 void CMenuItemInfo::ExitEnd() {

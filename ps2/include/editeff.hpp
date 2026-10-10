@@ -289,6 +289,27 @@ extern CPlaceAnime PlaceAnime[EDIT_PLACE_ANIME_MAX];
 
 /**
  *
+ * Number of star effects the editor keeps.
+ *
+ */
+const int star_effect_count = 3;
+
+/**
+ *
+ * Star effects the editor plays.
+ *
+ */
+extern CStarEffect _StarEffect[star_effect_count];
+
+/**
+ *
+ * Stack holding the edit part being placed.
+ *
+ */
+extern mgCMemory CurPartsBuff;
+
+/**
+ *
  * Allocates the stars, the paint effect and the buffer that copies of removed parts are made in.
  *
  * @mangled EditSetEffectBuffer__FP9mgCMemory

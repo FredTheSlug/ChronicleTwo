@@ -6,6 +6,7 @@
 
 #include "character.hpp"
 #include "dng_effect.hpp"
+#include "dngmenu.hpp"
 #include "eventsprite.hpp"
 #include "mapload.hpp"
 #include "mapparts.hpp"
@@ -1834,6 +1835,55 @@ extern _SEN_OBJ_SEQ obj_seq_tbl[SEQ_NODE_NUM];
  *
  */
 extern CScreenEffect EventScreenEffect;
+
+/**
+ *
+ * Argument list of the event script command being run.
+ *
+ */
+extern CEventScriptArg EventScriptArg;
+
+/**
+ *
+ * Sprites that event scripts display.
+ *
+ */
+extern CEventSprite2 EventSprite2[0x30];
+
+/**
+ *
+ * Object sequences that event scripts play.
+ *
+ */
+extern CSceneObjSeq ObjectSeq[32];
+
+/**
+ *
+ * Camera sequence that event scripts play.
+ *
+ */
+extern CSceneCmrSeq CameraSeq;
+
+/**
+ *
+ * Stack holding the first set of event sound data.
+ *
+ */
+extern mgCMemory BuffEventSnd;
+
+/**
+ *
+ * Stack holding the second set of event sound data.
+ *
+ */
+extern mgCMemory BuffEventSnd2;
+
+/**
+ *
+ * Dungeon map shown by event scripts.
+ *
+ */
+extern CDngFreeMap EventDngMap;
 
 /**
  *

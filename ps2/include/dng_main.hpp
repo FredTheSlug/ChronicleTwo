@@ -549,6 +549,34 @@ extern mgCFrame *SparcModel[3];
 
 /**
  *
+ * Lightning effects of thunder-element hits.
+ *
+ */
+extern CThunder thunder[6];
+
+/**
+ *
+ * Whirlwind effects of wind-element hits.
+ *
+ */
+extern CTornado tornado[6];
+
+/**
+ *
+ * Frost effects left on monsters struck by ice-element hits.
+ *
+ */
+extern CChillAfterHit chillAfterHit[6];
+
+/**
+ *
+ * Flame effects left on monsters struck by fire-element hits.
+ *
+ */
+extern CFireAfterHit fireAfterHit[6];
+
+/**
+ *
  * Hands out the next weapon element effect, reusing them in turn.
  *
  * @mangled GetWeaponEffect__Fv

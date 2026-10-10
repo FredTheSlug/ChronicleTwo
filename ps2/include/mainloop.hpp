@@ -344,6 +344,62 @@ extern DEBUG_INFO DebugInfo;
 
 /**
  *
+ * Initialization arguments for the current game mode.
+ *
+ */
+extern INIT_LOOP_ARG InitArg;
+
+/**
+ *
+ * Initialization arguments for the next game mode.
+ *
+ */
+extern INIT_LOOP_ARG NextInitArg;
+
+/**
+ *
+ * Initialization arguments for the previous game mode.
+ *
+ */
+extern INIT_LOOP_ARG PrevInitArg;
+
+/**
+ *
+ * Allocator for system sound-effect resources.
+ *
+ */
+extern mgCMemory SystemSeStack;
+
+/**
+ *
+ * Allocator for configuration and villager records.
+ *
+ */
+extern mgCMemory InfoStack;
+
+/**
+ *
+ * Main save-data object owned by the game loop.
+ *
+ */
+extern CSaveData SaveData;
+
+/**
+ *
+ * Allocator for the debug menu resources.
+ *
+ */
+extern mgCMemory MenuBuffer;
+
+/**
+ *
+ * Message window used by the pause menu.
+ *
+ */
+extern ClsMes PauseMes;
+
+/**
+ *
  * Returns the font the debug menus draw with.
  *
  * @mangled GetDebugFont__Fv

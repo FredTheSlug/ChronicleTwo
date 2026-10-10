@@ -270,14 +270,7 @@ static int GetFishPath(int item_no, char *out);
 
 static aqua_food_info *GetEsaInfo(int item_no);
 
-extern CAquarium Aquarium;
-
 static int local_aquarium_limmit_check(float *pos, float radius, int check_y, float height);
-
-extern mgCMemory Aquarium_NameregistStack;
-extern mgCMemory GyoraceStack;
-
-extern mgCMemory GyoraceFishSelStack;
 
 static int local_aquarium_limmit_check(float *pos, float radius, int check_y, float height);
 

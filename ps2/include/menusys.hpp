@@ -2048,3 +2048,73 @@ extern CGameDataUsed SepectolFusionBeforeAfterCheck;
 
 /** Screen position of each build-up name in the weapon build-up view. */
 extern s16 BuildUpNameXY[3][2];
+
+/**
+ *
+ * Copy of an item taken before it is turned into spectrum.
+ *
+ */
+extern CGameDataUsed SpectolTransBefore;
+
+/**
+ *
+ * Item kept aside while a spectrum fusion is confirmed.
+ *
+ */
+extern CGameDataUsed SpectolInfoStay;
+
+/**
+ *
+ * Item menu that CMenuItemInfoPt points at.
+ *
+ */
+extern CMenuItemInfo class_menu_item_info;
+
+/**
+ *
+ * Stack the main characters are read into for the item menu.
+ *
+ */
+extern mgCMemory MainCharaReadStack;
+
+/**
+ *
+ * Stack of the item menu's loaded characters.
+ *
+ */
+extern mgCMemory MenuItemMemory;
+
+/**
+ *
+ * Stack of the item menu's action characters and background read data.
+ *
+ */
+extern mgCMemory MenuItemMemory2;
+
+/**
+ *
+ * Stack the item menu's current mode allocates from.
+ *
+ */
+extern mgCMemory MenuItemMainMemory;
+
+/**
+ *
+ * Stack holding the item menu's background data.
+ *
+ */
+extern mgCMemory MenuItemBGDataMemory;
+
+/**
+ *
+ * Item being moved between inventories by the item menu.
+ *
+ */
+extern CGameDataUsed MenuMoveTempGameDataUsed;
+
+/**
+ *
+ * Stack of the item menu's debug camera and characters.
+ *
+ */
+extern mgCMemory MenuDebugStack;

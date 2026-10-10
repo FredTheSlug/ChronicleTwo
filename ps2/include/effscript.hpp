@@ -869,11 +869,11 @@ extern EFF_SPT_BASE_DEF eff_spt_base_def[EFF_SPT_BASE_DEF_NUM];
  * Scene that the effect scripts act on, taken when a manager is initialised.
  *
  */
-extern "C" CScene *now_scene;
+extern CScene *now_scene;
 
 /**
  *
  * Manager whose effects are being stepped, which the script functions act on.
  *
  */
-extern "C" CEffectScriptMan *EffScriptMan;
+extern CEffectScriptMan *EffScriptMan;

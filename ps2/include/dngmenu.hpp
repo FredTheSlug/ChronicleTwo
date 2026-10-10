@@ -599,3 +599,31 @@ extern u8 TreeMapCallDungeonSubMap;
 
 /** Non-zero while the tree map is open over the world map. */
 extern u8 TreeMapCalledWorldMap;
+
+/**
+ *
+ * Screen rectangle the dungeon tree map is drawn in.
+ *
+ */
+extern mgRect<float> treemap_root_put;
+
+/**
+ *
+ * Texture rectangle of the floor-name banner.
+ *
+ */
+extern mgRect<int> Floor_Info;
+
+/**
+ *
+ * Texture rectangle of the light circle drawn on the dungeon map.
+ *
+ */
+extern const mgRect<int> dng_light_circle;
+
+/**
+ *
+ * Stack the dungeon tree map is built in.
+ *
+ */
+extern mgCMemory MenuTreeMapStack;

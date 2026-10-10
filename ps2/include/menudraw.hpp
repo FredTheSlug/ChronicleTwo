@@ -2635,3 +2635,59 @@ extern CMenuPosDataManage *MenuPosData;
  *
  */
 extern mgCTexture *MenuFrameTex;
+
+/**
+ *
+ * Holds the destination rectangle of the main menu lens frame.
+ *
+ */
+extern mgRect<int> MenuMainFrame_PutRect;
+
+/**
+ *
+ * Holds the destination rectangle of the captured main menu image.
+ *
+ */
+extern mgRect<int> MenuMainIMG_PutRect;
+
+/**
+ *
+ * Gives the texture rectangle used by menu sparkles.
+ *
+ */
+extern mgRect<int> star_light;
+
+/**
+ *
+ * Gives the texture rectangle of an item-board cell.
+ *
+ */
+extern mgRect<int> MenuItemBrdKomaRect;
+
+/**
+ *
+ * Gives the upper item-board scroll bar texture rectangle.
+ *
+ */
+extern mgRect<int> ItemBoardScrlBar1;
+
+/**
+ *
+ * Gives the middle item-board scroll bar texture rectangle.
+ *
+ */
+extern mgRect<int> ItemBoardScrlBar2;
+
+/**
+ *
+ * Gives the lower item-board scroll bar texture rectangle.
+ *
+ */
+extern mgRect<int> ItemBoardScrlBar3;
+
+/**
+ *
+ * Gives the item-board selection cursor texture rectangle.
+ *
+ */
+extern mgRect<int> ItemBoardCursor;

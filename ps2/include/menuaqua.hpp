@@ -1613,3 +1613,31 @@ extern CGyoRaceData *GyoraceData;
  * @size 0x24
  */
 extern CDC2Mes *MenuDCMsg[9];
+
+/**
+ *
+ * Aquarium shown by the aquarium menu.
+ *
+ */
+extern CAquarium Aquarium;
+
+/**
+ *
+ * Stack of the name entry screen opened from the aquarium.
+ *
+ */
+extern mgCMemory Aquarium_NameregistStack;
+
+/**
+ *
+ * Stack of the fish race messages and data.
+ *
+ */
+extern mgCMemory GyoraceStack;
+
+/**
+ *
+ * Stack of the fish race's fish selection screen.
+ *
+ */
+extern mgCMemory GyoraceFishSelStack;

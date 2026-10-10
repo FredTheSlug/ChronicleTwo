@@ -99,21 +99,7 @@ CPullItemManager     PullItemMan;
 mgCFrame            *TornadoModel;
 static int           wep_effect_cnt;
 
-int         DngMainKey();
-int         RunMainEvent();
-void        CheckWeaponEnable();
-void        CheckStatusError();
-void        DngStep();
-void        DngMainDraw();
-void        DebugMainDraw();
-void        CommonClassInit();
-void        DBGCMD_RunScript(int no);
 static void EyeCamera(mgCCamera *camera, CCharacter2 *chara, int mode);
-void        IsEventRun();
-int         EventScriptSetup(SYSTEM_SCRIPT_INFO *script);
-int         ChangeSetUnit(int dir);
-void        InitEyeCamera(CActionChara *chara);
-int         IsRunDeadEvent(CActionChara *chara);
 static int  debug_cursor;
 static int  debug_mons_no;
 static int  debug_mons_cur;
@@ -127,18 +113,18 @@ mgCMemory             BuffStageSubData;
 mgCMemory             BuffStageSubChara;
 mgCMemory             BuffWorkData;
 mgCMemory             BuffCharacter;
-mgCMemory             BaseCharacter[6];
+mgCMemory             BaseCharacter[DNG_BASE_CHARACTER_NUM];
 mgCMemory             BuffTempData;
 mgCMemory             BuffScriptData;
 mgCMemory             BuffEffectScriptData;
-mgCMemory             BuffEventData[4];
+mgCMemory             BuffEventData[DNG_EVENT_BUFFER_NUM];
 mgCMemory             BuffMDTBuild;
 mgCMemory             BuffMDTBuild2;
 DNG_STATUS            DngStatus;
 CMapEffectsManeger    map_effect;
 ACCUME_EFFECT         AccumulateEffect;
 CDamageScore          DamageScore;
-CDamageScore          DamageScoreMons[8];
+CDamageScore          DamageScoreMons[DNG_DAMAGE_SCORE_MONS_NUM];
 CDamageScore2         DamageScore2;
 MessageTaskManager    MsgTaskMan;
 CStartupEpisodeTitle  StartupEpisodeTitle;
@@ -154,8 +140,8 @@ CCameraControl        MainCamera;
 CCameraControl        EventCamera;
 CHealingEffectMan     HealingEffectMan;
 CMiniEffPrimMan       MiniEffPrimMan;
-CCharacter2           ItemBaseData[19];
-CAfterWire            afterWire[16];
+CCharacter2           ItemBaseData[DNG_ITEM_BASE_NUM];
+CAfterWire            afterWire[DNG_AFTER_WIRE_NUM];
 CRoboVoiceSystem      VoiceUnit;
 CPot                  BTsubo;
 CBPot                 BTsubo2;
@@ -163,17 +149,17 @@ CRocketLauncherMan    RocketLauncher;
 CMachineGun           MachineGun;
 CLaserGunMan          LaserGun;
 CCharacter2           LaserGunModel;
-CPullItem             PullItem[72];
+CPullItem             PullItem[DNG_PULL_ITEM_NUM];
 static NowLoadingInfo nowload;
 static CWaveTable     WaveTable;
-mgCFrame             *SparcModel[3];
+mgCFrame             *SparcModel[DNG_SPARC_MODEL_NUM];
 static CSwordLuminous SwordLuminous;
-CWeaponElement        wep_effect[8];
-CSparcEffect          Sparc_fx[6];
-CThunder              thunder[6];
-CTornado              tornado[6];
-CChillAfterHit        chillAfterHit[6];
-CFireAfterHit         fireAfterHit[6];
+CWeaponElement        wep_effect[DNG_WEAPON_EFFECT_NUM];
+CSparcEffect          Sparc_fx[DNG_ELEMENT_EFFECT_NUM];
+CThunder              thunder[DNG_ELEMENT_EFFECT_NUM];
+CTornado              tornado[DNG_ELEMENT_EFFECT_NUM];
+CChillAfterHit        chillAfterHit[DNG_ELEMENT_EFFECT_NUM];
+CFireAfterHit         fireAfterHit[DNG_ELEMENT_EFFECT_NUM];
 
 CWeaponElement *GetWeaponEffect() {
     CWeaponElement *effect = &wep_effect[wep_effect_cnt++];
@@ -185,11 +171,6 @@ CWeaponElement *GetWeaponEffect() {
     return effect;
 }
 
-/**
- *
- * Allocates dungeon rendering buffers and resets weapon effects.
- *
- */
 void memoryInit() {
     u_long128 *buffer0;
     u_long128 *buffer1;
@@ -847,11 +828,6 @@ void CommonStageClassInit() {
     wep_effect_cnt = 0;
 }
 
-/**
- *
- * Initializes common dungeon classes and battle effect storage.
- *
- */
 void CommonClassInit() {
     CommonStageClassInit();
     BattleFX.hit_prim = NULL;
@@ -1107,11 +1083,6 @@ int LoopDungeonMain() {
     return 0;
 }
 
-/**
- *
- * Draws the dungeon scene, effects, and interface for the current camera.
- *
- */
 void DngMainDraw() {
     mgCTextureManager *tex_man = &mgTexManager;
     SV_CONFIG_OPTION  *config;
@@ -1715,11 +1686,6 @@ void DngMainDraw() {
     DrawDebugWindow();
 }
 
-/**
- *
- * Updates dungeon battle state, characters, effects, and scene time.
- *
- */
 void DngStep() {
     SV_CONFIG_OPTION *config = &DngSaveData->config;
     DNG_BATTLE_AREA  *area;
@@ -2076,11 +2042,6 @@ void DngStep() {
     }
 }
 
-/**
- *
- * Advances the active dungeon event and updates dungeon mode from its request.
- *
- */
 int RunMainEvent() {
     switch (EventLoop()) {
         case EVENT_REQUEST_END:
@@ -2101,11 +2062,6 @@ int RunMainEvent() {
     return DngStatus.mode;
 }
 
-/**
- *
- * Processes gameplay and debug input during the dungeon field mode.
- *
- */
 int DngMainKey() {
     DngMainScene->GetCamera(DngMainScene->active_camera);
 
@@ -2260,11 +2216,11 @@ int DngMainKey() {
     }
 
     if (GamePad__2.Down(PAD_L3)) {
-        unit = 0;
+        unit = DNG_CHANGE_UNIT_PARTNER;
     }
 
     if (GamePad__2.Down(PAD_R3)) {
-        unit = 1;
+        unit = DNG_CHANGE_UNIT_RIDE;
     }
 
     if (MainChara__2->CheckRunEvent() && unit >= 0 && !dead) {
@@ -2751,11 +2707,6 @@ int DngMainKey() {
     return 0;
 }
 
-/**
- *
- * Checks nearby dungeon interactions and requests their event scripts.
- *
- */
 void IsEventRun() {
     sceVu0FVECTOR     pos;
     CBattleCharaInfo *info;
@@ -2951,11 +2902,6 @@ void IsEventRun() {
     }
 }
 
-/**
- *
- * Starts a system event script and switches the dungeon to event mode.
- *
- */
 int EventScriptSetup(SYSTEM_SCRIPT_INFO *script) {
     InitEvent(DngMainScene);
     VoiceUnit.StopVoice(10);
@@ -2981,11 +2927,6 @@ int EventScriptSetup(SYSTEM_SCRIPT_INFO *script) {
     return 0;
 }
 
-/**
- *
- * Requests character death when battle HP or monster weapon HP is depleted.
- *
- */
 int IsRunDeadEvent(CActionChara *chara) {
     CBattleCharaInfo *info;
 
@@ -3010,17 +2951,12 @@ int IsRunDeadEvent(CActionChara *chara) {
     return 0;
 }
 
-/**
- *
- * Chooses the next playable unit for a requested quick-change direction.
- *
- */
-int ChangeSetUnit(int dir) {
+int ChangeSetUnit(int change) {
     CUserDataManager *user = GetUserDataMan();
     int               next = -1;
     int               chr = user->active_chr_no;
 
-    if (dir == 0) {
+    if (change == DNG_CHANGE_UNIT_PARTNER) {
         if (chr == USER_CHARA_MAX && DngUserData->CheckQuickChange(USER_CHARA_MONICA, NULL)) {
             next = USER_CHARA_MONICA;
         }
@@ -3030,7 +2966,7 @@ int ChangeSetUnit(int dir) {
         }
     }
 
-    if (dir == 1) {
+    if (change == DNG_CHANGE_UNIT_RIDE) {
         if (chr == USER_CHARA_MAX && DngUserData->CheckQuickChange(USER_CHARA_ROBO, NULL)) {
             next = USER_CHARA_ROBO;
         }
@@ -3051,11 +2987,6 @@ int ChangeSetUnit(int dir) {
     return next;
 }
 
-/**
- *
- * Applies periodic status damage and visual feedback to the player.
- *
- */
 void CheckStatusError() {
     sceVu0FVECTOR     pos;
     sceVu0FVECTOR     top;
@@ -3114,11 +3045,6 @@ void CheckStatusError() {
 
 static sceVu0FVECTOR backup_pos;
 
-/**
- *
- * Enters the dungeon eye camera view using the character orientation.
- *
- */
 void InitEyeCamera(CActionChara *chara) {
     CBattleCharaInfo *info = GetBattleCharaInfo();
     sceVu0FVECTOR     rot;
@@ -3152,11 +3078,6 @@ void InitEyeCamera(CActionChara *chara) {
     mgSetAllScissorFlag(1);
 }
 
-/**
- *
- * Updates character and weapon visibility for the battle pause state.
- *
- */
 void CheckWeaponEnable() {
     CActionChara *weapon;
 
@@ -3276,11 +3197,6 @@ static void EyeCamera(mgCCamera *camera, CCharacter2 *chara, int mode) {
 
 int debug_no[8] = {100, 0, 1, 0, 0, 0, 0, 0};
 
-/**
- *
- * Draws the dungeon debug command menu when it is enabled.
- *
- */
 void DebugMainDraw() {
     if (DngStatus.debug_window) {
         mgTexManager.ReloadTexture(0x6C, (sceVif1Packet *) NULL);
@@ -3355,11 +3271,6 @@ void DebugMainDraw() {
     }
 }
 
-/**
- *
- * Starts a dungeon event script from the debug command interface.
- *
- */
 void DBGCMD_RunScript(int no) {
     mgCMemory *stack;
 

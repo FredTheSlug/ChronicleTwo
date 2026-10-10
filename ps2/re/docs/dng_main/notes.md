@@ -49,7 +49,11 @@ only those fields are named.
 ## Global functions
 Not local in retail: GetWeaponEffect, InitDungeonMain, CommonStageClassInit (also called by
 dng_event LoadDungeonMapFile), FinishDungeonMain (empty), LoopDungeonMain (returns 1 when
-DngStatus becomes 5). All others are local -> static in the .cpp.
+DngStatus becomes 5). All others are local -> static in the .cpp, except the retail prototypes now
+declared in dng_main.hpp (memoryInit, CommonClassInit, DngMainDraw, DngStep, RunMainEvent, DngMainKey,
+IsEventRun, EventScriptSetup, IsRunDeadEvent, ChangeSetUnit, CheckStatusError, InitEyeCamera,
+CheckWeaponEnable, DebugMainDraw, DBGCMD_RunScript); the .cpp does not repeat them. ChangeSetUnit's
+parameter is `change` (a DNG_CHANGE_UNIT value).
 GetWeaponEffect returns `&wep_effect[cnt]` (CWeaponElement, stride 0x7C0, 8 entries, cycles).
 
 `InitDungeonMain` owns a function-local `mgCMemory` for the debug event stack. At
@@ -125,13 +129,26 @@ build therefore keeps the retail assembly and its three data pieces
 (`at_2994`, `at_3336`, `at_3337`) until the C++ function matches in the
 normal translation-unit configuration.
 
+## Enums (names ours; values from the retail code)
+- DNG_CHARA_SLOT: InitDungeonMain fills scene character slots 0-7 (party, CActionChara via
+  `GetCharacter(i)`), 8-23 (`i + 8` over 16 event characters, type 2) and 24 onward (`i + 24` over
+  MONSTER_ACTIVE_MAX CActiveMonster entries, type 3). DngStep and DngMainDraw iterate the same ranges.
+- DNG_MAIN_ARRAY_SIZE: counts of the file-scope arrays, taken from their declarations and loop bounds.
+- DNG_SYSTEM_EVENT: the event numbers IsEventRun writes to `*event_no`, each gated by a save bit:
+  0x3B gates 2540 (magic sword guide), SAVE_FLAG_ROBO_BIKE_EVENT_SEEN gates 2530 (ridepod guide, with
+  move_type ACTION_MOVE_ROBO_BIKE), 0x32 gates 2500 (random stone), 0x34 gates 2520 (level-up guide,
+  with LevelupInfo.phase != 0). 1500 is raised when no monster is left and battle_clear is 0.
+- DNG_FOOT_EFFECT: DngStep's `effect[35]` table maps CheckFootEffect ids to a kind. Kind 0 (dust) runs
+  the effect script "足砂煙", kind 1 (grass) runs "足砂煙" then "足芝生", kind 2 (splash) runs "足水パシャ".
+  -1 raises nothing.
+- DNG_CHANGE_UNIT: ChangeSetUnit's `change` argument. DngMainKey sets `unit` to PARTNER on PAD_L3 and
+  RIDE on PAD_R3. The PARTNER branch swaps USER_CHARA_MAX and USER_CHARA_MONICA.
+- Matching: the footstep array type (`DNG_FOOT_EFFECT effect[35]`) and the camera rotate constants
+  (`PI / 24.0f`, `PI / 32.0f`) matched when applied; no candidate was reverted.
+
 ## Unresolved / pending
-- NOT yet declared in the header because dng_effect.hpp does not define the classes and MWCC
-  rejects arrays of incomplete type (the header is included by actionchara.hpp/editctrl.hpp, so
-  it must keep compiling): `CAfterWire afterWire[16]` (0x120 each), `CSparcEffect Sparc_fx[6]`
-  (0xB0), `CThunder thunder[6]` (0xDC0), `CTornado tornado[6]` (0x380), `CChillAfterHit
-  chillAfterHit[6]` (0x7A0), `CFireAfterHit fireAfterHit[6]` (0x940). Add them (with
-  `#include "dng_effect.hpp"`) once that header declares the classes.
+- afterWire, Sparc_fx, thunder, tornado, chillAfterHit and fireAfterHit are declared in dng_main.hpp at
+  the DNG_MAIN_ARRAY_SIZE counts.
 - DNG_BATTLE_AREA / DNG_FLOOR_SAVE are forward declarations with our names; the owners
   (scene / savedatadungeon) should define and rename them.
 - Single by-value globals of classes whose headers do not exist yet (CMapEffectsManeger,

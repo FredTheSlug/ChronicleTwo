@@ -234,8 +234,6 @@ static aqua_vector at_3311 = {
     {0.0f, 0.0f, 0.0f, 1.0f}
 };
 
-extern int menu_debug_flag;
-
 /**
  *
  * Stores the position and width of a fish parameter icon.

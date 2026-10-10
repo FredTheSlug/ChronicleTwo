@@ -16,6 +16,7 @@
 #include "menuchr.hpp"
 #include "menucls1.hpp"
 #include "menucommon.hpp"
+#include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
 #include "menusys.hpp"
@@ -40,9 +41,6 @@ struct CursorPos {
     int x; /**< Horizontal cursor coordinate. */
     int y; /**< Vertical cursor coordinate. */
 };
-
-extern int   menu_debug_flag;
-extern short MenuItemCmdArgPos;
 
 /**
  *
@@ -103,8 +101,6 @@ static int viewnum_album_5224[2] = {
 static int overcode_album_5225[4] = {
     0, 0, 2, 0};
 
-extern short menu_item_swap_sndtbl[];
-
 /**
  *
  * Colours used by the two invention success strips.
@@ -126,8 +122,6 @@ static char *invent_grade_fff[2] = {
     "f1"};
 
 extern mgCMemory         MenuInventStack;
-extern CActionChara     *MenuActionChara[7];
-extern CMenuPosDataForm *GiftBoxViewForm;
 
 enum {
     K_COMMAND_HANDLED = -1
@@ -6161,8 +6155,6 @@ void MenuInventNetaMemoDraw(float *origin, int &loaded_tex) {
  */
 static int tbl_4782[7] = {
     1, 1, 0, 0, 1, 1, 0};
-
-extern int *menu_randam_line_draw_postbl;
 
 inline CMenuInvent::CMenuInvent() {
     int i;

@@ -1681,11 +1681,7 @@ void CBubble::Initialize(mgCMemory *memory, float *start_pos, int count, float t
     origin[2] = start_pos[2];
     bytes = bubble_num * sizeof(AQUA_BUBBLE);
 
-    if (bytes & 0xF) {
-        blocks = (bytes >> 4) + 1;
-    } else {
-        blocks = bytes >> 4;
-    }
+    blocks = align16_blocks(bytes);
 
     bubble = (AQUA_BUBBLE *) memory->Alloc(blocks);
     i = 0;
@@ -4394,13 +4390,18 @@ int CAquarium::GetBattleTarget(int slot) {
     return -1;
 }
 
+/**
+ *
+ * View of a fish from its action onwards, through which Thinking steers a fish along its route.
+ *
+ */
 struct AQUA_FISH_ROUTE_VIEW {
-    CAquaFishActionParam action;
-    AQUA_FISH_ROUND      round;
-    sceVu0FVECTOR        route[32];
-    s16                  route_num;
-    s16                  route_no;
-    s32                  route_time;
+    CAquaFishActionParam action;     /**< Steering of the current action. */
+    AQUA_FISH_ROUND      round;      /**< Way of circling the tank. */
+    sceVu0FVECTOR        route[32];  /**< Points of the route. */
+    s16                  route_num;  /**< Number of points in route. */
+    s16                  route_no;   /**< Point of route that the fish heads for. */
+    s32                  route_time; /**< Steps spent heading for the current point of route. */
 };
 
 void CAquarium::Thinking(int no) {

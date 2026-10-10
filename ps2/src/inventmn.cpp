@@ -1223,7 +1223,12 @@ void InitScoopString() {
     }
 }
 
-int _SCOOP_STR(SPI_STACK *stack, int unused) {
+/**
+ *
+ * Stores the text of a scoop, read by the STR tag of the scoop text file.
+ *
+ */
+static int _SCOOP_STR(SPI_STACK *stack, int unused) {
     SCOOP_DATA *entry;
     SPI_STACK  *text_arg = stack + 1;
     entry = GetScoopDataTable(spiGetStackInt(stack));
@@ -1367,7 +1372,12 @@ int CScoopDataManager::GetScoopTotal(int *total) {
     return count;
 }
 
-int _PIC_INFO(SPI_STACK *stack, int unused) {
+/**
+ *
+ * Reserves the picture name records, read by the PIC_INFO tag.
+ *
+ */
+static int _PIC_INFO(SPI_STACK *stack, int unused) {
     unsigned int size;
     unsigned int blocks;
     pic_name_info_num = spiGetStackInt(stack);
@@ -1385,7 +1395,12 @@ int _PIC_INFO(SPI_STACK *stack, int unused) {
     return 1;
 }
 
-int _PIC_NAME(SPI_STACK *stack, int unused) {
+/**
+ *
+ * Stores one idea's picture name, read by the PIC_NAME tag.
+ *
+ */
+static int _PIC_NAME(SPI_STACK *stack, int unused) {
     PIC_NAME_INFO *entry;
     SPI_STACK     *arg;
     char          *name;
@@ -1398,7 +1413,7 @@ int _PIC_NAME(SPI_STACK *stack, int unused) {
         name = spiGetStackString(arg++);
         memset(text, 0, sizeof(text));
 
-        if (LanguageCode >= 2 && LanguageCode >= 5) {
+        if (LanguageCode >= LANG_FRENCH && LanguageCode >= LANG_SPANISH) {
             ConvertFontCode(name, text);
         } else {
             strcpy(text, name);
@@ -1408,7 +1423,7 @@ int _PIC_NAME(SPI_STACK *stack, int unused) {
         entry->sort_key = spiGetStackInt(arg);
         pic_name_info_num_count++;
 
-        if (entry->neta_id == 30000) {
+        if (entry->neta_id == INVENT_NETA_ID_DUMMY) {
             pic_name_info_num_count--;
             pic_name_info_num--;
         }
@@ -1436,7 +1451,7 @@ void LoadFilePictureName() {
     stack.stSetBuffer((u_long128 *) pic_name_text_buff_1660, 0x248);
     PicNameStack = &stack;
     buffer = (char *) MenuCalcBufAlignment((u_long128 *) align_buffer);
-    size = LoadFileMenu("neta2.lst", (u_long128 *) buffer, 1);
+    size = LoadFileMenu("neta2.lst", (u_long128 *) buffer, MENU_FILE_LOAD_DIRECT);
     CScriptInterpreter interpreter;
     interpreter.SetTag(pic_tag);
     interpreter.SetScript(buffer, size);
@@ -1708,7 +1723,12 @@ int CInventDataManage::CheckMakeItem(int item_id, int count, CGameDataUsed *item
     return available >= needs.num;
 }
 
-int _INVENT_DATATABLESET(SPI_STACK *stack, int unused) {
+/**
+ *
+ * Reserves the invention recipe table, read by the DATATABLESET tag.
+ *
+ */
+static int _INVENT_DATATABLESET(SPI_STACK *stack, int unused) {
     int          num;
     int          i;
     unsigned int size;
@@ -1735,7 +1755,12 @@ int _INVENT_DATATABLESET(SPI_STACK *stack, int unused) {
     return 1;
 }
 
-int _INVENT_DATASET(SPI_STACK *stack, int argument_count) {
+/**
+ *
+ * Stores one invention recipe, read by the DATASET tag.
+ *
+ */
+static int _INVENT_DATASET(SPI_STACK *stack, int argument_count) {
     if (InventManagePt->num <= invent_num_counter) {
         return 0;
     }

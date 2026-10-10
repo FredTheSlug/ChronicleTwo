@@ -6900,19 +6900,19 @@ void MenuGyoraceFishSelDraw() {
     mgCTextureManager *tex_manager = &mgTexManager;
     mgRect<int>        dest;
     mgRect<int>        source;
-    tex_manager->ReloadTexture(MenuBGTextureBlock, (sceVif1Packet *) 0);
+    tex_manager->ReloadTexture(MenuBGTextureBlock, (sceVif1Packet *) NULL);
     source.Set(0, 0, mgScreenWidth >> 1, mgScreenHeight >> 1);
     dest.Set(0, 0, mgScreenWidth, mgScreenHeight);
     PrimQuad(MenuFrameTex, dest, source, 0x80, 0x80, 0x80, 0x80);
 
-    if (Tex_Aqualium != 0) {
-        tex_manager->ReloadTexture(GyoraceFishSelTexBk, (sceVif1Packet *) 0);
+    if (Tex_Aqualium != NULL) {
+        tex_manager->ReloadTexture(GyoraceFishSelTexBk, (sceVif1Packet *) NULL);
         DrawFishParam((mgScreenWidth - 0x14A >> 1) + 10, mgScreenHeight - 0x8E, Tex_Aqualium,
                       GyoraceFish);
     }
 
     if (GyoraceFishSelectMode != GYORACE_FISH_SEL_LOAD) {
-        tex_manager->ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) 0);
+        tex_manager->ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) NULL);
         MenuDCMsg[0]->DrawMsg();
         MenuDCMsg[1]->DrawMsg();
     }
@@ -6968,8 +6968,7 @@ void SetGyoRaceRanking(int rank) {
     fish = GetGyoRaceFish();
 
     if (rank <= 2) {
-
-        *(&fish->data.fish.race_placement_flags) |= 1;
+        fish->data.fish.race_placement_flags |= 1;
     }
 
     if (rank == 0 && fish != NULL) {
@@ -7023,11 +7022,7 @@ static int _GYORACE_LISTNUM(SPI_STACK *stack, int arg_count) {
     spi_gyorace_data->fish_num[race_class] = spi_nowanalyze_gyorace_limmit;
     count = spi_nowanalyze_gyorace_limmit;
 
-    if (((unsigned int) count * sizeof(CGameDataUsed)) & 0xF) {
-        blocks = (((unsigned int) count * sizeof(CGameDataUsed)) >> 4) + 1;
-    } else {
-        blocks = ((unsigned int) count * sizeof(CGameDataUsed)) >> 4;
-    }
+    blocks = align16_blocks(count * sizeof(CGameDataUsed));
 
     spi_gyorace_data->fish[race_class] = new (spi_gyorace_stack->Alloc(blocks + 2)) CGameDataUsed[count];
     spi_nowanalyze_gyorace_data = spi_gyorace_data->fish[race_class];
@@ -7041,8 +7036,8 @@ static int _GYORACE_LISTNUM(SPI_STACK *stack, int arg_count) {
  *
  */
 static int _GYORACE_DATA(SPI_STACK *stack, int arg_count) {
-    CGameDataUsed *entry;
-    u8            *fields;
+    CGameDataUsed  *entry;
+    BREEDFISH_USED *breed;
 
     if (spi_nowanalyze_gyorace_limmit <= spi_gyorace_counter) {
         return 0;
@@ -7050,16 +7045,15 @@ static int _GYORACE_DATA(SPI_STACK *stack, int arg_count) {
 
     entry = &spi_nowanalyze_gyorace_data[spi_gyorace_counter];
     entry->CopyDataFish(spiGetStackInt(stack++));
-
-    fields = (u8 *) entry + 0x10;
+    breed = &entry->data.fish;
     entry->SetName(spiGetStackString(stack++));
-    *(fields + 0x16) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x2E) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x26) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x28) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x2A) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x2C) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x18) = spiGetStackInt(stack);
+    breed->kind = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_BATTLE] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_BOOST] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_ENDURANCE] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_TENACITY] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_STAMINA] = spiGetStackInt(stack++);
+    breed->size = spiGetStackInt(stack);
     spi_gyorace_counter += 1;
     return 1;
 }
@@ -7592,9 +7586,14 @@ static void ForceSetGyoList() {
     }
 }
 
-static inline void SetHaveName(CDC2Mes *mes, int k, char *name) {
+/**
+ *
+ * Copies a name into a line of a message's name table, when there is a name.
+ *
+ */
+static inline void SetHaveName(CDC2Mes *mes, int line, char *name) {
     if (name != NULL) {
-        strcpy(mes->name[k], name);
+        strcpy(mes->name[line], name);
     }
 }
 
@@ -7606,12 +7605,16 @@ int GyoraceMenuKey() {
      */
     static int vol[6] = {5020, 5021, 5022, 5023, 5024, 5025};
 
-    /** Stores the fish being renamed while the name-entry menu is open. */
+    /**
+     *
+     * Stores the fish being renamed while the name-entry menu is open.
+     *
+     */
     static CGameDataUsed *local_gdata = NULL;
     CDC2Mes              *ask = MenuDCMsg[0];
     CDC2Mes              *tactics_mes = MenuDCMsg[1];
-    int                   list_update = 0;
-    int                   scroll_init = 0;
+    int                   list_update = false;
+    int                   scroll_init = false;
     int                   next = -1;
     int                   key;
     int                   button;
@@ -7628,7 +7631,11 @@ int GyoraceMenuKey() {
     key |= MenuCommonInfo->CheckLRKey();
     button = MenuCommonInfo->CheckPushButton();
     old_top = GyoraceFishHaveListSelect.top;
-    /** Keeps the selected saved-racer slot through the tactics prompt. */
+    /**
+     *
+     * Keeps the selected saved-racer slot through the tactics prompt.
+     *
+     */
     static s8 save_now_space_racer_no = 0;
 
     switch (GyoraceNowMode) {
@@ -7661,8 +7668,8 @@ int GyoraceMenuKey() {
                 Tex_Aqualium = textures->GetTexture("amenu0", -1);
                 MenuLoadBoardTex = textures->GetTexture("mt0", -1);
                 MenuPosData->AttachCommonTexInfo();
-                scroll_init = 1;
-                GyoraceHaveFishListScrlInit = scroll_init;
+                scroll_init = true;
+                GyoraceHaveFishListScrlInit = true;
             }
 
             break;
@@ -7687,7 +7694,7 @@ int GyoraceMenuKey() {
                     case GYORACE_COMMAND_REGISTER:
                         if (space == NULL) {
                             GyoraceNowMode = GYORACE_MENU_REGISTER_FULL;
-                            GyoraceQuestionMsgDrawFlag = se;
+                            GyoraceQuestionMsgDrawFlag = true;
                             GyoraceMes->cursor_on = 0;
                             GyoraceCFGAnalyze("\x93\x6f\x98\x5e\x95\x73\x89\xc2");
                             se = SYSTEM_SE_CANCEL;
@@ -7710,28 +7717,28 @@ int GyoraceMenuKey() {
                             GyoraceNowMode = GYORACE_MENU_DELETE_FISH;
                         }
 
-                        list_update = 1;
+                        list_update = true;
                         GyoraceMes->cursor_on = 0;
                         GyoraceMesDrawFlag = false;
-                        GyoraceFishHaveDrawFlag = list_update;
-                        GyoraceHaveFishCursorDrawFlag = list_update;
-                        GyoraceHaveFishListScrlInit = list_update;
+                        GyoraceFishHaveDrawFlag = true;
+                        GyoraceHaveFishCursorDrawFlag = true;
+                        GyoraceHaveFishListScrlInit = true;
                         break;
                     case GYORACE_COMMAND_WITHDRAW:
                         if (racer_num <= 0) {
                             se = SYSTEM_SE_CANCEL;
                         } else {
                             GyoraceNowMode = GYORACE_MENU_WITHDRAW_CONFIRM;
-                            GyoraceQuestionMsgDrawFlag = se;
+                            GyoraceQuestionMsgDrawFlag = true;
                             GyoraceCFGAnalyze("\x8e\x51\x89\xc1\x8e\xe6\x8f\xc1\x81\x48");
                         }
 
                         break;
                     case GYORACE_COMMAND_TACTICS:
                         GyoraceNowMode = GYORACE_MENU_VIEW_TACTICS;
-                        GyoraceFishInfoDrawFlag = se;
+                        GyoraceFishInfoDrawFlag = true;
                         GyoracerActive = NULL;
-                        GyoraceFishTacMesDrawFlag = se;
+                        GyoraceFishTacMesDrawFlag = true;
                         tactics_mes->MsgPreset(6);
                         tactics_mes->MakeMsg(0x139A);
 
@@ -7748,7 +7755,7 @@ int GyoraceMenuKey() {
                             se = SYSTEM_SE_CANCEL;
                         } else {
                             GyoraceNowMode = GYORACE_MENU_START_CONFIRM;
-                            GyoraceQuestionMsgDrawFlag = se;
+                            GyoraceQuestionMsgDrawFlag = true;
                             GyoraceCFGAnalyze("\x8b\xa3\x8b\x5a\x8a\x4a\x8e\x6e\x81\x48");
                         }
 
@@ -7804,7 +7811,7 @@ int GyoraceMenuKey() {
 
                 if (old_top != GyoraceFishHaveListSelect.top) {
                     GyoraceHaveFishListMakeLine = (old_top < GyoraceFishHaveListSelect.top) ? 1 : 0;
-                    list_update = 1;
+                    list_update = true;
                 }
             }
 
@@ -7823,12 +7830,12 @@ int GyoraceMenuKey() {
                     GyoracerIndexNo[slot] = GyoraceFishHaveListSelect.cursor;
                     GyoracerListUpdate();
                     GyoracerTacticsNo[slot] = 0;
-                    list_update = 1;
-                    GyoraceFishTacMesDrawFlag = list_update;
+                    list_update = true;
+                    GyoraceFishTacMesDrawFlag = true;
                     GyoraceCFGAnalyze("\x8d\xec\x90\xed\x91\x49\x91\xf0");
                     tactics_mes->SetMsgItemNo(vol, 6);
-                    tactics_mes->select_top = list_update;
-                    tactics_mes->SetWindowBgOpaqueFlg(list_update);
+                    tactics_mes->select_top = 1;
+                    tactics_mes->SetWindowBgOpaqueFlg(1);
                     GyoraceNowMode = GYORACE_MENU_SELECT_TACTICS;
                 }
             } else if (button & MENU_PUSH_BUTTON_CANCEL) {
@@ -7881,7 +7888,7 @@ int GyoraceMenuKey() {
 
                 if (old_top != GyoraceFishHaveListSelect.top) {
                     GyoraceHaveFishListMakeLine = (old_top < GyoraceFishHaveListSelect.top) ? 1 : 0;
-                    list_update = 1;
+                    list_update = true;
                 }
             }
 
@@ -7928,10 +7935,10 @@ int GyoraceMenuKey() {
                     racer->Init();
                 }
 
-                list_update = 1;
+                list_update = true;
                 GyoraceNowMode = GYORACE_MENU_DELETE_FISH;
                 GyoraceQuestionMsgDrawFlag = false;
-                MenuSePlay(list_update);
+                MenuSePlay(SYSTEM_SE_DECIDE);
             }
 
             if (answer == MES_YESNO_NO) {
@@ -7972,7 +7979,7 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_ACKNOWLEDGE:
             if (button != 0) {
                 next = GYORACE_MENU_MAIN;
-                MenuSePlay(next);
+                MenuSePlay(SYSTEM_SE_DECIDE);
             }
 
             break;
@@ -8102,9 +8109,9 @@ int GyoraceMenuKey() {
                         ForceSetGyoList();
                         space->Init();
                         space->fish.CopyGameData(MenuLoadFishSelectData);
-                        list_update = 1;
+                        list_update = true;
                         next = GYORACE_MENU_ASSIGN_RESULT;
-                        GyoraceHaveFishListScrlInit = list_update;
+                        GyoraceHaveFishListScrlInit = true;
                     } else {
                         break;
                     }
@@ -8159,12 +8166,12 @@ int GyoraceMenuKey() {
                     bag_max = GetNowBagMax(1);
                     MenuItemBrdSetInfo(MenuLoadFishSelect, MenuLoadFishTopLine, bag_max / 6, 5);
                     MenuItemBrdCalcManner = 0;
-                    list_update = 1;
+                    list_update = true;
                     GyoraceMes->cursor_on = 0;
                     Gyoracemenu_CursorXY[0] = 206.0f;
                     Gyoracemenu_CursorXY[1] = 28.0f;
                     MenuLoadFishBoardX = 0x208;
-                    GyoraceFishInfoDrawFlag = list_update;
+                    GyoraceFishInfoDrawFlag = true;
                     GyoracerActive = NULL;
                 }
 
@@ -8326,12 +8333,10 @@ void GyoraceMenuDraw() {
             textures->ReloadTexture(GyoraceTexBlock[1], (sceVif1Packet *) NULL);
 
             if (LanguageCode == 0) {
-
                 DrawSubGameTitle(GyoraceFishTex, 0, 0x116, 0x1E, 0xA0);
                 title.Set(0, 0x9E, 0x6C, 0x18);
                 PrimQuad(prim, GyoraceFishTex, 305.0f, 42.0f, title, 0x80, 0x80, 0x80, 0x80);
             } else {
-
                 DrawSubGameTitle(GyoraceFishTex, 0, 0x116, 0x1E, 0xA8);
                 wide_title.Set(0, 0x9E, 0x74, 0x18);
                 PrimQuad(prim, GyoraceFishTex, 305.0f, 42.0f, wide_title, 0x80, 0x80, 0x80, 0x80);
@@ -8375,7 +8380,7 @@ void GyoraceMenuDraw() {
                     list_rect[2] = 0xE4;
                     list_rect[3] = 0x118;
                     scroll[1] = 0x25;
-                    CalcMenu1(4.125f * GyoraceFishHaveListSelect.top, &GyoraceHaveFishListScrlBarY, 4.0f, float(2),
+                    CalcMenu1(4.125f * GyoraceFishHaveListSelect.top, &GyoraceHaveFishListScrlBarY, 4.0f, 2.0f,
                               GyoraceHaveFishListScrlInit);
                     scroll[0] = fptosi(GyoraceHaveFishListScrlBarY);
                     y = fptosi(21.0f + (112.0f + GyoraceHaveFishListTopY));
@@ -8410,7 +8415,6 @@ void GyoraceMenuDraw() {
             GyoraceFishMes->DrawMsg();
 
             if (GyoraceFishHaveDrawFlag != 0) {
-
                 have_clip.Set(0x14, 0x6D, 0xD2, 0x158);
                 SetMenuScissor(have_clip);
                 GyoraceFishHave->DrawMsg();

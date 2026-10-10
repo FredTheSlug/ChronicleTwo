@@ -684,7 +684,7 @@ void MenuManualDraw() {
                     }
 
                     chara->Step();
-                    SetMenuEtcFlag(1);
+                    SetMenuEtcFlag(MENU_ETC_FLAG_CHARA_RELOAD);
                     MenuMainTextureReadBuf.stReset();
                     LoadFileMenu("mb2.pac", MenuMainTextureReadBuf.stGetTop(), 1);
                     MenuBaseTextureReEnter();
@@ -2447,7 +2447,7 @@ int CSaveMenuClass::KeyStep() {
                                     ExeScript("LOADEND");
                                     CBaseMenuClass::mode = MENU_ASK_MODE_CLOSE;
                                     manager = MemoryCardPtr;
-                                    MenuArg.end_code = SAVE_MENU_END_LOAD;
+                                    MenuArg.end_code = MENU_END_LOAD;
                                     MenuArg.result[0] = manager->load_program_loop_no;
                                     MenuArg.result[1] = manager->load_map_no;
                                     MenuArg.result[2] = manager->load_dungeon_no;

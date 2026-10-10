@@ -141,6 +141,34 @@ enum MenuLoopType {
 
 /**
  *
+ * How the main menu ended, as MENU_INIT_ARG::end_code holds it for the game loop to act on.
+ *
+ */
+// clang-format off
+enum MenuEndCode {
+    MENU_END_NONE              = 0,  /**< Nothing for the game loop to do. */
+    MENU_END_CHARA_CHANGE      = 1,  /**< The active character changed to result[0]. */
+    MENU_END_DNG_MOVE          = 5,  /**< The player chose to leave the dungeon floor; result says where to go. */
+    MENU_END_WORLD_MOVE        = 6,  /**< The player chose a place on the world map; result holds its game loop, map and floor. */
+    MENU_END_LOAD              = 10, /**< A saved game or its fish data was loaded. */
+    MENU_END_FISHING           = 11, /**< A fishing rod is equipped; result holds the rod and bait to fish with. */
+    MENU_END_SUBGAME_LOAD      = 19, /**< Mini-game data was loaded. */
+    MENU_END_CHARA_CHANGE_FADE = 21, /**< The active character changed to result[0] from the main character display, with a cross-fade. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Flags that tell the game loop what else the menu did, as SetMenuEtcFlag adds them.
+ *
+ */
+enum MenuEtcFlag {
+    MENU_ETC_FLAG_CHARA_RELOAD = 0x1, /**< The player character's model was read again, so a running fishing game restarts. */
+};
+
+/**
+ *
  * Phases of the top menu, as CMenuInter::step holds them.
  *
  */
@@ -190,7 +218,7 @@ struct MENU_INIT_ARG {
     int               tex_block_num;   /**< Number of texture blocks the menu may use. */
     int               mes_tex_block;   /**< Texture block of the message font. */
     int               active_chara_no; /**< Party character that is active. */
-    int               end_code;        /**< How the menu ended, for the game loop to act on. */
+    int               end_code;        /**< How the menu ended, for the game loop to act on. @see MenuEndCode */
     int               result[5];       /**< Values that the menu hands back with its end code. */
     s32               unk_54;
     int               param[16]; /**< Values that an event passes to the menu it opens. */
@@ -305,7 +333,7 @@ STATIC_ASSERT(sizeof(CMenuInter) == 0x18);
  * @address 0x234C80
  * @size 0x10
  */
-void MenuScreenBlackBeltSet(int flag);
+void MenuScreenBlackBeltSet(int show);
 
 /**
  *
@@ -645,7 +673,7 @@ void MenuBaseTextureReEnter();
  * @address 0x238E60
  * @size 0xB0
  */
-void CopyActiveItemAndWeapon(int slot, int unused);
+void CopyActiveItemAndWeapon(int chara_no, int unused);
 
 /**
  *

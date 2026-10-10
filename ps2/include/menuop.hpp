@@ -140,15 +140,6 @@ enum SaveMenuStep {
 
 /**
  *
- * Result the save menu reports through MenuArg.end_code after loading.
- *
- */
-enum SaveMenuEndCode {
-    SAVE_MENU_END_LOAD = 10, /**< The saved game or its fish data has been loaded. */
-};
-
-/**
- *
  * Whether saving creates a new file or overwrites an existing one.
  *
  */

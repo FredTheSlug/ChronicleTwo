@@ -6762,7 +6762,7 @@ void CMenuItemInfo::ExitEnd() {
         chara_no = GetActiveCharaNo();
         chara = (CActionChara *) MenuMainScene->GetCharacter(0);
         DeleteOutLineMenu(chara, 0);
-        ((CCharacter2 *) chara)->DeleteImage();
+        chara->DeleteImage();
         stack = MorattaStack;
         stack->stack_used = 0;
         stack->lock = 0;
@@ -6776,28 +6776,26 @@ void CMenuItemInfo::ExitEnd() {
                         MenuArg.chara_tex_block, 0);
         SwordEffectStack.stack_used = 0;
         SwordEffectStack.lock = 0;
-        SetSwordBlurEffect((CCharacter2 *) chara, &SwordEffectStack, chara_no);
+        SetSwordBlurEffect(chara, &SwordEffectStack, chara_no);
         stack = MorattaStack;
         stack[1].stack_used = 0;
         stack[1].lock = 0;
         mgCTextureManager *textures = &mgTexManager;
         textures->DeleteTexAnime(MenuArg.chara_tex_block);
-        ((CCharacter2 *) chara)
-            ->LoadSkin(MainCharaReadBuffer.skin, "info.cfg", "", MorattaStack + 1,
+        chara->LoadSkin(MainCharaReadBuffer.skin, "info.cfg", "", &MorattaStack[1],
                        MenuArg.chara_tex_block);
         stack = MorattaStack;
         stack[5].stack_used = 0;
         stack[5].lock = 0;
-        ((CCharacter2 *) chara)
-            ->LoadSkin(MainCharaReadBuffer.outline, "info.cfg", "skin3", MorattaStack + 5,
+        chara->LoadSkin(MainCharaReadBuffer.outline, "info.cfg", "skin3", &MorattaStack[5],
                        MenuArg.chara_tex_block);
-        SetupUnitMan(MenuMainScene, (CUserDataManager *) GetUserDataMan(), chara_no, NULL);
+        SetupUnitMan(MenuMainScene, GetUserDataMan(), chara_no, NULL);
         chara->effect_man = FxScriptMan;
     }
 
     equip_list_no = CheckEquipListNo(0);
 
-    if ((equip_list_no != 0 || GetActiveCharaNo() == 2) && MenuMainScene != NULL &&
+    if ((equip_list_no != 0 || GetActiveCharaNo() == USER_CHARA_ROBO) && MenuMainScene != NULL &&
         GetMenuLoopType() == MENU_LOOP_DUNGEON) {
         if (field_chara != NULL) {
             if (equip_list_no != 0) {
@@ -6805,7 +6803,7 @@ void CMenuItemInfo::ExitEnd() {
             }
         }
 
-        if (GetActiveCharaNo() == 2) {
+        if (GetActiveCharaNo() == USER_CHARA_ROBO) {
             CharaSndBuffer = NULL;
             MenuCharaSoundEnter(MenuMainScene, field_chara, 0);
             field_chara->sound_info.se_bank = Robo_Sound_ID_Save;
@@ -6910,7 +6908,7 @@ void CMenuItemInfo::MenuModeMalloc(mgCMemory *stack) {
     CRepairManager *repair;
 
     int free_blocks = stack->stack_size - stack->stack_used;
-    MenuItemMemory2.stSetBuffer((stack->stack + stack->stack_used),
+    MenuItemMemory2.stSetBuffer(&stack->stack[stack->stack_used],
                                 free_blocks);
 
     for (i = 0; i < 7; i++) {
@@ -6947,7 +6945,7 @@ void CMenuItemInfo::MenuModeMalloc(mgCMemory *stack) {
                           20.0f);
     free_blocks = MenuItemMemory2.stack_size - MenuItemMemory2.stack_used;
     MenuItemMemory.stSetBuffer(
-        (MenuItemMemory2.stack + MenuItemMemory2.stack_used), free_blocks);
+        &MenuItemMemory2.stack[MenuItemMemory2.stack_used], free_blocks);
 }
 
 #pragma inline_depth reset

@@ -1877,7 +1877,7 @@ static int CheckVuProgID(int id) {
         return false;
     }
 
-    if (*(int *) ((id << 2) + (int) user_prog_adr - MG_VU_PROG_USER * 4) == 0) {
+    if (user_prog_adr[id - MG_VU_PROG_USER] == NULL) {
         return false;
     }
 
@@ -1930,15 +1930,6 @@ void mgSetUserVuProgAdr(int index, u_long128 *adr) {
     user_prog_adr[index] = adr;
 }
 
-/**
- *
- * Writes the selected frame buffer to a numbered TGA image on the host device.
- *
- * @mangled StoreImage__Fi
- * @address 0x146390
- * @size 0x284
- *
- */
 void StoreImage(int front_buffer) {
     static int image_num = 0;
     u_char     tga[18] = {0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24, 0};

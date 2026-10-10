@@ -351,9 +351,8 @@ identity required by library data.
   u_int` addresses are memory-mapped register accesses.
 - `mgFlushRenderInfo` writes the fog floats into VIF packet words as
   `words[n] = *(u_int *) &mgRenderInfo.fog.x`.
-- `CheckVuProgID` (`global_optimizer off`) keeps `*(int *) ((id << 2) +
-  (int) user_prog_adr - MG_VU_PROG_USER * 4)`: `user_prog_adr[id -
-  MG_VU_PROG_USER]` subtracts before scaling and
-  `(&user_prog_adr[id])[-MG_VU_PROG_USER]` shortens the function.
+- `CheckVuProgID` needs no pragma. The NULL test is written as `user_prog_adr[id -
+  MG_VU_PROG_USER] == NULL`, and the built-in range check keeps its `goto valid;` form
+  because a `return true;` form does not match.
 - `mgGetFogParam` copies the four colour bytes as one word through
   `mgFogColor` views.

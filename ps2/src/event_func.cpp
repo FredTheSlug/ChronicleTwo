@@ -1917,6 +1917,11 @@ void FileNameConvLanguage(char *name) {
     }
 }
 
+/**
+ *
+ * Reads a stack entry as an integer, converting a float entry.
+ *
+ */
 static int GetStackInt(RS_STACKDATA *stack) {
     if (stack->type == RS_FLOAT) {
         return fptosi(stack->val.f);
@@ -1925,6 +1930,11 @@ static int GetStackInt(RS_STACKDATA *stack) {
     return stack->val.i;
 }
 
+/**
+ *
+ * Reads a stack entry as a float, converting an integer entry.
+ *
+ */
 static float GetStackFloat(RS_STACKDATA *stack) {
     if (stack->type == RS_INT) {
         return (float) stack->val.i;
@@ -1947,16 +1957,32 @@ static void GetStackVector(float *vector, RS_STACKDATA *stack) {
     vector[3] = 1.0f;
 }
 #endif
+
+/**
+ *
+ * Reads the string held by a stack entry.
+ *
+ */
 static char *GetStackString(RS_STACKDATA *stack) {
     return stack->val.s;
 }
 
+/**
+ *
+ * Stores an integer through a pointer stack entry, if it holds one.
+ *
+ */
 static void SetStack(RS_STACKDATA *stack, int value) {
     if (stack->type == RS_PTR) {
         stack->val.p->val.i = value;
     }
 }
 
+/**
+ *
+ * Stores a float through a pointer stack entry, if it holds one.
+ *
+ */
 static void SetStack(RS_STACKDATA *stack, float value) {
     if (stack->type == RS_PTR) {
         stack->val.p->val.f = value;
@@ -2034,6 +2060,11 @@ void CEventScriptArg::BuildArgData(u32 *program) {
     nowScriptArg = NULL;
 }
 
+/**
+ *
+ * Appends a new argument list to the script and returns it, or NULL when the script has no memory.
+ *
+ */
 static inline ARG_LIST *ScriptArgAddList(CEventScriptArg *script) {
     if (script->memory == NULL) {
         return NULL;
@@ -2066,6 +2097,11 @@ static inline ARG_LIST *ScriptArgAddList(CEventScriptArg *script) {
     return created;
 }
 
+/**
+ *
+ * Allocates an array of argument data in the script's memory into out, or NULL when the script has no memory.
+ *
+ */
 static inline void ScriptArgNewData(CEventScriptArg *script, int num, ARG_DATA **out) {
     if (script->memory == NULL) {
         *out = NULL;
@@ -2075,6 +2111,11 @@ static inline void ScriptArgNewData(CEventScriptArg *script, int num, ARG_DATA *
     }
 }
 
+/**
+ *
+ * Copies a string into the script's memory and returns the copy, or NULL when the script has no memory.
+ *
+ */
 static inline char *ScriptArgNewString(CEventScriptArg *script, char *source) {
     char *copy;
 
@@ -2187,6 +2228,11 @@ void GetArgVector(float *vec, ARG_DATA *arg) {
     vec[3] = 1.0f;
 }
 
+/**
+ *
+ * Finds the argument data of the argument list with the given id, or NULL when no list has it.
+ *
+ */
 static inline ARG_DATA *FindArgData(int key) {
     ARG_LIST *node = EventScriptArg.list;
 
@@ -2218,6 +2264,11 @@ static inline ARG_DATA *FindArgData(int key) {
     return node->args;
 }
 
+/**
+ *
+ * Finds the argument data of the argument list with the given id and stores its argument count in arg_num, or NULL when no list has it.
+ *
+ */
 static inline ARG_DATA *FindArgData(int key, int &arg_num) {
     ARG_LIST *node = EventScriptArg.list;
 
@@ -3454,6 +3505,11 @@ void EdEventEnd() {
     EventSeqInit();
 }
 
+/**
+ *
+ * Returns the object sequence in the given slot, or NULL when the slot is out of range.
+ *
+ */
 static CSceneObjSeq *GetObjSeq(int index) {
     if (index < 0 || index >= EVENT_OBJECT_SEQ_NUM) {
         return NULL;

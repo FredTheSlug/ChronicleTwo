@@ -2,15 +2,15 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+#include "scenesnd.hpp"
+#include "userdata.hpp"
+
 /**
  * @file
  * Declares the loading and linking of the player's characters: Max, Monica,
  * the ridepod with Max aboard, and a monster that Monica has transformed into.
  */
-
-class mgCMemory;
-class CScene;
-class CUserDataManager;
 
 /**
  *

@@ -2,12 +2,14 @@
 
 #include "common.h"
 
+#include <cstring>
 #include <libvu0.h>
 
-#include <cstring>
-
+#include "mg_dataset.hpp"
 #include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
 #include "mg_frame.hpp"
+#include "mg_memory.hpp"
 
 /**
  * @file
@@ -15,10 +17,6 @@
  * queries against a bounded set of triangles, and the frame that places
  * collision geometry in the frame hierarchy.
  */
-
-class mgCMemory;
-class mgCDrawManager;
-struct MDS_HEADER;
 
 /**
  *

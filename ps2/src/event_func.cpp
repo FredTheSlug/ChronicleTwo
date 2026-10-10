@@ -148,59 +148,10 @@ static CEventScriptArg *nowScriptArg;
 
 /**
  *
- * Argument lists that the running event loaded.
- *
- */
-extern CEventScriptArg EventScriptArg;
-
-/**
- *
  * Dispatch slots for event script external commands.
  *
  */
 static EventFunc ext_func[EVENT_EXT_FUNC_NUM];
-
-/**
- *
- * Sprites that event scripts place on the screen or in the world.
- *
- */
-extern CEventSprite2 EventSprite2[EVENT_SPRITE2_NUM];
-
-/**
- *
- * Object sequences that move event object handles over time.
- *
- */
-extern CSceneObjSeq ObjectSeq[EVENT_OBJECT_SEQ_NUM];
-
-/**
- *
- * Camera sequence that moves the event camera over time.
- *
- */
-extern CSceneCmrSeq CameraSeq;
-
-/**
- *
- * Memory that event sound banks are loaded into.
- *
- */
-extern mgCMemory BuffEventSnd;
-
-/**
- *
- * Memory that event sound banks for the menu port are loaded into.
- *
- */
-extern mgCMemory BuffEventSnd2;
-
-/**
- *
- * Dungeon map that events show.
- *
- */
-extern CDngFreeMap EventDngMap;
 
 /**
  *
@@ -1935,21 +1886,18 @@ static float GetStackFloat(RS_STACKDATA *stack) {
 
     return stack->val.f;
 }
-#ifdef NONMATCHING
+
+/**
+ *
+ * Reads three stack slots as a vector's x, y and z, setting w to 1.
+ *
+ */
 static void GetStackVector(float *vector, RS_STACKDATA *stack) {
     vector[0] = GetStackFloat(stack++);
     vector[1] = GetStackFloat(stack++);
     vector[2] = GetStackFloat(stack);
     vector[3] = 1.0f;
 }
-#else
-static void GetStackVector(float *vector, RS_STACKDATA *stack) {
-    vector[0] = GetStackFloat(stack++);
-    vector[1] = GetStackFloat(stack++);
-    vector[2] = GetStackFloat(stack);
-    vector[3] = 1.0f;
-}
-#endif
 
 /**
  *

@@ -2,13 +2,13 @@
 
 #include "common.h"
 
-#include <libvu0.h>
-
 #include <cstring>
+#include <libvu0.h>
 
 #include "editcoll.hpp"
 #include "mapparts.hpp"
 #include "mg_drawenv.hpp"
+#include "mg_memory.hpp"
 
 /**
  * @file
@@ -16,8 +16,6 @@
  * each kind of part, each placed part, and the house that records which
  * villagers live in a placed building.
  */
-
-class mgCMemory;
 
 /**
  *

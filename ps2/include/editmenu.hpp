@@ -5,9 +5,13 @@
 #include <libvu0.h>
 
 #include "actionchara.hpp"
+#include "editparts.hpp"
+#include "mapparts.hpp"
+#include "menucls1.hpp"
 #include "menudraw.hpp"
 #include "menusys.hpp"
 #include "mg_memory.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
@@ -16,16 +20,6 @@
  * of a placed house, and the announcement of the parts that a Geostone
  * gives.
  */
-
-class CDC2Mes;
-class CEditHouse;
-class CEditMap;
-class CEditParts;
-class CEditPartsInfo;
-class CMapParts;
-class CMenuPosDataForm;
-class mgCTexture;
-struct MENUFORMPARTS_TYPE;
 
 /**
  *

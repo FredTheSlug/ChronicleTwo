@@ -2,13 +2,13 @@
 
 #include "common.h"
 
+#include "subgame.hpp"
+
 /**
  * @file
  * Declares the buggy sub game, in which the player drives a buggy armed with a gun and bombs
  * to defend a train, entered through the sub game dispatcher as sub game 3.
  */
-
-struct SubGameInfo;
 
 /**
  *

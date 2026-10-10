@@ -5,25 +5,21 @@
 #include <libvu0.h>
 
 #include "character.hpp"
+#include "collision.hpp"
 #include "funcpoint.hpp"
-#include "map.hpp"
+#include "mapload.hpp"
+#include "mdslist.hpp"
 #include "mg_drawenv.hpp"
 #include "mg_frame.hpp"
+#include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "occlusion.hpp"
 
 /**
  * @file
  * Declares one placed part of a map, the pieces of model it is built from,
  * and the treasure chests that its function points place.
  */
-
-class CCPoly;
-class CFuncPoint;
-class CMapPiece;
-class CObjAnime;
-class CObjAnimeEnv;
-class COcclusion;
-class mgCMemory;
 
 /**
  *

@@ -4,8 +4,20 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
 #include "dng_effect.hpp"
+#include "dngmenu.hpp"
+#include "eventsprite.hpp"
+#include "mapload.hpp"
+#include "mapparts.hpp"
+#include "mg_camera.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "nd_meswin.hpp"
+#include "object.hpp"
 #include "runscript.hpp"
+#include "scene.hpp"
 #include "sceneseq.hpp"
 #include "scenesnd.hpp"
 
@@ -17,20 +29,6 @@
  * screen effects, the argument lists that event scripts load, and the
  * routines that set up, step, draw and finish an event.
  */
-
-class CCharacter2;
-class CEventSprite2;
-class CEventSpriteMother;
-class CFuncPoint;
-class CMapParts;
-class CMarker;
-class CObject;
-class CRain;
-class mgCCamera;
-class mgCFrame;
-class mgCMemory;
-class mgCTexture;
-class ClsMes;
 
 /**
  *
@@ -2143,6 +2141,55 @@ extern _SEN_OBJ_SEQ obj_seq_tbl[SEQ_NODE_NUM];
  *
  */
 extern CScreenEffect EventScreenEffect;
+
+/**
+ *
+ * Argument lists that the running event loaded.
+ *
+ */
+extern CEventScriptArg EventScriptArg;
+
+/**
+ *
+ * Sprites that event scripts display.
+ *
+ */
+extern CEventSprite2 EventSprite2[EVENT_SPRITE2_NUM];
+
+/**
+ *
+ * Object sequences that event scripts play.
+ *
+ */
+extern CSceneObjSeq ObjectSeq[EVENT_OBJECT_SEQ_NUM];
+
+/**
+ *
+ * Camera sequence that event scripts play.
+ *
+ */
+extern CSceneCmrSeq CameraSeq;
+
+/**
+ *
+ * Memory that event sound banks are loaded into.
+ *
+ */
+extern mgCMemory BuffEventSnd;
+
+/**
+ *
+ * Memory that event sound banks for the menu port are loaded into.
+ *
+ */
+extern mgCMemory BuffEventSnd2;
+
+/**
+ *
+ * Dungeon map shown by event scripts.
+ *
+ */
+extern CDngFreeMap EventDngMap;
 
 /**
  *

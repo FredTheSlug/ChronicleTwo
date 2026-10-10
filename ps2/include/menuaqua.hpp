@@ -5,7 +5,15 @@
 #include <libvu0.h>
 
 #include "character.hpp"
+#include "gamedata.hpp"
+#include "menucls1.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "nd_meswin.hpp"
+#include "savedata.hpp"
+#include "userdata.hpp"
+#include "water.hpp"
 
 /**
  * @file
@@ -14,18 +22,12 @@
  * fishing tournament menus that pick fish from it and hand out prizes.
  */
 
-class CDC2Mes;
-class CGameDataUsed;
-class CGyoRaceData;
-class CUserDataManager;
-class CWaterFrame;
-class ClsMes;
-class mgCFrame;
-class mgCTexture;
-struct BREEDFISH_USED;
-
+/**
+ *
+ * Aquarium fish, which the action and think records below point back at.
+ *
+ */
 class CAquaFish;
-class CAquaFishEff;
 
 /**
  *
@@ -362,6 +364,61 @@ STATIC_ASSERT(sizeof(AQUA_FISH_ROUND) == 0x10);
 
 /**
  *
+ * Icon that floats above a fish of the aquarium for a time.
+ *
+ */
+class CAquaFishEff {
+public:
+    CAquaFish  *fish;    /**< Fish that the icon floats above; NULL for none. */
+    mgCTexture *texture; /**< Texture of the icons. */
+    u16         type;    /**< Icon shown, 1 to 5; 0 for none. */
+    s32         timer;   /**< Steps left to show the icon. */
+
+    /**
+     *
+     * Clears the icon and its fish.
+     *
+     * @mangled Initialize__12CAquaFishEffFv
+     * @address 0x210A90
+     * @size 0x14
+     */
+    void Initialize();
+
+    /**
+     *
+     * Shows an icon for the time that the icon's type gives.
+     *
+     * @mangled StartFishEffect__12CAquaFishEffFi
+     * @address 0x210AB0
+     * @size 0x24
+     */
+    void StartFishEffect(int effect_kind);
+
+    /**
+     *
+     * Counts down the icon's time, hiding it when the time runs out.
+     *
+     * @mangled Step__12CAquaFishEffFv
+     * @address 0x210AE0
+     * @size 0x40
+     */
+    void Step();
+
+    /**
+     *
+     * Draws the icon bobbing above the fish, fading out at the end of its time.
+     *
+     * @mangled Draw__12CAquaFishEffFv
+     * @address 0x210B20
+     * @size 0x350
+     */
+    void Draw();
+};
+
+STATIC_ASSERT(sizeof(CAquaFishEff) == 0x10);
+
+/**
+ *
  * What CAquaFish::NextThink needs to start a new action.
  *
  */
@@ -586,61 +643,6 @@ public:
 };
 
 STATIC_ASSERT(sizeof(CAquaFish) == 0x940);
-
-/**
- *
- * Icon that floats above a fish of the aquarium for a time.
- *
- */
-class CAquaFishEff {
-public:
-    CAquaFish  *fish;    /**< Fish that the icon floats above; NULL for none. */
-    mgCTexture *texture; /**< Texture of the icons. */
-    u16         type;    /**< Icon shown, 1 to 5; 0 for none. */
-    s32         timer;   /**< Steps left to show the icon. */
-
-    /**
-     *
-     * Clears the icon and its fish.
-     *
-     * @mangled Initialize__12CAquaFishEffFv
-     * @address 0x210A90
-     * @size 0x14
-     */
-    void Initialize();
-
-    /**
-     *
-     * Shows an icon for the time that the icon's type gives.
-     *
-     * @mangled StartFishEffect__12CAquaFishEffFi
-     * @address 0x210AB0
-     * @size 0x24
-     */
-    void StartFishEffect(int effect_kind);
-
-    /**
-     *
-     * Counts down the icon's time, hiding it when the time runs out.
-     *
-     * @mangled Step__12CAquaFishEffFv
-     * @address 0x210AE0
-     * @size 0x40
-     */
-    void Step();
-
-    /**
-     *
-     * Draws the icon bobbing above the fish, fading out at the end of its time.
-     *
-     * @mangled Draw__12CAquaFishEffFv
-     * @address 0x210B20
-     * @size 0x350
-     */
-    void Draw();
-};
-
-STATIC_ASSERT(sizeof(CAquaFishEff) == 0x10);
 
 /**
  *
@@ -1611,3 +1613,31 @@ extern CGyoRaceData *GyoraceData;
  * @size 0x24
  */
 extern CDC2Mes *MenuDCMsg[9];
+
+/**
+ *
+ * Aquarium shown by the aquarium menu.
+ *
+ */
+extern CAquarium Aquarium;
+
+/**
+ *
+ * Stack of the name entry screen opened from the aquarium.
+ *
+ */
+extern mgCMemory Aquarium_NameregistStack;
+
+/**
+ *
+ * Stack of the fish race messages and data.
+ *
+ */
+extern mgCMemory GyoraceStack;
+
+/**
+ *
+ * Stack of the fish race's fish selection screen.
+ *
+ */
+extern mgCMemory GyoraceFishSelStack;

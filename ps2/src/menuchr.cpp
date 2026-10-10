@@ -8,6 +8,7 @@
 
 #include "charasetup.hpp"
 #include "dataread.hpp"
+#include "dng_main.hpp"
 #include "dynamicanime.hpp"
 #include "effscript.hpp"
 #include "font.hpp"
@@ -8089,9 +8090,6 @@ s16 monster_progress_tbl[MONSTER_PROGRESS_NUM][1 + MONSTER_PROGRESS_LEVEL_NUM] =
     {6, 124, 116, 120, 128},
     {9, 224, 236, 228, 240},
 };
-
-// Virtual tables (.vtables)
-INCLUDE_RODATA("ps2/asm/pal/nonmatchings/menuchr", __vt__15CMenuChrCngMenu__DATA);
 
 mgCMemory *MorattaStack;
 

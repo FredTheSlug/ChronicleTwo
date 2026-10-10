@@ -6,18 +6,17 @@
 
 #include "collision.hpp"
 #include "font.hpp"
+#include "mg_camera.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_visual.hpp"
 
 /**
  * @file
  * Declares the motion data that drives a model's frames and skin, the queries that test lines,
- * pipes and spheres against collision polygons, and small geometry helpers.
+ * pipes and spheres against collision polygons and the hits they report, and small geometry
+ * helpers.
  */
-
-class mgCCamera;
-class mgCFrame;
-class mgCMemory;
-class mgCVisualMDT;
-struct MoveCheckInfo;
 
 /**
  *
@@ -177,6 +176,50 @@ struct CollisionInfo {
 };
 
 STATIC_ASSERT(sizeof(CollisionInfo) == 0x10);
+
+/**
+ *
+ * Holds the ground and special-area hits found while moving a character.
+ *
+ */
+struct MoveCheckInfo {
+    float         radius;          /**< Radius used by the movement query. */
+    int           skip_ground;     /**< Skips the ground search when set. */
+    int           landed;          /**< Indicates a ground contact. */
+    CCPoly        ground_poly;     /**< Ground polygon under the character. */
+    int           ground_found;    /**< Indicates that a ground polygon was found. */
+    CCPoly        second_poly;     /**< Other polygon retained by the movement query. */
+    sceVu0FVECTOR ground_point;    /**< Ground contact point. */
+    int           width_result;    /**< Result of the width check. */
+    int           in_water;        /**< Indicates a water-area contact. */
+    sceVu0FVECTOR water_surface;   /**< Water surface contact point. */
+    int           crossed_area;    /**< Indicates a special-area crossing. */
+    float         signed_distance; /**< Signed distance to the special area. */
+    sceVu0FVECTOR crossed_point;   /**< Special-area crossing point. */
+
+    /**
+     *
+     * Clears the movement query state.
+     *
+     * @mangled Initialize__13MoveCheckInfoFv
+     * @address 0x1CF550
+     * @size 0x10
+     */
+    void Initialize() {
+        memset(this, 0, sizeof(MoveCheckInfo));
+    }
+
+    /**
+     *
+     * Resets the movement query before another check.
+     *
+     */
+    void Clear() {
+        Initialize();
+    }
+};
+
+STATIC_ASSERT(sizeof(MoveCheckInfo) == 0x110);
 
 /**
  *

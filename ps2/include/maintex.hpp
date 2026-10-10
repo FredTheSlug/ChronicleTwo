@@ -2,6 +2,13 @@
 
 #include "common.h"
 
+#include "character.hpp"
+#include "colprim.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "monster.hpp"
+#include "scenesnd.hpp"
+
 /**
  * @file
  * Declares the dungeon's shared system textures, which are registered and
@@ -9,13 +16,6 @@
  * level up and apply the stats of the party's weapons and that attach the
  * sword trail effect to a character.
  */
-
-class CActiveMonster;
-class CCharacter2;
-class CColPrim;
-class CScene;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *

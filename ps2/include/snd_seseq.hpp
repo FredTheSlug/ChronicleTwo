@@ -2,14 +2,14 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the sound-effect sequencer: Standard MIDI File data converted
  * into a compact event list, and the player that steps through it to
  * trigger, stop and modulate sound effects track by track.
  */
-
-class mgCMemory;
 
 /**
  *

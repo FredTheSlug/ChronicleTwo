@@ -4,7 +4,9 @@
 
 #include <cstring>
 
+#include "character.hpp"
 #include "font.hpp"
+#include "mg_drawprim.hpp"
 #include "mg_tanime.hpp"
 
 /**
@@ -14,9 +16,6 @@
  * draws it inside a speech bubble or one of the menu frames; plus the
  * helpers it draws and places itself with and the movie caption player.
  */
-
-class CCharacter2;
-class mgCDrawPrim;
 
 /**
  *

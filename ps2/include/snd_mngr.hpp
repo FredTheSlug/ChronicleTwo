@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+#include "snd_seseq.hpp"
+
 /**
  * @file
  * Declares the sound manager: the sound ports that sound banks are loaded
@@ -14,9 +17,6 @@
  * top eight bits and the bank number in the next eight; sndCreateID places a
  * sound effect number in its low sixteen bits.
  */
-
-class mgCMemory;
-class sndCSeSeqData;
 
 /**
  *

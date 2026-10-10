@@ -2,22 +2,19 @@
 
 #include "common.h"
 
-#include <libvu0.h>
-
 #include <cstring>
+#include <libvu0.h>
 
 #include "mg_drawenv.hpp"
 #include "mg_frame.hpp"
 
 /**
  * @file
- * Declares what the map and configuration script loaders fill in: the
- * lighting sets, the function points placed on a map, the material colours
- * of a map piece and the part groups of a fixed camera, together with the
- * time-of-day bands the lighting follows.
+ * Declares what the map and configuration script loaders fill in: the lighting sets, the function
+ * points placed on a map and the conditions they are checked against, the material colours of a map
+ * piece and the part groups of a fixed camera, together with the time-of-day bands the lighting
+ * follows.
  */
-
-class CFuncPointCheck;
 
 /**
  *
@@ -123,6 +120,26 @@ public:
 };
 
 STATIC_ASSERT(sizeof(CMapLightingInfo) == 0x1D0);
+
+/**
+ *
+ * Conditions function points are checked against: the time of day and the animation frame.
+ *
+ */
+class CFuncPointCheck {
+public:
+    float time;        /**< Time of day, in hours, that a point's time range must contain. */
+    s32   anime_frame; /**< Frames counted by the map, that light animations are timed by. */
+
+    /**
+     *
+     * Creates conditions for midnight.
+     *
+     */
+    CFuncPointCheck() { time = 0.0f; }
+};
+
+STATIC_ASSERT(sizeof(CFuncPointCheck) == 0x8);
 
 /**
  *

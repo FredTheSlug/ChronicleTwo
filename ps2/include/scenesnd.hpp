@@ -4,10 +4,24 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
+#include "collision.hpp"
+#include "dng_effect.hpp"
+#include "dng_event.hpp"
 #include "dngfloor.hpp"
 #include "effectlist.hpp"
+#include "effscript.hpp"
+#include "map.hpp"
+#include "mapload.hpp"
+#include "mapparts.hpp"
+#include "mapsky.hpp"
 #include "mdslist.hpp"
+#include "mg_camera.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
+#include "nd_meswin.hpp"
+#include "savedata.hpp"
 #include "scene.hpp"
 #include "sceneevent.hpp"
 #include "sceneload.hpp"
@@ -24,22 +38,6 @@
  * together with the music, environment sound and sound effect banks it has
  * loaded and plays.
  */
-
-class BattleEffectMan;
-class CCharacter2;
-class CEffectScriptMan;
-class CFuncPoint;
-class CMap;
-class CMapSky;
-class CSaveData;
-class CTreasureBoxManager;
-class CVillagerPlaceInfo;
-class ClsMes;
-class mgCCamera;
-class mgCFrame;
-struct CCPoly;
-struct InScreenFuncInfo;
-struct mgVu0FBOX;
 
 /**
  *

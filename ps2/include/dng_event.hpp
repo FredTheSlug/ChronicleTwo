@@ -14,9 +14,14 @@ union DngEventVector {
 
 #include <libvu0.h>
 
+#include "automap.hpp"
 #include "character.hpp"
+#include "collision.hpp"
+#include "mapparts.hpp"
 #include "mg_drawenv.hpp"
 #include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "nd_meswin.hpp"
 #include "object.hpp"
 
 /**
@@ -25,15 +30,6 @@ union DngEventVector {
  * target marker, the geostone, the random circles and the treasure boxes, and the functions that
  * load a floor and place its boxes, monsters and circles.
  */
-
-class CAutoMapGen;
-class CColFrame;
-class CMapParts;
-class CMiniMapSymbol;
-class ClsMes;
-class mgCFrame;
-class mgCMemory;
-struct CCPoly;
 
 /**
  *

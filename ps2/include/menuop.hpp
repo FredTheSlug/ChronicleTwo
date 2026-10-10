@@ -18,6 +18,8 @@ struct SaveIconSet {
 };
 
 STATIC_ASSERT(sizeof(SaveIconSet) == 0x78);
+#include "menudraw.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
@@ -25,10 +27,6 @@ STATIC_ASSERT(sizeof(SaveIconSet) == 0x78);
  * picture pages of the game's manual, the option menu, the save and load
  * menu with its memory card handling, and the mini-game save menu.
  */
-
-class CMenuPosDataForm;
-class mgCTexture;
-struct MENUFORMPARTS_TYPE;
 
 /**
  *

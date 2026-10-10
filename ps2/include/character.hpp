@@ -4,24 +4,22 @@
 
 #include <libvu0.h>
 
+#include "dynamicanime.hpp"
 #include "effect.hpp"
 #include "gameutil.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 #include "object.hpp"
+#include "outline.hpp"
+#include "snd_mngr.hpp"
+#include "swordeffect.hpp"
 
 /**
  * @file
  * Declares the character that a character info file builds: its model, shadow, motions, motion
  * sequences, sounds, effects, cloth and levels of detail.
  */
-
-class CDynamicAnime;
-class CEffectManager;
-class CLoopSeMngr;
-class COutLineDraw;
-class CSWordAfterEffect;
-class mgCFrame;
-class mgCMemory;
-struct mgIMG_FILE_HEADER;
 
 /** Number of motion sets that one character can hold. */
 #define CHARA_MOTION_SET_MAX 8
@@ -426,10 +424,20 @@ public:
     CHRINFO_EFFECT_IMAGE *effect_image_list;                    /**< IMG archives that the effects entered. */
     s32                   effect_enable;                        /**< Nonzero while motions start their effects. */
 
+    /**
+     *
+     * Returns the width of the body.
+     *
+     */
     float GetBodyWidth() {
         return body_width;
     }
 
+    /**
+     *
+     * Returns the height of the body.
+     *
+     */
     float GetBodyHeight() {
         return body_height;
     }
@@ -545,7 +553,7 @@ public:
      * @address 0x176670
      * @size 0x110
      */
-    virtual void LoadChrFile(unsigned int *pack, char *name, mgCMemory *a, mgCMemory *b, mgCMemory *c, int d, CCharacter2 *e, int with_line);
+    virtual void LoadChrFile(unsigned int *pack, char *name, mgCMemory *model_stack, mgCMemory *motion_stack, mgCMemory *image_stack, int image_block, CCharacter2 *parent, int with_line);
 
     /**
      *

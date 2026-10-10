@@ -4,7 +4,9 @@
 
 #include <cstring>
 
+#include "menudraw.hpp"
 #include "menusys.hpp"
+#include "mg_memory.hpp"
 #include "scenesnd.hpp"
 #include "userdata.hpp"
 
@@ -15,10 +17,6 @@
  * the shop's goods and price list read from the chapter's shop script; and the
  * NPC quest and scoop memo viewer that shares the unit.
  */
-
-class CMenuPosDataForm;
-class mgCMemory;
-struct MENUFORMPARTS_TYPE;
 
 /**
  *

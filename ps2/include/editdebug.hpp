@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#include "editdata.hpp"
+#include "mg_memory.hpp"
+#include "scenesnd.hpp"
 #include "subgame.hpp"
 
 /**
@@ -9,10 +12,6 @@
  * Declares the town-building mode's debug menu and its lighting editor, developer tools for
  * running events, starting sub games, saving and loading town layouts and tuning map lights.
  */
-
-class CScene;
-class CEditData;
-class mgCMemory;
 
 /**
  *

@@ -4,22 +4,20 @@
 
 #include <libvu0.h>
 
+#include "automap.hpp"
+#include "collision.hpp"
 #include "dng_event.hpp"
+#include "mg_dataset.hpp"
 #include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
  * Declares the sphida game played on a dungeon floor: its shot power gauge, the pin, ball and
  * course state that the event scripts drive, and the clubs that the player can swing.
  */
-
-class CColFrame;
-class CMiniMapSymbol;
-class mgCDrawPrim;
-class mgCMemory;
-class mgCTexture;
-struct CCPoly;
-struct MDS_HEADER;
 
 /**
  *

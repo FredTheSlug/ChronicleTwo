@@ -2,6 +2,10 @@
 
 #include "common.h"
 
+#include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 #include "mg_visual.hpp"
 
 /**
@@ -9,14 +13,6 @@
  * Declares the engine's shadow model: an MDT model whose triangles are
  * drawn flattened onto the ground as a cast shadow.
  */
-
-class mgCMemory;
-class mgCFace;
-class mgCDrawManager;
-class mgCTextureManager;
-class mgRENDER_INFO;
-struct FACES_ID;
-struct MDT_HEADER;
 
 /**
  *

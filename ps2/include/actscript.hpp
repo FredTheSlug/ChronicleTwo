@@ -2,19 +2,18 @@
 
 #include "common.h"
 
+#include "actionchara.hpp"
+#include "mg_camera.hpp"
+#include "mg_memory.hpp"
+#include "runscript.hpp"
+#include "scenesnd.hpp"
+
 /**
  * @file
  * Declares the routines that give an action character's interpreter its
  * program and the action external-function table, and the state that the
  * action script's external functions act on while a character's script runs.
  */
-
-class CActionChara;
-class CRunScript;
-class CScene;
-class mgCCameraFollow;
-class mgCMemory;
-struct RUN_SCRIPT_ENV;
 
 /**
  *
@@ -105,6 +104,15 @@ enum ACTION_EXT_NUMBER {
     ACTION_EXT_ESM_FINISH = 153,        /**< Selects _ESM_FINISH. */
     ACTION_EXT_ESM_DELETE = 154,        /**< Selects _ESM_DELETE. */
     ACTION_EXT_ESM_SET_VALUE = 155,     /**< Selects _ESM_SET_VALUE. */
+};
+
+/**
+ *
+ * Number of slots in the action external-function table.
+ *
+ */
+enum ACTION_EXT_SIZE {
+    ACTION_EXT_FUNC_MAX = 256, /**< External function numbers that the table can hold. */
 };
 
 /**

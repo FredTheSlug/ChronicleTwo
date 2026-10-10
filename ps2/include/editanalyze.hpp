@@ -2,7 +2,10 @@
 
 #include "common.h"
 
-class CEditData;
+#include "editdata.hpp"
+#include "editmap.hpp"
+#include "editparts.hpp"
+
 /**
  * @file
  * Declares the town analysis of the Georama maps: the checks that turn the
@@ -10,9 +13,6 @@ class CEditData;
  * checks on whether a villager can live in a house, and the events a map
  * sets up from save flags when it is entered.
  */
-
-class CEditMap;
-class CEditParts;
 
 /**
  *

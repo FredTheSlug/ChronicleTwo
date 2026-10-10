@@ -2,20 +2,27 @@
 
 #include "common.h"
 
+#include <libvu0.h>
+
+#include "editdebug.hpp"
+#include "editevent.hpp"
+#include "mainloop.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_visual.hpp"
+#include "nd_meswin.hpp"
+#include "wavetable.hpp"
+
 /**
  * @file
  * Declares the town main-loop mode, which walks the player through a town and switches between walking and Georama editing.
  */
-
-class ClsMes;
-class mgCMemory;
 
 /**
  *
  * Parameters that the main loop hands to a mode when it enters it.
  *
  */
-struct INIT_LOOP_ARG;
 
 /**
  *
@@ -204,3 +211,164 @@ extern mgCMemory ScriptBuffer;
 
 /** Memory block used when a town event loads another script. */
 extern mgCMemory ScriptBuffer__2;
+
+/**
+ *
+ * Wave table that animates the editor's water surfaces.
+ *
+ */
+extern CWaveTable WaveTable;
+
+/**
+ *
+ * Position of the controlled character on the previous frame.
+ *
+ */
+extern sceVu0FVECTOR CharaOldPos;
+
+/**
+ *
+ * First VIF1 packet buffer of the editor's double-buffered packets.
+ *
+ */
+extern mgCMemory buf0;
+
+/**
+ *
+ * Second VIF1 packet buffer of the editor's double-buffered packets.
+ *
+ */
+extern mgCMemory buf1;
+
+/**
+ *
+ * Double-buffered data packet stacks carved out of the control-character buffer.
+ *
+ */
+extern mgCMemory data_buf__2[2];
+
+/**
+ *
+ * Double-buffered data packet stacks used before the editor's buffers are laid out.
+ *
+ */
+extern mgCMemory init_dbuf[2];
+
+/**
+ *
+ * Scratch stack used while loading models.
+ *
+ */
+extern mgCMemory WorkBuffer;
+
+/**
+ *
+ * Stack the editor reads menu files into.
+ *
+ */
+extern mgCMemory MenuBuffer__2;
+
+/**
+ *
+ * Heap that character effects allocate from.
+ *
+ */
+extern mgCMemory ChrEffBuffer;
+
+/**
+ *
+ * Stack holding the editor's resident textures, models and effects.
+ *
+ */
+extern mgCMemory TotalDataBuff;
+
+/**
+ *
+ * Stack holding the controlled character and the data packet buffers.
+ *
+ */
+extern mgCMemory ControlCharaBuff;
+
+/**
+ *
+ * Scene stack 1, holding the main map data.
+ *
+ */
+extern mgCMemory MainDataBuff;
+
+/**
+ *
+ * Scene stack 2, holding the main characters.
+ *
+ */
+extern mgCMemory MainCharaBuff;
+
+/**
+ *
+ * Scene stack 3, holding secondary map data.
+ *
+ */
+extern mgCMemory SubDataBuff;
+
+/**
+ *
+ * Scene stack 4, holding secondary characters.
+ *
+ */
+extern mgCMemory SubCharaBuff;
+
+/**
+ *
+ * Scene stacks 5 to 8, holding event data.
+ *
+ */
+extern mgCMemory EventBuff[4];
+
+/**
+ *
+ * Stacks the party characters are loaded into.
+ *
+ */
+extern mgCMemory CharaBufs[8];
+
+/**
+ *
+ * Stack the fishing mode loads into, carved from the first character stack.
+ *
+ */
+extern mgCMemory FishingBuff;
+
+/**
+ *
+ * Stack holding the sky model.
+ *
+ */
+extern mgCMemory SkyBuff;
+
+/**
+ *
+ * Event runner of the Georama editor.
+ *
+ */
+extern CEditEvent EditEvent;
+
+/**
+ *
+ * Debug and start-up settings of the Georama editor.
+ *
+ */
+extern EditDebugInfo EdDebugInfo;
+
+/**
+ *
+ * Visual of the test model built at start-up.
+ *
+ */
+extern mgCVisualMDT TestVisual;
+
+/**
+ *
+ * Frame of the test model built at start-up.
+ *
+ */
+extern mgCFrame TestFrame;

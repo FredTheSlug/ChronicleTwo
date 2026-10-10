@@ -3,6 +3,8 @@
 #include "common.h"
 
 #include "collision.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_memory.hpp"
 
 /**
  * @file
@@ -10,9 +12,6 @@
  * which measures how parts overlap one another on the ground plane and
  * sorts their triangles into floors and walls.
  */
-
-class mgCMemory;
-struct mgVu0FBOX;
 
 /**
  *

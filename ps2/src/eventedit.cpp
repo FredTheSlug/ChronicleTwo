@@ -307,12 +307,12 @@ void DrawBox(float (*corners)[4], int r, int g, int b) {
     prim.End();
 }
 
-void VectMatMul(float *out, float *vec, float (*mat)[4]) {
+void VectMatMul(float *out, float *vec, float (*matrix)[4]) {
     float result[4];
 
-    result[0] = vec[0] * mat[0][0] + vec[1] * mat[1][0] + vec[2] * mat[2][0];
-    result[1] = vec[0] * mat[0][1] + vec[1] * mat[1][1] + vec[2] * mat[2][1];
-    result[2] = vec[0] * mat[0][2] + vec[1] * mat[1][2] + vec[2] * mat[2][2];
+    result[0] = vec[0] * matrix[0][0] + vec[1] * matrix[1][0] + vec[2] * matrix[2][0];
+    result[1] = vec[0] * matrix[0][1] + vec[1] * matrix[1][1] + vec[2] * matrix[2][1];
+    result[2] = vec[0] * matrix[0][2] + vec[1] * matrix[1][2] + vec[2] * matrix[2][2];
     result[3] = 1.0f;
     sceVu0CopyVector(out, result);
 }

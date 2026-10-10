@@ -1846,11 +1846,6 @@ int CheckGiftPack(CActiveMonster *monster, CColPrim *prim) {
     return 1;
 }
 
-extern CFireAfterHit  fireAfterHit[];
-extern CChillAfterHit chillAfterHit[];
-extern CThunder       thunder[];
-extern CTornado       tornado[];
-
 static inline DNG_BATTLE_AREA *BattleArea(CScene *scene) {
     return &scene->battle_area;
 }

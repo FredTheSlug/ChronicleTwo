@@ -53,7 +53,7 @@ source-level double-to-float casts.
 ### Control (nested struct, size 0xC)
 MoveCamera(CPadControl*) builds it on the stack: +0 `rot` (analog 6 * -0.05, or +/-0.05
 from buttons 3/2, negated by rot_reverse), +4 `height` (analog 7 * -2.0), +8 `rot_back`
-(button 4 or 1). With pad == NULL all zero.
+(button 4, or PAD_BTN_CANCEL). With pad == NULL all zero.
 
 ### Behaviour notes for MoveCamera(Control*)
 - next_ref = follow + follow_offset; horizontal delta to next_pos is pushed in/out to
@@ -62,7 +62,7 @@ from buttons 3/2, negated by rot_reverse), +4 `height` (analog 7 * -2.0), +8 `ro
   drifts 1/20 per step back into [rest_min_height, rest_max_height].
 - delta.y = lerp(near_height, far_height) by (dist - min_dist)/(max_dist - min_dist);
   next_pos.y = next_ref.y + height, then next_pos += delta.
-- rot_back request (unless bit 0x40) -> RotBack(rot[1] - PI) (`rot` is the player's rotation
+- rot_back request (unless bit 0x40) -> RotBack(player_rot[1] - PI) (`player_rot` is the player's rotation
   vector; [1] is the Y angle).
 - Unless `no_check`: CheckGround, then CheckCollision, and AutoMove only when no turn input
   and bit 0x80 clear.

@@ -256,7 +256,7 @@ public:
      * @address 0x2F11F0
      * @size 0x180
      */
-    void MoveCamera(CPadControl *pad, float *target, CCPoly *polys, int poly_count);
+    void MoveCamera(CPadControl *pad, float *player_rot, CCPoly *polys, int poly_count);
 
     /**
      *
@@ -268,7 +268,7 @@ public:
      * @address 0x2F1370
      * @size 0x3A0
      */
-    void MoveCamera(Control *control, float *target, CCPoly *polys, int poly_count);
+    void MoveCamera(Control *control, float *player_rot, CCPoly *polys, int poly_count);
 
     /**
      *
@@ -356,7 +356,7 @@ public:
     /**
      *
      * Swings the eye round, a little at a time either way, until no wall
-     * stands between it and the point that it looks at. Returns non-zero
+     * stands between it and the point that it looks at. Returns true
      * when the eye has a clear view.
      *
      * @mangled AutoMove__14CCameraControlFP6CCPolyi

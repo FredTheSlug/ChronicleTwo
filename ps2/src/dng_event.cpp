@@ -2288,7 +2288,7 @@ void LoadDungeonMapFile(char *map_name, char *cfg_name, int gen_flag) {
     }
 
     for (room = 0; room < 8; room++) {
-        AutoMapGen.room[room].unk_0 = 0;
+        AutoMapGen.room[room].no_door = 0;
     }
 
     AutoMapGen.healing_point.enable = 0;

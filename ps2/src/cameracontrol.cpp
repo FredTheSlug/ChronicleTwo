@@ -33,21 +33,21 @@ void CameraCtrlParam::SetFixDist(float distance) {
 CCameraControl::CCameraControl() : mgCCameraFollow(40.0f, 30.0f, 0.0f, 8.0f) {
     mgCCameraFollow(40.0f, 30.0f, 0.0f, 8.0f);
     active_param = 0;
-    control_on = 0;
-    CameraCtrlParam *p = GetActiveParam();
-    p->min_dist = 100.0f;
-    p->max_dist = 160.0f;
-    p->near_height = 18.0f;
-    p->far_height = 10.0f;
-    p->max_height = 40.0f;
-    p->min_height = -15.0f;
-    p->rest_max_height = 20.0f;
-    p->rest_min_height = -15.0f;
-    p->height = -15.0f;
-    p->ground_space = 25.0f;
-    check_ref_on = 0;
-    p->no_check = 0;
-    rot_reverse = 0;
+    control_on = false;
+    CameraCtrlParam *active = GetActiveParam();
+    active->min_dist = 100.0f;
+    active->max_dist = 160.0f;
+    active->near_height = 18.0f;
+    active->far_height = 10.0f;
+    active->max_height = 40.0f;
+    active->min_height = -15.0f;
+    active->rest_max_height = 20.0f;
+    active->rest_min_height = -15.0f;
+    active->height = -15.0f;
+    active->ground_space = 25.0f;
+    check_ref_on = false;
+    active->no_check = false;
+    rot_reverse = false;
     InitStatus();
     default_param = *GetActiveParam();
 }
@@ -70,38 +70,38 @@ void CCameraControl::BitResetRotCameraCancel(int mask) {
 
 void CCameraControl::InitStatus() {
     rot_cancel = 0;
-    rot_back = 0;
+    rot_back = false;
     rot_back_angle = 0.0f;
     mgZeroVector(dir_offset);
 }
 
 void CCameraControl::ControlOn() {
-    CameraCtrlParam *p;
+    CameraCtrlParam *active;
 
-    if (control_on == 0) {
+    if (!control_on) {
         *(u_long128 *) next_ref = *(u_long128 *) ref;
         *(u_long128 *) next_pos = *(u_long128 *) pos;
-        p = GetActiveParam();
-        p->height = next_pos[1] - next_ref[1];
+        active = GetActiveParam();
+        active->height = next_pos[1] - next_ref[1];
 
-        if (p->height < p->min_height) {
-            p->height = p->min_height;
+        if (active->height < active->min_height) {
+            active->height = active->min_height;
         }
 
-        if (p->height > p->max_height) {
-            p->height = p->max_height;
+        if (active->height > active->max_height) {
+            active->height = active->max_height;
         }
     }
 
-    control_on = 1;
+    control_on = true;
 }
 
 void CCameraControl::ControlOff() {
-    control_on = 0;
+    control_on = false;
 }
 
 void CCameraControl::Stay() {
-    if (control_on == 0) {
+    if (!control_on) {
         mgCCameraFollow::Stay();
     } else {
         mgCCamera::Stay();
@@ -111,13 +111,13 @@ void CCameraControl::Stay() {
 void CCameraControl::Step(int frames) {
     float offset[4];
 
-    if (control_on == 0) {
+    if (!control_on) {
         mgCCameraFollow::Step(frames);
         return;
     }
 
     if (frames < 0) {
-        if (rot_back != 0) {
+        if (rot_back) {
             SetRotate(rot_back_angle);
         }
     }
@@ -131,21 +131,21 @@ void CCameraControl::Step(int frames) {
     angle = atan2f(-offset[0], -offset[2]);
 }
 
-void CCameraControl::MoveCamera(CPadControl *pad, float *target, CCPoly *polys, int poly_count) {
+void CCameraControl::MoveCamera(CPadControl *pad, float *player_rot, CCPoly *polys, int poly_count) {
     Control control;
 
     control.height = 0.0f;
     control.rot = 0.0f;
-    control.rot_back = 0;
+    control.rot_back = false;
 
     if (pad != NULL) {
         float turn = 0.0f;
 
-        if (!(rot_cancel & (int) CAMERA_ROT_CANCEL_ANALOG)) {
+        if (!(rot_cancel & CAMERA_ROT_CANCEL_ANALOG)) {
             turn = 0.05f * -pad->Analog(6);
         }
 
-        if (!(rot_cancel & (int) CAMERA_ROT_CANCEL_BUTTON)) {
+        if (!(rot_cancel & CAMERA_ROT_CANCEL_BUTTON)) {
             if (pad->Btn(PAD_BTN_L1_HELD) != 0) {
                 turn = 0.05f;
             }
@@ -155,26 +155,26 @@ void CCameraControl::MoveCamera(CPadControl *pad, float *target, CCPoly *polys, 
             }
         }
 
-        if (rot_reverse != 0) {
+        if (rot_reverse) {
             turn = -turn;
         }
 
         control.rot = turn;
         control.height = 2.0f * -pad->Analog(7);
-        int fast = pad->Btn(4) != 0;
+        int swing_back = pad->Btn(4) != 0;
 
-        if (fast == 0) {
-            fast = pad->Btn(1) != 0;
+        if (!swing_back) {
+            swing_back = pad->Btn(PAD_BTN_CANCEL) != 0;
         }
 
-        control.rot_back = fast & 0xFF;
+        control.rot_back = swing_back & 0xFF;
     }
 
-    MoveCamera(&control, target, polys, poly_count);
+    MoveCamera(&control, player_rot, polys, poly_count);
 }
 
-void CCameraControl::MoveCamera(Control *control, float *target, CCPoly *polys, int poly_count) {
-    CameraCtrlParam *param;
+void CCameraControl::MoveCamera(Control *control, float *player_rot, CCPoly *polys, int poly_count) {
+    CameraCtrlParam *active;
     float            follow[4];
     float            follow_offset[4];
     float            to_target[4];
@@ -182,13 +182,13 @@ void CCameraControl::MoveCamera(Control *control, float *target, CCPoly *polys, 
     float            correction[4];
     float            distance;
     float            turn;
-    float            zoom;
+    float            rise;
 
-    if (control_on == 0) {
+    if (!control_on) {
         return;
     }
 
-    param = GetActiveParam();
+    active = GetActiveParam();
     GetFollow(follow);
     GetFollowOffset(follow_offset);
     sceVu0AddVector(next_ref, follow, follow_offset);
@@ -204,17 +204,17 @@ void CCameraControl::MoveCamera(Control *control, float *target, CCPoly *polys, 
         direction[2] = 1.0f;
     }
 
-    if (distance < param->min_dist) {
-        sceVu0ScaleVector(correction, direction, distance - param->min_dist);
+    if (distance < active->min_dist) {
+        sceVu0ScaleVector(correction, direction, distance - active->min_dist);
     }
 
-    if (distance > param->max_dist) {
-        sceVu0ScaleVector(correction, direction, distance - param->max_dist);
+    if (distance > active->max_dist) {
+        sceVu0ScaleVector(correction, direction, distance - active->max_dist);
     }
 
     {
         float effective;
-        float min_dist = param->min_dist;
+        float min_dist = active->min_dist;
         effective = min_dist;
 
         if (distance < min_dist) {
@@ -228,55 +228,55 @@ void CCameraControl::MoveCamera(Control *control, float *target, CCPoly *polys, 
         Rotate(turn);
     }
 
-    zoom = control->height;
-    param->height += zoom;
+    rise = control->height;
+    active->height += rise;
 
-    if (param->height < param->min_height) {
-        param->height = param->min_height;
+    if (active->height < active->min_height) {
+        active->height = active->min_height;
     }
 
-    if (param->height > param->max_height) {
-        param->height = param->max_height;
+    if (active->height > active->max_height) {
+        active->height = active->max_height;
     }
 
-    if (zoom == 0.0f) {
-        if (param->rest_min_height > param->height) {
-            param->height += (param->rest_min_height - param->height) / 20.0f;
+    if (rise == 0.0f) {
+        if (active->rest_min_height > active->height) {
+            active->height += (active->rest_min_height - active->height) / 20.0f;
         }
 
-        if (param->rest_max_height < param->height) {
-            param->height += (param->rest_max_height - param->height) / 20.0f;
+        if (active->rest_max_height < active->height) {
+            active->height += (active->rest_max_height - active->height) / 20.0f;
         }
     }
 
     {
-        float near_distance = param->min_dist;
-        float far_distance = param->max_dist;
-        float near_height = param->near_height;
-        float far_height = param->far_height;
+        float near_distance = active->min_dist;
+        float far_distance = active->max_dist;
+        float near_height = active->near_height;
+        float far_height = active->far_height;
         float ratio = (distance - near_distance) / (far_distance - near_distance);
         correction[1] = near_height + ratio * (far_height - near_height);
     }
-    next_pos[1] = next_ref[1] + param->height;
+    next_pos[1] = next_ref[1] + active->height;
     mgAddVector(next_pos, correction);
 
-    if (control->rot_back != 0 && !(rot_cancel & (int) CAMERA_ROT_CANCEL_ROT_BACK)) {
-        RotBack(target[1] - PI);
+    if (control->rot_back && !(rot_cancel & CAMERA_ROT_CANCEL_ROT_BACK)) {
+        RotBack(player_rot[1] - PI);
     }
 
-    if (rot_back != 0) {
+    if (rot_back) {
         float angle = mgAngleInterpolate(GetAngle(), rot_back_angle, 1.0f, 0);
         SetRotate(angle);
 
         if (mgAngleCmp(angle, rot_back_angle, 0.1f) == 0) {
-            rot_back = 0;
+            rot_back = false;
         }
     }
 
-    if (param->no_check == 0) {
+    if (!active->no_check) {
         CheckGround(polys, poly_count);
 
-        if (turn != 0.0f || (rot_cancel & (int) CAMERA_ROT_CANCEL_AUTO_MOVE)) {
+        if (turn != 0.0f || (rot_cancel & CAMERA_ROT_CANCEL_AUTO_MOVE)) {
             CheckCollision(polys, poly_count);
             return;
         }
@@ -316,28 +316,28 @@ void CCameraControl::SetRotate(float angle) {
 }
 
 void CCameraControl::SetHeight(float height) {
-    CameraCtrlParam *p;
+    CameraCtrlParam *active;
 
-    if (control_on == 0) {
+    if (!control_on) {
         mgCCameraFollow::SetHeight(height);
     }
 
-    p = GetActiveParam();
+    active = GetActiveParam();
     next_pos[1] = next_ref[1] + height;
-    p->height = height;
+    active->height = height;
 }
 
 void CCameraControl::RotBack(float angle) {
-    rot_back = 1;
+    rot_back = true;
     rot_back_angle = angle;
 }
 
 void CCameraControl::CancelRotBack() {
-    rot_back = 0;
+    rot_back = false;
 }
 
 void CCameraControl::SetCheckRef(float *ref) {
-    check_ref_on = 1;
+    check_ref_on = true;
     *(u_long128 *) check_ref = *(u_long128 *) ref;
 }
 
@@ -366,7 +366,7 @@ void CCameraControl::CheckCollision(CCPoly *polys, int poly_count) {
 
     GetActiveParam();
 
-    if (check_ref_on != 0) {
+    if (check_ref_on) {
         *(u_long128 *) target = *(u_long128 *) check_ref;
         target[1] += follow_offset[1];
     } else {
@@ -384,12 +384,12 @@ void CCameraControl::CheckCollision(CCPoly *polys, int poly_count) {
     sceVu0SubVector(side_end, side_end, margin);
     sceVu0ScaleVector(margin, view_dir, 5.0f);
     sceVu0SubVector(view_end, view_end, margin);
-    slid = 0;
+    slid = false;
     hit_index = CheckHit(polys, poly_count, target, view_end, hit, 1, 0);
 
     if (hit_index < 0) {
         hit_index = -1;
-        slid = 1;
+        slid = true;
         *(u_long128 *) hit = *(u_long128 *) unused_hit;
         *(u_long128 *) view_end = *(u_long128 *) side_end;
     }
@@ -400,7 +400,7 @@ void CCameraControl::CheckCollision(CCPoly *polys, int poly_count) {
         sceVu0ScaleVector(push, push, 5.0f);
         mgAddVector(hit, push);
 
-        if (slid != 0) {
+        if (slid) {
             old_dist = mgDistVectorXZ(next_pos, target);
             float ratio = mgDistVectorXZ(hit, target) / old_dist;
             hit[1] += ratio * (next_pos[1] - target[1]);
@@ -440,7 +440,7 @@ int CCameraControl::AutoMove(CCPoly *polys, int poly_count) {
 
     GetActiveParam();
 
-    if (check_ref_on != 0) {
+    if (check_ref_on) {
         *(u_long128 *) target = *(u_long128 *) check_ref;
         target[1] += follow_offset[1];
     } else {
@@ -462,7 +462,7 @@ int CCameraControl::AutoMove(CCPoly *polys, int poly_count) {
     ray_start[3] = radius;
 
     if (CheckHitsPipe(polys, poly_count, ray_start, ray_end, 1, &hit_count, &plane, 0, 0) <= 0) {
-        return 1;
+        return true;
     }
 
     *(u_long128 *) rot_a = *(u_long128 *) dir_copy;
@@ -473,7 +473,7 @@ int CCameraControl::AutoMove(CCPoly *polys, int poly_count) {
     mgUnitMatrix(turn_b);
     sceVu0RotMatrixY(turn_a, turn_a, 0.01636246219277382f);
     sceVu0RotMatrixY(turn_b, turn_b, -0.01636246219277382f);
-    found = 0;
+    found = false;
     *(u_long128 *) candidate = *(u_long128 *) start_pos;
     step = 0;
 
@@ -485,7 +485,7 @@ int CCameraControl::AutoMove(CCPoly *polys, int poly_count) {
         probe[3] = radius;
 
         if (CheckHitsPipe(polys, poly_count, probe, ray_end, 1, &hit_count, &plane, 0, 0) <= 0) {
-            found = 1;
+            found = true;
             break;
         }
 
@@ -496,17 +496,17 @@ int CCameraControl::AutoMove(CCPoly *polys, int poly_count) {
         probe[3] = radius;
 
         if (CheckHitsPipe(polys, poly_count, probe, ray_end, 1, &hit_count, &plane, 0, 0) <= 0) {
-            found = 1;
+            found = true;
             break;
         }
 
         step++;
     } while (step < 0x20);
 
-    result = 0;
+    result = false;
 
-    if (found != 0) {
-        result = 1;
+    if (found) {
+        result = true;
         *(u_long128 *) next_pos = *(u_long128 *) candidate;
     }
 
@@ -524,16 +524,16 @@ void CCameraControl::CheckGround(CCPoly *polys, int poly_count) {
     float            hit_info[4];
     float            floor_normal[4];
     float            ceiling_normal[4];
-    CameraCtrlParam *param;
+    CameraCtrlParam *active;
     float            top;
     float            bottom;
     int              floor_index;
     int              count;
     int              i;
 
-    param = GetActiveParam();
+    active = GetActiveParam();
 
-    if (check_ref_on != 0) {
+    if (check_ref_on) {
         *(u_long128 *) target = *(u_long128 *) check_ref;
         target[1] += follow_offset[1];
     } else {
@@ -543,8 +543,8 @@ void CCameraControl::CheckGround(CCPoly *polys, int poly_count) {
     *(u_long128 *) from = *(u_long128 *) next_pos;
     *(u_long128 *) line_high = *(u_long128 *) next_pos;
     *(u_long128 *) line_low = *(u_long128 *) next_pos;
-    line_high[1] = 20.0f + (target[1] + param->max_height);
-    line_low[1] = (target[1] + param->min_height) - param->ground_space;
+    line_high[1] = 20.0f + (target[1] + active->max_height);
+    line_low[1] = (target[1] + active->min_height) - active->ground_space;
     top = line_high[1];
     bottom = line_low[1];
 
@@ -566,7 +566,7 @@ void CCameraControl::CheckGround(CCPoly *polys, int poly_count) {
         if (hits[i][1] <= 1.0f + top) {
             sceVu0Normalize(floor_normal, polys[indices[i]].normal);
 
-            if (next_pos[1] - hits[i][1] < param->ground_space) {
+            if (next_pos[1] - hits[i][1] < active->ground_space) {
                 if (floor_normal[1] > 0.5f) {
                     floor_index = i;
                     break;
@@ -590,10 +590,10 @@ void CCameraControl::CheckGround(CCPoly *polys, int poly_count) {
 
     if (floor_index >= 0 && ceiling_index >= 0) {
         next_pos[1] =
-            0.5f * (param->ground_space + hits[floor_index][1] + hits[ceiling_index][1] - 20.0f);
+            0.5f * (active->ground_space + hits[floor_index][1] + hits[ceiling_index][1] - 20.0f);
     } else {
         if (floor_index >= 0) {
-            next_pos[1] = param->ground_space + hits[floor_index][1];
+            next_pos[1] = active->ground_space + hits[floor_index][1];
         }
 
         if (ceiling_index >= 0) {
@@ -638,5 +638,5 @@ void CCameraControl::CopyParam(CCameraControl &dest) {
 }
 
 int CCameraControl::Iam() {
-    return 1000;
+    return CAMERA_KIND_CONTROL;
 }

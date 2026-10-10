@@ -2170,7 +2170,7 @@ int CGameDataUsed::CopyDataItem(CGameDataUsed *other) {
 int CGameDataUsed::CopyDataRoboPart(int item_no) {
     CDataRoboPart *record;
     char          *message;
-    char          *base;
+    ROBOPART_USED *part;
     float          durability;
     float          energy;
 
@@ -2183,7 +2183,7 @@ int CGameDataUsed::CopyDataRoboPart(int item_no) {
     this->used_type = USED_ITEM_TYPE_ROBO_PART;
     this->item_no = item_no;
     this->item_type = GetItemDataType(item_no);
-    base = (char *) &this->data.robopart.energy;
+    part = &this->data.robopart;
     durability = record->durability;
     this->data.robopart.whp.max = durability;
     this->data.robopart.whp.now = durability;
@@ -2205,7 +2205,7 @@ int CGameDataUsed::CopyDataRoboPart(int item_no) {
     message = GetItemMessage(item_no);
 
     if (message != NULL) {
-        strcpy(base + offsetof(ROBOPART_USED, name), message);
+        strcpy(part->name, message);
     }
 
     return true;

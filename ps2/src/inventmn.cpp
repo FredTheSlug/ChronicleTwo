@@ -1831,8 +1831,7 @@ int CheckInventItem(int item_id) {
     short            *neta_id;
     int               i;
 
-    manage.num = 0;
-    manage.table = NULL;
+    manage.Clear();
     buffer = (char *) MenuCalcBufAlignment((u_long128 *) align_buffer);
     LoadFile2("menu/inv6.lst", buffer, &file_size, 0);
     InventTeigiStack.stSetBuffer((u_long128 *) teigi_buffer, 0x400);
@@ -1900,8 +1899,7 @@ int CheckItemTable(int item_id, int *values) {
     char             *buffer;
     INVENT_DATA_INFO *record;
 
-    manage.num = 0;
-    manage.table = NULL;
+    manage.Clear();
     buffer = (char *) MenuCalcBufAlignment((u_long128 *) align_buffer);
 
     if (LoadFile2("menu/inv6.lst", buffer, &file_size, 0) != 0) {

@@ -2,7 +2,10 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
 #include "mg_sprite.hpp"
+#include "mg_texture.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
@@ -11,11 +14,6 @@
  * of S51, the falling fire rain and the geysers that erupt from placed geyser
  * parts.
  */
-
-class CScene;
-class mgCFrame;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *

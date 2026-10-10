@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include "mg_drawprim.hpp"
 #include "mg_tanime.hpp"
 
 /**
@@ -11,8 +12,6 @@
  * the lookups that turn the text's characters, tags and special symbols
  * (gaiji) into font numbers and texture rectangles.
  */
-
-class mgCDrawPrim;
 
 /**
  *

@@ -4,16 +4,16 @@
 
 #include <libvu0.h>
 
+#include "collision.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the river grid of the Georama editor: the cells of a ground part
  * that river can be laid on, and the pieces and turns that make up the river's
  * banks in each quarter of a cell.
  */
-
-class mgCMemory;
-struct CCPoly;
-struct mgVu0FBOX;
 
 /**
  *

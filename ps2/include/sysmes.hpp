@@ -3,14 +3,13 @@
 #include "common.h"
 
 #include "mg_memory.hpp"
+#include "nd_meswin.hpp"
 
 /**
  * @file
  * Declares the system message windows and the language-specific system
  * message files that every scene uses for prompts and notifications.
  */
-
-class ClsMes;
 
 /**
  *

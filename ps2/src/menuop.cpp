@@ -8,6 +8,7 @@
 #include "actionchara.hpp"
 #include "charasetup.hpp"
 #include "dataread.hpp"
+#include "dng_main.hpp"
 #include "dngmenu.hpp"
 #include "event_func.hpp"
 #include "font.hpp"
@@ -3596,14 +3597,7 @@ int SubGameSaveKey() {
             card = GetSubGameCard(MemoryCardPtr);
 
             if (step_result != 0) {
-                if (McCheckMCPs2(card) == 0) {
-                    goto format_error;
-                }
-
-                next = SUB_SAVE_DIR_MAKING;
-
-                if (card != NULL && card->formatted == 0) {
-                format_error:
+                if (McCheckMCPs2(card) == 0 || (card != NULL && card->formatted == 0)) {
                     next = SUB_SAVE_CARD_ERROR;
                 } else {
                     next = SUB_SAVE_DIR_MAKING;

@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
 #include "mg_tanime.hpp"
 
 /**
@@ -11,7 +12,11 @@
  * and the object stack an edit map keeps its messages in.
  */
 
-class mgCMemory;
+/**
+ *
+ * Message entry of an edit map, whose layout the game never exposes.
+ *
+ */
 struct EMAP_MESSAGE;
 
 /**

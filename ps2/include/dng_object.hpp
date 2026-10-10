@@ -4,15 +4,15 @@
 
 #include <libvu0.h>
 
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+
 /**
  * @file
  * Declares the dungeon's field objects: the projectiles fired by the player's guns (rockets, lasers and machine gun
  * bullets), the pickups that drop from defeated monsters, and the robot's voice commentary.
  */
-
-class mgCFrame;
-class mgCTexture;
-class mgCMemory;
 
 /**
  *

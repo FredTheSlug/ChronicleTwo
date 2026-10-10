@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
@@ -10,8 +11,6 @@
  * the hit points, weapon durability and absorption points, active items and
  * status effects of the unit the player controls in a dungeon.
  */
-
-class mgCTexture;
 
 /**
  *

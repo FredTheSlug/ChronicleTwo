@@ -2,14 +2,14 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the townspeople's requests: the request list read from the quest
  * script for the request memo, the saved progress of each request, and the
  * monster book's saved defeat counts.
  */
-
-class mgCMemory;
 
 /**
  *

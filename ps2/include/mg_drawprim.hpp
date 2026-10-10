@@ -5,6 +5,7 @@
 #include <libpkt.h>
 
 #include "mg_drawenv.hpp"
+#include "mg_memory.hpp"
 #include "mg_texture.hpp"
 
 /**
@@ -13,10 +14,6 @@
  * DMA packets, and the draw manager that groups packets by texture and sends
  * them in draw order.
  */
-
-class mgCMemory;
-class mgCTextureManager;
-class mgCDrawManager;
 
 /**
  *
@@ -124,6 +121,148 @@ struct mgSORT_PACKET {
 };
 
 STATIC_ASSERT(sizeof(mgSORT_PACKET) == 0x10);
+
+/**
+ *
+ * Collects the frame's object packets by texture group and sends them,
+ * group by group in draw order, after reloading each group's textures.
+ *
+ */
+class mgCDrawManager {
+public:
+    int               *draw_order;  /**< Texture groups in the order they are drawn, ending in -1, or NULL for the natural order. */
+    int               *order_index; /**< Position in draw order of each texture group, -1 for a group not drawn. */
+    int                group_max;   /**< Texture groups packets may be registered for. */
+    int                group_num;   /**< Texture groups drawn. */
+    mgSORT_PACKET   ***packet_list; /**< Registered packets of each drawn group, in registration order. */
+    int               *unk_14;
+    int               *packet_num; /**< Number of packets registered for each drawn group. */
+    int                sort_num;   /**< Buckets in the sort table. */
+    int                sort_max;   /**< Index of the last sort table bucket. */
+    float              sort_num_f; /**< Buckets in the sort table, as a float. */
+    float              near_clip;  /**< Near clip distance of the render info. */
+    float              far_clip;   /**< Far clip distance of the render info. */
+    float              clip_range; /**< Distance from the near to the far clip. */
+    int                unk_34;
+    int                unk_38;
+    int                unk_3c;
+    int                unk_40;
+    float              sort_near;       /**< Near clip distance, beside the clip ratio and bucket count. */
+    float              sort_ratio;      /**< Near clip distance divided by far clip distance. */
+    float              sort_scale;      /**< Buckets in the sort table, as a float. */
+    mgSORT_PACKET    **sort_table;      /**< Packet lists of the sort table's buckets. */
+    mgCMemory         *memory;          /**< Memory the frame's tables and packet entries are taken from. */
+    mgCTextureManager *texture_manager; /**< Texture manager whose slots are the texture groups. */
+    mgCMemory         *packet_memory;   /**< Frame's packet memory, used when BeginDraw is given none. */
+    mgCMemory         *data_memory;     /**< Frame's data memory. */
+    mgRENDER_INFO     *render_info;     /**< Render info that supplies the clip distances and depth buffer. */
+    int                unk_68;
+    int                unk_6c;
+    int                unk_70;
+    mgSORT_PACKET   ***packet_cursor; /**< Next free entry of each drawn group's packet list. */
+    int                unk_78;
+    int                unk_7c;
+
+    /**
+     *
+     * Creates a manager with no frame state.
+     *
+     * @mangled __ct__14mgCDrawManagerFv
+     * @address 0x135810
+     * @size 0x20
+     */
+    mgCDrawManager();
+
+    /**
+     *
+     * Sets the number of sort table buckets and the clip distances that
+     * map depths onto them.
+     *
+     * @mangled SetSortTable__14mgCDrawManagerFi
+     * @address 0x135830
+     * @size 0x90
+     */
+    void SetSortTable(int num);
+
+    /**
+     *
+     * Starts collecting packets in the given memory, drawing the texture
+     * groups listed (ending in a negative number) in that order, or every
+     * group when given no list.
+     *
+     * @mangled BeginDraw__14mgCDrawManagerFP9mgCMemoryPi
+     * @address 0x1358C0
+     * @size 0x240
+     */
+    void BeginDraw(mgCMemory *memory, int *id_list);
+
+    /**
+     *
+     * Empties the group tables and the sort table.
+     *
+     * @mangled ClearTable__14mgCDrawManagerFv
+     * @address 0x135B00
+     * @size 0x80
+     */
+    void ClearTable();
+
+    /**
+     *
+     * Sorts the registered packets into a list for each texture group.
+     *
+     * @mangled PreEndDraw__14mgCDrawManagerFv
+     * @address 0x135B80
+     * @size 0x170
+     */
+    void PreEndDraw();
+
+    /**
+     *
+     * Writes the reload of a texture group's textures into a VIF1 packet;
+     * gives zero when the group is not drawn.
+     *
+     * @mangled ReloadTexture__14mgCDrawManagerFiP13sceVif1Packet
+     * @address 0x135CF0
+     * @size 0xC0
+     */
+    int ReloadTexture(int group, sceVif1Packet *vif_packet);
+
+    /**
+     *
+     * Writes calls to a texture group's packets, each after its VU
+     * program, into a VIF1 packet; gives zero when the group is not drawn.
+     *
+     * @mangled Draw__14mgCDrawManagerFiP13sceVif1Packet
+     * @address 0x135DB0
+     * @size 0x200
+     */
+    int Draw(int group, sceVif1Packet *vif_packet);
+
+    /**
+     *
+     * Sorts the registered packets and writes every drawn group's texture
+     * reload and packet calls into a VIF1 packet.
+     *
+     * @mangled EndDraw__14mgCDrawManagerFP13sceVif1Packet
+     * @address 0x135FB0
+     * @size 0xB0
+     */
+    void EndDraw(sceVif1Packet *vif_packet);
+
+    /**
+     *
+     * Registers a packet, with the setup packet it needs and its VU
+     * program, for a texture group; a negative group means the first
+     * group drawn.
+     *
+     * @mangled AddPacket__14mgCDrawManagerFiP1P1i
+     * @address 0x136060
+     * @size 0x100
+     */
+    void AddPacket(int group, u_long128 *common, u_long128 *packet, int vu_program);
+};
+
+STATIC_ASSERT(sizeof(mgCDrawManager) == 0x80);
 
 /**
  *
@@ -636,145 +775,3 @@ public:
 };
 
 STATIC_ASSERT(sizeof(mgCDrawPrim) == 0x120);
-
-/**
- *
- * Collects the frame's object packets by texture group and sends them,
- * group by group in draw order, after reloading each group's textures.
- *
- */
-class mgCDrawManager {
-public:
-    int               *draw_order;  /**< Texture groups in the order they are drawn, ending in -1, or NULL for the natural order. */
-    int               *order_index; /**< Position in draw order of each texture group, -1 for a group not drawn. */
-    int                group_max;   /**< Texture groups packets may be registered for. */
-    int                group_num;   /**< Texture groups drawn. */
-    mgSORT_PACKET   ***packet_list; /**< Registered packets of each drawn group, in registration order. */
-    int               *unk_14;
-    int               *packet_num; /**< Number of packets registered for each drawn group. */
-    int                sort_num;   /**< Buckets in the sort table. */
-    int                sort_max;   /**< Index of the last sort table bucket. */
-    float              sort_num_f; /**< Buckets in the sort table, as a float. */
-    float              near_clip;  /**< Near clip distance of the render info. */
-    float              far_clip;   /**< Far clip distance of the render info. */
-    float              clip_range; /**< Distance from the near to the far clip. */
-    int                unk_34;
-    int                unk_38;
-    int                unk_3c;
-    int                unk_40;
-    float              sort_near;       /**< Near clip distance, beside the clip ratio and bucket count. */
-    float              sort_ratio;      /**< Near clip distance divided by far clip distance. */
-    float              sort_scale;      /**< Buckets in the sort table, as a float. */
-    mgSORT_PACKET    **sort_table;      /**< Packet lists of the sort table's buckets. */
-    mgCMemory         *memory;          /**< Memory the frame's tables and packet entries are taken from. */
-    mgCTextureManager *texture_manager; /**< Texture manager whose slots are the texture groups. */
-    mgCMemory         *packet_memory;   /**< Frame's packet memory, used when BeginDraw is given none. */
-    mgCMemory         *data_memory;     /**< Frame's data memory. */
-    mgRENDER_INFO     *render_info;     /**< Render info that supplies the clip distances and depth buffer. */
-    int                unk_68;
-    int                unk_6c;
-    int                unk_70;
-    mgSORT_PACKET   ***packet_cursor; /**< Next free entry of each drawn group's packet list. */
-    int                unk_78;
-    int                unk_7c;
-
-    /**
-     *
-     * Creates a manager with no frame state.
-     *
-     * @mangled __ct__14mgCDrawManagerFv
-     * @address 0x135810
-     * @size 0x20
-     */
-    mgCDrawManager();
-
-    /**
-     *
-     * Sets the number of sort table buckets and the clip distances that
-     * map depths onto them.
-     *
-     * @mangled SetSortTable__14mgCDrawManagerFi
-     * @address 0x135830
-     * @size 0x90
-     */
-    void SetSortTable(int num);
-
-    /**
-     *
-     * Starts collecting packets in the given memory, drawing the texture
-     * groups listed (ending in a negative number) in that order, or every
-     * group when given no list.
-     *
-     * @mangled BeginDraw__14mgCDrawManagerFP9mgCMemoryPi
-     * @address 0x1358C0
-     * @size 0x240
-     */
-    void BeginDraw(mgCMemory *memory, int *id_list);
-
-    /**
-     *
-     * Empties the group tables and the sort table.
-     *
-     * @mangled ClearTable__14mgCDrawManagerFv
-     * @address 0x135B00
-     * @size 0x80
-     */
-    void ClearTable();
-
-    /**
-     *
-     * Sorts the registered packets into a list for each texture group.
-     *
-     * @mangled PreEndDraw__14mgCDrawManagerFv
-     * @address 0x135B80
-     * @size 0x170
-     */
-    void PreEndDraw();
-
-    /**
-     *
-     * Writes the reload of a texture group's textures into a VIF1 packet;
-     * gives zero when the group is not drawn.
-     *
-     * @mangled ReloadTexture__14mgCDrawManagerFiP13sceVif1Packet
-     * @address 0x135CF0
-     * @size 0xC0
-     */
-    int ReloadTexture(int group, sceVif1Packet *vif_packet);
-
-    /**
-     *
-     * Writes calls to a texture group's packets, each after its VU
-     * program, into a VIF1 packet; gives zero when the group is not drawn.
-     *
-     * @mangled Draw__14mgCDrawManagerFiP13sceVif1Packet
-     * @address 0x135DB0
-     * @size 0x200
-     */
-    int Draw(int group, sceVif1Packet *vif_packet);
-
-    /**
-     *
-     * Sorts the registered packets and writes every drawn group's texture
-     * reload and packet calls into a VIF1 packet.
-     *
-     * @mangled EndDraw__14mgCDrawManagerFP13sceVif1Packet
-     * @address 0x135FB0
-     * @size 0xB0
-     */
-    void EndDraw(sceVif1Packet *vif_packet);
-
-    /**
-     *
-     * Registers a packet, with the setup packet it needs and its VU
-     * program, for a texture group; a negative group means the first
-     * group drawn.
-     *
-     * @mangled AddPacket__14mgCDrawManagerFiP1P1i
-     * @address 0x136060
-     * @size 0x100
-     */
-    void AddPacket(int group, u_long128 *common, u_long128 *packet, int vu_program);
-};
-
-STATIC_ASSERT(sizeof(mgCDrawManager) == 0x80);

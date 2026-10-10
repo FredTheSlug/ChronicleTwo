@@ -29,9 +29,7 @@ int LoadGaijiImg() {
             LoadFile("meswin/eu/spn/gaiji.img", GaijiBuff, &size);
             break;
         case LANG_ENGLISH:
-            goto load_usa;
         default:
-        load_usa:
             LoadFile("meswin/usa/gaiji.img", GaijiBuff, &size);
             break;
     }

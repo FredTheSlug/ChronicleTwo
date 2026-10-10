@@ -5,14 +5,14 @@
 #include <libcdvd.h>
 #include <libmpeg.h>
 
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the full-screen movie player: a PSS stream read from disc,
  * demultiplexed into MPEG-2 video decoded by the IPU and PCM audio streamed
  * to the SPU, with decoded frames shown by vblank-driven DMA.
  */
-
-class mgCMemory;
 
 /**
  *

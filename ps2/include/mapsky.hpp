@@ -2,16 +2,16 @@
 
 #include "common.h"
 
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_visual.hpp"
+
 /**
  * @file
  * Declares the sky of a map: the sky, back sky and sun models of each
  * time band, the background model behind them, and the description that
  * a sky pack's configuration script gives of them.
  */
-
-class mgCFrame;
-class mgCVisualMDT;
-class mgCMemory;
 
 /**
  *

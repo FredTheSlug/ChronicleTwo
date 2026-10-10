@@ -2,13 +2,13 @@
 
 #include "common.h"
 
+#include "mg_drawenv.hpp"
+
 /**
  * @file
  * Declares the engine's VU0 vector, bounding-box, matrix, intersection, angle, random-number and
  * table-sine helpers.
  */
-
-struct mgVu0FBOX;
 
 /**
  *

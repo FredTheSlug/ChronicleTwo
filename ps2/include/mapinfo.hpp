@@ -4,7 +4,9 @@
 
 #include <libvu0.h>
 
+#include "collision.hpp"
 #include "mapload.hpp"
+#include "mg_memory.hpp"
 
 /**
  * @file
@@ -12,11 +14,6 @@
  * (texture and model packs, lighting sets, time of day, sky) and the
  * fixed-camera areas of a map.
  */
-
-class mgCMemory;
-class CColFrame;
-class CMapLightingInfo;
-class CCameraDrawInfo;
 
 /**
  *

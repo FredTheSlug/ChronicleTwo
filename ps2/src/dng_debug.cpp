@@ -52,7 +52,6 @@ static char *command_str[] = {
     "Effect_Vol    ",
     NULL,
 };
-extern CFont dbFont;
 
 #include "colprim.hpp"
 #include "gamepad.hpp"

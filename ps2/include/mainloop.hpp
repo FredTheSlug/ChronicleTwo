@@ -4,7 +4,13 @@
 
 #include <cstring>
 
+#include "font.hpp"
 #include "gamepad.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "padcontrol.hpp"
+#include "savedata.hpp"
+#include "scenesnd.hpp"
 #include "sound.hpp"
 
 /**
@@ -14,14 +20,6 @@
  * shared state it owns: the main scene, the save data, the controller,
  * the language, the debug menu settings and the pause menu.
  */
-
-class CFont;
-class CScene;
-class CSaveData;
-class CSubGameData;
-class CPadControl;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *
@@ -343,6 +341,62 @@ extern CPadControl PadCtrl;
  *
  */
 extern DEBUG_INFO DebugInfo;
+
+/**
+ *
+ * Initialization arguments for the current game mode.
+ *
+ */
+extern INIT_LOOP_ARG InitArg;
+
+/**
+ *
+ * Initialization arguments for the next game mode.
+ *
+ */
+extern INIT_LOOP_ARG NextInitArg;
+
+/**
+ *
+ * Initialization arguments for the previous game mode.
+ *
+ */
+extern INIT_LOOP_ARG PrevInitArg;
+
+/**
+ *
+ * Allocator for system sound-effect resources.
+ *
+ */
+extern mgCMemory SystemSeStack;
+
+/**
+ *
+ * Allocator for configuration and villager records.
+ *
+ */
+extern mgCMemory InfoStack;
+
+/**
+ *
+ * Main save-data object owned by the game loop.
+ *
+ */
+extern CSaveData SaveData;
+
+/**
+ *
+ * Allocator for the debug menu resources.
+ *
+ */
+extern mgCMemory MenuBuffer;
+
+/**
+ *
+ * Message window used by the pause menu.
+ *
+ */
+extern ClsMes PauseMes;
 
 /**
  *

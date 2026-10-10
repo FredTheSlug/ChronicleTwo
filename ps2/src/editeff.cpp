@@ -25,7 +25,6 @@ const int effect_idle = 0;
 const int effect_started = 1;
 const int effect_falling = 2;
 const int effect_finished = 3;
-const int star_effect_count = 3;
 const int paint_effect_count = 1;
 const int paint_particle_count = 24;
 /**
@@ -55,9 +54,6 @@ static u32 EffectState;
  *
  */
 static CPaintEffect *PaintEffect;
-
-extern CStarEffect _StarEffect[star_effect_count];
-extern mgCMemory   CurPartsBuff;
 
 void EditSetEffectBuffer(mgCMemory *memory) {
     mgCTexture *texture = mgTexManager.GetTexture("haichi_eff", -1);

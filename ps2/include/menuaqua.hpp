@@ -5,10 +5,12 @@
 #include <libvu0.h>
 
 #include "character.hpp"
+#include "gamedata.hpp"
 #include "menucls1.hpp"
 #include "mg_frame.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
+#include "nd_meswin.hpp"
 #include "savedata.hpp"
 #include "userdata.hpp"
 #include "water.hpp"

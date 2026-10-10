@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "font.hpp"
+
 /**
  * @file
  * Declares the dungeon debug menu: an on-screen list of debug commands that
@@ -60,6 +62,13 @@ STATIC_ASSERT(sizeof(DNG_DEBUG_INFO) == 0x20);
  *
  */
 extern DNG_DEBUG_INFO dbinfo;
+
+/**
+ *
+ * Font the dungeon debug screens draw their text with.
+ *
+ */
+extern CFont dbFont;
 
 /**
  *

@@ -8,6 +8,12 @@
 #include <libvu0.h>
 
 #include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_tanime.hpp"
+#include "mg_texture.hpp"
+#include "mg_visual.hpp"
 
 /**
  * @file
@@ -15,20 +21,6 @@
  * packet cycle, the global render state wrappers, screen projection helpers
  * and the VU microprogram table.
  */
-
-class mgCDrawEnv;
-class mgCDrawManager;
-class mgCFrame;
-class mgCMemory;
-class mgCTexture;
-class mgCTextureManager;
-class mgCVisual;
-class mgRENDER_INFO;
-struct mgPOINT_LIGHT;
-struct mgVu0FBOX;
-struct sceGsClamp;
-template <typename T>
-class mgRect;
 
 /**
  *

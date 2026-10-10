@@ -2,12 +2,12 @@
 
 #include "common.h"
 
+#include "mg_texture.hpp"
+
 /**
  * @file
  * Declares the water surface ripple simulation that animates water textures.
  */
-
-class mgCTexture;
 
 /**
  *

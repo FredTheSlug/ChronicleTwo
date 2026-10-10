@@ -2,15 +2,15 @@
 
 #include "common.h"
 
+#include "editparts.hpp"
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the manager of the town editor's (Georama) part definitions:
  * the table of parts that can be placed, read from the edit information
  * script, and the tables of parts placed in the town from the start.
  */
-
-class CEditPartsInfo;
-class mgCMemory;
 
 /**
  *

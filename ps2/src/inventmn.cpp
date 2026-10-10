@@ -16,6 +16,7 @@
 #include "menuchr.hpp"
 #include "menucls1.hpp"
 #include "menucommon.hpp"
+#include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
 #include "menusys.hpp"
@@ -40,9 +41,6 @@ struct CursorPos {
     int x; /**< Horizontal cursor coordinate. */
     int y; /**< Vertical cursor coordinate. */
 };
-
-extern int   menu_debug_flag;
-extern short MenuItemCmdArgPos;
 
 /**
  *
@@ -103,8 +101,6 @@ static int viewnum_album_5224[2] = {
 static int overcode_album_5225[4] = {
     0, 0, 2, 0};
 
-extern short menu_item_swap_sndtbl[];
-
 /**
  *
  * Colours used by the two invention success strips.
@@ -125,9 +121,7 @@ static char *invent_grade_fff[2] = {
     "f0",
     "f1"};
 
-extern mgCMemory         MenuInventStack;
-extern CActionChara     *MenuActionChara[7];
-extern CMenuPosDataForm *GiftBoxViewForm;
+static mgCMemory         MenuInventStack;
 
 enum {
     K_COMMAND_HANDLED = -1
@@ -226,8 +220,8 @@ struct ItemNameList2 {
     char *name[2]; /**< Item name in each slot. */
 };
 
-extern mgCMemory     MenuInventCharaStack;
-extern mgCMemory     MenuInventMCStack;
+static mgCMemory     MenuInventCharaStack;
+static mgCMemory     MenuInventMCStack;
 static ItemNameList2 at_3739;
 static ItemNameList2 at_3765;
 
@@ -308,7 +302,7 @@ static char *addstringtable_1722[3] = {
     "[bulb3]",
     "[heart]"};
 
-extern mgCMemory InventTeigiStack;
+static mgCMemory InventTeigiStack;
 
 /**
  *
@@ -3018,8 +3012,6 @@ static short sndtimetbl_2868[2] = {
  */
 static float eff_light_2927[4] = {255.0f, 255.0f, 255.0f, 128.0f};
 
-#pragma inline_depth(5)
-
 int CMenuInvent::IsCreateObject(int mode, int keys) {
     CActionChara      *action_chara = MenuActionChara[0];
     CDC2Mes           *message_window = MenuDCMsg[4];
@@ -3622,8 +3614,6 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
     return 1;
 }
-
-#pragma inline_depth reset
 
 void CMenuInvent::CalcMakeBrd(int message_index) {
     if (makebrd_form != NULL && makebrd_form->draw_flag) {
@@ -6161,8 +6151,6 @@ void MenuInventNetaMemoDraw(float *origin, int &loaded_tex) {
 static int tbl_4782[7] = {
     1, 1, 0, 0, 1, 1, 0};
 
-extern int *menu_randam_line_draw_postbl;
-
 inline CMenuInvent::CMenuInvent() {
     int i;
     card_cursor = card_top = 0;
@@ -7641,7 +7629,3 @@ void MenuInventDraw() {
     }
 }
 
-static mgCMemory MenuInventStack;
-static mgCMemory MenuInventCharaStack;
-static mgCMemory MenuInventMCStack;
-static mgCMemory InventTeigiStack;

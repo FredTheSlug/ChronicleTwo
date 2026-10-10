@@ -2,7 +2,10 @@
 
 #include "common.h"
 
+#include "collision.hpp"
 #include "dng_main.hpp"
+#include "padcontrol.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
@@ -10,10 +13,6 @@
  * against collision, the follow, eye-view and photo cameras, ladder climbing, and the per-frame
  * stepping and drawing of the characters on the edit map.
  */
-
-class CPadControl;
-class CScene;
-struct CCPoly;
 
 /**
  *

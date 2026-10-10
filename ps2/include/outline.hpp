@@ -3,6 +3,8 @@
 #include "common.h"
 
 #include "mg_drawenv.hpp"
+#include "mg_frame.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
@@ -10,9 +12,6 @@
  * character model by rendering the frame into an off-screen texture and
  * compositing that texture back onto the screen, offset in four directions.
  */
-
-class mgCFrame;
-class mgCTexture;
 
 /**
  *

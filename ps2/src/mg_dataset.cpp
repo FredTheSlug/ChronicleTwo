@@ -492,7 +492,6 @@ mgCreateVisualType *SearchVisualType(mgCreateVisualType *table, char *name) {
  *
  */
 #pragma schedule off
-#pragma global_optimizer off
 #pragma opt_loop_invariants off
 
 static int CreateFrameVisual(mgCFrame *input_frame, mgCMemory *input_memory, mgCMemory *input_work_memory, mgCFrame *input_parent,
@@ -632,17 +631,12 @@ static int CreateFrameVisual(mgCFrame *input_frame, mgCMemory *input_memory, mgC
 
 #pragma opt_loop_invariants reset
 #pragma schedule reset
-#pragma global_optimizer reset
 
-#pragma optimization_level reset
 #pragma optimization_level 1
 // Defined inline in mg_frame.hpp.
 // Defined inline in mg_visual.hpp.
-#pragma schedule off
 
 void mgCFrame::SetVisual(mgCVisual *visual) { this->visual = visual; }
-
-#pragma schedule reset
 
 void mgCVisualFixMDT::Initialize() {
     mgCVisualMDT::Initialize();
@@ -674,7 +668,6 @@ mgCFrame *mgLoadMDSFile(MDS_HEADER *mds, mgCMemory *memory, mgCreateVisualType *
     return mgLoadMDSFile(&load);
 }
 
-#pragma schedule off
 #pragma global_optimizer off
 
 mgCFrame *mgLoadMDSFile(mgLoadData *load) {
@@ -854,7 +847,6 @@ void mgCreateBBoxSphere(float *max, float *min, float *sphere, float (*vertex)[4
 }
 
 #pragma global_optimizer reset
-#pragma schedule reset
 
 /**
  *
@@ -863,7 +855,6 @@ void mgCreateBBoxSphere(float *max, float *min, float *sphere, float (*vertex)[4
  *
  */
 #pragma schedule off
-#pragma global_optimizer off
 
 void CopyFrame(mgCFrame *dst, mgCFrame *src, mgCMemory *memory, int copy_visual, mgCFrame **frame_table) {
     *dst = *src;
@@ -917,7 +908,6 @@ void CopyFrame(mgCFrame *dst, mgCFrame *src, mgCMemory *memory, int copy_visual,
     }
 }
 
-#pragma global_optimizer reset
 #pragma schedule reset
 
 // Defined inline in mg_dataset.hpp.
@@ -941,7 +931,6 @@ mgCVisual *mgCVisual::Copy(mgCMemory *memory) {
  * the frame, or NULL if memory ran out.
  *
  */
-#pragma schedule off
 #pragma optimization_level 2
 
 mgCFrame *CopyFrameSub(mgCFrame *src, mgCMemory *memory, int copy_visual, mgCFrame **frame_table) {
@@ -967,7 +956,6 @@ mgCFrame *CopyFrameSub(mgCFrame *src, mgCMemory *memory, int copy_visual, mgCFra
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 
 #pragma schedule off
 #pragma global_optimizer off
@@ -1114,8 +1102,6 @@ void mgCMDTBuilder::End(mgCFrame *frame, mgCVisualMDT *visual, mgLoadData *load)
 
 #pragma schedule reset
 
-#pragma schedule off
-
 void mgCMDTBuilder::BeginData(int type) {
     if (data_type == MG_MDT_DATA_NONE) {
         data = end;
@@ -1124,7 +1110,6 @@ void mgCMDTBuilder::BeginData(int type) {
     }
 }
 
-#pragma schedule reset
 #pragma schedule off
 
 void mgCMDTBuilder::SetData(float *vector) {
@@ -1286,7 +1271,6 @@ void mgCMDTBuilder::EndPrim() {
 
 #pragma schedule reset
 
-#pragma optimization_level reset
 #pragma schedule off
 
 // Defined inline in mg_visual.hpp.
@@ -1384,6 +1368,3 @@ void mgCVisual::Draw(float (*matrix)[4], mgCDrawManager *manager) {
 }
 
 #pragma optimization_level reset
-
-// Virtual tables (.vtables)
-INCLUDE_RODATA("ps2/asm/pal/nonmatchings/mg_dataset", __vt__15mgCShadowFixMDT__DATA);

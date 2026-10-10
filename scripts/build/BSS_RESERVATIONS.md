@@ -1,7 +1,7 @@
 # BSS reservation evidence
 
-Fresh raw linked compiles classify 157 BSS gaps. Two have original compiler
-alignment proof and need no reservation; the other 155 placements across 23
+Fresh raw linked compiles classify 162 BSS gaps. Two have original compiler
+alignment proof and need no reservation; the other 160 placements across 23
 units are explicit unresolved retail storage in
 `postprocess_object.py:BSS_RETAIL_RESERVATIONS`. One of them belongs to a
 function-local static: `CMenuChrCngMenu::KeyChangeMain` in `menuchr.cpp`
@@ -13,11 +13,11 @@ one does not explain that gap.
 | Classification | Count | Evidence |
 |---|---:|---|
 | Native alignment | 2 | Exact following native extent and original alignment explain the gap. |
-| Four-byte placement | 141 | Retail small-data placement fits minimum-four-byte alignment; its original policy is unproved. |
-| Retained following marker | 10 | The following retail object has no native alignment proof. |
+| Four-byte placement | 148 | Retail small-data placement fits minimum-four-byte alignment; its original policy is unproved. |
+| Retained following marker | 8 | The following retail object has no native alignment proof. |
 | Larger gap | 4 | Original following alignment contradicts the observed gap. |
 
-The four-byte group contains 139 scalar/guard slots and two aggregate slots:
+The four-byte group contains 146 scalar/guard slots and two aggregate slots:
 `editmenu:GeoramaMesMakeManner` is five bytes followed by a short;
 `menuaqua:GyoraceFishSel` is six bytes followed by a byte. Their own alignment
 of eight does not round their tails under default MWLD.
@@ -86,7 +86,7 @@ following marker and a valid one-byte source-only native guard; the retained
 guard itself is still excluded from comparison credit.
 References bound to the same retained placeholder may keep declaration aliases
 at offset zero, with the exact declared object or complete piece extent. The
-`dbinfo` and title-global aliases share that one fallback payload; unrelated
+`dbinfo` aliases share that one fallback payload; unrelated
 names, offsets, types, sizes or sections remain rejected.
 
 Existing objdiff credit includes accepted BSS reservation storage. Keeping that
@@ -246,7 +246,7 @@ list. Every other row is an unresolved placement.
 | sound | `msinBfCtx` | 0x003f3f80 | 72 | 56 | `msinBf` | 16 | Larger gap |
 | title | `TitleOmakeFlag` | 0x0037e0cc | 2 | 2 | `TitleMCCheckBootMode` | 1 | Four-byte placement |
 | title | `TitlePhase` | 0x0037e038 | 2 | 2 | `TitlePushStart_AlphaPlus` | 2 | Four-byte placement |
-| title | `TitleMCActivePort` | 0x0037e024 | 2 | 2 | `TitleMCCheckNow` | none | Retained following marker |
+| title | `TitleMCActivePort` | 0x0037e024 | 2 | 2 | `TitleMCCheckNow` | 1 | Four-byte placement |
 | title | `DCSelectedMovie` | 0x0037e008 | 1 | 3 | `DCRuncherCounter` | none | Retained following marker |
 | title | `TitleRushWaitCountBoot` | 0x0037dfd4 | 1 | 3 | `TitleSelectInit` | none | Retained following marker |
 | title | `debug_start_drawflag` | 0x0037e098 | 1 | 3 | `HDDPhase` | 2 | Four-byte placement |
@@ -259,4 +259,9 @@ list. Every other row is an unresolved placement.
 | title | `TitleSkipLogoFlag` | 0x0037e04c | 1 | 3 | `Tex_TitleBG` | none | Retained following marker |
 | title | `TitleMCCheckBootMode` | 0x0037e0d0 | 1 | 3 | `TitleMCCheckPort` | 2 | Four-byte placement |
 | title | `TitleMCCheckPort` | 0x0037e0d4 | 2 | 2 | `TitleMCCheckPhase` | 2 | Four-byte placement |
-| title | `MasterDebugModeOn` | 0x0037dffc | 1 | 3 | `TitleBootEventNo` | none | Retained following marker |
+| title | `MasterDebugModeOn` | 0x0037dffc | 1 | 3 | `TitleBootEventNo` | 1 | Four-byte placement |
+| title | `GameBootInit` | 0x0037dff8 | 1 | 3 | `MasterDebugModeOn` | 1 | Four-byte placement |
+| title | `TitleBootEventNo` | 0x0037e000 | 1 | 3 | `DCRuncherMode` | 1 | Four-byte placement |
+| title | `DCRuncherMode` | 0x0037e004 | 1 | 3 | `DCSelectedMovie` | 1 | Four-byte placement |
+| title | `TitleMCFuncFlag` | 0x0037e020 | 1 | 3 | `TitleMCActivePort` | 2 | Four-byte placement |
+| title | `TitleMCCheckNow` | 0x0037e028 | 1 | 3 | `TitleMainMCCheckPhase` | 2 | Four-byte placement |

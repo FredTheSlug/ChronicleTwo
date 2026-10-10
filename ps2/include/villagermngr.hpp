@@ -68,6 +68,17 @@ enum VLGR_EX_STEP {
 
 /**
  *
+ * Model parts a villager shows around its camera pose, as CVillagerData::parts_mode holds them.
+ *
+ */
+enum VLGR_PARTS_MODE {
+    VLGR_PARTS_MODE_NONE = 0,   /**< Leave the parts as they are. */
+    VLGR_PARTS_MODE_POSE = 1,   /**< Show the posing hands in place of the normal ones. */
+    VLGR_PARTS_MODE_NORMAL = 2, /**< Show the normal hands again. */
+};
+
+/**
+ *
  * Where and how a villager appears: its standing point, talk area, motions and route.
  *
  */
@@ -198,7 +209,7 @@ public:
     s32                       now_motion;  /**< Motion the character is playing, a VLGR_MOTION. */
     s32                       motion_flag; /**< Flags passed with req_motion when it is set. */
     s32                       motion_end;  /**< Whether the character's motion has ended. */
-    s32                       parts_mode;  /**< Which model parts the camera pose shows. */
+    s32                       parts_mode;  /**< Model parts shown around the camera pose, a VLGR_PARTS_MODE. */
     s32                       unk_44;
     s32                       unk_48;
     s32                       unk_4c;

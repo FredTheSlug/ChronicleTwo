@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
 #include "villagermngr.hpp"
 
 /**
@@ -11,8 +12,6 @@
  * villager uses at each point of the story, and each villager's model and
  * house.
  */
-
-class mgCMemory;
 
 /**
  *

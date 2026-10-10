@@ -4,15 +4,14 @@
 
 #include <libvu0.h>
 
+#include "collision.hpp"
 #include "mg_camera.hpp"
+#include "padcontrol.hpp"
 
 /**
  * @file
  * Declares the player-steered camera that circles the player, turns and rises with the controller, and keeps clear of walls and the ground.
  */
-
-class CPadControl;
-struct CCPoly;
 
 /**
  *

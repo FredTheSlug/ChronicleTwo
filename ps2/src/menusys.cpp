@@ -24,6 +24,7 @@ const int kBagSlotCount = 0x96;
 #include "mainloop.hpp"
 #include "maintex.hpp"
 #include "map.hpp"
+#include "menuaqua.hpp"
 #include "menuchr.hpp"
 #include "menucls1.hpp"
 #include "menucommon.hpp"
@@ -175,17 +176,7 @@ struct MenuCharaReadBuffers {
     u_int *outline; /**< Loaded outline data. */
 };
 
-extern CDC2Mes      *MenuDCMsg[9];
-extern CGameDataUsed SpectolTransBefore;
-extern CGameDataUsed SpectolInfoStay;
-extern CMenuItemInfo class_menu_item_info;
 void                 MenuWeaponStatusInfoFormSet(CGameDataUsed *item, CDataWeapon *data);
-extern mgCMemory     MainCharaReadStack;
-extern CGamePad      GamePad__2;
-extern mgCMemory     MenuItemMemory;
-extern mgCMemory     MenuItemMemory2;
-extern mgCMemory     MenuItemMainMemory;
-extern mgCMemory     MenuItemBGDataMemory;
 int                  ReadBGSync();
 
 int         AfterSpectolFusion(CGameDataUsed *item, CGameDataUsed *part);
@@ -5708,8 +5699,6 @@ void CMenuItemInfo::CheckLoadInfo(int chara) {
     }
 }
 
-extern CGameDataUsed MenuMoveTempGameDataUsed;
-
 int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
     /**
      *
@@ -7853,7 +7842,6 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
     return 1;
 }
 
-extern mgCMemory MenuDebugStack;
 #pragma inline_depth(5)
 
 /**

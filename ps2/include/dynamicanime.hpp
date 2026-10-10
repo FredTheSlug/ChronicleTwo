@@ -4,14 +4,14 @@
 
 #include <libvu0.h>
 
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the dynamic animation that swings cloth, hair and other loose parts of a model as a set of
  * vertices moved by gravity, wind and collisions, and the collision volumes those vertices are kept out of.
  */
-
-class mgCFrame;
-class mgCMemory;
 
 /**
  *

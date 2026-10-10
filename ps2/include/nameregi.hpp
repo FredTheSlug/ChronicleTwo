@@ -3,7 +3,9 @@
 #include "common.h"
 
 #include "font.hpp"
+#include "menucls1.hpp"
 #include "menusys.hpp"
+#include "mg_memory.hpp"
 
 /**
  * @file
@@ -12,9 +14,6 @@
  * asks for or the name of a Spheda course, from grids of letters, kana, kanji
  * and symbols, plus the conversions between ASCII and Shift-JIS that it needs.
  */
-
-class CDC2Mes;
-class mgCMemory;
 
 /**
  *

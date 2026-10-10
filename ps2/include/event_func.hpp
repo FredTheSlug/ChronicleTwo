@@ -4,8 +4,20 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
 #include "dng_effect.hpp"
+#include "dngmenu.hpp"
+#include "eventsprite.hpp"
+#include "mapload.hpp"
+#include "mapparts.hpp"
+#include "mg_camera.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "nd_meswin.hpp"
+#include "object.hpp"
 #include "runscript.hpp"
+#include "scene.hpp"
 #include "sceneseq.hpp"
 #include "scenesnd.hpp"
 
@@ -17,20 +29,6 @@
  * screen effects, the argument lists that event scripts load, and the
  * routines that set up, step, draw and finish an event.
  */
-
-class CCharacter2;
-class CEventSprite2;
-class CEventSpriteMother;
-class CFuncPoint;
-class CMapParts;
-class CMarker;
-class CObject;
-class CRain;
-class mgCCamera;
-class mgCFrame;
-class mgCMemory;
-class mgCTexture;
-class ClsMes;
 
 /**
  *
@@ -1840,6 +1838,55 @@ extern CScreenEffect EventScreenEffect;
 
 /**
  *
+ * Argument list of the event script command being run.
+ *
+ */
+extern CEventScriptArg EventScriptArg;
+
+/**
+ *
+ * Sprites that event scripts display.
+ *
+ */
+extern CEventSprite2 EventSprite2[0x30];
+
+/**
+ *
+ * Object sequences that event scripts play.
+ *
+ */
+extern CSceneObjSeq ObjectSeq[32];
+
+/**
+ *
+ * Camera sequence that event scripts play.
+ *
+ */
+extern CSceneCmrSeq CameraSeq;
+
+/**
+ *
+ * Stack holding the first set of event sound data.
+ *
+ */
+extern mgCMemory BuffEventSnd;
+
+/**
+ *
+ * Stack holding the second set of event sound data.
+ *
+ */
+extern mgCMemory BuffEventSnd2;
+
+/**
+ *
+ * Dungeon map shown by event scripts.
+ *
+ */
+extern CDngFreeMap EventDngMap;
+
+/**
+ *
  * Multiplies a vector by the upper 3x3 of a matrix, giving a vector with w = 1.
  *
  * @mangled VectMatMul__FPfPfPA4_f
@@ -2267,8 +2314,6 @@ int CommandStreamOpen2(int port, char *name);
  * @size 0x190
  */
 void SetEventFunc(CRunScript *script);
-
-class CCameraControl;
 
 /**
  *

@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include "font.hpp"
+#include "mg_drawprim.hpp"
 
 /**
  * @file
@@ -11,8 +12,6 @@
  * help window, the floating window and the bottom speech bubble) out of
  * sprites cut from the message window's texture.
  */
-
-class mgCDrawPrim;
 
 /**
  *

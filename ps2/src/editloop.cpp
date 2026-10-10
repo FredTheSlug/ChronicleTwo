@@ -50,9 +50,6 @@
 
 void EditModeChgStep(CScene *scene);
 
-extern EditDebugInfo EdDebugInfo;
-extern CEditEvent    EditEvent;
-
 static const int kEventNoMapJump = 0x1869F;
 
 static const int kEventDataCallFlag = 8;
@@ -60,9 +57,6 @@ static const int kEventDataCallFlag = 8;
 static const int kKeyOpenEvent = 0x96;
 
 static const int kCameraKindEvent = 0x3E8;
-
-extern mgCMemory ControlCharaBuff;
-extern mgCMemory MainDataBuff;
 
 /**
  *
@@ -335,26 +329,6 @@ static MENU_INIT_ARG *MenuInfo = &MenuArg;
  *
  */
 static int DataPktMode = -1;
-
-extern CWaveTable    WaveTable;
-extern sceVu0FVECTOR CharaOldPos;
-extern mgCMemory     buf0;
-extern mgCMemory     buf1;
-extern mgCMemory     data_buf__2[2];
-extern mgCMemory     init_dbuf[2];
-extern mgCMemory     WorkBuffer;
-extern mgCMemory     MenuBuffer__2;
-extern mgCMemory     ChrEffBuffer;
-extern mgCMemory     TotalDataBuff;
-extern mgCMemory     MainCharaBuff;
-extern mgCMemory     SubDataBuff;
-extern mgCMemory     SubCharaBuff;
-extern mgCMemory     EventBuff[4];
-extern mgCMemory     CharaBufs[8];
-extern mgCMemory     FishingBuff;
-extern mgCMemory     SkyBuff;
-extern mgCVisualMDT  TestVisual;
-extern mgCFrame      TestFrame;
 
 /**
  *

@@ -128,18 +128,11 @@ typedef int (*EventFunc)(RS_STACKDATA *, int);
  */
 static CEventScriptArg *nowScriptArg;
 
-extern CEventScriptArg EventScriptArg;
 /**
  * Dispatch slots for event script external commands.
  */
 static EventFunc ext_func[0x5DC];
 
-extern CEventSprite2 EventSprite2[0x30];
-extern CSceneObjSeq  ObjectSeq[32];
-extern CSceneCmrSeq  CameraSeq;
-extern mgCMemory     BuffEventSnd;
-extern mgCMemory     BuffEventSnd2;
-extern CDngFreeMap   EventDngMap;
 /**
  * Effect script manager controlled by the event script.
  */

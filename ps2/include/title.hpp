@@ -4,6 +4,7 @@
 
 #include <cstring>
 
+#include "mainloop.hpp"
 #include "mg_memory.hpp"
 #include "savedata.hpp"
 #include "scenesnd.hpp"
@@ -14,8 +15,6 @@
  * its menu, the memory card check, the copyright and logo display, the hard
  * disk installer and the boot-time language selection.
  */
-
-struct INIT_LOOP_ARG;
 
 /**
  *

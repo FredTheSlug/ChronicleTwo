@@ -2,17 +2,17 @@
 
 #include "common.h"
 
+#include "effect.hpp"
+#include "mg_memory.hpp"
+#include "mg_sprite.hpp"
+#include "mg_texture.hpp"
+
 /**
  * @file
  * Declares the list of a map's effects, read from the effect files of a pack
  * and drawn as 3D sprites, and the screen fade that covers the screen with a
  * colour, dissolves or wipes away a captured screen, and blurs motion.
  */
-
-class CEffectManager;
-class mgC3DSprite;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *

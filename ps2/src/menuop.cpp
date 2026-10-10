@@ -8,6 +8,7 @@
 #include "actionchara.hpp"
 #include "charasetup.hpp"
 #include "dataread.hpp"
+#include "dng_main.hpp"
 #include "dngmenu.hpp"
 #include "event_func.hpp"
 #include "font.hpp"

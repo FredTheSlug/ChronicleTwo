@@ -4,13 +4,13 @@
 
 #include <libvu0.h>
 
+#include "mg_sprite.hpp"
+#include "mg_texture.hpp"
+
 /**
  * @file
  * Declares the scripted particle effects: the particles, the emitters that spawn them, and the manager that runs one effect file.
  */
-
-class mgC3DSprite;
-class mgCTexture;
 
 /**
  *

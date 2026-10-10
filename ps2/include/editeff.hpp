@@ -4,8 +4,12 @@
 
 #include <libvu0.h>
 
+#include "editparts.hpp"
 #include "map.hpp"
+#include "mapparts.hpp"
+#include "mg_memory.hpp"
 #include "mg_sprite.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
@@ -14,11 +18,6 @@
  * splash of paint drops, and the hop, squash and lift animations of the
  * placed parts themselves.
  */
-
-class CEditParts;
-class CMapParts;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *
@@ -287,6 +286,27 @@ STATIC_ASSERT(sizeof(CPlaceAnime) == 0x90);
  *
  */
 extern CPlaceAnime PlaceAnime[EDIT_PLACE_ANIME_MAX];
+
+/**
+ *
+ * Number of star effects the editor keeps.
+ *
+ */
+const int star_effect_count = 3;
+
+/**
+ *
+ * Star effects the editor plays.
+ *
+ */
+extern CStarEffect _StarEffect[star_effect_count];
+
+/**
+ *
+ * Stack holding the edit part being placed.
+ *
+ */
+extern mgCMemory CurPartsBuff;
 
 /**
  *

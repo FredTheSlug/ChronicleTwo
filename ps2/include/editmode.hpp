@@ -4,7 +4,10 @@
 
 #include <libvu0.h>
 
+#include "editmap.hpp"
 #include "editparts.hpp"
+#include "mg_memory.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
@@ -12,12 +15,6 @@
  * parts of a town, putting parts against walls, laying rivers, undoing the
  * last placement, and the checks for switching between walking and editing.
  */
-
-class CEditMap;
-class CMap;
-class CScene;
-class mgCMemory;
-struct EP_PLACE_INFO;
 
 /**
  *

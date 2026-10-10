@@ -4,24 +4,22 @@
 
 #include <libvu0.h>
 
+#include "dynamicanime.hpp"
 #include "effect.hpp"
 #include "gameutil.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 #include "object.hpp"
+#include "outline.hpp"
+#include "snd_mngr.hpp"
+#include "swordeffect.hpp"
 
 /**
  * @file
  * Declares the character that a character info file builds: its model, shadow, motions, motion
  * sequences, sounds, effects, cloth and levels of detail.
  */
-
-class CDynamicAnime;
-class CEffectManager;
-class CLoopSeMngr;
-class COutLineDraw;
-class CSWordAfterEffect;
-class mgCFrame;
-class mgCMemory;
-struct mgIMG_FILE_HEADER;
 
 /** Number of motion sets that one character can hold. */
 #define CHARA_MOTION_SET_MAX 8

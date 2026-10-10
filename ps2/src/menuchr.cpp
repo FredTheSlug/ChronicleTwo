@@ -8,6 +8,7 @@
 
 #include "charasetup.hpp"
 #include "dataread.hpp"
+#include "dng_main.hpp"
 #include "dynamicanime.hpp"
 #include "effscript.hpp"
 #include "font.hpp"

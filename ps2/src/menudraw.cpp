@@ -403,22 +403,6 @@ void SetPartEffectInfoRandFunc(MENU_PARTS_EFFECT_STRUCT1 *effect);
 
 void SetPartEffectInfoRandFunc(MENU_PARTS_EFFECT_STRUCT1 *effect, short *values, int count);
 
-extern mgRect<int> MenuMainFrame_PutRect;
-
-extern mgRect<int> MenuMainIMG_PutRect;
-
-extern mgRect<int> star_light;
-
-extern mgRect<int> MenuItemBrdKomaRect;
-
-extern mgRect<int> ItemBoardScrlBar1;
-
-extern mgRect<int> ItemBoardScrlBar2;
-
-extern mgRect<int> ItemBoardScrlBar3;
-
-extern mgRect<int> ItemBoardCursor;
-
 /**
  * Holds the total number of item-board rows.
  */
@@ -7898,42 +7882,18 @@ float MakeBoardDrawInfo[5];
 
 mgRect<int> menu_long_hand(62, 1, 40, 24);
 
-/**
- * Holds the destination rectangle of the main menu lens frame.
- */
 mgRect<int> MenuMainFrame_PutRect(0, 0, 0, 0);
 
-/**
- * Holds the destination rectangle of the captured main menu image.
- */
 mgRect<int> MenuMainIMG_PutRect(0, 0, 0, 0);
 
-/**
- * Gives the texture rectangle used by menu sparkles.
- */
 mgRect<int> star_light(0, 32, 8, 8);
 
-/**
- * Gives the texture rectangle of an item-board cell.
- */
 mgRect<int> MenuItemBrdKomaRect(32, 32, 40, 50);
 
-/**
- * Gives the upper item-board scroll bar texture rectangle.
- */
 mgRect<int> ItemBoardScrlBar1(96, 128, 22, 11);
 
-/**
- * Gives the middle item-board scroll bar texture rectangle.
- */
 mgRect<int> ItemBoardScrlBar2(96, 138, 22, 4);
 
-/**
- * Gives the lower item-board scroll bar texture rectangle.
- */
 mgRect<int> ItemBoardScrlBar3(96, 140, 22, 12);
 
-/**
- * Gives the item-board selection cursor texture rectangle.
- */
 mgRect<int> ItemBoardCursor(118, 128, 8, 30);

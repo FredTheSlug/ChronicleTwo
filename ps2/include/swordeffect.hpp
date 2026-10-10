@@ -4,16 +4,16 @@
 
 #include <libvu0.h>
 
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+
 /**
  * @file
  * Declares the after-image trail a swung weapon leaves behind: a ring of
  * point pairs recorded each step from two frames of the weapon, smoothed
  * into a curve and drawn as a fading strip.
  */
-
-class mgCFrame;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *

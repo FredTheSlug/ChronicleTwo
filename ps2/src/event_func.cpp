@@ -15257,12 +15257,22 @@ static int _CHK_PAD_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Puts the camera control into its stay state.
+ *
+ */
 static int _CTRLC_STAY(RS_STACKDATA *stack, int argc) {
     CCameraControl *camera = GetCamera();
     camera->Stay();
     return true;
 }
 
+/**
+ *
+ * Sets the bright rate of the battle area from a stack float.
+ *
+ */
 static int _BSCN_SET_BLIGHT_RATE(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = &EventScene->battle_area;
 
@@ -15274,12 +15284,22 @@ static int _BSCN_SET_BLIGHT_RATE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the trap ID of a random circle.
+ *
+ */
 static int _GET_RND_CIRCLE_TRAPID(RS_STACKDATA *stack, int argc) {
     int circle_id = GetStackInt(stack++);
     SetStack(stack, GetRandomCircleTrapID(circle_id));
     return true;
 }
 
+/**
+ *
+ * Sets the status of a random circle and pushes the resulting value.
+ *
+ */
 static int _SET_RND_CIRCLE_STATUS(RS_STACKDATA *stack, int argc) {
     float result;
     int   circle_id = GetStackInt(stack++);
@@ -15288,6 +15308,11 @@ static int _SET_RND_CIRCLE_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Shows or hides the battle area status bar, optionally with a speed.
+ *
+ */
 static int _SET_STATUSBAR_SHOW(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *area = &EventScene->battle_area;
 
@@ -15324,6 +15349,11 @@ static int _SET_STATUSBAR_SHOW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Spawns pull items at a vector position with a type, count and value.
+ *
+ */
 static int _SET_PULL_ITEM(RS_STACKDATA *stack, int argc) {
     float             pos[4];
     float             velocity[4];
@@ -15397,19 +15427,34 @@ static int _SET_PULL_ITEM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Opens the dungeon character change menu.
+ *
+ */
 static int _MENU_CHARA_CHENGE(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
-    MenuArg.open_type = (int) MENU_OPEN_CHARA_CHANGE_DUNGEON;
-    EdEventInfo.command_mode = 3;
+    MenuArg.open_type = MENU_OPEN_CHARA_CHANGE_DUNGEON;
+    EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return true;
 }
 
+/**
+ *
+ * Pushes the sound ID stored in the event info at an index.
+ *
+ */
 static int _GET_EVENT_INFO_SNDID(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     SetStack(stack, EdEventInfo.snd_id[index]);
     return true;
 }
 
+/**
+ *
+ * Pushes the position of a map parts, looked up by ID or name.
+ *
+ */
 static int _GET_PARTS_POS(RS_STACKDATA *stack, int argc) {
     CMap      *maps[8];
     float      pos[4];
@@ -15425,7 +15470,7 @@ static int _GET_PARTS_POS(RS_STACKDATA *stack, int argc) {
     }
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             parts_id = GetStackInt(stack++);
 
             for (i = 0; i < map_count; i++) {
@@ -15437,7 +15482,7 @@ static int _GET_PARTS_POS(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 2:
+        case RS_STR:
             parts_name = GetStackString(stack++);
 
             for (i = 0; i < map_count; i++) {
@@ -15462,17 +15507,32 @@ static int _GET_PARTS_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Cancels the current drama scene.
+ *
+ */
 static int _CANCEL_DRAMA_SCENE(RS_STACKDATA *stack, int argc) {
     CancelDramaScene();
     return true;
 }
 
+/**
+ *
+ * Pushes the current frame of the random circle model.
+ *
+ */
 static int _GET_RNDC_MOT_NOWT(RS_STACKDATA *stack, int argc) {
     float weight = RandomCircle.model.frame;
     SetStack(stack, weight);
     return true;
 }
 
+/**
+ *
+ * Sets the current motion frame of a character.
+ *
+ */
 static int _SET_CHARA_MOT_NOWT(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     float        time = GetStackFloat(stack);
@@ -15486,6 +15546,11 @@ static int _SET_CHARA_MOT_NOWT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Runs the normal drive update on a character.
+ *
+ */
 static int _CHARA_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     chara = GetCharacter(GetStackInt(stack));
@@ -15498,6 +15563,11 @@ static int _CHARA_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Resets the DA position of a character and steps its DA animation.
+ *
+ */
 static int _CHARA_RESET_DA(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
 
@@ -15510,6 +15580,11 @@ static int _CHARA_RESET_DA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Switches the dungeon main unit to another character and reloads its icons and sounds.
+ *
+ */
 static int _DNG_SETUP_MAIN_UNIT(RS_STACKDATA *stack, int argc) {
     char               sound_path[0x28];
     mgCTexture        *icons[2];
@@ -15566,16 +15641,16 @@ static int _DNG_SETUP_MAIN_UNIT(RS_STACKDATA *stack, int argc) {
     LoadFile(sound_path, read_buffer, NULL);
     bank = 3;
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         bank = 1;
     }
 
-    if (chara_no == 3) {
+    if (chara_no == USER_CHARA_MONSTER) {
         bank = 0;
     }
 
-    sndInitPort(7);
-    chara->sound_info.se_bank = sndLoadSound((int) SND_PORT_CHARA, (u32 *) read_buffer, &BaseCharacter[bank]);
+    sndInitPort(SND_PORT_CHARA);
+    chara->sound_info.se_bank = sndLoadSound(SND_PORT_CHARA, (u32 *) read_buffer, &BaseCharacter[bank]);
     chara->sound_info.se_bank_2 = EventScene->se_battle_id;
     chara->SetSoundInfoCopy();
     chara->effect_man = FxScriptMan;
@@ -15583,6 +15658,11 @@ static int _DNG_SETUP_MAIN_UNIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds or removes a character from the party, or pushes whether it is a member.
+ *
+ */
 static int _JOIN_PARTY_MEMBER(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
@@ -15601,7 +15681,7 @@ static int _JOIN_PARTY_MEMBER(RS_STACKDATA *stack, int argc) {
     chara_no = GetStackInt(stack++);
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             if (GetStackInt(stack) == 1) {
                 user_data->JoinPartyMember(chara_no);
             } else {
@@ -15609,7 +15689,7 @@ static int _JOIN_PARTY_MEMBER(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 3: {
+        case RS_PTR: {
             int members = user_data->GetNowPartyMember();
             SetStack(stack, (members & (1 << chara_no)) ? 1 : 0);
             break;
@@ -15621,6 +15701,11 @@ static int _JOIN_PARTY_MEMBER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Enables or disables a character for party changes.
+ *
+ */
 static int _SET_CHARA_CHANGE_FLAG(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
@@ -15647,6 +15732,11 @@ static int _SET_CHARA_CHANGE_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Enables or disables a character in the party change mask.
+ *
+ */
 static int _SET_CHARA_CHANGE_MASK(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
@@ -15673,6 +15763,11 @@ static int _SET_CHARA_CHANGE_MASK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the equipped item of a character.
+ *
+ */
 static int _SET_CHARA_EQUIP(RS_STACKDATA *stack, int argc) {
     int        chara_no;
     int        item_no;
@@ -15693,15 +15788,25 @@ static int _SET_CHARA_EQUIP(RS_STACKDATA *stack, int argc) {
     return user_data->SetChrEquip(chara_no, item_no);
 }
 
+/**
+ *
+ * Loads a background pack file and marks the event pack as loaded.
+ *
+ */
 static int _LOAD_PACK_FILE(RS_STACKDATA *stack, int argc) {
-    if (GetLoadBGBuff(GetStackString(stack), 0) == 0) {
+    if (GetLoadBGBuff(GetStackString(stack), NULL) == NULL) {
         return false;
     }
 
-    EdEventInfo.pack_loaded = 1;
+    EdEventInfo.pack_loaded = true;
     return true;
 }
 
+/**
+ *
+ * Sets or resets a bit in the save data bit control.
+ *
+ */
 static int _SET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     CSaveData *save;
     int        bit;
@@ -15721,6 +15826,11 @@ static int _SET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes whether a bit is set in the save data bit control.
+ *
+ */
 static int _GET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     CSaveData *save;
     int        bit;
@@ -15736,6 +15846,11 @@ static int _GET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Loads event script argument data from a file into the argument slot.
+ *
+ */
 static int _LOAD_ARG(RS_STACKDATA *stack, int argc) {
     int        stack_no = GetStackInt(stack++);
     char      *file_name = GetStackString(stack);
@@ -15759,6 +15874,11 @@ static int _LOAD_ARG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the number of an item the player has.
+ *
+ */
 static int _GET_ITEM_HAVE_NUM(RS_STACKDATA *stack, int argc) {
     int item_id = GetStackInt(stack++);
     argc = GetUserItemHaveNum(item_id);
@@ -15766,6 +15886,11 @@ static int _GET_ITEM_HAVE_NUM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the button that skips the event.
+ *
+ */
 static int _SET_SKIP_BOTTON(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
@@ -15775,6 +15900,11 @@ static int _SET_SKIP_BOTTON(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the fade colour used when the event is skipped.
+ *
+ */
 static int _SET_SKIP_FCOL(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
@@ -15785,21 +15915,31 @@ static int _SET_SKIP_FCOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the debug mode flag, which is always set.
+ *
+ */
 static int _GET_DEBUG_MODE(RS_STACKDATA *stack, int arg_count) {
     SetStack(stack, 1);
     return true;
 }
 
+/**
+ *
+ * Pushes the type of a map, looked up by number or name.
+ *
+ */
 static int _GET_MAP_TYPE(RS_STACKDATA *stack, int argc) {
     int           map_no;
     RS_STACKDATA *result;
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             result = stack + 1;
             map_no = GetStackInt(stack);
             break;
-        case 2:
+        case RS_STR:
             result = stack + 1;
             map_no = SearchMapNo(GetStackString(stack));
             break;
@@ -15811,16 +15951,31 @@ static int _GET_MAP_TYPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Reinitializes all dungeon collision primitives.
+ *
+ */
 static int _DNG_COLLISION_ALL_CLR(RS_STACKDATA *stack, int argc) {
     ColPrimMan.Initialize(DngMainScene);
     return true;
 }
 
+/**
+ *
+ * Sets whether the event map is drawn.
+ *
+ */
 static int _SET_MAP_DRAW(RS_STACKDATA *stack, int argc) {
     EdEventInfo.map_draw = GetStackInt(stack);
     return true;
 }
 
+/**
+ *
+ * Pushes the Monica load flag of the current init argument and clears it.
+ *
+ */
 static int _CHECK_MC_LOAD(RS_STACKDATA *stack, int arg_count) {
     INIT_LOOP_ARG *arg = GetNowInitArg();
 
@@ -15833,11 +15988,21 @@ static int _CHECK_MC_LOAD(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
+/**
+ *
+ * Sets the current map number of the event scene.
+ *
+ */
 static int _SET_NOW_MAP_NO(RS_STACKDATA *stack, int argc) {
     EventScene->SetNowMapNo(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Pushes the parameters of the treasure box nearest the player.
+ *
+ */
 static int _GET_TBOX_PARAM(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *area = &EventScene->battle_area;
 
@@ -15867,6 +16032,11 @@ static int _GET_TBOX_PARAM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Skips loading the villagers and sub villagers.
+ *
+ */
 static int _CANCEL_LOAD_VILLAGER(RS_STACKDATA *stack, int argc) {
     CScene *scene = EventScene;
     scene->skip_load_sub_villager = 1;
@@ -15874,6 +16044,11 @@ static int _CANCEL_LOAD_VILLAGER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Cancels the current now-loading screen.
+ *
+ */
 static int _CANCEL_NOW_LOADING(RS_STACKDATA *stack, int argc) {
     CancelNowLoading();
     return true;
@@ -15892,6 +16067,11 @@ static inline u_int align16_blocks(u_int size) {
     return size >> 4;
 }
 
+/**
+ *
+ * Creates the event effect script manager in a scene stack block.
+ *
+ */
 static int _ESM_INITIALIZE(RS_STACKDATA *stack, int argc) {
     int        stack_no;
     int        texb_offset = 0;
@@ -15919,13 +16099,18 @@ static int _ESM_INITIALIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Gives the event effect script manager a fixed-size work buffer.
+ *
+ */
 static int _ESM_INIT_FIX(RS_STACKDATA *stack, int argc) {
     int        stack_no;
     int        heap_size;
     mgCMemory *scene_stack;
     mgCMemory *heap;
 
-    if (EventEffectScript == 0) {
+    if (EventEffectScript == NULL) {
         return false;
     }
 
@@ -15955,13 +16140,18 @@ static int _ESM_INIT_FIX(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Clears the event effect script manager and frees its texture blocks.
+ *
+ */
 static int _ESM_CLEAR(RS_STACKDATA *stack, int argc) {
     int                cleared_blocks[68];
     mgCMemory         *work_buffer;
     mgCTextureManager *tex_manager;
     int                i;
 
-    if (EventEffectScript == 0) {
+    if (EventEffectScript == NULL) {
         return false;
     }
 
@@ -15976,7 +16166,7 @@ static int _ESM_CLEAR(RS_STACKDATA *stack, int argc) {
     }
 
     tex_manager = &mgTexManager;
-    EventEffectScript = 0;
+    EventEffectScript = NULL;
 
     for (i = 0; i < 64; i++) {
         printf("[ESM_CLEAR] DEL TEXB = %d\n", cleared_blocks[i]);
@@ -15991,6 +16181,11 @@ static int _ESM_CLEAR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Loads a base effect script by number or name.
+ *
+ */
 static int _ESM_LOAD_BASE(RS_STACKDATA *stack, int argc) {
     int result;
 
@@ -15999,10 +16194,10 @@ static int _ESM_LOAD_BASE(RS_STACKDATA *stack, int argc) {
     }
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             result = EventEffectScript->LoadBaseEffSpt(GetStackInt(stack), NULL, -1);
             break;
-        case 2:
+        case RS_STR:
             result = EventEffectScript->LoadBaseEffSpt(GetStackString(stack), NULL, -1);
             break;
         default:
@@ -16013,6 +16208,11 @@ static int _ESM_LOAD_BASE(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
+/**
+ *
+ * Creates an effect script, optionally in a group.
+ *
+ */
 static int _ESM_CREATE(RS_STACKDATA *stack, int argc) {
     if (EventEffectScript == NULL) {
         return false;
@@ -16045,6 +16245,11 @@ static int _ESM_CREATE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the program number of an effect script group.
+ *
+ */
 static int _ESM_FINISH(RS_STACKDATA *stack, int argc) {
     int           group;
     RS_STACKDATA *next_slot = stack + 1;
@@ -16058,6 +16263,11 @@ static int _ESM_FINISH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Deletes an effect script from a group.
+ *
+ */
 static int _ESM_DELETE(RS_STACKDATA *stack, int argc) {
     if (EventEffectScript == NULL) {
         return false;
@@ -16068,6 +16278,11 @@ static int _ESM_DELETE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the first vector of an effect script, optionally for a group and slot.
+ *
+ */
 static int _ESM_SET_VECT1(RS_STACKDATA *stack, int argc) {
     float vector[4];
     int   result;
@@ -16095,6 +16310,11 @@ static int _ESM_SET_VECT1(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
+/**
+ *
+ * Sets the second vector of an effect script, optionally for a group and slot.
+ *
+ */
 static int _ESM_SET_VECT2(RS_STACKDATA *stack, int argc) {
     float vector[4];
     int   result;
@@ -16122,6 +16342,11 @@ static int _ESM_SET_VECT2(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
+/**
+ *
+ * Sets the target ID of an effect script, optionally for a group and slot.
+ *
+ */
 static int _ESM_SET_TARGET_ID(RS_STACKDATA *stack, int argc) {
     int group;
     int slot;
@@ -16148,6 +16373,11 @@ static int _ESM_SET_TARGET_ID(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
+/**
+ *
+ * Builds an effect script pack from a background file.
+ *
+ */
 static int _ESM_LOAD_BASE_PACK(RS_STACKDATA *stack, int argc) {
     if (EventEffectScript == NULL) {
         return false;
@@ -16164,13 +16394,18 @@ static int _ESM_LOAD_BASE_PACK(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Sets an integer or float value of an effect script, optionally for a group and slot.
+ *
+ */
 static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
     int value_no;
     int group;
     int slot;
     int result;
 
-    if (EventEffectScript == 0) {
+    if (EventEffectScript == NULL) {
         return false;
     }
 
@@ -16179,10 +16414,10 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
             value_no = GetStackInt(stack++);
 
             switch (stack->type) {
-                case 0:
+                case RS_INT:
                     result = EventEffectScript->SetValue(value_no, GetStackInt(stack), -1, -1);
                     break;
-                case 1:
+                case RS_FLOAT:
                     result = EventEffectScript->SetValue(value_no, GetStackFloat(stack), -1, -1);
                     break;
                 default:
@@ -16196,10 +16431,10 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
             value_no = GetStackInt(stack++);
 
             switch (stack->type) {
-                case 0:
+                case RS_INT:
                     result = EventEffectScript->SetValue(value_no, GetStackInt(stack), group, slot);
                     break;
-                case 1:
+                case RS_FLOAT:
                     result = EventEffectScript->SetValue(value_no, GetStackFloat(stack), group, slot);
                     break;
                 default:
@@ -16214,13 +16449,18 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
+/**
+ *
+ * Sets a character battle attribute or status attribute.
+ *
+ */
 static int _SET_CHARA_CONDITION(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 2: {
             CBattleCharaInfo *info;
             int               chara;
 
-            if ((info = GetBattleCharaInfo()) == 0) {
+            if ((info = GetBattleCharaInfo()) == NULL) {
                 return false;
             }
 
@@ -16255,10 +16495,15 @@ static int _SET_CHARA_CONDITION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds to the battle WHP of a character.
+ *
+ */
 static int _ADD_WHP(RS_STACKDATA *stack, int argc) {
     CBattleCharaInfo *info;
 
-    if ((info = GetBattleCharaInfo()) == 0) {
+    if ((info = GetBattleCharaInfo()) == NULL) {
         return false;
     }
 
@@ -16268,6 +16513,11 @@ static int _ADD_WHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds a rate of HP to a battle character over a number of frames.
+ *
+ */
 static int _ADD_HP_RATE(RS_STACKDATA *stack, int argc) {
     float             rate;
     float             frames;
@@ -16289,11 +16539,21 @@ static int _ADD_HP_RATE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the time of the event scene.
+ *
+ */
 static int _GET_TIME(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->time);
     return true;
 }
 
+/**
+ *
+ * Pushes whether the item limit is exceeded, or an item count clamped to the remaining limit.
+ *
+ */
 static int _CHECK_GET_ITEM_LIMIT(RS_STACKDATA *stack, int argc) {
     int item_id;
     int count;
@@ -16316,25 +16576,40 @@ static int _CHECK_GET_ITEM_LIMIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes whether the item count is over the limit.
+ *
+ */
 static int _CHECK_ITEM_OVER(RS_STACKDATA *stack, int argc) {
     argc = CheckItemOver();
     SetStack(stack, argc);
     return true;
 }
 
+/**
+ *
+ * Pushes the current loop number.
+ *
+ */
 static int _GET_NOW_LOOP_NO(RS_STACKDATA *stack, int argc) {
     argc = GetNowLoopNo();
     SetStack(stack, argc);
     return true;
 }
 
+/**
+ *
+ * Pushes whether the most fast destroy floor is cleared.
+ *
+ */
 static int _IS_CLEAR_DESTROY(RS_STACKDATA *stack, int argc) {
     CDngFloorManager *floor_manager;
     DNG_BATTLE_AREA  *dng_scene;
 
     dng_scene = &EventScene->battle_area;
 
-    if (dng_scene == 0) {
+    if (dng_scene == NULL) {
         return false;
     }
 
@@ -16348,6 +16623,11 @@ static int _IS_CLEAR_DESTROY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes whether a practice floor is cleared and its bonus type.
+ *
+ */
 static int _IS_CLEAR_PRACTICE(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
@@ -16405,13 +16685,18 @@ static int _IS_CLEAR_PRACTICE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes whether a dungeon sub game is being played.
+ *
+ */
 static int _IS_PLAY_SUB_GAME(RS_STACKDATA *stack, int argc) {
     CDngFloorManager *floor_manager;
     DNG_BATTLE_AREA  *dng_scene;
 
     dng_scene = &EventScene->battle_area;
 
-    if (dng_scene == 0) {
+    if (dng_scene == NULL) {
         return false;
     }
 
@@ -16425,6 +16710,11 @@ static int _IS_PLAY_SUB_GAME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the dungeon subject counter from the save data play time.
+ *
+ */
 static int _RESET_SUBJECT_COUNTER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
     CSaveData       *save;
@@ -16445,6 +16735,11 @@ static int _RESET_SUBJECT_COUNTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes the amplitude, speed and pitch of the screen raster effect.
+ *
+ */
 static int _SCR_EFF_INIT_RASTER(RS_STACKDATA *stack, int argc) {
     float amplitude = GetStackFloat(stack++);
     float speed = GetStackFloat(stack++);
@@ -16453,6 +16748,11 @@ static int _SCR_EFF_INIT_RASTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Starts the screen raster effect for a number of frames.
+ *
+ */
 static int _SCR_EFF_START_RASTER(RS_STACKDATA *stack, int argc) {
     float amplitude = GetStackFloat(stack++);
     float speed = GetStackFloat(stack++);
@@ -16462,6 +16762,11 @@ static int _SCR_EFF_START_RASTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stops the screen raster effect over a number of frames.
+ *
+ */
 static int _SCR_EFF_STOP_RASTER(RS_STACKDATA *stack, int argc) {
     float amplitude = GetStackFloat(stack++);
     float speed = GetStackFloat(stack++);
@@ -16471,6 +16776,11 @@ static int _SCR_EFF_STOP_RASTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the motion of the character on a map piece of a map parts.
+ *
+ */
 static int _SET_MPCHARA_MOTION(RS_STACKDATA *stack, int argc) {
     CMap      *maps[8];
     int        map_count;
@@ -16485,7 +16795,7 @@ static int _SET_MPCHARA_MOTION(RS_STACKDATA *stack, int argc) {
     }
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             parts_id = GetStackInt(stack++);
 
             for (i = 0; i < map_count; i++) {
@@ -16497,7 +16807,7 @@ static int _SET_MPCHARA_MOTION(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 2:
+        case RS_STR:
             parts_name = GetStackString(stack++);
 
             for (i = 0; i < map_count; i++) {
@@ -16535,6 +16845,11 @@ static int _SET_MPCHARA_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the position of a function point, found by parts and name or by place and name.
+ *
+ */
 static int _FUNC_POINT_POS(RS_STACKDATA *stack, int argc) {
     float       pos[4];
     CFuncPoint *func_point;
@@ -16587,6 +16902,11 @@ static int _FUNC_POINT_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the string comparison result of a map parts name.
+ *
+ */
 static int _PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
@@ -16607,16 +16927,31 @@ static int _PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Pushes the trial version flag, which is always clear.
+ *
+ */
 static int _GET_TRIAL_VERSION(RS_STACKDATA *stack, int argc) {
     SetStack(stack, 0);
     return true;
 }
 
+/**
+ *
+ * Switches the floor episode title.
+ *
+ */
 static int _SET_FLOOR_EPISODE(RS_STACKDATA *stack, int argc) {
     StartupEpisodeTitle.Switch(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Pushes the position of a function point.
+ *
+ */
 static int _FUNC_POINT_GET_POS(RS_STACKDATA *stack, int argc) {
     float       pos[4];
     CFuncPoint *func_point;
@@ -16670,10 +17005,20 @@ static int _FUNC_POINT_GET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Returns the map that is active in the event scene.
+ *
+ */
 static inline CMap *GetActiveEventMap() {
     return EventScene->GetMap(EventScene->active_map);
 }
 
+/**
+ *
+ * Pushes the rotation of a function point.
+ *
+ */
 static int _FUNC_POINT_GET_ROT(RS_STACKDATA *stack, int argc) {
     float       rot[4];
     CMap       *map;
@@ -16739,6 +17084,11 @@ static int _FUNC_POINT_GET_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Resets an action character and sets its default motion.
+ *
+ */
 static int _ACTCHR_SET_DEF_MOTION(RS_STACKDATA *stack, int argc) {
     int           chara_no;
     int           motion_arg = 0;
@@ -16759,6 +17109,11 @@ static int _ACTCHR_SET_DEF_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds fusion points for a group and member.
+ *
+ */
 static int _ADD_FUSION_POINT(RS_STACKDATA *stack, int argc) {
     int               group;
     int               member;
@@ -16780,7 +17135,7 @@ static int _ADD_FUSION_POINT(RS_STACKDATA *stack, int argc) {
 
     save = GetSaveData();
 
-    if (save != 0) {
+    if (save != NULL) {
         user_data = &save->user_data;
     }
 
@@ -16792,6 +17147,11 @@ static int _ADD_FUSION_POINT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the debug flag.
+ *
+ */
 static int _GET_DEBUG_FLAG(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
@@ -16802,6 +17162,11 @@ static int _GET_DEBUG_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Enables the minimap door at a position.
+ *
+ */
 static int _MINIMAP_DOOR_ENABLE(RS_STACKDATA *stack, int argc) {
     float pos[3];
 
@@ -16814,6 +17179,11 @@ static int _MINIMAP_DOOR_ENABLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the boss map value of the dungeon.
+ *
+ */
 static int _DNG_CHECK_BOSS_MAP(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
 
@@ -16831,6 +17201,11 @@ static int _DNG_CHECK_BOSS_MAP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the dungeon event number to run.
+ *
+ */
 static int _DNG_RUN_EVENT(RS_STACKDATA *stack, int argc) {
     int              event_no = GetStackInt(stack);
     DNG_BATTLE_AREA *scene = &EventScene->battle_area;
@@ -16849,6 +17224,11 @@ static int _DNG_RUN_EVENT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes whether a character can be changed to.
+ *
+ */
 static int _CHECK_ENABLE_CHARA_CHANGE(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data;
     int               chara_no;
@@ -16863,7 +17243,7 @@ static int _CHECK_ENABLE_CHARA_CHANGE(RS_STACKDATA *stack, int argc) {
     chara_no = GetStackInt(stack);
     save = GetSaveData();
 
-    if (save == 0) {
+    if (save == NULL) {
         return false;
     }
 
@@ -16877,6 +17257,11 @@ static int _CHECK_ENABLE_CHARA_CHANGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes the sepia screen effect texture, optionally in a scene stack buffer.
+ *
+ */
 static int _INIT_SEPIA(RS_STACKDATA *stack, int argc) {
     int        stack_no;
     int        block_offset;
@@ -16912,7 +17297,7 @@ static int _INIT_SEPIA(RS_STACKDATA *stack, int argc) {
 
         size = mgScreenWidth * mgScreenHeight * mgScreenDepth;
 
-        if ((buffer = scene_stack->stAlloc64(size / 8 / 16 + 1)) == 0) {
+        if ((buffer = scene_stack->stAlloc64(size / 8 / 16 + 1)) == NULL) {
             return false;
         }
     } else {
@@ -16927,17 +17312,32 @@ static int _INIT_SEPIA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Captures the screen and starts the sepia effect.
+ *
+ */
 static int _START_SEPIA(RS_STACKDATA *stack, int argc) {
     EventScreenEffect.CaptureSepiaScreen();
     EventScreenEffect.SetSepiaFlag(1);
     return true;
 }
 
+/**
+ *
+ * Ends the sepia effect.
+ *
+ */
 static int _END_SEPIA(RS_STACKDATA *stack, int argc) {
     EventScreenEffect.SetSepiaFlag(0);
     return true;
 }
 
+/**
+ *
+ * Copies a monster into a scene character slot.
+ *
+ */
 static int _COPY_MONS2SCNCHR(RS_STACKDATA *stack, int argc) {
     if (ActiveMonster == NULL) {
         return false;
@@ -16966,7 +17366,7 @@ static int _COPY_MONS2SCNCHR(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    EventScene->SetStatus(SCENE_DATA_CHARA, slot, 5);
+    EventScene->SetStatus(SCENE_DATA_CHARA, slot, SCENE_DATA_LOADED | SCENE_DATA_ASSIGNED);
     CCharacter2 *dest = GetCharacter(dst_no);
     CCharacter2(ActiveMonster->refer[monster_index].chara).Copy(*dest, memory);
     EventScene->SetCharaTexb(dst_no, monster_index + 0x28);
@@ -16977,6 +17377,11 @@ CObject::CObject(const CObject &other)
     : mgCObject(other), far_dist(other.far_dist), fade(other.fade), fade_alpha(other.fade_alpha),
       fade_speed(other.fade_speed), near_dist(other.near_dist), show(other.show), draw_off(other.draw_off) {}
 
+/**
+ *
+ * Unlocks a scene memory stack.
+ *
+ */
 static int _UNLOCK_STACK(RS_STACKDATA *stack, int argc) {
     mgCMemory *scene_stack = EventScene->GetStack(GetStackInt(stack));
 
@@ -16988,11 +17393,21 @@ static int _UNLOCK_STACK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Clears the event run flag.
+ *
+ */
 static int _RESET_EVENT_TRG(RS_STACKDATA *stack, int argc) {
     EventScene->event_run = 0;
     return true;
 }
 
+/**
+ *
+ * Sets the character number of a scene slot.
+ *
+ */
 static int _SET_CHARA_NO(RS_STACKDATA *stack, int argc) {
     int slot = GetStackInt(stack++);
 
@@ -17000,6 +17415,11 @@ static int _SET_CHARA_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the character number of a character ID.
+ *
+ */
 static int _GET_CHARA_NO(RS_STACKDATA *stack, int argc) {
     int           id;
     RS_STACKDATA *args = stack;
@@ -17013,6 +17433,11 @@ static int _GET_CHARA_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the scene slot of a character ID.
+ *
+ */
 static int _SEARCH_CHARA_NO(RS_STACKDATA *stack, int argc) {
     int           id;
     RS_STACKDATA *args = stack;
@@ -17026,6 +17451,11 @@ static int _SEARCH_CHARA_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the position of the random stone nearest a point, and whether one was found.
+ *
+ */
 static int _GET_NEAR_RANDOM_STONE_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float stone_pos[4];
@@ -17055,6 +17485,11 @@ static int _GET_NEAR_RANDOM_STONE_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Initializes the textures and buffers of the monochrome flash effect.
+ *
+ */
 static int _INIT_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     u_long128  *buffers[2];
     mgCTexture *textures[2];
@@ -17102,6 +17537,11 @@ static int _INIT_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Captures the screen and starts the monochrome flash for an interval.
+ *
+ */
 static int _START_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     int interval = GetStackInt(stack);
 
@@ -17110,16 +17550,31 @@ static int _START_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Ends the monochrome flash effect.
+ *
+ */
 static int _END_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     EventScreenEffect.SetMonoFlashFlag(0, 0);
     return true;
 }
 
+/**
+ *
+ * Deletes a villager from the event scene.
+ *
+ */
 static int _DELETE_VILLAGER(RS_STACKDATA *stack, int argc) {
     EventScene->DeleteVillager(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the dungeon weather and changes the environment offset to match.
+ *
+ */
 static int _DNG_SET_WEATHER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = (&EventScene->battle_area);
     int              weather;
@@ -17131,7 +17586,7 @@ static int _DNG_SET_WEATHER(RS_STACKDATA *stack, int argc) {
     weather = GetStackInt(stack);
     info->weather = weather;
 
-    if (weather == (int) DNG_WEATHER_RAIN) {
+    if (weather == DNG_WEATHER_RAIN) {
         EventScene->AutoChangeEnvOffset(4);
     } else {
         EventScene->AutoChangeEnvOffset(0);
@@ -17140,6 +17595,11 @@ static int _DNG_SET_WEATHER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the maximum HP of a character and refills its HP.
+ *
+ */
 static int _SET_CHARA_MAXHP(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
@@ -17168,6 +17628,11 @@ static int _SET_CHARA_MAXHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the defence of a character.
+ *
+ */
 static int _SET_CHARA_DEFENCE(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
@@ -17193,6 +17658,11 @@ static int _SET_CHARA_DEFENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the string comparison result of a placed parts name.
+ *
+ */
 static int _PLACE_PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
@@ -17213,6 +17683,11 @@ static int _PLACE_PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Opens the use item menu for a pointer and its parameters.
+ *
+ */
 static int _GOTO_USE_ITEM2(RS_STACKDATA *stack, int argc) {
     int i;
 
@@ -17222,7 +17697,7 @@ static int _GOTO_USE_ITEM2(RS_STACKDATA *stack, int argc) {
 
     p_use_item = stack->val.p;
     stack++;
-    MenuArg.open_type = (int) MENU_OPEN_USE_ITEM;
+    MenuArg.open_type = MENU_OPEN_USE_ITEM;
     MenuArg.param[0] = GetStackInt(stack++);
 
     for (i = 1; i < argc - 1; i++) {
@@ -17230,10 +17705,15 @@ static int _GOTO_USE_ITEM2(RS_STACKDATA *stack, int argc) {
     }
 
     MenuArg.param[i] = 0;
-    EdEventInfo.command_mode = 3;
+    EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return true;
 }
 
+/**
+ *
+ * Sets an analyze flag of an edit data area.
+ *
+ */
 static int _DBG_SET_ANALYZE_FLAG(RS_STACKDATA *stack, int argc) {
     int           area;
     RS_STACKDATA *args = stack;
@@ -17261,6 +17741,11 @@ static int _DBG_SET_ANALYZE_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns the Atramiria effect on or off for a character.
+ *
+ */
 static int _ATRAMIRIA_ON_OFF(RS_STACKDATA *stack, int argc) {
     int           mode;
     RS_STACKDATA *args = stack;
@@ -17274,6 +17759,11 @@ static int _ATRAMIRIA_ON_OFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds a yarikomi medal to the user data.
+ *
+ */
 static int _ADD_YARIKOMI_MEDAL(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data;
     CSaveData        *save = GetSaveData();
@@ -17292,6 +17782,11 @@ static int _ADD_YARIKOMI_MEDAL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the map effect ID of the dungeon.
+ *
+ */
 static int _SET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = (&EventScene->battle_area);
 
@@ -17303,6 +17798,11 @@ static int _SET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the map effect ID of the dungeon.
+ *
+ */
 static int _GET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = &EventScene->battle_area;
 
@@ -17319,21 +17819,41 @@ static int _GET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Initializes the dungeon floor.
+ *
+ */
 static int _DNG_FLOOR_INIT(RS_STACKDATA *stack, int argc) {
     DungeonFloorInit();
     return true;
 }
 
+/**
+ *
+ * Finishes the dungeon floor.
+ *
+ */
 static int _DNG_FLOOR_FINISH(RS_STACKDATA *stack, int argc) {
     DungeonFloorFinish();
     return true;
 }
 
+/**
+ *
+ * Clears the random stones of the automap.
+ *
+ */
 static int _CLEAR_RND_STONE(RS_STACKDATA *stack, int argc) {
     AutoMapGen.ClearRandomStone();
     return true;
 }
 
+/**
+ *
+ * Pushes the floor status of the dungeon.
+ *
+ */
 static int _GET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
@@ -17349,6 +17869,11 @@ static int _GET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets or clears the masked bits of the dungeon floor status.
+ *
+ */
 static int _SET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = (&EventScene->battle_area);
     RS_STACKDATA    *args = stack;
@@ -17369,6 +17894,11 @@ static int _SET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the automap attribute status at a position.
+ *
+ */
 static int _AMG_GET_ATTR_STATUS(RS_STACKDATA *stack, int argc) {
     float position[4];
 
@@ -17383,6 +17913,11 @@ static int _AMG_GET_ATTR_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the fade flag and near distance of a character.
+ *
+ */
 static int _SET_NEAR_DIST(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     float        dist = GetStackFloat(stack);
@@ -17397,11 +17932,21 @@ static int _SET_NEAR_DIST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the keep time of the event info.
+ *
+ */
 static int _SET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
     EdEventInfo.keep_time = GetStackFloat(stack);
     return true;
 }
 
+/**
+ *
+ * Pushes the keep time of the event info.
+ *
+ */
 static int _GET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
@@ -17412,6 +17957,11 @@ static int _GET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the parts ID of the automap door.
+ *
+ */
 static int _GET_DOOR_PARTS_ID(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
@@ -17431,12 +17981,22 @@ static int _GET_DOOR_PARTS_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Checks for an equipment change.
+ *
+ */
 static int _CHECK_EQUEP_CHANGE(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
     CheckEquipChange(1);
     return true;
 }
 
+/**
+ *
+ * Adds a rate of HP to a character in the user data.
+ *
+ */
 static int _ADD_HP_RATE2(RS_STACKDATA *stack, int argc) {
     CSaveData *save_data = GetSaveData();
 
@@ -17456,6 +18016,11 @@ static int _ADD_HP_RATE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Clears all dungeon effects and guns.
+ *
+ */
 static int _DNG_EFFECT_ALL_CLEAR(RS_STACKDATA *stack, int argc) {
     int i;
 
@@ -17472,11 +18037,21 @@ static int _DNG_EFFECT_ALL_CLEAR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Changes the BGM volume of the event scene automatically.
+ *
+ */
 static int _AUTO_CHENGE_BGM_VOL(RS_STACKDATA *stack, int argc) {
     EventScene->AutoChangeBGMVol(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Pushes the WHP of a character weapon in the user data, and optionally its maximum.
+ *
+ */
 static int _UDATA_GET_WHP(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
@@ -17516,6 +18091,11 @@ static int _UDATA_GET_WHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds WHP to a character weapon in the user data.
+ *
+ */
 static int _UDATA_ADD_WHP(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
@@ -17543,6 +18123,11 @@ static int _UDATA_ADD_WHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the ABS value of a character weapon in the user data, and optionally its maximum.
+ *
+ */
 static int _UDATA_GET_ABS(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
@@ -17582,6 +18167,11 @@ static int _UDATA_GET_ABS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Adds ABS to a character item in the user data.
+ *
+ */
 static int _UDATA_ADD_ABS(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
@@ -17609,6 +18199,11 @@ static int _UDATA_ADD_ABS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Creates a dungeon effect script with vectors and a value.
+ *
+ */
 static int _DNG_CREATE_EFFECT(RS_STACKDATA *stack, int argc) {
     float first[4];
     float second[4];
@@ -17641,16 +18236,31 @@ static int _DNG_CREATE_EFFECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Checks Monica's items when leaving.
+ *
+ */
 static int _LEAVE_MONICA_ITEM_CHECK(RS_STACKDATA *stack, int argc) {
     LeaveMonicaItemCheck();
     return true;
 }
 
+/**
+ *
+ * Sets the pause enable flag.
+ *
+ */
 static int _PAUSE_ENABLE_FLAG(RS_STACKDATA *stack, int argc) {
     PauseEnable(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Forces the tour boot on the save data day.
+ *
+ */
 static int _FORCE_BOOT_TOUR(RS_STACKDATA *stack, int argc) {
     CSaveData *save_data = GetSaveData();
 
@@ -18386,7 +18996,7 @@ void SetEventFunc(CRunScript *script) {
             if (ext_func_info[i].no == ext_func_info[j].no) {
                 printf("same ext_func_no!!!\n");
 
-                while (1) {
+                while (true) {
                 }
             }
         }

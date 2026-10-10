@@ -842,7 +842,7 @@ void CInventUserData::Initialize() {
 
 void CInventUserData::ResetAddress() {
     for (int index = 0; index < 30; index++) {
-        photo[index].image = reinterpret_cast<char *>(&photo_work) + index * 0x2000;
+        photo[index].image = reinterpret_cast<char (*)[0x2000]>(photo_work)[index];
     }
 }
 

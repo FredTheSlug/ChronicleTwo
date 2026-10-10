@@ -421,8 +421,8 @@ public:
     s32                 save_kb;        /**< Size of the save data, in kilobytes. */
     s32                 check_kb;       /**< Space the save needs, in kilobytes, compared with the card's free space. */
     s32                 card_ok;        /**< Whether a usable card was in the slot when it was last checked. */
-    s32                 card_changed;   /**< 1 when the card was found removed or changed during the file list. */
-    s32                 chapter8_start; /**< 1 when the game is at the start of chapter 8, which asks before saving. */
+    s32                 card_changed;   /**< Non-zero when the card was found removed or changed during the file list. */
+    s32                 chapter8_start; /**< Non-zero when the game is at the start of chapter 8, which asks before saving. */
     s32                 save_count;     /**< Number of times the game was saved while the menu was open. */
     s32                 unk_154;
     CScene::BGM_STATUS  bgm_status;       /**< Music that was playing when the menu opened, played again when it closes. */

@@ -2724,7 +2724,7 @@ int CSaveMenuClass::KeyStep() {
                 break;
         }
 
-        first_step = 0;
+        first_step = false;
         page = next;
     }
 

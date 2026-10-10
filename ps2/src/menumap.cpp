@@ -1240,16 +1240,16 @@ inline CWorldMapMenu::CWorldMapMenu() {
 
     memset(unk_118, 0, sizeof(unk_118));
     area_no = 0;
-    capture_view = 0;
-    name_view = 0;
-    pos_list_view = 0;
-    cursor_reset = 0;
-    cursor_view = 0;
-    ask_view = 0;
+    capture_view = false;
+    name_view = false;
+    pos_list_view = false;
+    cursor_reset = false;
+    cursor_view = false;
+    ask_view = false;
     select_area = NULL;
     select_pos = NULL;
     here_area = -1;
-    view_only = 0;
+    view_only = false;
     exit_wait = 0;
     back_alpha = 128.0f;
     blink_cnt = 0;

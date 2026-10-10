@@ -4167,11 +4167,11 @@ int CUserDataManager::SearchActiveItemTableSpace(int chara_no, int item_no) {
     return -1;
 }
 
-CGameDataUsed *CUserDataManager::SearchItemOnItemBrd(int item_no, int use_alt_bag) {
+CGameDataUsed *CUserDataManager::SearchItemOnItemBrd(int item_no, int board) {
     CGameDataUsed *item = GetUsedDataPtr(0);
     int            limit = GetNowBagMax(0);
 
-    if (use_alt_bag != 0) {
+    if (board != 0) {
         limit = GetNowBagMax(1);
     }
 
@@ -4793,8 +4793,8 @@ void CBattleCharaInfo::Initialize() {
     memset(this, 0, sizeof(*this));
     chr_no = USER_CHARA_MAX;
     chara_type = -1;
-    chara_data = 0;
-    chara_data = 0;
+    chara_data.any = NULL;
+    chara_data.any = NULL;
     hp = 0;
     equip = 0;
     hp_change_step = 0;
@@ -4822,20 +4822,20 @@ void CBattleCharaInfo::SetChrNo(int new_chara_no) {
 
     if (0 <= chr_no && chr_no < 2) {
         chara_type = BATTLE_CHARA_HUMAN;
-        chara_data = manager->GetCharaDataPtr(chr_no);
-        active_item = ((CHARA_DATA *) chara_data)->active_item;
-        equip = ((CHARA_DATA *) chara_data)->equip;
-        hp = &((CHARA_DATA *) chara_data)->hp;
+        chara_data.human = manager->GetCharaDataPtr(chr_no);
+        active_item = chara_data.human->active_item;
+        equip = chara_data.human->equip;
+        hp = &chara_data.human->hp;
         disp_hp = hp->now;
         disp_hp_max = hp->max;
         prev_hp = hp->now;
         prev_hp_max = hp->max;
     } else if (chr_no == USER_CHARA_ROBO) {
         chara_type = BATTLE_CHARA_ROBO;
-        chara_data = &manager->robo_data;
+        chara_data.robo = &manager->robo_data;
         active_item = 0;
-        equip = &((ROBO_DATA *) chara_data)->parts[0];
-        hp = &((ROBO_DATA *) chara_data)->hp;
+        equip = &chara_data.robo->parts[0];
+        hp = &chara_data.robo->hp;
         disp_hp = hp->now;
         disp_hp_max = hp->max;
         prev_hp = hp->now;
@@ -4843,7 +4843,7 @@ void CBattleCharaInfo::SetChrNo(int new_chara_no) {
     } else if (chr_no == USER_CHARA_MONSTER) {
         chara_type = BATTLE_CHARA_MONSTER;
         int monster_id = GetMonsterID();
-        chara_data = manager->GetMonsterBajjiDataPtrMosId(monster_id);
+        chara_data.monster = manager->GetMonsterBajjiDataPtrMosId(monster_id);
         int               base = 0;
         BASE_MONSTER_TBL *info = GetMonsterBaseInfo(monster_id);
 
@@ -4935,7 +4935,7 @@ int CBattleCharaInfo::UseActiveItem(CGameDataUsed *item) {
 
     item_no = item->item_no;
     CItemUseTarget target;
-    target.SetPtr((int) ITEM_USE_TARGET_CHARA, chara_data);
+    target.SetPtr(ITEM_USE_TARGET_CHARA, chara_data.any);
 
     if (item_no == (int) ITEM_ID_MELEE_REPAIR) {
         target.SetPtr((int) ITEM_USE_TARGET_ITEM, GetEquipTablePtr(0));
@@ -4971,8 +4971,8 @@ int CBattleCharaInfo::GetPalletNo(int slot) {
 }
 
 void CBattleCharaInfo::RefreshParamater() {
-    if (chara_data != NULL) {
-    } else if (chara_data == NULL) {
+    if (chara_data.any != NULL) {
+    } else if (chara_data.any == NULL) {
         return;
     }
 
@@ -4992,12 +4992,12 @@ void CBattleCharaInfo::RefreshParamater() {
         float weapon_rate[2] = {1.0f, 1.0f};
         short status[10];
 
-        if (((CHARA_DATA *) chara_data)->status_attr & CHARA_STATUS_POWER) {
+        if (chara_data.human->status_attr & CHARA_STATUS_POWER) {
             weapon_rate[0] = 1.5f;
             weapon_rate[1] = 1.5f;
         }
 
-        defence = ((CHARA_DATA *) chara_data)->defence;
+        defence = chara_data.human->defence;
         int i = 0;
 
         while (i < 2) {
@@ -5023,9 +5023,9 @@ void CBattleCharaInfo::RefreshParamater() {
         }
     } else if (chara_type == BATTLE_CHARA_ROBO) {
         int capacity;
-        robo_hp_drain = 0.006f * ((float) CheckNowRoboUseCapacity((ROBO_DATA *) chara_data, &capacity) / (float) capacity);
+        robo_hp_drain = 0.006f * ((float) CheckNowRoboUseCapacity(chara_data.robo, &capacity) / (float) capacity);
         ROBOPART_USED *part = &equipment->data.robopart;
-        defence = ((ROBO_DATA *) chara_data)->GetDefenceVol();
+        defence = chara_data.robo->GetDefenceVol();
 
         for (int i = 0; i < 2; i++) {
             param->status[WEAPON_STAT_ATTACK] = part->status[WEAPON_STAT_ATTACK];
@@ -5053,9 +5053,9 @@ void CBattleCharaInfo::RefreshParamater() {
             monster_rate = 1.25f;
         }
 
-        param->status[WEAPON_STAT_ATTACK] = fptosi(monster_rate * (float) ((MOS_CHANGE_PARAM *) chara_data)->GetAttackVol(-1));
-        param->status[WEAPON_STAT_DURABILITY] = fptosi(monster_rate * (float) ((MOS_CHANGE_PARAM *) chara_data)->GetAttackVol(-1));
-        defence = fptosi(monster_rate * (float) ((MOS_CHANGE_PARAM *) chara_data)->GetDefenceVol(-1));
+        param->status[WEAPON_STAT_ATTACK] = fptosi(monster_rate * (float) chara_data.monster->GetAttackVol(-1));
+        param->status[WEAPON_STAT_DURABILITY] = fptosi(monster_rate * (float) chara_data.monster->GetAttackVol(-1));
+        defence = fptosi(monster_rate * (float) chara_data.monster->GetDefenceVol(-1));
         param->status[2] = 0;
         param->status[3] = 0;
         param->status[4] = 0;
@@ -5088,7 +5088,7 @@ COMMON_GAGE *CBattleCharaInfo::GetNowAccessWHp(int slot) {
     } else if (current_mode == BATTLE_CHARA_ROBO) {
         gage = (COMMON_GAGE *) ((u8 *) equip + offsetof(CGameDataUsed, data)) + 1;
     } else if (current_mode == BATTLE_CHARA_MONSTER) {
-        gage = &((MOS_CHANGE_PARAM *) chara_data)->hp;
+        gage = &chara_data.monster->hp;
     }
 
     return gage;
@@ -5107,9 +5107,9 @@ COMMON_GAGE *CBattleCharaInfo::GetNowAccessAbs(int slot) {
 
         gage = (COMMON_GAGE *) (table + slot * sizeof(CGameDataUsed) + offsetof(CGameDataUsed, data)) + 1;
     } else if (current_mode == BATTLE_CHARA_ROBO) {
-        gage = &((ROBO_DATA *) chara_data)->abs;
+        gage = &chara_data.robo->abs;
     } else if (current_mode == BATTLE_CHARA_MONSTER) {
-        gage = &((MOS_CHANGE_PARAM *) chara_data)->abs;
+        gage = &chara_data.monster->abs;
     }
 
     return gage;
@@ -5257,8 +5257,8 @@ float CBattleCharaInfo::AddAbs(int slot, float amount, int *leveled_up) {
         gage->now += amount;
         GetUserDataMan()->AddRoboAbs(amount);
     } else if (chara_type == BATTLE_CHARA_MONSTER) {
-        ((MOS_CHANGE_PARAM *) chara_data)->abs.AddPoint(amount);
-        MOS_CHANGE_PARAM *badge = (MOS_CHANGE_PARAM *) chara_data;
+        chara_data.monster->abs.AddPoint(amount);
+        MOS_CHANGE_PARAM *badge = chara_data.monster;
 
         if (badge != 0) {
             int leveled = badge->LevelUp();
@@ -5470,12 +5470,12 @@ int CBattleCharaInfo::GetNowHp_i() {
     return 0;
 }
 
-int CBattleCharaInfo::SetAttr(int attr, int value) {
+int CBattleCharaInfo::SetAttr(int attr, int mode) {
     CUserDataManager *manager = GetUserDataMan();
     int               result = 0;
 
     if (manager != 0) {
-        manager->SetCharaStatusAttirbute(chr_no, attr, value);
+        manager->SetCharaStatusAttirbute(chr_no, attr, mode);
         result = manager->GetCharaStatusAttirbute(chr_no);
     }
 
@@ -5558,15 +5558,15 @@ int GetRandomCircleTrapID(int kind) {
     return trap;
 }
 
-int SetRandamCircleStatus(int kind, float &amount_out) {
-    if (kind <= 0) {
+int SetRandamCircleStatus(int trap, float &amount_out) {
+    if (trap <= 0) {
         return 0;
     }
 
     CBattleCharaInfo *battle = GetBattleCharaInfo();
     int               applied;
 
-    if (kind == 3) {
+    if (trap == 3) {
         CUserDataManager *manager = GetUserDataMan();
 
         if (manager != 0) {
@@ -5582,34 +5582,34 @@ int SetRandamCircleStatus(int kind, float &amount_out) {
 
     applied = 0;
 
-    if (kind == 1) {
+    if (trap == 1) {
         amount_out = 0.1f * battle->GetNowAccessAbs(0)->max + 0.1f * battle->GetNowAccessAbs(1)->max;
     }
 
-    if (kind == 2) {
+    if (trap == 2) {
         battle->AddHp_Rate(1.0f, 0, 0.0f);
         battle->SetAttr(0x6F, 1);
         applied = 1;
     }
 
-    if (kind == 5) {
+    if (trap == 5) {
         battle->SetAttr(1, 0);
         applied = 1;
     }
 
-    if (kind == 6) {
+    if (trap == 6) {
         float rate = float(-0.5);
         battle->AddHp_Rate(rate, 3, 0.0f);
         applied = 1;
     }
 
-    if (kind == 9 || kind == 0xB) {
+    if (trap == 9 || trap == 0xB) {
         COMMON_GAGE *gage = battle->GetNowAccessWHp(0);
         applied = 1;
         gage->now *= 0.5f;
     }
 
-    if (kind == 8 || kind == 0xA) {
+    if (trap == 8 || trap == 0xA) {
         COMMON_GAGE *gage = battle->GetNowAccessWHp(1);
         gage->now *= 0.5f;
         applied = 1;
@@ -5676,20 +5676,20 @@ int CBattleCharaInfo::StatusParamStep(int *poison_damage) {
 
     if (attr & CHARA_STATUS_POWER) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[0]--;
+            chara_data.human->status_time[0]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[0] <= 0) {
+            if (chara_data.human->status_time[0] <= 0) {
                 SetAttr(CHARA_STATUS_POWER, 1);
-                ((CHARA_DATA *) chara_data)->status_time[0] = 0;
+                chara_data.human->status_time[0] = 0;
                 RefreshParamater();
             }
         } else if (chara_type == BATTLE_CHARA_MONSTER) {
-            if (chara_data != NULL) {
-                ((MOS_CHANGE_PARAM *) chara_data)->power_time--;
+            if (chara_data.monster != NULL) {
+                chara_data.monster->power_time--;
 
-                if (((MOS_CHANGE_PARAM *) chara_data)->power_time <= 0) {
+                if (chara_data.monster->power_time <= 0) {
                     SetAttr(CHARA_STATUS_POWER, 1);
-                    ((MOS_CHANGE_PARAM *) chara_data)->power_time = 0;
+                    chara_data.monster->power_time = 0;
                     RefreshParamater();
                 }
             }
@@ -5698,15 +5698,15 @@ int CBattleCharaInfo::StatusParamStep(int *poison_damage) {
 
     if (attr & CHARA_STATUS_SLOW) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[1]--;
+            chara_data.human->status_time[1]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[1] <= 0) {
+            if (chara_data.human->status_time[1] <= 0) {
                 SetAttr(CHARA_STATUS_SLOW, 1);
             }
         } else if (chara_type == BATTLE_CHARA_ROBO) {
-            ((ROBO_DATA *) chara_data)->status_time[0]--;
+            chara_data.robo->status_time[0]--;
 
-            if (((ROBO_DATA *) chara_data)->status_time[0] <= 0) {
+            if (chara_data.robo->status_time[0] <= 0) {
                 SetAttr(CHARA_STATUS_SLOW, 1);
             }
         }
@@ -5714,15 +5714,15 @@ int CBattleCharaInfo::StatusParamStep(int *poison_damage) {
 
     if (attr & CHARA_STATUS_UNK_8) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[2]--;
+            chara_data.human->status_time[2]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[2] <= 0) {
+            if (chara_data.human->status_time[2] <= 0) {
                 SetAttr(CHARA_STATUS_UNK_8, 1);
             }
         } else if (chara_type == BATTLE_CHARA_ROBO) {
-            ((ROBO_DATA *) chara_data)->status_time[1]--;
+            chara_data.robo->status_time[1]--;
 
-            if (((ROBO_DATA *) chara_data)->status_time[1] <= 0) {
+            if (chara_data.robo->status_time[1] <= 0) {
                 SetAttr(CHARA_STATUS_UNK_8, 1);
             }
         }
@@ -5730,9 +5730,9 @@ int CBattleCharaInfo::StatusParamStep(int *poison_damage) {
 
     if (attr & CHARA_STATUS_UNK_20) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[3]--;
+            chara_data.human->status_time[3]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[3] <= 0) {
+            if (chara_data.human->status_time[3] <= 0) {
                 SetAttr(CHARA_STATUS_UNK_20, 1);
             }
         }
@@ -5769,10 +5769,10 @@ void CBattleCharaInfo::Step() {
 
                 break;
             case USER_CHARA_MONSTER:
-                ((MOS_CHANGE_PARAM *) chara_data)->hp.now -= monster_hp_drain;
+                chara_data.monster->hp.now -= monster_hp_drain;
 
-                if (((MOS_CHANGE_PARAM *) chara_data)->hp.now <= 0.0f) {
-                    ((MOS_CHANGE_PARAM *) chara_data)->hp.now = 0.0f;
+                if (chara_data.monster->hp.now <= 0.0f) {
+                    chara_data.monster->hp.now = 0.0f;
                 }
 
                 break;

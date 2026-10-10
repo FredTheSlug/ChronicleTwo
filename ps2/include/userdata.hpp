@@ -57,9 +57,144 @@ enum CHARA_STATUS_ATTR {
     CHARA_STATUS_ALL = 0x7F, /**< Every status bit. */
 };
 
+/**
+ *
+ * How CUserDataManager::SetCharaStatusAttirbute applies its status attribute bits.
+ *
+ */
+enum CHARA_STATUS_ATTR_MODE {
+    CHARA_STATUS_ATTR_MODE_ADD = 0,   /**< Adds the bits; a power boost wards off and cures poison and slow. */
+    CHARA_STATUS_ATTR_MODE_CLEAR = 1, /**< Clears the bits. */
+};
+
+/**
+ *
+ * Ways CBattleCharaInfo::AddHp_Rate changes health by a rate.
+ *
+ */
+enum HP_RATE_KIND {
+    HP_RATE_OF_MAX = 0,          /**< By a fraction of the health capacity. */
+    HP_RATE_OF_NOW = 1,          /**< By a fraction of the current health. */
+    HP_RATE_OF_MAX_KEEP_ONE = 2, /**< By a fraction of the health capacity, leaving at least 1. */
+    HP_RATE_OF_NOW_KEEP_ONE = 3, /**< By a fraction of the current health, leaving at least 1. */
+};
+
+/**
+ *
+ * Bits CUserDataManager::CheckEnableCharaChange reports about changing to a character.
+ *
+ */
+enum CHARA_CHANGE_REASON {
+    CHARA_CHANGE_REASON_ALIVE = 0x1,         /**< The character has health left. */
+    CHARA_CHANGE_REASON_FLOOR_LIMITED = 0x2, /**< The dungeon floor bars Max or Monica. */
+    CHARA_CHANGE_REASON_STATUS_OK = 0x4,     /**< No condition blocks changing to the character. */
+};
+
+/**
+ *
+ * Bits of the quick-change state CUserDataManager::CheckQuickChange gives.
+ *
+ */
+enum QUICK_CHANGE_STATE {
+    QUICK_CHANGE_STATE_IN_PARTY = 0x1, /**< The character is in the party. */
+    QUICK_CHANGE_STATE_ENABLED = 0x2,  /**< The player can change to the character now. */
+};
+
+/**
+ *
+ * Extents of the inventory measured by GetNowBagMax and searched by CUserDataManager::SearchItemOnItemBrd.
+ *
+ */
+enum ITEM_BOARD {
+    ITEM_BOARD_MAIN = 0, /**< The item board alone. */
+    ITEM_BOARD_ALL = 1,  /**< The item board followed by its overflow places. */
+};
+
+/**
+ *
+ * Forms of an owned item's name that CGameDataUsed::GetName gives.
+ *
+ */
+enum ITEM_NAME_TYPE {
+    ITEM_NAME_TYPE_PLAIN = 0,  /**< The name alone. */
+    ITEM_NAME_TYPE_LEVEL = 1,  /**< The name followed by the level of a weapon or attachment. */
+    ITEM_NAME_TYPE_QUOTED = 2, /**< The name and level inside the language's quotation marks. */
+};
+
+/**
+ *
+ * Party status bits of a townsperson, as PARTY_CHARA_INFO::status holds them.
+ *
+ */
+enum PARTY_CHARA_STATUS {
+    PARTY_CHARA_STATUS_IN_PARTY = 0x1, /**< The townsperson is in the party. */
+    PARTY_CHARA_STATUS_JOINED = 0x2,   /**< The townsperson has joined and waits outside the party. */
+    PARTY_CHARA_STATUS_IN_HOUSE = 0x4, /**< The townsperson lives in a house of the town. */
+    PARTY_CHARA_STATUS_JOIN = 0x80,    /**< Request to CUserDataManager::SetPartyCharaStatus to make the townsperson join. */
+};
+
+/**
+ *
+ * Bits CFishingRecord::CheckRecordFish gives for a catch.
+ *
+ */
+enum FISH_RECORD_UPDATE {
+    FISH_RECORD_UPDATE_SIZE = 0x1,   /**< The catch set a new size record. */
+    FISH_RECORD_UPDATE_WEIGHT = 0x2, /**< The catch set a new weight record. */
+};
+
+/**
+ *
+ * Where CUserDataManager::GetFishInAquarium put a caught fish.
+ *
+ */
+enum FISH_STORE_RESULT {
+    FISH_STORE_KEPT = 0,     /**< In the inventory or the first aquarium tank. */
+    FISH_STORE_OVERFLOW = 1, /**< In an overflow place of the item board. */
+    FISH_STORE_NO_ROOM = 2,  /**< Nowhere; there was no room. */
+};
+
+/**
+ *
+ * Places SetEnvUserDataMan prepares the character changes for.
+ *
+ */
+enum USER_DATA_ENV {
+    USER_DATA_ENV_TOWN = 0,    /**< The town, where the ridepod and monster forms cannot be changed to. */
+    USER_DATA_ENV_DUNGEON = 1, /**< A dungeon, where the ridepod and monster forms can be changed to. */
+};
+
+/**
+ *
+ * Effects of a dungeon random circle, as GetRandomCircleTrapID picks them.
+ *
+ */
+enum RANDOM_CIRCLE {
+    RANDOM_CIRCLE_NONE_ROBO = -2,       /**< No effect, for the ridepod. */
+    RANDOM_CIRCLE_NONE_MONSTER = -1,    /**< No effect, for a monster form. */
+    RANDOM_CIRCLE_NONE = 0,             /**< No effect. */
+    RANDOM_CIRCLE_ABS_BONUS = 1,        /**< Gives a tenth of both weapons' absorption capacity. */
+    RANDOM_CIRCLE_HEAL = 2,             /**< Restores health and cures every condition but the power boost. */
+    RANDOM_CIRCLE_REPAIR = 3,           /**< Repairs both weapons of Max and Monica. */
+    RANDOM_CIRCLE_UNK_4 = 4,
+    RANDOM_CIRCLE_POISON = 5,           /**< Poisons the character. */
+    RANDOM_CIRCLE_HALVE_HP = 6,         /**< Halves the character's health. */
+    RANDOM_CIRCLE_WEAPON_DAMAGE = 7,    /**< Picks one of the four weapon durability effects that follow. */
+    RANDOM_CIRCLE_MAX_SUB_WHP = 8,      /**< Halves the durability of Max's second weapon. */
+    RANDOM_CIRCLE_MAX_MAIN_WHP = 9,     /**< Halves the durability of Max's first weapon. */
+    RANDOM_CIRCLE_MONICA_SUB_WHP = 10,  /**< Halves the durability of Monica's second weapon. */
+    RANDOM_CIRCLE_MONICA_MAIN_WHP = 11, /**< Halves the durability of Monica's first weapon. */
+    RANDOM_CIRCLE_UNK_12 = 12,
+};
+
+/**
+ *
+ * Sex of a fish, as BREEDFISH_USED::sex holds it.
+ *
+ */
 enum BREEDFISH_SEX {
-    BREEDFISH_SEX_MALE = 0,
-    BREEDFISH_SEX_FEMALE = 1,
+    BREEDFISH_SEX_MALE = 0,   /**< Male. */
+    BREEDFISH_SEX_FEMALE = 1, /**< Female. */
 };
 
 /**
@@ -70,7 +205,7 @@ enum BREEDFISH_SEX {
 enum BREEDFISH_FLAGS {
     BREEDFISH_FLAG_RAISED = 0x1,   /**< Marks a fish fed or bred in the aquarium; its weight is shown and the fishing tournament refuses it. */
     BREEDFISH_FLAG_ELECTRIC = 0x2, /**< Marks an electric fish, which is never rubbish. */
-    BREEDFISH_FLAG_FEED_LIMIT_REACHED = 0x80,
+    BREEDFISH_FLAG_FEED_LIMIT_REACHED = 0x80, /**< Marks a fish that has used up its feedings and no longer eats. */
 };
 
 /**
@@ -216,12 +351,19 @@ struct ROBOPART_USED {
     u8          unk_4c[0x10];
 };
 
-#define BREEDFISH_STAT_BOOST 0
-#define BREEDFISH_STAT_ENDURANCE 1
-#define BREEDFISH_STAT_TENACITY 2
-#define BREEDFISH_STAT_STAMINA 3
-#define BREEDFISH_STAT_BATTLE 4
-#define BREEDFISH_STAT_COUNT 5
+/**
+ *
+ * Racing parameters of a fish, as indices of BREEDFISH_USED::param.
+ *
+ */
+enum BREEDFISH_STAT {
+    BREEDFISH_STAT_BOOST = 0,     /**< Boost. */
+    BREEDFISH_STAT_ENDURANCE = 1, /**< Endurance. */
+    BREEDFISH_STAT_TENACITY = 2,  /**< Tenacity. */
+    BREEDFISH_STAT_STAMINA = 3,   /**< Stamina. */
+    BREEDFISH_STAT_BATTLE = 4,    /**< Battle. */
+    BREEDFISH_STAT_COUNT = 5,     /**< Number of racing parameters. */
+};
 
 /**
  *
@@ -230,7 +372,7 @@ struct ROBOPART_USED {
  */
 struct BREEDFISH_USED {
     char  name[0x15]; /**< Name of the fish. */
-    s8    sex;        /**< Sex of the fish, 0 or 1. */
+    s8    sex;        /**< Sex of the fish, a BREEDFISH_SEX. */
     u8    kind;       /**< Fish variety used to select its displayed name. */
     u8    unk_17;
     u16   size;   /**< Size of the fish. */
@@ -242,12 +384,12 @@ struct BREEDFISH_USED {
     u16   timer;                       /**< Time left, counted down by the game clock. */
     u8    unk_32[3];
     s8    breed_feeds_remaining; /**< Feedings left before this breeding fish stops eating. */
-    u16   feeds_remaining;
+    u16   feeds_remaining; /**< Feedings left before the fish stops eating. */
     u16   flags;      /**< BREEDFISH_FLAGS of the fish. */
     u8    color;      /**< Colour variant of the breeding fish. */
     s8    grow_count; /**< Food eaten towards the next growth; the fish grows past 10. */
     u8    unk_3c;
-    u8    race_placement_flags;
+    u8    race_placement_flags; /**< Race results; bit 0x1 marks a top-three finish in fish race 2, cleared with the fatigue. */
     u8    unk_3e[2];
     int   tank_day;  /**< Day the fish was put into the second aquarium tank. */
     float tank_hour; /**< Hour of the day the fish was put into the second aquarium tank. */
@@ -472,7 +614,7 @@ public:
 
     /**
      *
-     * Gives the display name of the item, with its level and markings as the mode asks.
+     * Gives the display name of the item in an ITEM_NAME_TYPE form.
      *
      * @mangled GetName__13CGameDataUsedFi
      * @address 0x198C20
@@ -633,7 +775,7 @@ public:
 
     /**
      *
-     * Gives whether a ridepod part of item type 0xF has no durability left.
+     * Gives whether a ridepod energy pack has no durability left.
      *
      * @mangled IsBroken__13CGameDataUsedFv
      * @address 0x199A70
@@ -1286,8 +1428,7 @@ public:
 
     /**
      *
-     * Counts a catch and keeps it when it beats the record; gives bit 0x1 for a size record and
-     * 0x2 for a weight record.
+     * Counts a catch and keeps it when it beats the record; gives its FISH_RECORD_UPDATE bits.
      *
      * @mangled CheckRecordFish__14CFishingRecordFiff
      * @address 0x19C3A0
@@ -1421,7 +1562,7 @@ STATIC_ASSERT(sizeof(CFishingTournament) == 0x70);
  */
 struct PARTY_CHARA_INFO {
     s16 chara_no; /**< Number of the townsperson, or -1 for an empty place. */
-    u16 status;   /**< Party status; bit 0x1 marks the one in the party. */
+    u16 status;   /**< Party status, PARTY_CHARA_STATUS bits. */
     s16 point;    /**< Ability points left. */
     u8  unk_6[6];
 };
@@ -2037,7 +2178,8 @@ public:
 
     /**
      *
-     * Gives whether the player can change to a character now, and why not.
+     * Gives whether the player can change to a character now, writing CHARA_CHANGE_REASON bits to
+     * out.
      *
      * @mangled CheckEnableCharaChange__16CUserDataManagerFiPi
      * @address 0x19D050
@@ -2047,7 +2189,7 @@ public:
 
     /**
      *
-     * Gives the quick-change state of a character: bit 0x1 in the party, 0x2 changeable.
+     * Gives the QUICK_CHANGE_STATE bits of a character.
      *
      * @mangled CheckQuickChange__16CUserDataManagerFiPi
      * @address 0x19D230
@@ -2107,7 +2249,8 @@ public:
 
     /**
      *
-     * Sets or, when clear is 1, clears status attribute bits of a character and gives the result.
+     * Sets or clears status attribute bits of a character, by a CHARA_STATUS_ATTR_MODE, and gives
+     * the result.
      *
      * @mangled SetCharaStatusAttirbute__16CUserDataManagerFiUii
      * @address 0x19D5D0
@@ -2167,7 +2310,7 @@ public:
 
     /**
      *
-     * Gives the number of inventory places: the item board alone, or with its overflow.
+     * Gives the number of inventory places in an ITEM_BOARD extent.
      *
      * @mangled GetItemBoardMaxNum__16CUserDataManagerFi
      * @address 0x19D860
@@ -2335,7 +2478,8 @@ public:
 
     /**
      *
-     * Changes the party status of a townsperson; bringing one into the party sends the others out.
+     * Changes the PARTY_CHARA_STATUS of a townsperson; bringing one into the party sends the others
+     * out.
      *
      * @mangled SetPartyCharaStatus__16CUserDataManagerFii
      * @address 0x19DC40
@@ -2475,8 +2619,8 @@ public:
 
     /**
      *
-     * Adds a caught fish to the inventory, the aquarium or an overflow place; gives 0, 1, or 2 when
-     * there was no room.
+     * Adds a caught fish to the inventory, the aquarium or an overflow place and gives a
+     * FISH_STORE_RESULT.
      *
      * @mangled GetFishInAquarium__16CUserDataManagerFiff
      * @address 0x19E4C0
@@ -2636,14 +2780,13 @@ public:
 
     /**
      *
-     * Gives the inventory place holding an item number, on the item board or with its overflow, or
-     * null.
+     * Gives the inventory place holding an item number within an ITEM_BOARD extent, or null.
      *
      * @mangled SearchItemOnItemBrd__16CUserDataManagerFii
      * @address 0x19EFE0
      * @size 0x8C
      */
-    CGameDataUsed *SearchItemOnItemBrd(int item_no, int use_alt_bag);
+    CGameDataUsed *SearchItemOnItemBrd(int item_no, int board);
 
     /**
      *
@@ -2854,7 +2997,12 @@ public:
     s16                 user_mons_id;       /**< Monster form selected for the playable character. */
     s16                 now_npc;            /**< Townsperson in the party, or -1. */
     s16                 chara_type;         /**< Kind of status read, a BATTLE_CHARA_TYPE. */
-    void               *chara_data;         /**< CHARA_DATA, ROBO_DATA or MOS_CHANGE_PARAM, by chara_type. */
+    union {
+        void             *any;     /**< Status of any kind, for untyped uses. */
+        CHARA_DATA       *human;   /**< Status of Max or Monica, for BATTLE_CHARA_HUMAN. */
+        ROBO_DATA        *robo;    /**< Status of the ridepod, for BATTLE_CHARA_ROBO. */
+        MOS_CHANGE_PARAM *monster; /**< Badge of the monster form, for BATTLE_CHARA_MONSTER. */
+    } chara_data;                  /**< Status being read, by chara_type. */
     float               robo_hp_drain;      /**< Energy the ridepod loses each step. */
     float               monster_hp_drain;   /**< Health a monster loses each step. */
     s16                 regen_count;        /**< Steps towards the next health regained. */
@@ -3165,7 +3313,7 @@ public:
 
     /**
      *
-     * Adds a fraction of the character's health, in one of four ways, and gives how full it is.
+     * Adds a fraction of the character's health, in an HP_RATE_KIND way, and gives how full it is.
      *
      * @mangled AddHp_Rate__16CBattleCharaInfoFfif
      * @address 0x1A1590
@@ -3205,13 +3353,14 @@ public:
 
     /**
      *
-     * Sets or clears status attribute bits of the character and gives the result.
+     * Sets or clears status attribute bits of the character, by a CHARA_STATUS_ATTR_MODE, and gives
+     * the result.
      *
      * @mangled SetAttr__16CBattleCharaInfoFii
      * @address 0x1A1800
      * @size 0x70
      */
-    int SetAttr(int attr, int value);
+    int SetAttr(int attr, int mode);
 
     /**
      *
@@ -3428,7 +3577,7 @@ MOS_HENGE_PARAM *GetMonsterHengeParam(int monster_no);
 
 /**
  *
- * Sets which characters can be changed to in town or in a dungeon.
+ * Sets which characters can be changed to for a USER_DATA_ENV.
  *
  * @mangled SetEnvUserDataMan__Fi
  * @address 0x1A00D0
@@ -3659,7 +3808,7 @@ void DeleteErekiFish();
 
 /**
  *
- * Gives the number of inventory places: the item board alone, or with its overflow.
+ * Gives the number of inventory places in an ITEM_BOARD extent.
  *
  * @mangled GetNowBagMax__Fi
  * @address 0x1A2CF0
@@ -3699,7 +3848,7 @@ void DebugGetItem(CUserDataManager *user_data, int mode);
 
 /**
  *
- * Picks the trap a random circle sets off, or -1 or -2 when none can affect the character.
+ * Picks the RANDOM_CIRCLE effect a random circle of a kind sets off for the character played.
  *
  * @mangled GetRandomCircleTrapID__Fi
  * @address 0x1A1970
@@ -3709,10 +3858,10 @@ int GetRandomCircleTrapID(int kind);
 
 /**
  *
- * Applies the effect of a random circle trap; gives whether it took effect.
+ * Applies a RANDOM_CIRCLE effect; gives whether it took effect.
  *
  * @mangled SetRandamCircleStatus__FiRf
  * @address 0x1A1A90
  * @size 0x21C
  */
-int SetRandamCircleStatus(int kind, float &amount_out);
+int SetRandamCircleStatus(int trap, float &amount_out);

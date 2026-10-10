@@ -1448,17 +1448,15 @@ int CMemoryCardManager::SaveAlbum() {
                 int chunk;
                 int left;
 
-                if (done < total) {
-                    goto write;
+                if (done >= total) {
+                    if (sceMcClose(fd) == 0) {
+                        step++;
+                        break;
+                    }
+
+                    return -1;
                 }
 
-                if (sceMcClose(fd) == 0) {
-                    step++;
-                    break;
-                }
-
-                return -1;
-            write:
                 left = total - done;
                 chunk = 0xC00;
 
@@ -1556,18 +1554,16 @@ int CMemoryCardManager::LoadAlbum() {
                 int chunk;
                 int left;
 
-                if (done < total) {
-                    goto read;
+                if (done >= total) {
+                    if (sceMcClose(fd) == 0) {
+                        step++;
+                        break;
+                    }
+
+                    errors->code = 3;
+                    return 1;
                 }
 
-                if (sceMcClose(fd) == 0) {
-                    step++;
-                    break;
-                }
-
-                errors->code = 3;
-                return 1;
-            read:
                 left = total - done;
                 chunk = 0x1000;
 
@@ -1593,14 +1589,8 @@ int CMemoryCardManager::LoadAlbum() {
                 AlbumFile *album = (AlbumFile *) album_buffer;
                 int        stored_digit = album->checksum;
 
-                if (stored_digit == 0) {
-                    if (album->trailer != 0) {
-                        goto verify;
-                    }
-                } else {
-                verify:
-                    if (stored_digit !=
-                        MakeCheckDigit(0, album->digit_data, sizeof(album->digit_data))) {
+                if (stored_digit != 0 || album->trailer != 0) {
+                    if (stored_digit != MakeCheckDigit(0, album->digit_data, sizeof(album->digit_data))) {
                         errors->code = 3;
                     }
                 }

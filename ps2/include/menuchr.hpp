@@ -5,13 +5,19 @@
 #include <libvu0.h>
 
 #include "actionchara.hpp"
+#include "character.hpp"
+#include "gamedata.hpp"
 #include "menucls1.hpp"
 #include "menudraw.hpp"
 #include "menusys.hpp"
 #include "mg_camera.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
 #include "nd_meswin.hpp"
+#include "npccfg.hpp"
+#include "scenesnd.hpp"
 #include "userdata.hpp"
 
 /**
@@ -20,15 +26,6 @@
  * and monster box, the costume screen, the monster book, and the background
  * loading of the character, ridepod and monster models that the menus show.
  */
-
-class CCharacter2;
-class CDC2Mes;
-class CMenuPosDataForm;
-class CScene;
-class mgCFrame;
-class mgCTexture;
-struct BASE_MONSTER_TBL;
-struct NPC_BASE_DATA;
 
 /**
  *

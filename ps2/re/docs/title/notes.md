@@ -220,10 +220,13 @@ the shared START/SELECT enum names are corrected by the header owner.
 
 ## Native title data
 
-The 22 initialized-data and 27 BSS markers retain the exact icon, boot string,
-projection, HDD-check and boot-state symbols. TitleBootInit uses inline literals
-for its exclusive strings and the retained declarations for shared boot strings.
-Other state and data are native. Byte/halfword flags retain actual access widths; RushInfo owns 0x18 bytes with a tail to 0x20. Installer
+All title data is native. TitleBootInit uses inline literals for its exclusive
+strings and file-scope declarations for shared boot strings. The one-byte
+boot and memory-card flags GameBootInit (u8), TitleBootEventNo (s8),
+DCRuncherMode (s8), TitleMCFuncFlag (u8) and TitleMCCheckNow (u8) are file
+statics used only by this unit; each occupies a four-byte retail .sbss slot
+recorded in `BSS_RETAIL_RESERVATIONS` (scripts/build/BSS_RESERVATIONS.md).
+Byte/halfword flags retain actual access widths; RushInfo owns 0x18 bytes with a tail to 0x20. Installer
 texture/alpha arrays have ten elements (0x28) with eight alignment bytes. The language
 phase owns four bytes although its reservation is eight.
 

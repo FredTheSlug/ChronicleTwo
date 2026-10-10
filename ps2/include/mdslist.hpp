@@ -2,6 +2,13 @@
 
 #include "common.h"
 
+#include "character.hpp"
+#include "collision.hpp"
+#include "mapload.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 #include "object.hpp"
 
 /**
@@ -10,14 +17,6 @@
  * PCP pack files, the lists of IMG texture files loaded beside them, and
  * the map piece that places one entry of model data in a map part.
  */
-
-class CCharacter2;
-class mgCEnterIMGInfo;
-class mgCFrame;
-class mgCMemory;
-class PieceMaterial;
-struct CCPoly;
-struct mgVu0FBOX;
 
 /**
  *

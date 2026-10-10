@@ -4,8 +4,19 @@
 
 #include <libvu0.h>
 
+#include "menucls1.hpp"
+#include "menudraw.hpp"
+#include "menusys.hpp"
+#include "menusystemdata.hpp"
 #include "mg_camera.hpp"
+#include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "nd_meswin.hpp"
+#include "savedata.hpp"
+#include "savedatadungeon.hpp"
+#include "scenesnd.hpp"
+#include "userdata.hpp"
 
 /**
  * @file
@@ -24,23 +35,6 @@ enum MENU_DEBUG_BIT_CTRL {
     MENU_DEBUG_BIT_CTRL_ATRA_OFF = 0x08,     /**< Displays the Atra OFF status. */
     MENU_DEBUG_BIT_CTRL_BOOT_TREEMAP = 0x10, /**< Displays the Boot Treemap status. */
 };
-
-class CDC2Mes;
-class CFishAquarium;
-class CMenuItemUse;
-class CMenuKeyFunc;
-class CMenuMoveItem;
-class CMenuPosDataForm;
-class CMenuSystemData;
-class CSaveData;
-class CSaveDataDungeon;
-class CScene;
-class CUserDataManager;
-class ClsMes;
-class mgCDrawPrim;
-class mgCTexture;
-struct DNG_BATTLE_AREA;
-struct SV_CONFIG_OPTION;
 
 /**
  *

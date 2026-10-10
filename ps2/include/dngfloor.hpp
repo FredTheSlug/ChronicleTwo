@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the dungeon floor manager: the grid of rooms and passages that
@@ -9,8 +11,6 @@
  * the queries the dungeon, its events and its menus make about each floor's
  * links, seals, challenges and sub games.
  */
-
-class mgCMemory;
 
 // clang-format off
 

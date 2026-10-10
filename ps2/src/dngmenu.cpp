@@ -500,12 +500,6 @@ struct RootMarkOffset {
 
 /**
  *
- * Destination rectangle used while drawing passage lines.
- *
- */
-extern mgRect<float> treemap_root_put;
-/**
- *
  * Offsets of the passage marks within each passage shape.
  *
  */
@@ -1068,8 +1062,6 @@ static int CheckGeoramaMateria(TRESURE_BOX_FLOOR_INFO *info, int floor_no, int *
     return count;
 }
 
-extern mgRect<int> Floor_Info;
-
 /**
  *
  * Screen position of the medal-count message for each language, as X/Y pairs.
@@ -1434,13 +1426,6 @@ static void DrawGeoramaMateria(int top_y, char *title, int unused_count, int *it
     font.SetPos(x, y);
     font.DrawDirect(font.str, font.pos_x, font.pos_y);
 }
-
-/**
- *
- * Source rectangle of the selected floor highlight.
- *
- */
-extern const mgRect<int> dng_light_circle;
 
 void CDngFreeMap::DrawTreeMap(int opacity) {
     GLID_INFO    *glid = floor_manager->glid_info;
@@ -3915,12 +3900,6 @@ int CMenuTreeMap::FadeInOutMenu() {
     return done;
 }
 
-/**
- *
- * Arena used for tree-menu objects and files.
- *
- */
-extern mgCMemory MenuTreeMapStack;
 /**
  *
  * Dungeon used by the floor-information panel.

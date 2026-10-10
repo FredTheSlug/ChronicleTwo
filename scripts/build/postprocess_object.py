@@ -361,10 +361,20 @@ BSS_RETAIL_RESERVATIONS = {
         ('.sbss', 0x0037e444, 0x1, 'init_801', 0x0037e448, 0x1, (1,)),
     ('sound', 'msinBfCtx'):
         ('.bss', 0x003f3f80, 0x48, 'msinBf', 0x003f4000, 0x1200, (16,)),
+    ('title', 'GameBootInit'):
+        ('.sbss', 0x0037dff8, 0x1, 'MasterDebugModeOn', 0x0037dffc, 0x1, (1,)),
     ('title', 'MasterDebugModeOn'):
-        ('.sbss', 0x0037dffc, 0x1, 'TitleBootEventNo', 0x0037e000, 0x1, (None,)),
+        ('.sbss', 0x0037dffc, 0x1, 'TitleBootEventNo', 0x0037e000, 0x1, (1,)),
+    ('title', 'TitleBootEventNo'):
+        ('.sbss', 0x0037e000, 0x1, 'DCRuncherMode', 0x0037e004, 0x1, (1,)),
+    ('title', 'DCRuncherMode'):
+        ('.sbss', 0x0037e004, 0x1, 'DCSelectedMovie', 0x0037e008, 0x1, (1,)),
+    ('title', 'TitleMCFuncFlag'):
+        ('.sbss', 0x0037e020, 0x1, 'TitleMCActivePort', 0x0037e024, 0x2, (2,)),
     ('title', 'TitleMCActivePort'):
-        ('.sbss', 0x0037e024, 0x2, 'TitleMCCheckNow', 0x0037e028, 0x1, (None,)),
+        ('.sbss', 0x0037e024, 0x2, 'TitleMCCheckNow', 0x0037e028, 0x1, (1,)),
+    ('title', 'TitleMCCheckNow'):
+        ('.sbss', 0x0037e028, 0x1, 'TitleMainMCCheckPhase', 0x0037e02c, 0x2, (2,)),
     ('title', 'TitlePhase'):
         ('.sbss', 0x0037e038, 0x2, 'TitlePushStart_AlphaPlus', 0x0037e03c, 0x2, (2,)),
     ('title', 'TitleCopyRightDispPhase'):

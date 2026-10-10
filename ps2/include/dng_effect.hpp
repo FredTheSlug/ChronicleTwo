@@ -4,7 +4,10 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
+#include "mg_camera.hpp"
 #include "mg_frame.hpp"
+#include "mg_memory.hpp"
 #include "mg_tanime.hpp"
 #include "prespr.hpp"
 
@@ -15,10 +18,6 @@
  * the battle effect manager, the healing point's lights, the drifting light balls of some floors, the trails
  * of the pull-item wire and of a sword swing, and the palette flashes of characters.
  */
-
-class mgCCamera;
-class mgCMemory;
-class CCharacter2;
 
 /** Number of shards that one chill after-hit effect throws. */
 #define CHILL_AFTER_HIT_PIECE_MAX 24

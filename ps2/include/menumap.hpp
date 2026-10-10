@@ -2,7 +2,11 @@
 
 #include "common.h"
 
+#include "menucls1.hpp"
 #include "menusys.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "scriptinterpreter.hpp"
 
 /**
  * @file
@@ -11,11 +15,6 @@
  * screen: the course list with its passwords and score clearing, and the
  * score view shown after a game of Spheda.
  */
-
-class CDC2Mes;
-class mgCMemory;
-class mgCTexture;
-struct SPI_STACK;
 
 /**
  *

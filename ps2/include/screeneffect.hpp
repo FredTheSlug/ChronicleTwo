@@ -2,12 +2,12 @@
 
 #include "common.h"
 
+#include "mg_texture.hpp"
+
 /**
  * @file
  * Declares the full-screen post effects: depth of field blur and the sun's lens flare.
  */
-
-class mgCTexture;
 
 /**
  *

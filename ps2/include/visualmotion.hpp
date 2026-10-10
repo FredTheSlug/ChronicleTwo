@@ -3,6 +3,9 @@
 #include "common.h"
 
 #include "mg_drawenv.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 #include "mg_visual.hpp"
 
 /**
@@ -10,12 +13,6 @@
  * Declares the skinned MDT model, whose vertices are blended between the matrices of up to 32 bone
  * frames by per-vertex weights, and the data it is built from.
  */
-
-class mgCFrame;
-class mgCMemory;
-class mgCTextureManager;
-class mgRENDER_INFO;
-class mgCFace;
 
 /**
  *

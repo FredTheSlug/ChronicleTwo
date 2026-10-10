@@ -5,8 +5,12 @@
 #include <libvu0.h>
 
 #include "actionchara.hpp"
+#include "automap.hpp"
 #include "dng_hud.hpp"
-#include "dng_main.hpp"
+#include "effscript.hpp"
+#include "mapparts.hpp"
+#include "mdslist.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
 #include "runscript.hpp"
 #include "scenesnd.hpp"
@@ -17,15 +21,6 @@
  * that are out on the floor, and the manager that loads, places, thinks for,
  * damages and draws them.
  */
-
-class CActiveMonster;
-class CColPrim;
-class CEffectScriptMan;
-class CMapParts;
-class CMapPiece;
-class CMiniMapSymbol;
-class CScene;
-class mgCFrame;
 
 /**
  *
@@ -135,56 +130,6 @@ enum MONSTER_SCOOP_TYPE {
     MONSTER_SCOOP_MOTION = 0x1, /**< While a named motion plays between two frames. */
     MONSTER_SCOOP_ALWAYS = 0x2  /**< At any time. */
 };
-
-/**
- *
- * Describes one kind of monster: its name, files, life and battle parameters.
- *
- */
-struct BASE_MONSTER_TBL {
-    s16   id;         /**< Number of the monster kind; the table ends at an entry with an empty name. */
-    s16   grade;      /**< Grade of the monster that its script reads. */
-    char  name[32];   /**< Name shown for the monster, loaded per language. */
-    char  model[16];  /**< Base name of the monster's model and settings files under dungeon/monster. */
-    char  script[16]; /**< Base name of the monster's script file under dungeon/monster. */
-    s16   gift_type;  /**< Kind that picks the monster's row of the gift item table. */
-    s32   sound_no;   /**< Number of the monster's sound bank under snd2/mon; 0 or less for none. */
-    s32   unk_4c;
-    s32   life;         /**< Life that the monster starts with. */
-    s8    user_mons_id; /**< Monster that the player can turn into to pass as this one; -1 for none. */
-    u16   reward_exp;   /**< Experience awarded for defeating this monster. */
-    u16   reward_money; /**< Money awarded for defeating this monster. */
-    u16   unk_5a;
-    float whp;               /**< Wear that a melee hit on the monster does to the main character's weapon. */
-    u16   gekirin_num;       /**< Hits that fill the monster's rage. */
-    s8    guard_rate;        /**< Chance out of 100 that the monster guards a hit. */
-    s8    escape_rate0;      /**< Chance out of 100 that the monster dodges an attack of its target whose murderous mode is 0. */
-    s8    escape_rate1;      /**< Chance out of 100 that the monster dodges an attack of its target whose murderous mode is 1. */
-    u16   attack;            /**< Attack power of the monster. */
-    u8    defense;           /**< Defence that is taken off the attack power of a hit. */
-    s8    stagger;           /**< Stagger that hits must build up to make the monster flinch; 0 to flinch at every hit. */
-    s8    boss;              /**< Nonzero for a boss, whose life is shown across the foot of the screen. */
-    s8    sw_effect_num;     /**< Number of sword after-images that the monster's model carries. */
-    s16   element_resist[8]; /**< Percentages that reduce damage from each element. */
-    s16   ext_param[12];     /**< Percentages that scale the damage of each kind of attack. */
-    u32   flags;             /**< Bits that suppress normal damage and knockback reactions. */
-    u32   unk_98;
-    s32   next_id; /**< Monster kind that is loaded along with this one; -1 for none. */
-
-    union {
-        s16 drop_item[3];  /**< Item numbers in the monster's drop slots. */
-        s16 drop_items[3]; /**< Alternate view of the monster's drop slots. */
-    };
-
-    u32 resist_attr;       /**< Hit attribute bits that cannot leave statuses on the monster. */
-    s16 status_chance;     /**< Base chance used when applying a hit status. */
-    s16 ratio_damage_rate; /**< Percentage used when scaling ratio-based damage. */
-    s8  area_no;           /**< Area number assigned to this monster definition. */
-    s16 memo_index;        /**< Index of this monster in the encyclopedia. */
-    s16 unk_b4;
-};
-
-STATIC_ASSERT(sizeof(BASE_MONSTER_TBL) == 0xB8);
 
 /**
  *

@@ -49,8 +49,6 @@
 #include "vlgr_info.hpp"
 #include "water.hpp"
 
-extern INIT_LOOP_ARG NextInitArg;
-extern INIT_LOOP_ARG PrevInitArg;
 /**
  * Mode entered after the current main loop finishes.
  */
@@ -83,9 +81,6 @@ static float BlackFade;
  * Opacity of the pause-menu message fade.
  */
 static float     BlackFade2;
-extern CSaveData SaveData;
-extern ClsMes    PauseMes;
-extern mgCMemory SystemSeStack;
 /**
  * Main memory arena for game resources.
  */
@@ -251,10 +246,7 @@ static int future_sel;
  */
 static int           hdd_sel;
 extern CScene        MainScene;
-extern INIT_LOOP_ARG InitArg;
-extern mgCMemory     InfoStack;
 
-extern mgCMemory MenuBuffer;
 /**
  * Font texture pages loaded for the current language.
  */

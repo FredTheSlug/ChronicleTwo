@@ -384,17 +384,11 @@ Mot_List *MotionProc(mgCFrame *root, unsigned int from_frame, unsigned int to_fr
                         sceVu0CopyVectorXYZ(vertices[vertex], value);
                         list = list->next;
 
-                        do {
-                            if (list == NULL) {
-                                break;
-                            }
-
+                        if (list != NULL) {
                             node = list;
-                            goto blend_nonnull0;
-                        } while (0);
-
-                        return NULL;
-                    blend_nonnull0:;
+                        } else {
+                            return NULL;
+                        }
                     }
 
                     break;
@@ -407,17 +401,11 @@ Mot_List *MotionProc(mgCFrame *root, unsigned int from_frame, unsigned int to_fr
                         sceVu0CopyVectorXYZ(vertices[list->target - 1], list->values[key]);
                         list = list->next;
 
-                        do {
-                            if (list == NULL) {
-                                break;
-                            }
-
+                        if (list != NULL) {
                             node = list;
-                            goto blend_nonnull1;
-                        } while (0);
-
-                        return NULL;
-                    blend_nonnull1:;
+                        } else {
+                            return NULL;
+                        }
                     }
                 }
 
@@ -428,17 +416,11 @@ Mot_List *MotionProc(mgCFrame *root, unsigned int from_frame, unsigned int to_fr
                         sceVu0CopyVectorXYZ(vertices[list->target - 1], list->values[next]);
                         list = list->next;
 
-                        do {
-                            if (list == NULL) {
-                                break;
-                            }
-
+                        if (list != NULL) {
                             node = list;
-                            goto blend_nonnull2;
-                        } while (0);
-
-                        return NULL;
-                    blend_nonnull2:;
+                        } else {
+                            return NULL;
+                        }
                     }
                 }
             } while (0);
@@ -511,8 +493,6 @@ Mot_List *MotionProc(mgCFrame *root, unsigned int from_frame, unsigned int to_fr
     return list->next;
 }
 
-#pragma global_optimizer off
-
 /**
  *
  * Accumulates a weighted transformed vertex and writes the resulting vertex.
@@ -537,8 +517,6 @@ static void testVUnew(float (*matrix)[4], float *vertex, float *weight, float *a
         sqc2 vf6, 0(out)
     }
 }
-
-#pragma global_optimizer reset
 
 Mot_List *MotionProc2(mgCFrame *root, tagMOTION_TYPE *motion, tagFRAME_INF *frame_info, Mot_List *list) {
     static sceVu0FVECTOR *vert;

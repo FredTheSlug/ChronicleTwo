@@ -4,7 +4,9 @@
 
 #include <libvu0.h>
 
+#include "runscript.hpp"
 #include "sceneevent.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
@@ -13,9 +15,6 @@
  * placed house, opening a treasure box and reading a book, together with
  * the script functions that load the villagers shown in the town.
  */
-
-class CScene;
-struct RS_STACKDATA;
 
 /**
  *

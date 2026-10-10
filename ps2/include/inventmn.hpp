@@ -2,11 +2,14 @@
 
 #include "common.h"
 
+#include "actionchara.hpp"
+#include "dataread.hpp"
 #include "memcard.hpp"
 #include "menudraw.hpp"
 #include "menusys.hpp"
 #include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
 #include "userdata.hpp"
 
 /**
@@ -16,13 +19,6 @@
  * card, the invention recipes that combine three ideas into an item, and the
  * menu in which the player browses photos, thinks up inventions and builds them.
  */
-
-class CActionChara;
-class CDC2Mes;
-class CMenuPosDataForm;
-class mgCTexture;
-struct ITEMCMD_RET_PARA;
-struct BG_READ_INFO;
 
 // clang-format off
 

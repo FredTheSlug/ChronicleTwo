@@ -22,7 +22,7 @@ has no `INCLUDE_ASM` or `NONMATCHING` guards and no data markers.
 | off | field | evidence |
 |---|---|---|
 | 0x000 | `CMapParts *gio_parts` | IndexToPartsPlace: PlaceParts("p01_gio") result |
-| 0x004 | `CMapParts *random_stone[12]` | PlaceParts("obj01") x12; SearchRandomStone (vt+0x18 GetPos), ClearRandomStone (vt+0x14 with 0,-99999,0); AutoSetTreasureBox |
+| 0x004 | `CMapParts *random_stone[AUTOMAP_RANDOM_STONE_MAX]` (12) | PlaceParts("obj01") x12; SearchRandomStone (vt+0x18 GetPos), ClearRandomStone (vt+0x14 with 0,-99999,0); AutoSetTreasureBox |
 | 0x034 | `CMapParts *pot_parts` | PlaceParts("obj02"); passed to `CBPot::SetObject2` in DngMainKey |
 | 0x038 | `s16 random_map` | set 1 in RandomMapMainProc, 0 in LoadDungeonMapFile |
 | 0x03A | `s16 minimap_enable` | set 1 in Build; MinimapVisTest requires it |
@@ -31,11 +31,11 @@ has no `INCLUDE_ASM` or `NONMATCHING` guards and no data markers.
 | 0x1C0 | `CHealingPoint healing_point` | SearchHealingPoint sets +0x1C0 = 1 |
 | 0x1C8/0x1CA | `s16 grid_w, grid_h` | loops `w*h`; Build sets 14x14 or 20x16; InitDungeonMain 30x30 |
 | 0x1CC/0x1D0 | `float cell_w, cell_d` | `_GRID_SIZE` script tag; X and Z divisors; InitDungeonMain 320.0 |
-| 0x1D4 | `AUTOMAP_ROOM_INFO *room_info` | SetupRoomInfo allocs 0x600 = 64 x 0x18 |
+| 0x1D4 | `AUTOMAP_ROOM_INFO *room_info` | SetupRoomInfo allocs 0x600 = `AUTOMAP_ROOM_INFO_MAX` (64) x 0x18 |
 | 0x1D8 | `s32 room_info_num` | = nowPrisetNum after script run |
 | 0x1DC | `CAutoMapParts *grid` | InitDungeonMain allocates 0x6270 = 900 x 0x1C |
 | 0x1E0 | `s32 place_parts_num` | Build counts GetPlacPartsTable entries |
-| 0x1E4 | `AUTOMAP_ROOM room[8]` | stride 0x14 up to 0x284; CreatRoom writes x,y,w,h at +4..+0x10 |
+| 0x1E4 | `AUTOMAP_ROOM room[AUTOMAP_ROOM_MAX]` (8) | stride 0x14 up to 0x284; CreatRoom writes x,y,w,h at +4..+0x10 |
 | 0x284 | `s32 room_num` | RandomMapMainProc |
 | 0x288 | `s32 door_room` | CreatDoorRoom (-1 then room index); AutoSetTreasureBox reads room[door_room] |
 | 0x28C | `s32 navi_valid` | UpdateNaviMap sets 1; GetNaviDistance requires |
@@ -43,7 +43,8 @@ has no `INCLUDE_ASM` or `NONMATCHING` guards and no data markers.
 | 0x294 | `s32 navi_enable` | Build sets 1 |
 | 0x298 | `unk_298[2]` | never accessed; probably tail padding to 16-byte alignment (sceVu0FVECTOR inside CMiniMapSymbol) |
 
-`AUTOMAP_ROOM.unk_0` (+0x1E4 + 0x14n) is only ever cleared and tested `== 0` (CreatDoorRoom).
+`AUTOMAP_ROOM.no_door` (+0x1E4 + 0x14n) is only ever cleared (`false`) and tested by CreatDoorRoom, which skips
+rooms where it is non-zero. The game's code never sets it non-zero.
 
 ### gen_flag bits (AUTOMAP_GEN_FLAG)
 0x1 SetDummyTree (IndexToPartsPlace); 0x2 Build picks preset `iRand` by dungeon floor
@@ -61,15 +62,22 @@ dummy roots are 0x32+i; compared in LinkConnectCheck); 0xA `u8 road_link`; 0xB `
 from `CMapParts+0x2EC` = `move_flag`; init -1); 0x18 `s8 navi`. Init pattern is in
 RandomMapMainProc/CreatFixedMap/LoadDungeonMapFile/InitDungeonMain. 0x19..0x1B never touched.
 
-Link sides (cell 0xA/0xB, LinkConnectCheck return, SetRoadLinkMark): 1 = row-1 (-Z),
-2 = row+1 (+Z), 4 = x+1, 8 = x-1. Wall bits (cell 0x14): 1 = x-1, 2 = row-1, 4 = x+1, 8 = row+1
-(UpdateNaviMap, MinimapVisTest; MinimapDoorOpen maps link 1->2, 2->8, 4->4, 8->1).
+Link sides (cell 0xA/0xB, LinkConnectCheck return, SetRoadLinkMark): `AUTOMAP_LINK_NEG_Z` (1) = row-1,
+`AUTOMAP_LINK_POS_Z` (2) = row+1, `AUTOMAP_LINK_POS_X` (4) = x+1, `AUTOMAP_LINK_NEG_X` (8) = x-1. Wall bits
+(cell 0x14): `AUTOMAP_WALL_NEG_X` (1), `AUTOMAP_WALL_NEG_Z` (2), `AUTOMAP_WALL_POS_X` (4), `AUTOMAP_WALL_POS_Z` (8)
+(UpdateNaviMap, MinimapVisTest; MinimapDoorOpen maps link NEG_Z -> wall NEG_Z, POS_Z -> POS_Z,
+POS_X -> POS_X, NEG_X -> NEG_X).
 
-Kind bits (from PartsInfoData part names): 1 "way", 2 room00-27, 4 room28-55, 8 "door" (entrance:
+Kind bits (`AUTOMAP_KIND_*`, from PartsInfoData part names): 1 "way" (`ROAD`), 2 room00-27 (`ROOM`), 4 room28-55 (`ROOM_ALT`), 8 "door" (`ENTRANCE`) (entrance:
 RoomLink sets 8 when the corridor reaches a cell of kind mask 6), 0x10 door closed by CreatDoorRoom
 (parts_no += 4: door00 -> door04), 0x20 "step", 0x40/0x80 seen only combined in step00-07 and
 door56-63 (not named), 0x100 "part", 0x200 way32+ (SetInOutPartsIndex adds 4..0x14 to way28-31),
-0x400 room56-59 (SetHealingPointIndex adds 0x18/0x1C to indices 0x6C-0x73).
+0x400 room56-59 (`HEALING`; SetHealingPointIndex adds 0x18/0x1C to indices 0x6C-0x73).
+
+`AUTOMAP_PARTS_NO` names the first index of each parts family that the generator swaps between:
+`AUTOMAP_PARTS_DEAD_END` (0x1C, way28-31), `AUTOMAP_PARTS_ROOM_ALT` (0x6C, room28), `AUTOMAP_PARTS_HEALING`
+(0x88, room56-59), `AUTOMAP_PARTS_STEP_DOOR` (0xE8, door56-63). `AUTOMAP_ROOM_INFO_MAX`, `MINIMAP_INFO_NUM`,
+`AUTOMAP_PARTS_INFO_NUM` and `HEALING_POINT_COOLDOWN` (1800 frames) are the remaining named counts.
 
 ## CMiniMapSymbol (0x180)
 0x0 `CMap*`; 0x4 `CMapParts*` placed table (GetPlacPartsTable, stride 0x310); 0x8 count;
@@ -138,7 +146,7 @@ Sphida meanings are not established; names are neutral.
 ## Unresolved
 - `GetAttrStatus` return: `lh` of a s16 or literal 1; declared `int` (m2c says s16). Check caller
   `_AMG_GET_ATTR_STATUS` asm if a body does not match.
-- `AUTOMAP_ROOM.unk_0`, `CMiniMapSymbol.unk_154`, `CAutoMapGen.unk_298`, `AUTOMAP_PARTS_INFO.unk_8`.
+- `CMiniMapSymbol.unk_154`, `CAutoMapGen.unk_298`, `AUTOMAP_PARTS_INFO.unk_8`.
 - Kind bits 0x40/0x80 have no name.
 - RoomLink, CreatDummyRoot, CreatTermParts, SetDummyTree were only skimmed for field offsets.
 

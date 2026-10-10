@@ -2,23 +2,21 @@
 
 #include "common.h"
 
+#include <cstring>
 #include <libvu0.h>
 
-#include <cstring>
-
+#include "character.hpp"
+#include "mg_frame.hpp"
+#include "nd_meswin.hpp"
 #include "object.hpp"
+#include "prespr.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
  * Declares the dungeon's on-screen battle indicators: level-up banner, dizzy stars, gift mark,
  * enemy life gauges, damage numbers, lock-on marker and low-gauge warnings.
  */
-
-class CCharacter2;
-class CPreSprite;
-class CScene;
-class ClsMes;
-class mgCObject;
 
 /**
  *

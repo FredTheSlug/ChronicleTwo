@@ -65,6 +65,338 @@ enum INVENT_PHOTO_CHECK {
 
 // clang-format on
 
+// clang-format off
+
+/**
+ *
+ * Sizes of the invention menu's fixed tables.
+ *
+ */
+enum INVENT_TABLE_SIZE {
+    INVENT_PHOTO_NUM       = 30, /**< Photos the player can carry. */
+    INVENT_ALBUM_PHOTO_NUM = 50, /**< Photos the memory card album holds. */
+    INVENT_SCOOP_TABLE_NUM = 53, /**< Rows of the scoop table. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Number ranges of the ideas and scoops held in neta_id fields.
+ *
+ */
+enum INVENT_NETA_ID {
+    INVENT_NETA_ID_SCOOP     = 1000,  /**< First scoop number; smaller positive numbers are ideas. */
+    INVENT_NETA_ID_SCOOP_END = 10000, /**< One past the last scoop number. */
+    INVENT_NETA_ID_DUMMY     = 30000, /**< Placeholder entry of the picture name file, which is dropped on loading. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Keys PictureSeiton sorts the photos by, as pict_seiton_case holds them.
+ *
+ */
+enum INVENT_PHOTO_SORT {
+    INVENT_PHOTO_SORT_NETA    = 0, /**< By the idea or scoop shown. */
+    INVENT_PHOTO_SORT_MAP     = 1, /**< By the map the photo was taken on. */
+    INVENT_PHOTO_SORT_NPC     = 2, /**< By the townsperson shown. */
+    INVENT_PHOTO_SORT_MONSTER = 3, /**< By the monster shown. */
+    INVENT_PHOTO_SORT_NUM     = 4, /**< Number of sort keys; the key cycles back to the first. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Picture numbers drawn by PictureDraw, as the menu form parts hold them in etc_info.
+ *
+ */
+enum INVENT_PICTURE_NO {
+    INVENT_PICTURE_ALBUM = 50,   /**< Picture number of the first album photo; lower numbers are carried photos. */
+    INVENT_PICTURE_MEMO  = 1000, /**< Picture number of the idea notebook icon. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Where an idea on the idea board was taken from, as neta_select_type holds it.
+ *
+ */
+enum INVENT_NETA_SOURCE {
+    INVENT_NETA_SOURCE_NONE  = -1, /**< The slot holds no idea. */
+    INVENT_NETA_SOURCE_PHOTO = 0,  /**< A carried photo. */
+    INVENT_NETA_SOURCE_MEMO  = 1,  /**< A line of the idea notebook. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * State of an idea board slot, as neta_select_state holds it.
+ *
+ */
+enum INVENT_NETA_SLOT_STATE {
+    INVENT_NETA_SLOT_EMPTY     = -1, /**< Nothing is shown in the slot. */
+    INVENT_NETA_SLOT_RETURNING = 0,  /**< The idea was taken off and moves back to its photo or notebook line. */
+    INVENT_NETA_SLOT_PLACED    = 1,  /**< The idea sits on the board's selection circle. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Stages of loading the menu characters, as chara_load_step holds them.
+ *
+ */
+enum INVENT_CHARA_LOAD_STEP {
+    INVENT_CHARA_LOAD_OFF   = -1, /**< No character is loaded or shown. */
+    INVENT_CHARA_LOAD_START = 0,  /**< Starts loading the characters. */
+    INVENT_CHARA_LOAD_WAIT  = 1,  /**< Waits for the loads, then builds the characters. */
+    INVENT_CHARA_LOAD_READY = 2,  /**< The characters are built and animated each frame. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Colour fades of the invention flash, as gradation_mode holds them.
+ *
+ */
+enum INVENT_GRADATION {
+    INVENT_GRADATION_OFF   = 0, /**< The flash strips are hidden. */
+    INVENT_GRADATION_GROW  = 1, /**< The flash strips grow from the middle of the screen. */
+    INVENT_GRADATION_ON    = 2, /**< The flash strips are shown at full strength. */
+    INVENT_GRADATION_COLOR = 3, /**< The flash strips fade to the colours of the result. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Steps of thinking up an invention, as step holds them while IsCreateObject runs.
+ *
+ */
+enum INVENT_CREATE_STEP {
+    INVENT_CREATE_STEP_ASK        = 0, /**< Asking whether to think up an invention. */
+    INVENT_CREATE_STEP_WAIT_START = 1, /**< Thinking until the wait and the first loads are over. */
+    INVENT_CREATE_STEP_SHOW_READY = 2, /**< Waiting for the thinking motion to end before revealing the result. */
+    INVENT_CREATE_STEP_SHOW       = 3, /**< Showing the result until a button is pressed. */
+    INVENT_CREATE_STEP_AFTER      = 4, /**< Showing that the invention was already made until a button is pressed. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Stages of loading and playing the invention result, as create_load_state holds them.
+ *
+ */
+enum INVENT_CREATE_LOAD {
+    INVENT_CREATE_LOAD_STOPPED     = -2, /**< Nothing is loaded or played. */
+    INVENT_CREATE_LOAD_SOUND_MSG   = -1, /**< Waits for the thinking sound to load, then plays it. */
+    INVENT_CREATE_LOAD_MODEL       = 0,  /**< Starts loading the menu character's result model and the effect pack. */
+    INVENT_CREATE_LOAD_MODEL_DONE  = 1,  /**< Builds the result model and effect, and starts loading the invented item's model. */
+    INVENT_CREATE_LOAD_ITEM_MODEL  = 2,  /**< Builds the invented item's model. */
+    INVENT_CREATE_LOAD_SOUND_BANK  = 3,  /**< Starts loading the result sound bank. */
+    INVENT_CREATE_LOAD_SOUND_PORT  = 4,  /**< Opens the menu sound port. */
+    INVENT_CREATE_LOAD_JINGLE_OPEN = 5,  /**< Counts down, opening and then playing the result jingle. */
+    INVENT_CREATE_LOAD_JINGLE_PLAY = 6,  /**< Waits for the jingle to end and closes its stream. */
+    INVENT_CREATE_LOAD_DONE        = 7,  /**< Everything is loaded and played. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Messages that announce the result of thinking up an invention.
+ *
+ */
+enum INVENT_CREATE_MSG {
+    INVENT_CREATE_MSG_CREATED       = 0x25F, /**< A new invention was thought up. */
+    INVENT_CREATE_MSG_NOTHING       = 0x260, /**< The ideas make nothing. */
+    INVENT_CREATE_MSG_PARTIAL_MATCH = 0x265, /**< Two of the ideas match a recipe, hinting at the third. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Steps of building an invention, as step holds them while IsMakeObject runs.
+ *
+ */
+enum INVENT_MAKE_STEP {
+    INVENT_MAKE_STEP_SELECT     = 0,  /**< Choosing how many to build. */
+    INVENT_MAKE_STEP_EFFECT     = 1,  /**< Playing the building effect, then adding the items. */
+    INVENT_MAKE_STEP_RESULT     = 2,  /**< Showing the items built until a button is pressed. */
+    INVENT_MAKE_STEP_ERROR      = 3,  /**< Showing why nothing can be built until a button is pressed. */
+    INVENT_MAKE_STEP_LOAD_SOUND = 10, /**< Waiting for the building sound to load. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Steps of learning the ideas of the carried photos, as step holds them while PhotoNetaEnter runs.
+ *
+ */
+enum INVENT_NETA_ENTER_STEP {
+    INVENT_NETA_ENTER_ASK        = 0,  /**< Asking whether to learn the new ideas. */
+    INVENT_NETA_ENTER_EFFECT     = 1,  /**< Playing the star effect over the photos. */
+    INVENT_NETA_ENTER_LEARNT     = 2,  /**< Showing the ideas learnt until a button is pressed. */
+    INVENT_NETA_ENTER_ASK_DELETE = 3,  /**< Asking whether to delete the photos whose ideas were learnt. */
+    INVENT_NETA_ENTER_DELETED    = 4,  /**< Showing that the photos were deleted until a button is pressed. */
+    INVENT_NETA_ENTER_NOTHING    = 10, /**< Showing that no photo has a new idea until a button is pressed. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Whether the album memory card access loads or saves the album, as album_save_mode holds it.
+ *
+ */
+enum INVENT_ALBUM_SAVE_MODE {
+    INVENT_ALBUM_LOAD = 0, /**< The album is loaded from the card. */
+    INVENT_ALBUM_SAVE = 1, /**< The album is saved to the card. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Steps of reading or writing the album on the memory card, as step holds them while IsAccessAlbum runs.
+ *
+ */
+enum INVENT_ALBUM_STEP {
+    INVENT_ALBUM_STEP_SLOT_SELECT       = 0,   /**< Choosing the slot to load the album from. */
+    INVENT_ALBUM_STEP_ALLOCATE          = 1,   /**< Allocating the album and the card manager, then searching the card. */
+    INVENT_ALBUM_STEP_SEARCH            = 2,   /**< Waiting for the card search, then choosing to load, save or format. */
+    INVENT_ALBUM_STEP_CHECK_ALBUM       = 3,   /**< Waiting for the check for an album on the card. */
+    INVENT_ALBUM_STEP_LOAD              = 5,   /**< Loading the album, showing its progress. */
+    INVENT_ALBUM_STEP_LOADED            = 6,   /**< Showing the load result until a button is pressed. */
+    INVENT_ALBUM_STEP_LOAD_ERROR        = 100, /**< Showing that the card is full or failed until a button is pressed. */
+    INVENT_ALBUM_STEP_LOAD_RETRY        = 110, /**< Showing a missing card or a read error, then choosing a slot again. */
+    INVENT_ALBUM_STEP_ASK_SAVE          = 200, /**< Asking whether to save the album. */
+    INVENT_ALBUM_STEP_SAVE_SLOT_SELECT  = 201, /**< Choosing the slot to save the album to. */
+    INVENT_ALBUM_STEP_SAVE_SEARCH       = 202, /**< Waiting for the card search before saving. */
+    INVENT_ALBUM_STEP_SAVE_CHECK_ALBUM  = 203, /**< Waiting for the check for an album before saving. */
+    INVENT_ALBUM_STEP_SAVE              = 205, /**< Saving the album, showing its progress. */
+    INVENT_ALBUM_STEP_SAVED             = 206, /**< Showing that the album was saved until a button is pressed. */
+    INVENT_ALBUM_STEP_ASK_LEAVE         = 220, /**< Asking whether to leave without saving. */
+    INVENT_ALBUM_STEP_ASK_NEW_ALBUM     = 230, /**< Asking whether to create a new album on the card. */
+    INVENT_ALBUM_STEP_MAKE_DIR_SEARCH   = 231, /**< Waiting for the card search before creating the album directory. */
+    INVENT_ALBUM_STEP_MAKE_DIR          = 232, /**< Creating the album directory, showing its progress. */
+    INVENT_ALBUM_STEP_ASK_RECOVER       = 240, /**< Asking whether to take the chosen album photos back. */
+    INVENT_ALBUM_STEP_RECOVER_NO_SPACE  = 241, /**< Showing that too few photo slots are free until a button is pressed. */
+    INVENT_ALBUM_STEP_CANCEL_NOTICE     = 250, /**< Waiting for a button, then cancelling. */
+    INVENT_ALBUM_STEP_SAVE_ERROR        = 300, /**< Showing that saving failed until a button is pressed. */
+    INVENT_ALBUM_STEP_ASK_LEAVE_FAILED  = 301, /**< Asking whether to leave after saving failed. */
+    INVENT_ALBUM_STEP_ASK_FORMAT        = 500, /**< Asking whether to format the card. */
+    INVENT_ALBUM_STEP_FORMAT_SEARCH     = 501, /**< Waiting for the card search before formatting. */
+    INVENT_ALBUM_STEP_FORMAT            = 502, /**< Formatting the card. */
+    INVENT_ALBUM_STEP_FORMATTED         = 503, /**< Showing the format result until a button is pressed. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Memory card work that IsAccessAlbum starts at the end of a frame.
+ *
+ */
+enum INVENT_ALBUM_ACCESS {
+    INVENT_ALBUM_ACCESS_NONE      = -2, /**< Nothing is started. */
+    INVENT_ALBUM_ACCESS_NEW_ALBUM = -1, /**< Searches the card before creating a new album. */
+    INVENT_ALBUM_ACCESS_MAKE_DIR  = 0,  /**< Creates the album directory. */
+    INVENT_ALBUM_ACCESS_SAVE_NEW  = 1,  /**< Saves the album into the directory just created. */
+    INVENT_ALBUM_ACCESS_SAVE      = 2,  /**< Saves the album over the existing one. */
+    INVENT_ALBUM_ACCESS_SAVED     = 3,  /**< Reports the result of saving. */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Outcomes of loading the album that IsAccessAlbum reports at the end of a frame.
+ *
+ */
+enum INVENT_ALBUM_LOAD_RESULT {
+    INVENT_ALBUM_LOAD_RETRY    = -1, /**< Returns to choosing a slot. */
+    INVENT_ALBUM_LOAD_NONE     = 0,  /**< Nothing to report. */
+    INVENT_ALBUM_LOAD_DONE     = 1,  /**< The album was loaded. */
+    INVENT_ALBUM_LOAD_NO_ALBUM = 2,  /**< There is no album; an empty one is shown. */
+    INVENT_ALBUM_LOAD_OTHER    = 3,  /**< Reported with the slot number (LOADEND3). */
+};
+
+// clang-format on
+
+// clang-format off
+
+/**
+ *
+ * Commands that MenuInventPushKey derives from the buttons pressed on a page of the menu.
+ *
+ */
+enum INVENT_KEY_COMMAND {
+    INVENT_KEY_COMMAND_IGNORE       = -1,  /**< The button does nothing on this page. */
+    INVENT_KEY_COMMAND_NONE         = 0,   /**< No button was pressed. */
+    INVENT_KEY_COMMAND_REJECT       = 5,   /**< The button is refused with the cancel sound. */
+    INVENT_KEY_COMMAND_ITEM_COMMAND = 10,  /**< Opens the command window of the carried item under the cursor. */
+    INVENT_KEY_COMMAND_SWAP_ITEM    = 20,  /**< Picks up or swaps the carried item under the cursor. */
+    INVENT_KEY_COMMAND_GET_ITEM_ALL = 30,  /**< Takes everything out of the item under the cursor. */
+    INVENT_KEY_COMMAND_SORT_PHOTOS  = 40,  /**< Sorts the photos of the current page. */
+    INVENT_KEY_COMMAND_UNUSED       = 50,  /**< Does nothing. */
+    INVENT_KEY_COMMAND_RETURN_HELD  = 52,  /**< Puts the held item back where it came from. */
+    INVENT_KEY_COMMAND_LEAVE        = 54,  /**< Puts the held item back, or leaves the menu when none is held. */
+    INVENT_KEY_COMMAND_SET_IDEA     = 60,  /**< Places the photo or notebook idea under the cursor on the idea board. */
+    INVENT_KEY_COMMAND_REMOVE_IDEA  = 65,  /**< Takes the last idea off the board, or leaves the page when the board is empty. */
+    INVENT_KEY_COMMAND_BACK         = 66,  /**< Takes the last idea off the board, or returns to the previous page when the board is empty. */
+    INVENT_KEY_COMMAND_THINK        = 70,  /**< Thinks up an invention from the ideas on the board. */
+    INVENT_KEY_COMMAND_MAKE         = 80,  /**< Asks how many of the invention under the cursor to build. */
+    INVENT_KEY_COMMAND_EXTEND       = 90,  /**< Opens the command window of the photo under the cursor. */
+    INVENT_KEY_COMMAND_LEARN_IDEAS  = 91,  /**< Learns the ideas shown by the carried photos. */
+    INVENT_KEY_COMMAND_OPEN_MEMO    = 100, /**< Opens the idea notebook. */
+    INVENT_KEY_COMMAND_CLOSE_MEMO   = 105, /**< Closes the idea notebook. */
+    INVENT_KEY_COMMAND_SAVE_ALBUM   = 110, /**< Saves the album to the memory card. */
+};
+
+// clang-format on
+
 /**
  *
  * Row of the scoop table: a scoop, the event flag that reveals it and its text.

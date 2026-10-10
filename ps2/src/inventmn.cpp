@@ -123,86 +123,6 @@ static char *invent_grade_fff[2] = {
 
 static mgCMemory         MenuInventStack;
 
-enum {
-    K_COMMAND_HANDLED = -1
-};
-
-enum {
-    K_COMMAND_NONE = 0
-};
-
-enum {
-    K_COMMAND_REJECT = 5
-};
-
-enum {
-    K_COMMAND_ITEM_COMMAND = 10
-};
-
-enum {
-    K_COMMAND_SWAP_ITEM = 20
-};
-
-enum {
-    K_COMMAND_GET_ITEM_ALL = 30
-};
-
-enum {
-    K_COMMAND_TAKE_PHOTO = 40
-};
-
-enum {
-    K_COMMAND_UNUSED = 50
-};
-
-enum {
-    K_COMMAND_SWAP_BACK = 52
-};
-
-enum {
-    K_COMMAND_RETURN_ITEM = 54
-};
-
-enum {
-    K_COMMAND_SET_CIRCLE = 60
-};
-
-enum {
-    K_COMMAND_LEAVE_CIRCLE = 65
-};
-
-enum {
-    K_COMMAND_BACK_MODE = 66
-};
-
-enum {
-    K_COMMAND_CHECK_IDEAS = 70
-};
-
-enum {
-    K_COMMAND_PICK_CREATED = 80
-};
-
-enum {
-    K_COMMAND_EXTEND = 90
-};
-
-enum {
-    K_COMMAND_CONFIRM_BOARD = 91
-};
-
-enum {
-    K_COMMAND_OPEN_MEMO = 100
-};
-
-enum {
-    K_COMMAND_CLOSE_MEMO = 105
-};
-
-enum {
-    K_COMMAND_QUIT = 110
-};
-
 /**
  *
  * Cursor frame type for each inventory menu mode.
@@ -303,38 +223,6 @@ static char *addstringtable_1722[3] = {
     "[heart]"};
 
 static mgCMemory InventTeigiStack;
-
-/**
- *
- * Values used by invention preview states, controls, loading, messages and visual settings.
- *
- */
-enum {
-    kCreateAsk = 0,
-    kCreateWaitStart = 1,
-    kCreateShowReady = 2,
-    kCreateShow = 3,
-    kCreateAfter = 4,
-    kCreateKeyConfirm = 1,
-    kCreateKeyCancel = 2,
-    kLoadSoundMsg = -1,
-    kLoadModel = 0,
-    kLoadModelDone = 1,
-    kLoadItemModel = 2,
-    kLoadSoundBank = 3,
-    kLoadSoundPort = 4,
-    kLoadJingleOpen = 5,
-    kLoadJinglePlay = 6,
-    kItemModelBlocks = 0x1020,
-    kPhotoModelBlocks = 0x2000,
-    kMsgItemCreated = 0x25F,
-    kMsgNothingNew = 0x260,
-    kMsgPhotoNamed = 0x265,
-    kBlinkDark = 0x80303030,
-    kBlinkLight = 0x8022227F,
-    kLineColorNormal = 0x80686A6B,
-    kSceneAttrFlags = 0x18000
-};
 
 /**
  *
@@ -2200,7 +2088,7 @@ void CMenuInvent::LoadCharaCheck() {
                 mgCFrame     *frame = chara->CObjectFrame::frame;
                 mgCFrameAttr *attr = frame->attr;
                 attr->no_light = 1;
-                frame->SetAttrParam(*attr, 1, kSceneAttrFlags);
+                frame->SetAttrParam(*attr, 1, MG_FRAME_ATTR_NO_LIGHT | MG_FRAME_ATTR_COLOR);
             }
 
             chara->SetMotion("\x97\xa7\x82\xbf", 0, 1);
@@ -3022,7 +2910,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
     s16                state = this->step;
 
     switch (state) {
-        case kCreateAsk: {
+        case INVENT_CREATE_STEP_ASK: {
             s32 answer = -1;
 
             if (state <= 0) {
@@ -3030,7 +2918,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             }
 
             switch (keys) {
-                case kCreateKeyConfirm:
+                case MENU_PUSH_BUTTON_DECIDE:
                     if (answer == 0) {
                         this->key_arg_no = 0;
                         this->create_chara = NULL;
@@ -3103,16 +2991,16 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                         this->create_wait_time = 0x7C;
                         this->ExeScript("\x94\xad\x96\xbe\x8d\x6c\x82\xa6\x8a\x4a\x8e\x6e");
                         this->GradationSet(1);
-                        this->step = kCreateWaitStart;
+                        this->step = INVENT_CREATE_STEP_WAIT_START;
                         load_stack->stack_used = 0;
                         load_stack->lock = 0;
                         StartReadBG();
                         s32 sound_message_size;
                         LoadFileBG("snd2/sp/SP_003.snd", load_stack->stGetTop(), &sound_message_size);
-                        this->create_load_state = kLoadSoundMsg;
+                        this->create_load_state = INVENT_CREATE_LOAD_SOUND_MSG;
                         break;
                     }
-                case kCreateKeyCancel:
+                case MENU_PUSH_BUTTON_CANCEL:
                     this->ExeScript("\x94\xad\x96\xbe\x82\xe2\x82\xdf");
                     this->mode = 0;
                     break;
@@ -3120,7 +3008,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
             break;
         }
-        case kCreateWaitStart:
+        case INVENT_CREATE_STEP_WAIT_START:
             this->create_wait_time--;
 
             if (this->create_wait_time <= 0 && this->create_load_state > 1) {
@@ -3128,7 +3016,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             }
 
             break;
-        case kCreateShowReady:
+        case INVENT_CREATE_STEP_SHOW_READY:
             action_chara->GetNowMotionName();
             s32 motion = action_chara->seq_state;
 
@@ -3231,7 +3119,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             }
 
             break;
-        case kCreateShow: {
+        case INVENT_CREATE_STEP_SHOW: {
             if (this->create_step != 0) {
                 if (this->create_chara != NULL) {
                     float scale[4];
@@ -3300,17 +3188,17 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                                     strcpy(message_window->name[0], message);
                                 }
 
-                                message_window->MakeMsg(kMsgItemCreated);
+                                message_window->MakeMsg(INVENT_CREATE_MSG_CREATED);
                             } else if (this->create_partial_match != 0) {
                                 char *name;
-                                message_window->MakeMsg(kMsgPhotoNamed);
+                                message_window->MakeMsg(INVENT_CREATE_MSG_PARTIAL_MATCH);
                                 name = (char *) this->create_photo_name;
 
                                 if (name != NULL) {
                                     strcpy(message_window->name[0], name);
                                 }
                             } else {
-                                message_window->MakeMsg(kMsgNothingNew);
+                                message_window->MakeMsg(INVENT_CREATE_MSG_NOTHING);
                             }
                         }
                     }
@@ -3333,10 +3221,10 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                     this->blink_time = 0;
                 }
 
-                color = kBlinkDark;
+                color = 0x80303030;
 
                 if (this->blink_time >= 0x19) {
-                    color = kBlinkLight;
+                    color = 0x8022227F;
                 }
 
                 CDC2Mes *color_window = MenuDCMsg[7];
@@ -3346,12 +3234,12 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                 }
             }
 
-            if (this->jingle_state == 0 && ((keys & kCreateKeyConfirm) || (keys & kCreateKeyCancel))) {
+            if (this->jingle_state == 0 && ((keys & MENU_PUSH_BUTTON_DECIDE) || (keys & MENU_PUSH_BUTTON_CANCEL))) {
                 s32 cursor[2];
                 this->step = 0;
                 this->mode = 0;
 
-                if (this->create_load_state == kLoadJingleOpen || this->create_load_state == kLoadJinglePlay) {
+                if (this->create_load_state == INVENT_CREATE_LOAD_JINGLE_OPEN || this->create_load_state == INVENT_CREATE_LOAD_JINGLE_PLAY) {
                     CSnd.StreamClose(1);
                     this->create_load_state = -2;
                 }
@@ -3372,7 +3260,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                 CDC2Mes *color_window = MenuDCMsg[7];
 
                 if (this->create_missing_slot >= 0 && this->create_missing_slot < 0x14) {
-                    color_window->line_color[this->create_missing_slot] = kLineColorNormal;
+                    color_window->line_color[this->create_missing_slot] = 0x80686A6B;
                 }
 
                 this->GradationSet(0);
@@ -3383,7 +3271,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
             break;
         }
-        case kCreateAfter:
+        case INVENT_CREATE_STEP_AFTER:
             if (keys != 0) {
                 this->ExeScript("\x94\xad\x96\xbe\x82\xe2\x82\xdf");
                 this->step = 0;
@@ -3402,7 +3290,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
     switch (this->create_load_state) {
         case -2:
             break;
-        case kLoadSoundMsg:
+        case INVENT_CREATE_LOAD_SOUND_MSG:
             if (read_done == 0) {
                 BG_READ_INFO *file = GetReadBGFile(0);
 
@@ -3411,11 +3299,11 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                     MenuCommonInfo->FadeOutMenuBGMVol(-3, 0x18);
                 }
 
-                this->create_load_state = kLoadModel;
+                this->create_load_state = INVENT_CREATE_LOAD_MODEL;
             }
 
             break;
-        case kLoadModel: {
+        case INVENT_CREATE_LOAD_MODEL: {
             s32 model_blocks;
             s32 motion_size;
             action_chara->SetMotion("\x94\xad\x96\xbe\x8d\x6c\x82\xa6\x92\x86", 0, 1);
@@ -3423,7 +3311,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             load_stack->lock = 0;
             load_stack->Align64();
             char path[64] = "menu/chara4/";
-            model_blocks = kItemModelBlocks;
+            model_blocks = 0x1020;
 
             if (this->create_step != 0) {
                 strcat(path, "c01_success.chr");
@@ -3434,7 +3322,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                     strcat(path, "c01_failure.chr");
                 }
 
-                model_blocks = kPhotoModelBlocks;
+                model_blocks = 0x2000;
             }
 
             this->chara_stack.stSetBuffer(load_stack->stGetTop(), model_blocks);
@@ -3445,10 +3333,10 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             LoadFileBG(path, (u_long128 *) this->create_model_file, &motion_size);
             this->create_motion_file = this->create_model_file + motion_size / 16 * 16;
             LoadFileBG("menu/inventsub.pac", (u_long128 *) this->create_motion_file, &motion_size);
-            this->create_load_state = kLoadModelDone;
+            this->create_load_state = INVENT_CREATE_LOAD_MODEL_DONE;
             break;
         }
-        case kLoadModelDone:
+        case INVENT_CREATE_LOAD_MODEL_DONE:
             if (this->create_wait_time <= 0 && read_done == 0) {
                 float             pos[4];
                 float             rot[4];
@@ -3495,7 +3383,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                     attr->color[3] = eff_light_2927[3];
                     this->create_effect->SetPosition(18.0f, -20.0f, 20.0f);
                     this->create_effect->SetRotation(0.0f, 0.15707964f, 0.0f);
-                    frame->SetAttrParam(*attr, 1, kSceneAttrFlags);
+                    frame->SetAttrParam(*attr, 1, MG_FRAME_ATTR_NO_LIGHT | MG_FRAME_ATTR_COLOR);
                 }
 
                 form = MenuPosData->GetFormInfo("thinkin_ef1");
@@ -3506,7 +3394,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                     form->ambient[0] = -1.0f;
                 }
 
-                this->create_load_state = kLoadSoundBank;
+                this->create_load_state = INVENT_CREATE_LOAD_SOUND_BANK;
                 load_stack->Align64();
                 this->create_timer = 100;
 
@@ -3532,12 +3420,12 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
                         }
                     }
 
-                    this->create_load_state = kLoadItemModel;
+                    this->create_load_state = INVENT_CREATE_LOAD_ITEM_MODEL;
                 }
             }
 
             break;
-        case kLoadItemModel:
+        case INVENT_CREATE_LOAD_ITEM_MODEL:
             if (read_done == 0) {
                 BG_READ_INFO *item_bg = GetReadBGFile(0);
 
@@ -3554,7 +3442,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             }
 
             break;
-        case kLoadSoundBank: {
+        case INVENT_CREATE_LOAD_SOUND_BANK: {
             s32 sound_size;
             load_stack->Align64();
             StartReadBG();
@@ -3564,14 +3452,14 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             this->create_load_state++;
             break;
         }
-        case kLoadSoundPort:
+        case INVENT_CREATE_LOAD_SOUND_PORT:
             if (read_done == 0) {
                 sndInitPort(SND_PORT_MENU);
                 this->create_load_state++;
             }
 
             break;
-        case kLoadJingleOpen:
+        case INVENT_CREATE_LOAD_JINGLE_OPEN:
             this->create_timer--;
 
             if (this->create_timer == 0x28) {
@@ -3602,7 +3490,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             }
 
             break;
-        case kLoadJinglePlay:
+        case INVENT_CREATE_LOAD_JINGLE_PLAY:
             s32 play_state = CSnd.StreamGetState(1);
             this->create_timer--;
 
@@ -6607,7 +6495,7 @@ int MenuInventPushKey(int pad, int pushed) {
         }
 
         int         leave = 0;
-        int         command = K_COMMAND_NONE;
+        int         command = INVENT_KEY_COMMAND_NONE;
         signed char lock = CMenuInventPt->chara_load_step;
 
         if (lock == 0 || lock == 1) {
@@ -6844,31 +6732,31 @@ int MenuInventPushKey(int pad, int pushed) {
 
                     switch (pushed) {
                         case 4:
-                            command = K_COMMAND_SET_CIRCLE;
+                            command = INVENT_KEY_COMMAND_SET_IDEA;
 
                             if (CMenuInventPt->photo_only == 1) {
-                                command = K_COMMAND_HANDLED;
+                                command = INVENT_KEY_COMMAND_IGNORE;
                             }
 
                             break;
                         case 2:
                             next_mode = 2;
-                            command = K_COMMAND_LEAVE_CIRCLE;
+                            command = INVENT_KEY_COMMAND_REMOVE_IDEA;
 
                             if (CMenuInventPt->photo_only == 1) {
-                                command = K_COMMAND_RETURN_ITEM;
+                                command = INVENT_KEY_COMMAND_LEAVE;
                             }
 
                             break;
                         case 8:
-                            command = K_COMMAND_CHECK_IDEAS;
+                            command = INVENT_KEY_COMMAND_THINK;
 
                             if (CMenuInventPt->neta_select_num < 3) {
-                                command = K_COMMAND_REJECT;
+                                command = INVENT_KEY_COMMAND_REJECT;
                             }
 
                             if (CMenuInventPt->photo_only == 1) {
-                                command = K_COMMAND_HANDLED;
+                                command = INVENT_KEY_COMMAND_IGNORE;
                             }
 
                             break;
@@ -6876,13 +6764,13 @@ int MenuInventPushKey(int pad, int pushed) {
                             if (CMenuInventPt->SelectedNetaPhotoAlready(
                                     CMenuInventPt->photo_cursor) == 0 &&
                                 photo->used != 0) {
-                                command = K_COMMAND_EXTEND;
+                                command = INVENT_KEY_COMMAND_EXTEND;
                                 MenuItemCmdArgPos = 5;
                             }
 
                             break;
                         case 32:
-                            command = K_COMMAND_TAKE_PHOTO;
+                            command = INVENT_KEY_COMMAND_SORT_PHOTOS;
                             break;
                     }
 
@@ -6906,10 +6794,10 @@ int MenuInventPushKey(int pad, int pushed) {
                             break;
                         case 2:
                             next_mode = 2;
-                            command = K_COMMAND_LEAVE_CIRCLE;
+                            command = INVENT_KEY_COMMAND_REMOVE_IDEA;
 
                             if (CMenuInventPt->photo_only == 1) {
-                                command = K_COMMAND_RETURN_ITEM;
+                                command = INVENT_KEY_COMMAND_LEAVE;
                             }
 
                             break;
@@ -6922,14 +6810,14 @@ int MenuInventPushKey(int pad, int pushed) {
                         case 4:
                         case 8:
                             if (MenuCommonInfo->have_item.item_no > 0) {
-                                command = K_COMMAND_REJECT;
+                                command = INVENT_KEY_COMMAND_REJECT;
                             } else {
-                                command = K_COMMAND_PICK_CREATED;
+                                command = INVENT_KEY_COMMAND_MAKE;
                             }
 
                             break;
                         case 2:
-                            command = K_COMMAND_RETURN_ITEM;
+                            command = INVENT_KEY_COMMAND_LEAVE;
                             break;
                     }
 
@@ -6937,16 +6825,16 @@ int MenuInventPushKey(int pad, int pushed) {
                 case INVENT_MODE_ITEM_LIST:
                     switch (pushed) {
                         case 4:
-                            command = K_COMMAND_SWAP_ITEM;
+                            command = INVENT_KEY_COMMAND_SWAP_ITEM;
                             break;
                         case 2:
-                            command = K_COMMAND_SWAP_BACK;
+                            command = INVENT_KEY_COMMAND_RETURN_HELD;
                             break;
                         case 1:
-                            command = K_COMMAND_ITEM_COMMAND;
+                            command = INVENT_KEY_COMMAND_ITEM_COMMAND;
                             break;
                         case 8:
-                            command = K_COMMAND_GET_ITEM_ALL;
+                            command = INVENT_KEY_COMMAND_GET_ITEM_ALL;
                             break;
                     }
 
@@ -6956,10 +6844,10 @@ int MenuInventPushKey(int pad, int pushed) {
                         case 4:
                             break;
                         case 2:
-                            command = K_COMMAND_QUIT;
+                            command = INVENT_KEY_COMMAND_SAVE_ALBUM;
                             break;
                         case 1:
-                            command = K_COMMAND_EXTEND;
+                            command = INVENT_KEY_COMMAND_EXTEND;
                             MenuItemCmdArgPos = 5;
                             break;
                     }
@@ -6969,34 +6857,34 @@ int MenuInventPushKey(int pad, int pushed) {
                     switch (pushed) {
                         case 4:
                         case 8:
-                            command = K_COMMAND_REJECT;
+                            command = INVENT_KEY_COMMAND_REJECT;
                             break;
                         case 2:
-                            command = K_COMMAND_QUIT;
+                            command = INVENT_KEY_COMMAND_SAVE_ALBUM;
                             break;
                         case 1:
-                            command = K_COMMAND_EXTEND;
+                            command = INVENT_KEY_COMMAND_EXTEND;
                             MenuItemCmdArgPos = 6;
                             break;
                         case 32:
-                            command = K_COMMAND_TAKE_PHOTO;
+                            command = INVENT_KEY_COMMAND_SORT_PHOTOS;
                             break;
                     }
 
                     break;
                 case INVENT_MODE_MEMO_ARROW:
                     if ((pushed & 1) || (pushed & 4)) {
-                        command = K_COMMAND_CONFIRM_BOARD;
+                        command = INVENT_KEY_COMMAND_LEARN_IDEAS;
                     } else if (pushed & 2) {
-                        command = K_COMMAND_LEAVE_CIRCLE;
+                        command = INVENT_KEY_COMMAND_REMOVE_IDEA;
                         next_mode = 2;
 
                         if (CMenuInventPt->photo_only == 1) {
-                            command = K_COMMAND_RETURN_ITEM;
+                            command = INVENT_KEY_COMMAND_LEAVE;
                         }
 
                         if (CMenuInventPt->album_open == 1) {
-                            command = K_COMMAND_QUIT;
+                            command = INVENT_KEY_COMMAND_SAVE_ALBUM;
                         }
                     }
 
@@ -7005,22 +6893,22 @@ int MenuInventPushKey(int pad, int pushed) {
                     switch (pushed) {
                         case 1:
                         case 4:
-                            command = K_COMMAND_OPEN_MEMO;
+                            command = INVENT_KEY_COMMAND_OPEN_MEMO;
                             MenuSePlay(1);
                             break;
                         case 2:
                             next_mode = 2;
-                            command = K_COMMAND_LEAVE_CIRCLE;
+                            command = INVENT_KEY_COMMAND_REMOVE_IDEA;
 
                             if (CMenuInventPt->photo_only == 1) {
-                                command = K_COMMAND_RETURN_ITEM;
+                                command = INVENT_KEY_COMMAND_LEAVE;
                             }
 
                             if (CMenuInventPt->album_open == 1) {
                                 CMenuInventPt->mode = 14;
                                 CMenuInventPt->step = 201;
                                 CMenuInventPt->album_save_mode = 1;
-                                command = K_COMMAND_HANDLED;
+                                command = INVENT_KEY_COMMAND_IGNORE;
                                 CMenuInventPt->ExeScript("SAVE_SLOTSEL");
                             }
 
@@ -7030,10 +6918,10 @@ int MenuInventPushKey(int pad, int pushed) {
                     break;
                 case INVENT_MODE_MEMO_CORK:
                     if ((pushed & 1) || (pushed & 4)) {
-                        command = K_COMMAND_CLOSE_MEMO;
+                        command = INVENT_KEY_COMMAND_CLOSE_MEMO;
                         MenuSePlay(1);
                     } else if (pushed & 2) {
-                        command = K_COMMAND_BACK_MODE;
+                        command = INVENT_KEY_COMMAND_BACK;
                         next_mode = 8;
                     }
 
@@ -7042,28 +6930,28 @@ int MenuInventPushKey(int pad, int pushed) {
                     switch (pushed) {
                         case 1:
                         case 4:
-                            command = K_COMMAND_SET_CIRCLE;
+                            command = INVENT_KEY_COMMAND_SET_IDEA;
 
                             if (CMenuInventPt->photo_only == 1 ||
                                 CMenuInventPt->album_open == 1) {
-                                command = K_COMMAND_REJECT;
+                                command = INVENT_KEY_COMMAND_REJECT;
                             }
 
                             break;
                         case 8:
-                            command = K_COMMAND_CHECK_IDEAS;
+                            command = INVENT_KEY_COMMAND_THINK;
 
                             if (CMenuInventPt->neta_select_num < 3) {
-                                command = K_COMMAND_REJECT;
+                                command = INVENT_KEY_COMMAND_REJECT;
                             }
 
                             if (CMenuInventPt->photo_only == 1) {
-                                command = K_COMMAND_HANDLED;
+                                command = INVENT_KEY_COMMAND_IGNORE;
                             }
 
                             break;
                         case 2:
-                            command = K_COMMAND_BACK_MODE;
+                            command = INVENT_KEY_COMMAND_BACK;
                             next_mode = 8;
                             break;
                     }
@@ -7075,14 +6963,14 @@ int MenuInventPushKey(int pad, int pushed) {
         CDC2Mes *message = MenuDCMsg[4];
 
         switch (command) {
-            case K_COMMAND_REJECT:
+            case INVENT_KEY_COMMAND_REJECT:
                 MenuSePlay(5);
                 break;
-            case K_COMMAND_ITEM_COMMAND:
+            case INVENT_KEY_COMMAND_ITEM_COMMAND:
                 CMenuInventPt->MenuItemMoveItemCommand(item, 4, 5,
                                                        (CMenuPosDataForm *) MenuMesForm[5], 0);
                 break;
-            case K_COMMAND_SWAP_ITEM:
+            case INVENT_KEY_COMMAND_SWAP_ITEM:
                 if (CMenuInventPt->CheckSpectolFusion(item, 5, MenuMesForm[5]) != 0) {
                     CMenuPosDataForm *form = MenuCommonInfo->cursor_form;
 
@@ -7113,10 +7001,10 @@ int MenuInventPushKey(int pad, int pushed) {
                 }
 
                 break;
-            case K_COMMAND_GET_ITEM_ALL:
+            case INVENT_KEY_COMMAND_GET_ITEM_ALL:
                 MenuCommonInfo->GetItemAll(item, &swap_info);
                 break;
-            case K_COMMAND_TAKE_PHOTO:
+            case INVENT_KEY_COMMAND_SORT_PHOTOS:
                 if (0 < CMenuInventPt->neta_select_num) {
                     MenuSePlay(5);
                 } else {
@@ -7138,9 +7026,9 @@ int MenuInventPushKey(int pad, int pushed) {
                 }
 
                 break;
-            case K_COMMAND_UNUSED:
+            case INVENT_KEY_COMMAND_UNUSED:
                 break;
-            case K_COMMAND_SET_CIRCLE: {
+            case INVENT_KEY_COMMAND_SET_IDEA: {
                 int index = CMenuInventPt->photo_cursor;
                 int source = 0;
 
@@ -7157,7 +7045,7 @@ int MenuInventPushKey(int pad, int pushed) {
 
                 break;
             }
-            case K_COMMAND_CONFIRM_BOARD: {
+            case INVENT_KEY_COMMAND_LEARN_IDEAS: {
                 CMenuInventPt->mode = 13;
 
                 while (CMenuInventPt->CancelNetaCircle(0) >= 0) {
@@ -7198,7 +7086,7 @@ int MenuInventPushKey(int pad, int pushed) {
 
                 break;
             }
-            case K_COMMAND_LEAVE_CIRCLE:
+            case INVENT_KEY_COMMAND_REMOVE_IDEA:
                 if (CMenuInventPt->CancelNetaCircle(5) < 0) {
                     if (CMenuInventPt->key_arg_no == INVENT_MODE_PHOTO_VIEW) {
                         leave = 1;
@@ -7210,7 +7098,7 @@ int MenuInventPushKey(int pad, int pushed) {
 
                 MenuSePlay(5);
                 break;
-            case K_COMMAND_BACK_MODE:
+            case INVENT_KEY_COMMAND_BACK:
                 if (CMenuInventPt->CancelNetaCircle(5) < 0) {
                     CMenuInventPt->NextDifferentMode(next_mode, 0);
                 } else {
@@ -7218,7 +7106,7 @@ int MenuInventPushKey(int pad, int pushed) {
                 }
 
                 break;
-            case K_COMMAND_SWAP_BACK: {
+            case INVENT_KEY_COMMAND_RETURN_HELD: {
                 MENU_SWAPITEM_INFO held_info;
                 held_info.Set(-1, 0, -1, 0);
                 memcpy(&held_info, &MenuCommonInfo->have_swap, sizeof(held_info));
@@ -7248,7 +7136,7 @@ int MenuInventPushKey(int pad, int pushed) {
 
                 break;
             }
-            case K_COMMAND_RETURN_ITEM: {
+            case INVENT_KEY_COMMAND_LEAVE: {
                 int result = MenuCommonInfo->ReturnItemMenu(0);
 
                 if (result == 0) {
@@ -7260,7 +7148,7 @@ int MenuInventPushKey(int pad, int pushed) {
 
                 break;
             }
-            case K_COMMAND_CHECK_IDEAS: {
+            case INVENT_KEY_COMMAND_THINK: {
                 InventUserDataPtr->GetPhotoInfo(0);
                 int ideas[3];
                 int i = 0;
@@ -7288,7 +7176,7 @@ int MenuInventPushKey(int pad, int pushed) {
 
                 break;
             }
-            case K_COMMAND_PICK_CREATED: {
+            case INVENT_KEY_COMMAND_MAKE: {
                 int item_id = InventUserDataPtr->GetCreateItemID(CMenuInventPt->card_cursor);
                 MenuSePlay(1);
 
@@ -7341,19 +7229,19 @@ int MenuInventPushKey(int pad, int pushed) {
 
                 break;
             }
-            case K_COMMAND_EXTEND:
+            case INVENT_KEY_COMMAND_EXTEND:
                 CMenuInventPt->BootExtendCommand();
                 break;
-            case K_COMMAND_OPEN_MEMO:
+            case INVENT_KEY_COMMAND_OPEN_MEMO:
                 CMenuInventPt->ExeScript("\x83\x6c\x83\x5e\x92\x50\x8c\xea\x83\x8a\x83\x58\x83\x67");
                 CMenuInventPt->UpdataNetaMemoStr();
                 CMenuInventPt->key_arg_no = INVENT_MODE_MEMO_CORK;
                 break;
-            case K_COMMAND_CLOSE_MEMO:
+            case INVENT_KEY_COMMAND_CLOSE_MEMO:
                 CMenuInventPt->ExeScript("\x83\x6c\x83\x5e\x92\x50\x8c\xea\x83\x8a\x83\x58\x83\x67OFF");
                 CMenuInventPt->key_arg_no = INVENT_MODE_MEMO_BUTTON;
                 break;
-            case K_COMMAND_QUIT:
+            case INVENT_KEY_COMMAND_SAVE_ALBUM:
                 CMenuInventPt->mode = 14;
                 CMenuInventPt->step = 201;
                 CMenuInventPt->album_save_mode = 1;

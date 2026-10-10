@@ -839,7 +839,7 @@ CHRINFO_SE *CCharacter2::GetSoundInfoCopy(mgCMemory *memory) {
         return NULL;
     }
 
-    bytes = se_num[0] * (int) sizeof(CHRINFO_SE);
+    bytes = se_num[0] * sizeof(CHRINFO_SE);
 
     if (bytes & 0xF) {
         blocks = (bytes >> 4) + 1;
@@ -849,7 +849,7 @@ CHRINFO_SE *CCharacter2::GetSoundInfoCopy(mgCMemory *memory) {
 
     block = memory->Alloc(blocks + 2);
     copy = new (block) CHRINFO_SE[se_num[0]];
-    memcpy(copy, se_list[0], se_num[0] * (int) sizeof(CHRINFO_SE));
+    memcpy(copy, se_list[0], se_num[0] * sizeof(CHRINFO_SE));
     return copy;
 }
 

@@ -19,6 +19,19 @@ class CMapParts;
 class mgCMemory;
 class mgCTexture;
 
+/** Number of entries of PartsInfoData, counting the empty-name entry that ends it. */
+#define AUTOMAP_PARTS_INFO_NUM 277
+/** Number of entries of MiniMapInfoData. */
+#define MINIMAP_INFO_NUM 18
+/** Number of preset room layouts that a room script can hold. */
+#define AUTOMAP_ROOM_INFO_MAX 64
+/** Number of rooms that a generated floor can hold. */
+#define AUTOMAP_ROOM_MAX 8
+/** Number of random stones that a floor places. */
+#define AUTOMAP_RANDOM_STONE_MAX 12
+/** Frames that the healing point waits after healing before it can heal again. */
+#define HEALING_POINT_COOLDOWN 1800
+
 /**
  *
  * Kinds of grid cell, as flags, taken from the family of parts a cell uses.
@@ -85,6 +98,18 @@ enum AUTOMAP_GEN_FLAG {
     AUTOMAP_GEN_NO_IN_OUT = 0x10,     /**< Does not place the floor's way in and out. */
     AUTOMAP_GEN_NO_HEALING = 0x20,    /**< Does not place a healing point. */
     AUTOMAP_GEN_FIXED_FLOOR = 0x40,   /**< Uses preset layout 0 as the whole floor. */
+};
+
+/**
+ *
+ * Indices into PartsInfoData of the families of parts that the generator swaps between.
+ *
+ */
+enum AUTOMAP_PARTS_NO {
+    AUTOMAP_PARTS_DEAD_END = 0x1C,   /**< First of the four corridor dead ends ("way28" to "way31"), one per side. */
+    AUTOMAP_PARTS_ROOM_ALT = 0x6C,   /**< First room part of the second room family ("room28"). */
+    AUTOMAP_PARTS_HEALING = 0x88,    /**< First of the four healing point room parts ("room56" to "room59"). */
+    AUTOMAP_PARTS_STEP_DOOR = 0xE8,  /**< First of the eight stepped entrances that never take a door ("door56" to "door63"). */
 };
 
 /**
@@ -354,7 +379,7 @@ STATIC_ASSERT(sizeof(CHealingPoint) == 0x8);
 class CAutoMapGen {
 public:
     CMapParts         *gio_parts;        /**< Placed "p01_gio" part. */
-    CMapParts         *random_stone[12]; /**< Placed "obj01" parts used as random stones. */
+    CMapParts         *random_stone[AUTOMAP_RANDOM_STONE_MAX]; /**< Placed "obj01" parts used as random stones. */
     CMapParts         *pot_parts;        /**< Placed "obj02" part used by the pot. */
     s16                random_map;       /**< Non-zero once a random floor has been generated. */
     s16                minimap_enable;   /**< Non-zero once Build has run, letting the mini map reveal cells. */
@@ -369,7 +394,7 @@ public:
     s32                room_info_num;    /**< Number of entries of room_info in use. */
     CAutoMapParts     *grid;             /**< Cells of the grid, row by row. */
     s32                place_parts_num;  /**< Number of parts placed in the map. */
-    AUTOMAP_ROOM       room[8];          /**< Rooms of the generated floor. */
+    AUTOMAP_ROOM       room[AUTOMAP_ROOM_MAX];          /**< Rooms of the generated floor. */
     s32                room_num;         /**< Number of entries of room in use. */
     s32                door_room;        /**< Room whose entrance has a door, or -1. */
     s32                navi_valid;       /**< Non-zero once the navigation distances have been worked out. */
@@ -679,7 +704,11 @@ STATIC_ASSERT(sizeof(CAutoMapGen) == 0x2A0);
  * Every kind of part the floor generator can place, followed by an empty-name entry.
  *
  */
-extern AUTOMAP_PARTS_INFO PartsInfoData[277];
+extern AUTOMAP_PARTS_INFO PartsInfoData[AUTOMAP_PARTS_INFO_NUM];
 
-/** Mini map tiles of the parts of each dungeon map. */
-extern MINIMAP_INFO MiniMapInfoData[18];
+/**
+ *
+ * Mini map tiles of the parts of each dungeon map.
+ *
+ */
+extern MINIMAP_INFO MiniMapInfoData[MINIMAP_INFO_NUM];

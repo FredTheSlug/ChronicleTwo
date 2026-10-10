@@ -21,19 +21,6 @@
 #include "scenesnd.hpp"
 #include "scriptinterpreter.hpp"
 
-enum {
-    kMiniMapInfoCount = 18,
-    kHealingCooldown = 0x708,
-    kStepUp = 1,
-    kStepDown = 2,
-    kStepRight = 4,
-    kStepLeft = 8,
-    kTermRightMargin = 21,
-    kDoorPartsBegin = 0xE8,
-    kDoorPartsEnd = 0xF0,
-    kDoorPartsLast = kDoorPartsEnd - 1
-};
-
 static int _ROOM_FIXED(SPI_STACK *stack, int arg_count);
 static int _GRID_SIZE(SPI_STACK *stack, int unused);
 static int _ROOM_ID(SPI_STACK *stack, int arg_count);
@@ -47,7 +34,7 @@ static int _ROOM_END(SPI_STACK *stack, int arg_count);
  * Names and connection flags of parts for generated dungeon cells.
  *
  */
-AUTOMAP_PARTS_INFO PartsInfoData[277] = {
+AUTOMAP_PARTS_INFO PartsInfoData[AUTOMAP_PARTS_INFO_NUM] = {
     {"way00",  AUTOMAP_KIND_ROAD,                                                                           AUTOMAP_LINK_NEG_Z | AUTOMAP_LINK_POS_Z,                                           0,                                       {0, 0, 0, 0, 0, 0, 0, 0}        },
     {"way01",  AUTOMAP_KIND_ROAD,                                                                           AUTOMAP_LINK_POS_X | AUTOMAP_LINK_NEG_X,                                           0,                                       {1, 1, 1, 1, 1, 1, 1, 1}        },
     {"way02",  AUTOMAP_KIND_ROAD,                                                                           AUTOMAP_LINK_NEG_Z | AUTOMAP_LINK_POS_Z,                                           0,                                       {2, 2, 2, 2, 2, 2, 2, 2}        },
@@ -332,7 +319,7 @@ AUTOMAP_PARTS_INFO PartsInfoData[277] = {
  * Mini map tile indices for each dungeon map and generated part.
  *
  */
-MINIMAP_INFO MiniMapInfoData[18] = {
+MINIMAP_INFO MiniMapInfoData[MINIMAP_INFO_NUM] = {
     {"d01f01",  {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27, 28, 29, 30, 31, 28, 29, 30, 31, 32, 33, 34, 35, 32, 33, 34, 35, 36, 37, 38, 39, 36, 37, 38, 39, 40, 41, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 82, 83, 84, 85, 28, 29, 30, 31, 28, 29, 30, 31, 32, 33, 34, 35, 32, 33, 34, 35, 36, 37, 38, 39, 36, 37, 38, 39, 40, 41, 40, 41, 152, 153, 154, 155, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 82, 83, 84, 85, 66, 67, 68, 69, 66, 67, 68, 69, 70, 71, 72, 73, 70, 71, 72, 73, 74, 75, 76, 77, 74, 75, 76, 77, 78, 79, 80, 81, 78, 79, 80, 81, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 104, 105, 106, 107, 108, 109, 110, 111, 108, 109, 110, 111, 112, 113, 114, 115, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 86, 87, 88, 89, 90, 91, 92, 93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}                              },
     {"d02f01",  {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27, 1, 0, 3, 2, 1, 0, 3, 2, 4, 5, 6, 7, 4, 5, 6, 7, 6, 7, 4, 5, 6, 7, 4, 5, 94, 95, 94, 95, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 8, 9, 10, 11, 28, 29, 30, 31, 28, 29, 30, 31, 32, 33, 34, 35, 32, 33, 34, 35, 36, 37, 38, 39, 36, 37, 38, 39, 40, 41, 40, 41, 176, 177, 178, 179, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 82, 83, 84, 85, 66, 67, 68, 69, 66, 67, 68, 69, 70, 71, 72, 73, 70, 71, 72, 73, 74, 75, 76, 77, 74, 75, 76, 77, 78, 79, 80, 81, 78, 79, 80, 81, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 104, 105, 106, 107, 108, 109, 110, 111, 108, 109, 110, 111, 112, 113, 114, 115, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 86, 87, 88, 89, 90, 91, 92, 93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}                                },
     {"d02f01r", {0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 6, 7, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27, 24, 25, 26, 27, 1, 0, 3, 2, 1, 0, 3, 2, 4, 5, 6, 7, 4, 5, 6, 7, 6, 7, 4, 5, 6, 7, 4, 5, 94, 95, 94, 95, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 8, 9, 10, 11, 28, 29, 30, 31, 28, 29, 30, 31, 32, 33, 34, 35, 32, 33, 34, 35, 36, 37, 38, 39, 36, 37, 38, 39, 40, 41, 40, 41, 176, 177, 178, 179, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 82, 83, 84, 85, 66, 67, 68, 69, 66, 67, 68, 69, 70, 71, 72, 73, 70, 71, 72, 73, 74, 75, 76, 77, 74, 75, 76, 77, 78, 79, 80, 81, 78, 79, 80, 81, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 104, 105, 106, 107, 108, 109, 110, 111, 108, 109, 110, 111, 112, 113, 114, 115, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 86, 87, 88, 89, 90, 91, 92, 93, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}                                },
@@ -466,7 +453,7 @@ void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int widt
         buffer[6] = 0;
     }
 
-    for (int i = 0; i < kMiniMapInfoCount; i++) {
+    for (int i = 0; i < MINIMAP_INFO_NUM; i++) {
         char *entry_name = MiniMapInfoData[i].name;
 
         if (entry_name != 0 && strcmp(buffer, entry_name) == 0) {
@@ -691,7 +678,7 @@ int CHealingPoint::CheckHealingTime() {
     }
 
     HealingEffectMan.SetMode((int) HEALING_EFFECT_SPENT);
-    timer = kHealingCooldown;
+    timer = HEALING_POINT_COOLDOWN;
     return 1;
 }
 
@@ -938,46 +925,46 @@ int CAutoMapGen::LinkConnectCheck(int x, int y, int kind, int room_no, int exclu
     int cell_kind;
     int count = 0;
 
-    if (exclude != kStepDown) {
+    if (exclude != AUTOMAP_LINK_POS_Z) {
         if (y > 0) {
             cell_kind = (grid + (y - 1) * grid_w)[x].kind;
             int cell_room = (grid + (y - 1) * grid_w)[x].room_no;
 
             if ((cell_kind & kind) && cell_room != room_no) {
-                sides[count++] = kStepUp;
+                sides[count++] = AUTOMAP_LINK_NEG_Z;
             }
         }
     }
 
-    if (exclude != kStepUp) {
+    if (exclude != AUTOMAP_LINK_NEG_Z) {
         if (y < grid_h - 1) {
             cell_kind = (grid + (y + 1) * grid_w)[x].kind;
             int cell_room = (grid + (y + 1) * grid_w)[x].room_no;
 
             if ((cell_kind & kind) && cell_room != room_no) {
-                sides[count++] = kStepDown;
+                sides[count++] = AUTOMAP_LINK_POS_Z;
             }
         }
     }
 
-    if (exclude != kStepLeft) {
+    if (exclude != AUTOMAP_LINK_NEG_X) {
         if (x < grid_w - 1) {
             cell_kind = (grid + y * grid_w + x + 1)->kind;
             int cell_room = (grid + y * grid_w + x + 1)->room_no;
 
             if ((cell_kind & kind) && cell_room != room_no) {
-                sides[count++] = kStepRight;
+                sides[count++] = AUTOMAP_LINK_POS_X;
             }
         }
     }
 
-    if (exclude != kStepRight) {
+    if (exclude != AUTOMAP_LINK_POS_X) {
         if (x > 0) {
             cell_kind = (grid + y * grid_w + x - 1)->kind;
             int cell_room = (grid + y * grid_w + x - 1)->room_no;
 
             if ((cell_kind & kind) && cell_room != room_no) {
-                sides[count++] = kStepLeft;
+                sides[count++] = AUTOMAP_LINK_NEG_X;
             }
         }
     }
@@ -1058,27 +1045,27 @@ void CAutoMapGen::RoomLink(int from, int to) {
 
     if (!(dist_x <= dist_y)) {
         if (dx < 0) {
-            side = kStepRight;
+            side = AUTOMAP_LINK_POS_X;
         } else {
-            side = kStepLeft;
+            side = AUTOMAP_LINK_NEG_X;
         }
     } else {
         if (dy < 0) {
-            side = kStepDown;
+            side = AUTOMAP_LINK_POS_Z;
         } else {
-            side = kStepUp;
+            side = AUTOMAP_LINK_NEG_Z;
         }
     }
 
     if (gen_flag & AUTOMAP_GEN_FIXED_START && from == 0) {
-        side = kStepRight;
+        side = AUTOMAP_LINK_POS_X;
     }
 
     int start_num = 0;
     depth = 0;
 
     switch (side) {
-        case kStepUp:
+        case AUTOMAP_LINK_NEG_Z:
             while (start_num <= 0) {
                 for (int col = src->x; col < src->x + src->w; col++) {
                     u32 kind = (grid + (src->y + depth) * grid_w)[col].kind;
@@ -1094,7 +1081,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
             }
 
             break;
-        case kStepDown:
+        case AUTOMAP_LINK_POS_Z:
             while (start_num <= 0) {
                 for (int col = src->x; col < src->x + src->w; col++) {
                     u32 kind = (grid + (src->y + src->h - 1 - depth) * grid_w)[col].kind;
@@ -1110,7 +1097,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
             }
 
             break;
-        case kStepRight:
+        case AUTOMAP_LINK_POS_X:
             while (start_num <= 0) {
                 for (int row = src->y; row < src->y + src->h; row++) {
                     u32 kind = (grid + row * grid_w + src->x + src->w - 1 - depth)->kind;
@@ -1126,7 +1113,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
             }
 
             break;
-        case kStepLeft:
+        case AUTOMAP_LINK_NEG_X:
             while (start_num <= 0) {
                 for (int row = src->y; row < src->y + src->h; row++) {
                     u32 kind = (grid + depth + row * grid_w + src->x)->kind;
@@ -1166,10 +1153,10 @@ void CAutoMapGen::RoomLink(int from, int to) {
     }
 
     if (!(dist_x <= dist_y)) {
-        side = kStepLeft;
+        side = AUTOMAP_LINK_NEG_X;
 
         if (dx < 0) {
-            side = kStepRight;
+            side = AUTOMAP_LINK_POS_X;
         }
 
         float d = (float) dx;
@@ -1181,9 +1168,9 @@ void CAutoMapGen::RoomLink(int from, int to) {
         steps = iRand((int) (d - (float) (src->w / 2))) + 1;
     } else {
         if (dy < 0) {
-            side = kStepDown;
+            side = AUTOMAP_LINK_POS_Z;
         } else {
-            side = kStepUp;
+            side = AUTOMAP_LINK_NEG_Z;
         }
 
         float d = (float) dy;
@@ -1219,16 +1206,16 @@ void CAutoMapGen::RoomLink(int from, int to) {
                 }
 
                 switch (side) {
-                    case kStepUp:
+                    case AUTOMAP_LINK_NEG_Z:
                         y--;
                         break;
-                    case kStepDown:
+                    case AUTOMAP_LINK_POS_Z:
                         y++;
                         break;
-                    case kStepRight:
+                    case AUTOMAP_LINK_POS_X:
                         x++;
                         break;
-                    case kStepLeft:
+                    case AUTOMAP_LINK_NEG_X:
                         x--;
                         break;
                 }
@@ -1267,18 +1254,18 @@ void CAutoMapGen::RoomLink(int from, int to) {
 
         if (!(dist_x <= dist_y)) {
             if (dx < 0) {
-                side = kStepRight;
+                side = AUTOMAP_LINK_POS_X;
             } else {
-                side = kStepLeft;
+                side = AUTOMAP_LINK_NEG_X;
             }
 
             float d = (float) dx;
             steps = iRand((int) (d < 0.0f ? -d : d)) + 1;
         } else {
             if (dy < 0) {
-                side = kStepDown;
+                side = AUTOMAP_LINK_POS_Z;
             } else {
-                side = kStepUp;
+                side = AUTOMAP_LINK_NEG_Z;
             }
 
             float d = (float) dy;
@@ -1331,7 +1318,7 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
     }
 
     if (!(dist_x <= dist_y)) {
-        side = dx < 0 ? kStepRight : kStepLeft;
+        side = dx < 0 ? AUTOMAP_LINK_POS_X : AUTOMAP_LINK_NEG_X;
         float d = (float) dx;
 
         if (d < 0.0f) {
@@ -1340,7 +1327,7 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
 
         steps = iRand((int) d) + 1;
     } else {
-        side = dy < 0 ? kStepDown : kStepUp;
+        side = dy < 0 ? AUTOMAP_LINK_POS_Z : AUTOMAP_LINK_NEG_Z;
         float d = (float) dy;
 
         if (d < 0.0f) {
@@ -1380,16 +1367,16 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
                 }
 
                 switch (side) {
-                    case kStepUp:
+                    case AUTOMAP_LINK_NEG_Z:
                         y--;
                         break;
-                    case kStepDown:
+                    case AUTOMAP_LINK_POS_Z:
                         y++;
                         break;
-                    case kStepRight:
+                    case AUTOMAP_LINK_POS_X:
                         x++;
                         break;
-                    case kStepLeft:
+                    case AUTOMAP_LINK_NEG_X:
                         x--;
                         break;
                 }
@@ -1428,18 +1415,18 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
 
         if (!(dist_x <= dist_y)) {
             if (dx < 0) {
-                side = kStepRight;
+                side = AUTOMAP_LINK_POS_X;
             } else {
-                side = kStepLeft;
+                side = AUTOMAP_LINK_NEG_X;
             }
 
             float d = (float) dx;
             steps = iRand((int) (d < 0.0f ? -d : d)) + 1;
         } else {
             if (dy < 0) {
-                side = kStepDown;
+                side = AUTOMAP_LINK_POS_Z;
             } else {
-                side = kStepUp;
+                side = AUTOMAP_LINK_NEG_Z;
             }
 
             float d = dy;
@@ -1481,20 +1468,20 @@ void CAutoMapGen::CreatTermParts() {
         if (cell->kind == 1) {
             if (((CAutoMapParts *) ((u8 *) cells + (y - 1) * row_width * sizeof(CAutoMapParts) + x_off))
                     ->kind == 0) {
-                open_dirs |= kStepUp;
+                open_dirs |= AUTOMAP_LINK_NEG_Z;
             }
 
             if (((CAutoMapParts *) ((u8 *) cells + (y + 1) * row_width * sizeof(CAutoMapParts) + x_off))
                     ->kind == 0) {
-                open_dirs |= kStepDown;
+                open_dirs |= AUTOMAP_LINK_POS_Z;
             }
 
             if ((cell - 1)->kind == 0) {
-                open_dirs |= kStepLeft;
+                open_dirs |= AUTOMAP_LINK_NEG_X;
             }
 
             if ((cell + 1)->kind == 0) {
-                open_dirs |= kStepRight;
+                open_dirs |= AUTOMAP_LINK_POS_X;
             }
         }
     } while (open_dirs == 0);
@@ -1506,16 +1493,16 @@ void CAutoMapGen::CreatTermParts() {
     } while (!(open_dirs & direction));
 
     switch (direction) {
-        case kStepUp:
+        case AUTOMAP_LINK_NEG_Z:
             y--;
             break;
-        case kStepDown:
+        case AUTOMAP_LINK_POS_Z:
             y++;
             break;
-        case kStepLeft:
+        case AUTOMAP_LINK_NEG_X:
             x--;
             break;
-        case kStepRight:
+        case AUTOMAP_LINK_POS_X:
             x++;
             break;
     }
@@ -1528,19 +1515,19 @@ void CAutoMapGen::CreatTermParts() {
 
     do {
         if (y > 0 && (grid + (y - 1) * grid_w + x)->kind == 0) {
-            pending |= kStepUp;
+            pending |= AUTOMAP_LINK_NEG_Z;
         }
 
         if (y <= grid_h - 2 && (grid + (y + 1) * grid_w + x)->kind == 0) {
-            pending |= kStepDown;
+            pending |= AUTOMAP_LINK_POS_Z;
         }
 
         if (x > 0 && (grid + y * grid_w + x - 1)->kind == 0) {
-            pending |= kStepLeft;
+            pending |= AUTOMAP_LINK_NEG_X;
         }
 
         if (x <= grid_w - 2 && (grid + y * grid_w + x + 1)->kind == 0) {
-            pending |= kStepRight;
+            pending |= AUTOMAP_LINK_POS_X;
         }
 
         if (pending == 0) {
@@ -1556,7 +1543,7 @@ void CAutoMapGen::CreatTermParts() {
 
         while (steps > 0) {
             switch (direction) {
-                case kStepUp:
+                case AUTOMAP_LINK_NEG_Z:
                     y--;
 
                     if (y < 2) {
@@ -1564,7 +1551,7 @@ void CAutoMapGen::CreatTermParts() {
                     }
 
                     break;
-                case kStepDown:
+                case AUTOMAP_LINK_POS_Z:
                     y++;
 
                     if (grid_h - 2 < y) {
@@ -1572,7 +1559,7 @@ void CAutoMapGen::CreatTermParts() {
                     }
 
                     break;
-                case kStepLeft:
+                case AUTOMAP_LINK_NEG_X:
                     x--;
 
                     if (x < 2) {
@@ -1580,10 +1567,10 @@ void CAutoMapGen::CreatTermParts() {
                     }
 
                     break;
-                case kStepRight:
+                case AUTOMAP_LINK_POS_X:
                     x++;
 
-                    if (grid_w - kTermRightMargin < x) {
+                    if (grid_w - 21 < x) {
                         steps = 0;
                     }
 
@@ -1599,25 +1586,25 @@ void CAutoMapGen::CreatTermParts() {
             }
 
             switch (direction) {
-                case kStepUp:
+                case AUTOMAP_LINK_NEG_Z:
                     if ((grid + (y - 1) * grid_w + x)->kind != 0) {
                         steps = 0;
                     }
 
                     break;
-                case kStepDown:
+                case AUTOMAP_LINK_POS_Z:
                     if ((grid + (y + 1) * grid_w + x)->kind != 0) {
                         steps = 0;
                     }
 
                     break;
-                case kStepLeft:
+                case AUTOMAP_LINK_NEG_X:
                     if ((grid + y * grid_w + x - 1)->kind != 0) {
                         steps = 0;
                     }
 
                     break;
-                case kStepRight:
+                case AUTOMAP_LINK_POS_X:
                     if ((grid + y * grid_w + x + 1)->kind != 0) {
                         steps = 0;
                     }
@@ -1658,7 +1645,7 @@ void CAutoMapGen::CreatDoorRoom() {
             for (int col = room[i].x; col < room[i].x + room[i].w; col++) {
                 CAutoMapParts *cell = &(grid + row * grid_w)[col];
 
-                if (cell->parts_no >= kDoorPartsBegin && cell->parts_no < kDoorPartsEnd) {
+                if (cell->parts_no >= AUTOMAP_PARTS_STEP_DOOR && cell->parts_no < AUTOMAP_PARTS_STEP_DOOR + 8) {
                     entrances += 999;
                 } else if (cell->kind & AUTOMAP_KIND_ENTRANCE) {
                     u8 road_link = cell->road_link;
@@ -1696,7 +1683,7 @@ void CAutoMapGen::CreatDoorRoom() {
             for (int col = r->x; col < r->x + r->w; col++) {
                 CAutoMapParts *cell = &(grid + row * grid_w)[col];
 
-                if (cell->parts_no < kDoorPartsBegin || cell->parts_no > kDoorPartsLast) {
+                if (cell->parts_no < AUTOMAP_PARTS_STEP_DOOR || cell->parts_no > AUTOMAP_PARTS_STEP_DOOR + 7) {
                     if (cell->kind & AUTOMAP_KIND_ENTRANCE) {
                         cell->kind |= AUTOMAP_KIND_DOOR;
                         (grid + row * grid_w)[col].parts_no += 4;

@@ -16,19 +16,22 @@
  */
 /**
  *
- * Kinds of item transfer handled by the menu swap state.
+ * Kind of place an item is moved from or to, as MENU_SWAPITEM_INFO::type holds it.
  *
  */
+// clang-format off
 enum MENU_SWAP_TYPE {
-    MENU_SWAP_TYPE_ACTIVE_ITEM = 0,
-    MENU_SWAP_TYPE_EQUIP = 1,
-    MENU_SWAP_TYPE_ROBO_PART = 2,
-    MENU_SWAP_TYPE_ITEM_BOARD = 3,
-    MENU_SWAP_TYPE_UNK_4 = 4,
-    MENU_SWAP_TYPE_UNK_9 = 9,
-    MENU_SWAP_TYPE_ACTIVE_ESA = 10,
+    MENU_SWAP_TYPE_ACTIVE_ITEM = 0,  /**< One of a character's active item slots. */
+    MENU_SWAP_TYPE_EQUIP       = 1,  /**< One of a character's equipment slots. */
+    MENU_SWAP_TYPE_ROBO_PART   = 2,  /**< One of the ridepod's part slots. */
+    MENU_SWAP_TYPE_ITEM_BOARD  = 3,  /**< A place on the inventory board. */
+    MENU_SWAP_TYPE_INVENT_ITEM = 4,  /**< A place of the inventory listed by the invention menu. */
+    MENU_SWAP_TYPE_VIEW_WEAPON = 7,  /**< The weapon shown on the weapon page. */
+    MENU_SWAP_TYPE_UNK_9       = 9,
+    MENU_SWAP_TYPE_ACTIVE_ESA  = 10, /**< The bait on the fishing rod. */
 };
 
+// clang-format on
 /**
  *
  * Weapon ability bits displayed by the item-menu status icons and debug labels.
@@ -52,39 +55,84 @@ enum MENU_WEAPON_ABILITY {
 
 // clang-format on
 
+/**
+ *
+ * Cursor layouts of the item menu, as CBaseMenuClass::key_arg_no holds them for CMenuItemInfo.
+ *
+ */
+// clang-format off
 enum ITEM_MENU_PANEL {
-    ITEM_MENU_PANEL_ACTIVE_ITEMS = 0,
-    ITEM_MENU_PANEL_EQUIPMENT = 1,
-    ITEM_MENU_PANEL_BAG = 2,
-    ITEM_MENU_PANEL_WEAPON = 4,
-    ITEM_MENU_PANEL_WEAPON_STATS = 5,
-    ITEM_MENU_PANEL_RIDEPOD_PARTS = 7,
-    ITEM_MENU_PANEL_FISHING_ROD = 9,
-    ITEM_MENU_PANEL_FISHING_ROD_STATS = 10,
-    ITEM_MENU_PANEL_FISHING_BAIT = 11,
+    ITEM_MENU_PANEL_ACTIVE_ITEMS      = 0,  /**< Active items of the shown character. */
+    ITEM_MENU_PANEL_EQUIPMENT         = 1,  /**< Equipment of the shown character. */
+    ITEM_MENU_PANEL_BAG               = 2,  /**< The inventory board. */
+    ITEM_MENU_PANEL_CHARA             = 3,  /**< The character of a character page, to use the carried item on. */
+    ITEM_MENU_PANEL_WEAPON            = 4,  /**< The weapon of the weapon page. */
+    ITEM_MENU_PANEL_WEAPON_STATS      = 5,  /**< Parameters of the weapon page. */
+    ITEM_MENU_PANEL_RIDEPOD           = 6,  /**< The ridepod of the ridepod page, to use the carried item on. */
+    ITEM_MENU_PANEL_RIDEPOD_PARTS     = 7,  /**< Parts of the ridepod page. */
+    ITEM_MENU_PANEL_MONSTER           = 8,  /**< The monster of the monster page, to use the carried item on. */
+    ITEM_MENU_PANEL_FISHING_ROD       = 9,  /**< The fishing rod of the fishing rod page. */
+    ITEM_MENU_PANEL_FISHING_ROD_STATS = 10, /**< Parameters of the fishing rod page. */
+    ITEM_MENU_PANEL_FISHING_BAIT      = 11, /**< The bait on Max's fishing rod. */
+    ITEM_MENU_PANEL_NUM               = 12, /**< Number of cursor layouts. */
 };
 
+// clang-format on
+
+/**
+ *
+ * Commands offered for an item, numbered from ITEM_MENU_COMMAND_MSG_BASE as their messages are.
+ *
+ */
+// clang-format off
 enum ITEM_MENU_COMMAND {
-    ITEM_MENU_COMMAND_EQUIP = 2,
-    ITEM_MENU_COMMAND_REPAIR = 4,
-    ITEM_MENU_COMMAND_SET_ACTIVE_ITEM = 5,
-    ITEM_MENU_COMMAND_SPECTRUMIZE = 9,
-    ITEM_MENU_COMMAND_EQUIP_RIDEPOD_PART = 10,
-    ITEM_MENU_COMMAND_GIFT_BOX_CONTENTS = 13,
-    ITEM_MENU_COMMAND_PUT_IN_AQUARIUM = 14,
-    ITEM_MENU_COMMAND_USE_ON_MAX = 15,
-    ITEM_MENU_COMMAND_USE_ON_MONICA = 16,
-    ITEM_MENU_COMMAND_USE_ON_MONSTER = 18,
-    ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON = 19,
-    ITEM_MENU_COMMAND_USE_ON_SECONDARY_WEAPON = 20,
-    ITEM_MENU_COMMAND_VIEW_BUILD_UP = 23,
-    ITEM_MENU_COMMAND_RENAME = 26,
-    ITEM_MENU_COMMAND_ENABLE_RIDEPOD_VOICE = 34,
-    ITEM_MENU_COMMAND_DISABLE_RIDEPOD_VOICE = 35,
-    ITEM_MENU_COMMAND_BOIL_FISH = 42,
-    ITEM_MENU_COMMAND_VIEW_FISHING_ROD = 46,
+    ITEM_MENU_COMMAND_NONE                    = 0,    /**< No command. */
+    ITEM_MENU_COMMAND_THROW_AWAY              = 1,    /**< Throws the item away. */
+    ITEM_MENU_COMMAND_EQUIP                   = 2,    /**< Equips the item on its character. */
+    ITEM_MENU_COMMAND_STATUS                  = 3,    /**< Shows the status page of the item. */
+    ITEM_MENU_COMMAND_REPAIR                  = 4,    /**< Repairs the item with the repair powder it needs. */
+    ITEM_MENU_COMMAND_SET_ACTIVE_ITEM         = 5,    /**< Puts the item into an active item slot. */
+    ITEM_MENU_COMMAND_UNEQUIP                 = 6,    /**< Moves the equipment back into the inventory. */
+    ITEM_MENU_COMMAND_REMOVE_ACTIVE_ITEM      = 7,    /**< Moves the active item back into the inventory. */
+    ITEM_MENU_COMMAND_INFO                    = 8,    /**< Shows the status page of the item, as ITEM_MENU_COMMAND_STATUS does. */
+    ITEM_MENU_COMMAND_SPECTRUMIZE             = 9,    /**< Turns the item into a synth sphere. */
+    ITEM_MENU_COMMAND_EQUIP_RIDEPOD_PART      = 10,   /**< Fits the part to the ridepod. */
+    ITEM_MENU_COMMAND_OPEN_AQUARIUM           = 11,   /**< Opens the aquarium. */
+    ITEM_MENU_COMMAND_OPEN_MONSTER_BOX        = 12,   /**< Opens the monster badge box. */
+    ITEM_MENU_COMMAND_GIFT_BOX_CONTENTS       = 13,   /**< Takes an item out of the gift box. */
+    ITEM_MENU_COMMAND_PUT_IN_AQUARIUM         = 14,   /**< Puts the fish into the aquarium. */
+    ITEM_MENU_COMMAND_USE_ON_MAX              = 15,   /**< Uses the item on Max. */
+    ITEM_MENU_COMMAND_USE_ON_MONICA           = 16,   /**< Uses the item on Monica. */
+    ITEM_MENU_COMMAND_USE_ON_RIDEPOD          = 17,   /**< Offered on the ridepod page in place of the character commands; does nothing. */
+    ITEM_MENU_COMMAND_USE_ON_MONSTER          = 18,   /**< Uses the item on Monica's monster form. */
+    ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON   = 19,   /**< Uses the item on the character's first weapon. */
+    ITEM_MENU_COMMAND_USE_ON_SECONDARY_WEAPON = 20,   /**< Uses the item on the character's second weapon. */
+    ITEM_MENU_COMMAND_REPAIR_RIDEPOD          = 21,   /**< Repairs the ridepod with the item. */
+    ITEM_MENU_COMMAND_RECHARGE_RIDEPOD        = 22,   /**< Refills the ridepod's energy with ridepod fuel. */
+    ITEM_MENU_COMMAND_VIEW_BUILD_UP           = 23,   /**< Shows what the weapon can be built up into. */
+    ITEM_MENU_COMMAND_SET_BAIT                = 24,   /**< Puts the item on the fishing rod as bait. */
+    ITEM_MENU_COMMAND_SET_LURE                = 25,   /**< Puts the item on the lure rod as a lure. */
+    ITEM_MENU_COMMAND_RENAME                  = 26,   /**< Gives the item or the ridepod a new name. */
+    ITEM_MENU_COMMAND_REMOVE_BAIT             = 27,   /**< Takes the bait off the fishing rod. */
+    ITEM_MENU_COMMAND_REMOVE_LURE             = 28,   /**< Takes the lure off the lure rod. */
+    ITEM_MENU_COMMAND_VIEW_QUESTS             = 29,   /**< Opens the quest list. */
+    ITEM_MENU_COMMAND_TAKE_ONE                = 30,   /**< Picks up one of the item onto the cursor. */
+    ITEM_MENU_COMMAND_TAKE_BAIT               = 32,   /**< Takes the bait off the fishing rod, as ITEM_MENU_COMMAND_REMOVE_BAIT does. */
+    ITEM_MENU_COMMAND_TAKE_LURE               = 33,   /**< Takes the lure off the lure rod, as ITEM_MENU_COMMAND_REMOVE_LURE does. */
+    ITEM_MENU_COMMAND_ENABLE_RIDEPOD_VOICE    = 34,   /**< Turns the ridepod's voice unit on. */
+    ITEM_MENU_COMMAND_DISABLE_RIDEPOD_VOICE   = 35,   /**< Turns the ridepod's voice unit off. */
+    ITEM_MENU_COMMAND_USE_ON_CORE             = 37,   /**< Uses the item on the ridepod's core. */
+    ITEM_MENU_COMMAND_VIEW_SCOOP_MEMO         = 38,   /**< Opens the scoop memo. */
+    ITEM_MENU_COMMAND_BOIL_FISH               = 42,   /**< Boils the fish. */
+    ITEM_MENU_COMMAND_ESCAPE_DUNGEON          = 43,   /**< Uses the item up to leave the dungeon, after asking. */
+    ITEM_MENU_COMMAND_BREAK_SEAL              = 44,   /**< Uses the item up to break the seals of the dungeon floor. */
+    ITEM_MENU_COMMAND_SHOW_FISH_CODE          = 45,   /**< Shows the password of the fish. */
+    ITEM_MENU_COMMAND_VIEW_FISHING_ROD        = 46,   /**< Opens the page that spends the fishing rod's points. */
+    ITEM_MENU_COMMAND_OPEN_MONSTER_BOOK       = 47,   /**< Opens the monster book. */
+    ITEM_MENU_COMMAND_MSG_BASE                = 5000, /**< Message number of command 0; each command's message is this plus the command. */
 };
 
+// clang-format on
 class CActionChara;
 class CCharacter2;
 class CDC2Mes;
@@ -114,6 +162,8 @@ enum MENU_ASK_MODE {
     MENU_ASK_MODE_ITEM_USE_NUM = 10, /**< Using up an item. */
     MENU_ASK_MODE_GIFT_BOX     = 11, /**< Taking an item out of a gift box. */
     MENU_ASK_MODE_EXTEND       = 12, /**< A question of the derived menu; runs IsAskExtend. */
+    MENU_ASK_MODE_ITEM_OVER    = 13, /**< The item menu is telling the player to throw away items over the limit. */
+    MENU_ASK_MODE_ROD_POINTS   = 15, /**< The item menu is spending a fishing rod's points on its parameters. */
 };
 
 // clang-format on
@@ -156,20 +206,35 @@ enum MENU_PUSH_BUTTON {
 
 // clang-format on
 
+/**
+ *
+ * What a cursor does when a move passes the end of its range, as MenuKeySelectCheck takes it.
+ *
+ */
+// clang-format off
 enum MENU_CURSOR_LIMIT {
-    MENU_CURSOR_LIMIT_CLAMP = 0,
-    MENU_CURSOR_LIMIT_WRAP = 1,
-    MENU_CURSOR_LIMIT_EXIT = 2,
-    MENU_CURSOR_LIMIT_REJECT = 3,
+    MENU_CURSOR_LIMIT_CLAMP  = 0, /**< Stops at the end. */
+    MENU_CURSOR_LIMIT_WRAP   = 1, /**< Wraps round to the other end. */
+    MENU_CURSOR_LIMIT_EXIT   = 2, /**< Stops at the end and reports that the cursor leaves the layout. */
+    MENU_CURSOR_LIMIT_REJECT = 3, /**< Undoes the move and reports it as blocked. */
 };
 
+// clang-format on
+
+/**
+ *
+ * How a cursor move ended, as MenuKeySelectCheck returns it.
+ *
+ */
+// clang-format off
 enum MENU_CURSOR_RESULT {
-    MENU_CURSOR_UNCHANGED = 0,
-    MENU_CURSOR_MOVED = 1,
-    MENU_CURSOR_EXIT = 3,
-    MENU_CURSOR_BLOCKED = 4,
+    MENU_CURSOR_UNCHANGED = 0, /**< The cursor did not move. */
+    MENU_CURSOR_MOVED     = 1, /**< The cursor moved. */
+    MENU_CURSOR_EXIT      = 3, /**< The move passed the end of a range that exits. */
+    MENU_CURSOR_BLOCKED   = 4, /**< The move was undone at the end of a range that rejects it. */
 };
 
+// clang-format on
 /**
  *
  * How the cursor of a key layout moves, as MENU_INPUTKEY_ARG::type holds it.
@@ -182,6 +247,128 @@ enum MENU_INPUTKEY_TYPE {
 };
 
 // clang-format on
+
+/**
+ *
+ * Question of the item menu while CBaseMenuClass::mode is MENU_ASK_MODE_EXTEND, as MENU_ASKMODE_PARA::ask_mode holds it.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_EXTEND_KIND {
+    MENU_ITEM_EXTEND_NONE     = 0, /**< No question is open. */
+    MENU_ITEM_EXTEND_REPAIR   = 1, /**< The repair effect is running. */
+    MENU_ITEM_EXTEND_BUILD_UP = 2, /**< A weapon build-up is being chosen or shown. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Screens opened from the item menu, as CMenuItemInfo::sub_menu holds them.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_SUB_MENU {
+    MENU_ITEM_SUB_MENU_NONE         = -1, /**< The item menu itself. */
+    MENU_ITEM_SUB_MENU_AQUARIUM     = 0,  /**< The aquarium. */
+    MENU_ITEM_SUB_MENU_MONSTER_BOX  = 1,  /**< The monster badge box. */
+    MENU_ITEM_SUB_MENU_NAME_REGIST  = 2,  /**< Naming an item or the ridepod. */
+    MENU_ITEM_SUB_MENU_QUEST_LIST   = 3,  /**< The quest list. */
+    MENU_ITEM_SUB_MENU_SCOOP_MEMO   = 4,  /**< The scoop memo. */
+    MENU_ITEM_SUB_MENU_MONSTER_BOOK = 5,  /**< The monster book. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Kind of place in a row of an item move table, as the first entry of each row passed to CommonSetMoveItemClass holds it.
+ *
+ */
+// clang-format off
+enum MENU_MOVE_PLACE {
+    MENU_MOVE_PLACE_CHARA    = 0, /**< A slot of a character or the ridepod; the row gives the character, MENU_MOVE_LIST and slot. */
+    MENU_MOVE_PLACE_BAG      = 1, /**< A place on the inventory board, given by the row's last entry. */
+    MENU_MOVE_PLACE_CURSOR   = 2, /**< The item the cursor carries. */
+    MENU_MOVE_PLACE_TEMP     = 3, /**< The split-off copy of a stack, moved as if from the inventory board. */
+    MENU_MOVE_PLACE_OVERFLOW = 4, /**< A place of the overflow board, given by the row's last entry. */
+    MENU_MOVE_PLACE_BAIT     = 5, /**< The bait on the fishing rod. */
+};
+
+// clang-format on
+
+/**
+ *
+ * List of a character that a MENU_MOVE_PLACE_CHARA row names in its third entry.
+ *
+ */
+// clang-format off
+enum MENU_MOVE_LIST {
+    MENU_MOVE_LIST_ACTIVE_ITEM = 0, /**< The character's active items. */
+    MENU_MOVE_LIST_EQUIP       = 1, /**< The character's equipment, or the ridepod's parts. */
+    MENU_MOVE_LIST_BAIT        = 2, /**< The bait slot. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Whether the carried item may be put down at the cursor, as CMenuKeyFunc::EnableSwapNowPos returns it.
+ *
+ */
+// clang-format off
+enum MENU_SWAP_CHECK {
+    MENU_SWAP_CHECK_OK          = 0, /**< The carried item can be put down here. */
+    MENU_SWAP_CHECK_WRONG_ITEM  = 1, /**< The carried item does not belong here. */
+    MENU_SWAP_CHECK_REFUSED     = 2, /**< Refused; EnableSwapNowPos does not return it. */
+    MENU_SWAP_CHECK_NO_CAPACITY = 3, /**< The ridepod part does not fit the ridepod's capacity. */
+    MENU_SWAP_CHECK_HOW_MUCH    = 4, /**< The player is asked how many of the stack to take. */
+    MENU_SWAP_CHECK_USE_ITEM    = 5, /**< The carried item is used on the item here. */
+    MENU_SWAP_CHECK_STATUS      = 8, /**< The character's status prevents changing equipment. */
+    MENU_SWAP_CHECK_INVALID     = 9, /**< The place cannot take the item. */
+};
+
+// clang-format on
+
+/**
+ *
+ * How an exchange of items went, as MenuDataSwap and CMenuKeyFunc::MenuSwapItem return it.
+ *
+ */
+// clang-format off
+enum MENU_SWAP_RESULT {
+    MENU_SWAP_RESULT_FAILED = 0,               /**< The requested exchange cannot run. */
+    MENU_SWAP_RESULT_NORMAL = 1,               /**< The exchange uses the ordinary completion path. */
+    MENU_SWAP_RESULT_DESTINATION_OCCUPIED = 2, /**< The general exchange starts with an occupied destination. */
+    MENU_SWAP_RESULT_DESTINATION_EMPTY = 3,    /**< The general exchange places an item in an empty destination. */
+    MENU_SWAP_RESULT_GIFT_BOX = 4,             /**< The destination handles gift-box insertion. */
+    MENU_SWAP_RESULT_STACK = 5,                /**< Matching stackable items handle the exchange. */
+    MENU_SWAP_RESULT_AQUARIUM = 7,             /**< The aquarium handles the source fish. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Shape of the inventory board.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_BOARD {
+    MENU_ITEM_BOARD_COLUMNS = 6, /**< Places in each row of the inventory board. */
+    MENU_ITEM_BOARD_ROWS    = 5, /**< Rows of the inventory board shown at once. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Size of the inventory as the item menus walk it.
+ *
+ */
+enum MENU_BAG {
+    MENU_BAG_PLACE_MAX = 150, /**< Places of the inventory: the item board followed by its overflow places. */
+};
 
 /**
  *
@@ -1545,8 +1732,8 @@ STATIC_ASSERT(sizeof(CMenuItemInfo) == 0x370);
 class CItemSelect : public CBaseMenuClass {
 public:
     int            item_num;        /**< Number of items in the list. */
-    CGameDataUsed *item_list[150];  /**< Items that can be chosen. */
-    s8             limit_disp[150]; /**< Non-zero for each listed item that is shown as unavailable. */
+    CGameDataUsed *item_list[MENU_BAG_PLACE_MAX];  /**< Items that can be chosen. */
+    s8             limit_disp[MENU_BAG_PLACE_MAX]; /**< Non-zero for each listed item that is shown as unavailable. */
     s16            alpha_step;      /**< Amount the alpha changes each frame. */
     int            alpha;           /**< Alpha the list is drawn with. */
     int            bg_alpha;        /**< Alpha the background is drawn with. */

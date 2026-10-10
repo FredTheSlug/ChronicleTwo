@@ -3194,21 +3194,6 @@ int MenuItemBrdKey(int keys, int *cursor, int *scroll, int board) {
 
 /**
  *
- * Identifies the result of exchanging items between menu slots.
- *
- */
-enum MENU_SWAP_RESULT {
-    MENU_SWAP_RESULT_FAILED = 0,               /**< The requested exchange cannot run. */
-    MENU_SWAP_RESULT_NORMAL = 1,               /**< The exchange uses the ordinary completion path. */
-    MENU_SWAP_RESULT_DESTINATION_OCCUPIED = 2, /**< The general exchange starts with an occupied destination. */
-    MENU_SWAP_RESULT_DESTINATION_EMPTY = 3,    /**< The general exchange places an item in an empty destination. */
-    MENU_SWAP_RESULT_GIFT_BOX = 4,             /**< The destination handles gift-box insertion. */
-    MENU_SWAP_RESULT_STACK = 5,                /**< Matching stackable items handle the exchange. */
-    MENU_SWAP_RESULT_AQUARIUM = 7,             /**< The aquarium handles the source fish. */
-};
-
-/**
- *
  * Exchanges menu items through gift-box, bait, stacking and aquarium handling.
  *
  * @mangled MenuDataSwap__FP13CGameDataUsedP13CGameDataUsedi
@@ -3701,7 +3686,7 @@ int CMenuKeyFunc::EnableSwapNowPos(MENU_SWAPITEM_INFO *swap) {
 
             break;
         case MENU_SWAP_TYPE_ITEM_BOARD:
-        case MENU_SWAP_TYPE_UNK_4:
+        case MENU_SWAP_TYPE_INVENT_ITEM:
         case MENU_SWAP_TYPE_UNK_9: {
             CGameDataUsed *used = &MenuUserParam.used_data[swap->no];
 
@@ -6306,17 +6291,6 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
 
     return 1;
 }
-
-/**
- *
- * Extended item-menu question handled by the weapon preview.
- *
- */
-enum MENU_ITEM_EXTEND_KIND {
-    MENU_ITEM_EXTEND_NONE = 0,     /**< No extended question is active. */
-    MENU_ITEM_EXTEND_REPAIR = 1,   /**< Repair animation is running. */
-    MENU_ITEM_EXTEND_BUILD_UP = 2, /**< Weapon build-up is being selected or shown. */
-};
 
 /**
  *

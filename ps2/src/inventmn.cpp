@@ -121,7 +121,7 @@ static char *invent_grade_fff[2] = {
     "f0",
     "f1"};
 
-extern mgCMemory         MenuInventStack;
+static mgCMemory         MenuInventStack;
 
 enum {
     K_COMMAND_HANDLED = -1
@@ -220,8 +220,8 @@ struct ItemNameList2 {
     char *name[2]; /**< Item name in each slot. */
 };
 
-extern mgCMemory     MenuInventCharaStack;
-extern mgCMemory     MenuInventMCStack;
+static mgCMemory     MenuInventCharaStack;
+static mgCMemory     MenuInventMCStack;
 static ItemNameList2 at_3739;
 static ItemNameList2 at_3765;
 
@@ -302,7 +302,7 @@ static char *addstringtable_1722[3] = {
     "[bulb3]",
     "[heart]"};
 
-extern mgCMemory InventTeigiStack;
+static mgCMemory InventTeigiStack;
 
 /**
  *
@@ -7633,7 +7633,3 @@ void MenuInventDraw() {
     }
 }
 
-static mgCMemory MenuInventStack;
-static mgCMemory MenuInventCharaStack;
-static mgCMemory MenuInventMCStack;
-static mgCMemory InventTeigiStack;

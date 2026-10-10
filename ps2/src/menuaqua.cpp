@@ -95,11 +95,10 @@ enum GyoraceMenuCommand {
 struct aqua_food_info {
     short       item_no; /**< Item number of the food. */
     signed char growth;  /**< Growth change from the food. */
-    signed char add_stamina;
-    signed char add_boost;
-    signed char add_endurance;
-    signed char add_tenacity;
-
+    signed char add_stamina;   /**< Stamina change from the food. */
+    signed char add_boost;     /**< Boost change from the food. */
+    signed char add_endurance; /**< Endurance change from the food. */
+    signed char add_tenacity;  /**< Tenacity change from the food. */
     u16 add_timer; /**< Duration added by the food. */
 };
 
@@ -177,7 +176,7 @@ struct gyorace_list_select {
  *
  */
 struct fish_prize_record {
-    int             unk_0;
+    int             rate; /**< Percentage given by the prize script, 100 in every record; never read. */
     FISH_PRIZE_INFO rank[3]; /**< Prize information for each rank. */
 };
 
@@ -188,7 +187,7 @@ struct fish_prize_record {
  */
 struct fish_prize_group {
     int                prize_count; /**< Number of prizes in the group. */
-    int                unk_4[8];
+    int                rate[8]; /**< Percentages that the prize script gives the group; never read. */
     u8                 unk_24[0x1C];
     fish_prize_record *prizes; /**< Prize records for the group. */
 };
@@ -245,19 +244,70 @@ struct aqua_param_icon {
     s16 w; /**< Icon width. */
 };
 
-enum {
-    short_flag_tour_count = 0x15,
-    short_flag_wins_class0 = 0x16,
-    short_flag_wins_class1 = 0x17,
-    short_flag_wins_class2 = 0x18,
-    short_flag_wins_class3 = 0x19,
-    bit_flag_tour_cycled = 0x3F,
-    fish_flag_won_class0 = 0x04,
-    fish_flag_won_class1 = 0x08,
-    fish_flag_won_class2 = 0x10,
-    fish_flag_won_class3 = 0x20,
-    omake_racer_slot_count = 6,
-    gyorace_type_omake_racer = 6,
+/**
+ *
+ * Short save flags of the fish race and the fishing tournament.
+ *
+ */
+enum GYORACE_SHORT_FLAG {
+    GYORACE_SHORT_FLAG_TOUR_COUNT = 0x15,  /**< Fishing tournaments held, which picks the prize group of the next. */
+    GYORACE_SHORT_FLAG_WINS_CLASS0 = 0x16, /**< Wins, up to two, in the first race class, which pick its prize group. */
+    GYORACE_SHORT_FLAG_WINS_CLASS1 = 0x17, /**< Wins, up to two, in the second race class. */
+    GYORACE_SHORT_FLAG_WINS_CLASS2 = 0x18, /**< Wins, up to two, in the third race class. */
+    GYORACE_SHORT_FLAG_WINS_CLASS3 = 0x19, /**< Wins, up to two, in the fourth race class. */
+};
+
+/**
+ *
+ * Bit save flags of the fishing tournament.
+ *
+ */
+enum GYORACE_BIT_FLAG {
+    GYORACE_BIT_FLAG_TOUR_CYCLED = 0x3F, /**< Set when the tournament count wraps; it then wraps one tournament earlier. */
+};
+
+/**
+ *
+ * Bits of a fish's flags marking the race classes that it has won.
+ *
+ */
+enum GYORACE_FISH_FLAG {
+    GYORACE_FISH_FLAG_WON_CLASS0 = 0x04, /**< Won the first race class. */
+    GYORACE_FISH_FLAG_WON_CLASS1 = 0x08, /**< Won the second race class. */
+    GYORACE_FISH_FLAG_WON_CLASS2 = 0x10, /**< Won the third race class. */
+    GYORACE_FISH_FLAG_WON_CLASS3 = 0x20, /**< Won the fourth race class. */
+};
+
+/**
+ *
+ * Bits of the race classes that the chosen fish may enter, as MenuGyoraceFishSelKey reports them in MenuArg.result[1].
+ *
+ */
+enum GYORACE_CLASS_OPEN {
+    GYORACE_CLASS_OPEN_0 = 0x1, /**< First class, open until the fish wins it. */
+    GYORACE_CLASS_OPEN_1 = 0x2, /**< Second class, open until the fish wins it. */
+    GYORACE_CLASS_OPEN_2 = 0x4, /**< Third class, open until the fish wins it. */
+    GYORACE_CLASS_OPEN_3 = 0x8, /**< Fourth class, always open. */
+};
+
+/**
+ *
+ * Racer slots of the saved fish race menu.
+ *
+ */
+enum OMAKE_RACER_SLOT {
+    OMAKE_RACER_SLOT_NUM = 6, /**< Slots that saved racers can be entered in. */
+};
+
+/**
+ *
+ * Stage of the fish race's fish selection screen, as GyoraceFishSelectMode holds it.
+ *
+ */
+enum GYORACE_FISH_SEL_MODE {
+    GYORACE_FISH_SEL_LOAD = 0,   /**< Waits for the menu image, then lists the fish of the first tank. */
+    GYORACE_FISH_SEL_CHOOSE = 1, /**< Chooses the fish to race. */
+    GYORACE_FISH_SEL_DONE = 2,   /**< Ends the screen. */
 };
 
 static const int max_fish_fatigue = 10000000;
@@ -272,11 +322,7 @@ static aqua_food_info *GetEsaInfo(int item_no);
 
 static int local_aquarium_limmit_check(float *pos, float radius, int check_y, float height);
 
-static int local_aquarium_limmit_check(float *pos, float radius, int check_y, float height);
-
 static int CombineParam(int a, int b);
-
-CGameDataUsed *GetGyoRaceFish();
 
 static int _GYORACE_LISTNUM(SPI_STACK *stack, int arg_count);
 
@@ -292,10 +338,13 @@ static void GyoraceCFGAnalyze(char *command);
 
 static int SearchOmakeGyoracer(int slot);
 
-CGameDataUsed *GetOmakeGyoracer2(int slot);
-
 static void ForceSetGyoList();
 
+/**
+ *
+ * Copies a name into a line of a window's name table, when there is a name.
+ *
+ */
 inline void copy_name(ClsMes *window, int line, char *name) {
     if (name != NULL) {
         strcpy(window->name[line], name);
@@ -314,8 +363,6 @@ static inline unsigned int align16_blocks(unsigned int bytes) {
 
     return bytes >> 4;
 }
-
-#include "common.h"
 
 /**
  *
@@ -476,7 +523,7 @@ static CBubble *AquaBubble[3];
  * Bubble emitter attached to each aquarium fish.
  *
  */
-static CBubble *AquaFishBubble[6];
+static CBubble *AquaFishBubble[AQUA_FISH_SLOT_NUM];
 
 /**
  *
@@ -490,7 +537,7 @@ static float AquaBattleBubble_Pos[4];
  * Effect controller attached to each aquarium fish.
  *
  */
-static CAquaFishEff *AquaFishEff[6];
+static CAquaFishEff *AquaFishEff[AQUA_FISH_SLOT_NUM];
 
 /**
  *
@@ -1215,15 +1262,15 @@ static aqua_col_point ColChkPoint3[6] = {
  *
  */
 static aqua_food_info esa_info[10] = {
-    {312, 1, 0, 0, 0, 1, 7200},
-    {313, 0, 0, 0, 1, 0, 7200},
-    {314, 1, 1, 0, 0, 0, 7200},
-    {315, 2, 0, 1, 0, 0, 7200},
-    {316, 1, 1, 0, 0, 0, 7200},
-    {317, 1, 0, 1, 0, 0, 7200},
-    {318, 1, 0, 0, 0, 1, 7200},
-    {319, 1, 0, 0, 1, 0, 7200},
-    {360, 2, 0, 0, 0, 0, 7200},
+    {AQUA_FOOD_ITEM_TOGECCHI, 1, 0, 0, 0, 1, 7200},
+    {AQUA_FOOD_ITEM_MIMI, 0, 0, 0, 1, 0, 7200},
+    {AQUA_FOOD_ITEM_EVY, 1, 1, 0, 0, 0, 7200},
+    {AQUA_FOOD_ITEM_CARROT, 2, 0, 1, 0, 0, 7200},
+    {AQUA_FOOD_ITEM_POTATO_CAKE, 1, 1, 0, 0, 0, 7200},
+    {AQUA_FOOD_ITEM_MINON, 1, 0, 1, 0, 0, 7200},
+    {AQUA_FOOD_ITEM_BATTON, 1, 0, 0, 0, 1, 7200},
+    {AQUA_FOOD_ITEM_PETITE_FISH, 1, 0, 0, 1, 0, 7200},
+    {AQUA_FOOD_ITEM_ELECTRIC_WORM, 2, 0, 0, 0, 0, 7200},
     {-1}
 };
 
@@ -1299,14 +1346,14 @@ static SPI_TAG_PARAM gyoprize_tag[4] = {
  * Stores the six saved-racer data indices.
  *
  */
-static short GyoracerIndexNo[6] = {-1, -1, -1, -1, -1, -1};
+static short GyoracerIndexNo[OMAKE_RACER_SLOT_NUM] = {-1, -1, -1, -1, -1, -1};
 
 /**
  *
  * Stores the six saved-racer tactics numbers.
  *
  */
-static short GyoracerTacticsNo[6] = {-1, -1, -1, -1, -1, -1};
+static short GyoracerTacticsNo[OMAKE_RACER_SLOT_NUM] = {-1, -1, -1, -1, -1, -1};
 
 /**
  *
@@ -1436,7 +1483,7 @@ int GetUseableEsaNo(int *out) {
         out[i] = esa_info[i].item_no;
     }
 
-    if (GetUserItemHaveNum(0x168) <= 0) {
+    if (GetUserItemHaveNum(AQUA_FOOD_ITEM_ELECTRIC_WORM) <= 0) {
         out[8] = -1;
         count--;
     }
@@ -1462,7 +1509,7 @@ static aqua_food_info *GetEsaInfo(int item_no) {
 }
 
 void CBubble::Generate(int index) {
-    AQUA_BUBBLE *particle = bubble + index;
+    AQUA_BUBBLE *particle = &bubble[index];
 
     particle->drift_x = GetRandF(2.0f) - 1.0f;
     particle->drift_z = GetRandF(2.0f) - 1.0f;
@@ -1470,7 +1517,7 @@ void CBubble::Generate(int index) {
     particle->pos[1] = origin[1] + GetRandF(2.0f);
     particle->pos[2] = origin[2] + particle->drift_z;
     particle->pos[3] = 1.0f;
-    particle->state = 0;
+    particle->state = AQUA_BUBBLE_RISE;
     particle->phase = GetRandF(PI);
     particle->pattern = GetRandI(5);
     particle->drift_x = 0.1f * particle->drift_x;
@@ -1480,19 +1527,19 @@ void CBubble::Generate(int index) {
 
 int CBubble::Generate(float *start_pos) {
 
-    if (active != 0 && bubble_num <= (unsigned int) generated) {
-        return 0;
+    if (active != 0 && bubble_num <= generated) {
+        return false;
     }
 
-    if (bubble_num <= (unsigned int) generated) {
-        return 0;
+    if (bubble_num <= generated) {
+        return false;
     }
 
     *(u_long128 *) origin = *(u_long128 *) start_pos;
     Generate(generated);
     generated += 1;
-    active = 1;
-    return 1;
+    active = true;
+    return true;
 }
 
 void CBubble::SetTexture(mgCTexture *image, int u, int v) {
@@ -1537,7 +1584,7 @@ void CBubble::Step() {
     for (; index < bubble_num; index++) {
         particle = &bubble[index];
 
-        if (particle->state == 0) {
+        if (particle->state == AQUA_BUBBLE_RISE) {
             float depth = (particle->pos[1] - origin[1]) / height;
             float wobble;
             float spread;
@@ -1557,34 +1604,34 @@ void CBubble::Step() {
             mgAngleLimit(particle->phase);
 
             if (!(particle->pos[1] < surface_y)) {
-                particle->state = 1;
+                particle->state = AQUA_BUBBLE_POP;
                 particle->pos[1] = particle->pos[1] - GetRandF(0.1f);
                 particle->pattern = GetRandI(10) + 16;
             }
         }
 
-        if (particle->state == 1) {
+        if (particle->state == AQUA_BUBBLE_POP) {
             particle->pos[0] += particle->drift_x;
             particle->pos[2] += particle->drift_z;
             particle->pattern -= 1;
             particle->alpha = particle->alpha - 1.0f;
 
-            if ((int) particle->pattern <= 0) {
+            if (particle->pattern <= 0) {
                 if (one_shot == 0) {
                     Generate(index);
                 } else {
-                    particle->state = 2;
+                    particle->state = AQUA_BUBBLE_END;
                 }
             }
         }
 
-        if (particle->state == 2) {
+        if (particle->state == AQUA_BUBBLE_END) {
             finished += 1;
         }
     }
 
     if (one_shot == 1 && bubble_num <= finished) {
-        active = 0;
+        active = false;
         generated = 0;
     }
 }
@@ -1609,7 +1656,7 @@ void CBubble::Draw() {
     for (; index < bubble_num; index++) {
         particle = &bubble[index];
 
-        if (particle->state != 2 &&
+        if (particle->state != AQUA_BUBBLE_END &&
             mgTransWorldPrim3DSprite(left, right, particle->pos, 0.4f, 0.4f, 0) != 0) {
             prim.Color(0x80, 0x80, 0x80, fptosi(particle->alpha));
             prim.TextureCrd(tex_u, tex_v);
@@ -1632,13 +1679,9 @@ void CBubble::Initialize(mgCMemory *memory, float *start_pos, int count, float t
     origin[0] = start_pos[0];
     origin[1] = start_pos[1];
     origin[2] = start_pos[2];
-    bytes = bubble_num * 0x30;
+    bytes = bubble_num * sizeof(AQUA_BUBBLE);
 
-    if (bytes & 0xF) {
-        blocks = (bytes >> 4) + 1;
-    } else {
-        blocks = bytes >> 4;
-    }
+    blocks = align16_blocks(bytes);
 
     bubble = (AQUA_BUBBLE *) memory->Alloc(blocks);
     i = 0;
@@ -1650,13 +1693,13 @@ void CBubble::Initialize(mgCMemory *memory, float *start_pos, int count, float t
         bubble[i].pos[1] = origin[1] + rise;
     }
 
-    active = 1;
-    one_shot = 0;
+    active = true;
+    one_shot = false;
     generated = 0;
 }
 
 void CBubble::RunOff() {
-    active = 0;
+    active = false;
     generated = 0;
 }
 
@@ -1693,7 +1736,7 @@ float SetFishAdjustScale(int length, int item_no, float base_scale, float max_sc
     record = GetBreedFishInfoData(item_no);
 
     if (record != NULL) {
-        scale *= (float) length / record->size;
+        scale *= length / record->size;
     }
 
     result = scale;
@@ -1724,8 +1767,8 @@ void CAquaFish::Initialize() {
     mgZeroVector(target_rot);
     mgZeroVector(turn);
     turn[0] = 0.03141593f;
-    think_mode = 0;
-    think_timer = GetRandI(0x29) + 0xA;
+    think_mode = AQUA_FISH_THINK_REST;
+    think_timer = GetRandI(41) + 10;
 
     if (data != NULL) {
         data->Init();
@@ -1734,7 +1777,7 @@ void CAquaFish::Initialize() {
     data = NULL;
     pair_no = -1;
     col_flags = 0;
-    radius = 0;
+    radius = 0.0f;
     wall_time = 0;
     eat_item = 0;
     swim_variant = GetRandI(8);
@@ -1744,14 +1787,8 @@ void CAquaFish::Initialize() {
 }
 
 void CAquaFish::SetLiveParam(CGameDataUsed *item) {
-
-    u16 value;
-    int base;
-
     data = item;
-    value = data->data.fish.param[BREEDFISH_STAT_STAMINA];
-    base = ((value / 10) + (value >> 0x1F));
-    fatigue_max = (base + (GetRandI(0x14) + 0x1A)) * 0x14;
+    fatigue_max = (data->data.fish.param[BREEDFISH_STAT_STAMINA] / 10 + (GetRandI(20) + 26)) * 20;
     fatigue = 0;
 }
 
@@ -1847,33 +1884,31 @@ void CAquaFish::NormalGetNextRot() {
 }
 
 float CAquaFish::CalcMoveSpeed(float speed) {
-    u8   *stats;
-    float ceiling;
-    int   offset;
+    BREEDFISH_USED *breed;
+    float           ceiling;
 
     if (data == NULL) {
-        stats = NULL;
+        breed = NULL;
     } else {
-        stats = (u8 *) data + 0x10;
+        breed = &data->data.fish;
     }
 
     ceiling = 3.0f;
 
     switch (think_mode) {
-        case 1:
-            offset = GetRandI(3) * 2;
-            speed *= 0.55f + 0.02f * (float) *(u16 *) (offset + (int) stats + 0x26);
+        case AQUA_FISH_THINK_SWIM:
+            speed *= 0.55f + 0.02f * breed->param[GetRandI(3)];
             break;
-        case 5:
-            speed *= 0.65f + 0.024f * (float) *(u16 *) (stats + 0x26);
+        case AQUA_FISH_THINK_BATTLE:
+            speed *= 0.65f + 0.024f * breed->param[BREEDFISH_STAT_BOOST];
             ceiling = 4.4f;
             break;
-        case 6:
-            speed *= 0.65f + 0.024f * (float) *(u16 *) (stats + 0x26);
+        case AQUA_FISH_THINK_BATTLE_REST:
+            speed *= 0.65f + 0.024f * breed->param[BREEDFISH_STAT_BOOST];
             break;
-        case 7:
-        case 8:
-            speed *= 0.4f + 0.02f * (float) *(u16 *) (stats + 0x2C);
+        case AQUA_FISH_THINK_LOVE_SEARCH:
+        case AQUA_FISH_THINK_LOVE_CHASE:
+            speed *= 0.4f + 0.02f * breed->param[BREEDFISH_STAT_STAMINA];
             break;
     }
 
@@ -1988,7 +2023,7 @@ void CAquaFish::MoveActionRound() {
         } else if (18.0f * round.depth < pos[2]) {
             yaw = turn[3];
         }
-    } else if (col_flags & 1) {
+    } else if (col_flags & AQUA_FISH_COL_WALL) {
         wall_time += 1;
 
         if (wall_time > 200) {
@@ -2017,7 +2052,7 @@ void CAquaFish::MoveActionRound() {
     round.wave = mgAngleLimit(round.wave);
     dir[1] += 0.1f * sinf(round.wave);
 
-    if (col_flags & 2) {
+    if (col_flags & AQUA_FISH_COL_OBJECT) {
         dir[1] += 0.2f;
     }
 
@@ -2031,10 +2066,7 @@ void CAquaFish::MoveActionBattle() {
     float         foe_pos[4];
     float         pos[4];
 
-    struct {
-        float        v[3];
-        unsigned int w;
-    } offset;
+    float offset[4];
 
     float amount;
     float angle;
@@ -2042,24 +2074,24 @@ void CAquaFish::MoveActionBattle() {
 
     foe = action.target;
 
-    if (foe != NULL && swim_mode == 0) {
+    if (foe != NULL && swim_mode == AQUA_FISH_SWIM_POINT) {
         foe->GetPosition(foe_pos);
 
-        if (action.phase == 0) {
+        if (action.phase == AQUA_FISH_ACTION_APPROACH) {
             *(u_long128 *) target_pos = *(u_long128 *) foe_pos;
             NormalGetNextVelo(CalcMoveSpeed(0.24f));
             NormalGetNextRot();
             think_timer -= 1;
         }
 
-        if (action.phase == 1) {
+        if (action.phase == AQUA_FISH_ACTION_SWING_START) {
             charge_angle = 0.0f;
-            action.phase = 2;
+            action.phase = AQUA_FISH_ACTION_SWING;
             SetMotion("\x83\x6f\x83\x67\x83\x8b\x81\x69\x8c\xb3\x8b\x43\x81\x6a", 0);
             SetStep(1.0f);
         }
 
-        if (action.phase == 2) {
+        if (action.phase == AQUA_FISH_ACTION_SWING) {
             angle = charge_angle;
             angle += 0.10471976f;
             charge_angle = angle;
@@ -2079,22 +2111,22 @@ void CAquaFish::MoveActionBattle() {
 
                 if (delta <= 0.10471976f) {
                     eff = AquaFishEff[aqua_no];
-                    eff->type = 4;
-                    eff->timer = 0xFA0;
+                    eff->type = AQUA_FISH_EFF_EAGER;
+                    eff->timer = 4000;
                 }
 
                 amount = 0.5f * sinf(mgAngleLimit(HALF_PI + charge_angle));
                 GetPosition(pos);
-                sceVu0SubVector(offset.v, foe_pos, pos);
-                sceVu0Normalize(offset.v, offset.v);
-                sceVu0ScaleVectorXYZ(offset.v, offset.v, amount);
-                offset.w = 0x3F800000;
-                sceVu0AddVector(target_pos, foe_pos, offset.v);
-            } else if (col_flags & 0x10) {
+                sceVu0SubVector(offset, foe_pos, pos);
+                sceVu0Normalize(offset, offset);
+                sceVu0ScaleVectorXYZ(offset, offset, amount);
+                offset[3] = 1.0f;
+                sceVu0AddVector(target_pos, foe_pos, offset);
+            } else if (col_flags & AQUA_FISH_COL_TARGET) {
                 charge_angle = 0.0f;
-                action.phase = 0;
+                action.phase = AQUA_FISH_ACTION_APPROACH;
                 eff = AquaFishEff[aqua_no];
-                eff->type = 0;
+                eff->type = AQUA_FISH_EFF_NONE;
                 eff->timer = -1;
                 SetStep(0.5f);
             } else {
@@ -2106,7 +2138,7 @@ void CAquaFish::MoveActionBattle() {
     }
 
     if (foe == NULL) {
-        NextThink(5, NULL);
+        NextThink(AQUA_FISH_THINK_BATTLE, NULL);
     }
 }
 
@@ -2238,7 +2270,7 @@ void CAquaFish::NextThink(int think, NEXT_THINK_PARAM *param) {
             think_timer = 0;
             turn[0] = 0.1308997f;
             turn[1] = 24.0f;
-            param->effect->StartFishEffect(4);
+            param->effect->StartFishEffect(AQUA_FISH_EFF_EAGER);
             eat_item = 0;
             break;
         case AQUA_FISH_THINK_BATTLE:
@@ -2267,7 +2299,7 @@ void CAquaFish::NextThink(int think, NEXT_THINK_PARAM *param) {
             target_pos[2] = z;
             NormalGetNextVelo(0.05f);
             turn[1] = 24.0f;
-            action.phase = 3;
+            action.phase = AQUA_FISH_ACTION_REST_MOVE;
             break;
         }
         case AQUA_FISH_THINK_LOVE_SEARCH:
@@ -2289,7 +2321,7 @@ int CAquaFish::ParamStep() {
         return 0;
     }
 
-    if (think_mode == AQUA_FISH_THINK_BATTLE && action.hit_count > 0xB4) {
+    if (think_mode == AQUA_FISH_THINK_BATTLE && action.hit_count > 180) {
         u16 before;
 
         action.hit_count = 0;
@@ -2306,7 +2338,7 @@ int CAquaFish::ParamStep() {
                 MenuSePlay(0x1E);
             }
 
-            AquaFishEff[aqua_no]->StartFishEffect(2);
+            AquaFishEff[aqua_no]->StartFishEffect(AQUA_FISH_EFF_GROW);
         }
     }
 
@@ -2317,7 +2349,7 @@ int CAquaFish::ParamStep() {
 
         GetPosition(pos);
 
-        for (i = 0; i < 0x88; i++) {
+        for (i = 0; i < 136; i++) {
             bubble_pos[0] = pos[0] + GetRandF(5.0f) - 2.5f;
             bubble_pos[1] = pos[1] + GetRandF(3.0f) - 1.5f;
             bubble_pos[2] = pos[2] + GetRandF(5.0f) - 2.5f;
@@ -2330,7 +2362,7 @@ int CAquaFish::ParamStep() {
 
     if (0 < eat_item && (col_flags & AQUA_FISH_COL_FOOD)) {
         aqua_food_info *esa = GetEsaInfo(eat_item);
-        int             full = breed->flags & (int) BREEDFISH_FLAG_FEED_LIMIT_REACHED;
+        int             full = breed->flags & BREEDFISH_FLAG_FEED_LIMIT_REACHED;
 
         if (full) {
             result |= AQUA_FISH_RESULT_FEEDING_EXHAUSTED;
@@ -2351,17 +2383,17 @@ int CAquaFish::ParamStep() {
             breed->breed_feeds_remaining = 0;
         }
 
-        if (eat_item == 0x13B) {
-            if (breed->sex == (int) BREEDFISH_SEX_MALE) {
+        if (eat_item == AQUA_FOOD_ITEM_CARROT) {
+            if (breed->sex == BREEDFISH_SEX_MALE) {
                 result |= AQUA_FISH_RESULT_SEX_CHANGED_TO_1;
-                breed->sex = (int) BREEDFISH_SEX_FEMALE;
-            } else if (breed->sex == (int) BREEDFISH_SEX_FEMALE) {
-                breed->sex = (int) BREEDFISH_SEX_MALE;
+                breed->sex = BREEDFISH_SEX_FEMALE;
+            } else if (breed->sex == BREEDFISH_SEX_FEMALE) {
+                breed->sex = BREEDFISH_SEX_MALE;
                 result |= AQUA_FISH_RESULT_SEX_CHANGED_TO_0;
             }
         }
 
-        breed->flags |= (int) BREEDFISH_FLAG_RAISED;
+        breed->flags |= BREEDFISH_FLAG_RAISED;
 
         if (breed->grow_count > 10) {
             int grow = GetRandI(3) + 1;
@@ -2383,23 +2415,23 @@ int CAquaFish::ParamStep() {
         data->CheckParamLimmit();
         SetAdjustScale();
 
-        if (eat_item == 0x168) {
-            breed->flags |= (int) BREEDFISH_FLAG_ELECTRIC;
+        if (eat_item == AQUA_FOOD_ITEM_ELECTRIC_WORM) {
+            breed->flags |= BREEDFISH_FLAG_ELECTRIC;
             breed->feeds_remaining = 200;
         }
 
-        if (!(breed->flags & (int) BREEDFISH_FLAG_ELECTRIC)) {
+        if (!(breed->flags & BREEDFISH_FLAG_ELECTRIC)) {
             int left = breed->feeds_remaining - 1;
 
             if (left <= 0) {
                 left = 0;
-                breed->flags |= (int) BREEDFISH_FLAG_FEED_LIMIT_REACHED;
+                breed->flags |= BREEDFISH_FLAG_FEED_LIMIT_REACHED;
             }
 
             breed->feeds_remaining = left;
         }
 
-        MenuSePlay(Aqua_SpSndID, 1);
+        MenuSePlay(Aqua_SpSndID, AQUA_SE_EAT);
         eat_item = 0;
     }
 
@@ -2420,7 +2452,7 @@ void CAquaFish::FishDraw() {
         mgGetAmbient(saved);
         float bright[4] = {140.0f, 64.0f, 64.0f, 128.0f};
 
-        if (hp < 0x1E && flash_count < 0xB) {
+        if (hp < 30 && flash_count < 11) {
             bright[0] = 172.0f;
             mgSetAmbient(bright);
         }
@@ -2445,12 +2477,12 @@ void CAquaFishEff::StartFishEffect(int effect_kind) {
      */
     static int max_tbl[6] = {0, 250, 250, 25000, 250, 0};
 
-    type = (short) effect_kind;
+    type = effect_kind;
     timer = max_tbl[type];
 }
 
 void CAquaFishEff::Step() {
-    if ((fish != 0) && (type != 0)) {
+    if (fish != NULL && type != AQUA_FISH_EFF_NONE) {
         timer -= 1;
 
         if (timer <= 0) {
@@ -2492,7 +2524,7 @@ void CAquaFishEff::Draw() {
         pos[1] += 5.3f + 0.8f * (bob < 0.0f ? -bob : bob);
 
         switch (type) {
-            case 1:
+            case AQUA_FISH_EFF_PAIR:
                 if (mgTransWorldPrim3DSprite(left, right, pos, 3.0f, 3.0f, 0) != 0) {
                     prim.TextureCrd(0x6A, 0x16);
                     prim.Vertex4(left);
@@ -2501,7 +2533,7 @@ void CAquaFishEff::Draw() {
                 }
 
                 break;
-            case 2:
+            case AQUA_FISH_EFF_GROW:
                 if (mgTransWorldPrim3DSprite(left, right, pos, 3.0f, 3.0f, 0) != 0) {
                     prim.TextureCrd(0x6A, 0x2C);
                     prim.Vertex4(left);
@@ -2510,8 +2542,8 @@ void CAquaFishEff::Draw() {
                 }
 
                 break;
-            case 3:
-            case 4:
+            case AQUA_FISH_EFF_LONG:
+            case AQUA_FISH_EFF_EAGER:
                 if (mgTransWorldPrim3DSprite(left, right, pos, 3.0f, 3.0f, 0) != 0) {
                     prim.TextureCrd(0x6A, 0);
                     prim.Vertex4(left);
@@ -2520,7 +2552,7 @@ void CAquaFishEff::Draw() {
                 }
 
                 break;
-            case 5:
+            case AQUA_FISH_EFF_SPARE:
                 if (mgTransWorldPrim3DSprite(left, right, pos, 3.0f, 3.0f, 0) != 0) {
                     prim.TextureCrd(0x6A, 0x42);
                     prim.Vertex4(left);
@@ -2555,10 +2587,10 @@ void CFishFood::SetDropPosition(float *pos) {
 }
 
 void CFishFood::Drop() {
-    state = 1;
+    state = FISH_FOOD_DROP;
     sway = 2.5f + GetRandF(1.6f);
     fall_time = 0;
-    sway_phase = 0;
+    sway_phase = 0.0f;
     spin[0] = 0.015707964f + GetRandF(PI) / 34.0f;
     spin[2] = 0.015707964f + GetRandF(PI) / 34.0f;
 }
@@ -2732,7 +2764,14 @@ CAquaMes::CAquaMes() {
     Initialize(NULL);
 }
 
-static inline short *AquaMesBuffer(mgCMemory *m) { return (short *) m->stAllocTest(1); }
+/**
+ *
+ * Gives the free memory at the top of a stack as a message buffer.
+ *
+ */
+static inline short *AquaMesBuffer(mgCMemory *memory) {
+    return (short *) memory->stAllocTest(1);
+}
 
 void CAquaMes::Initialize(mgCMemory *stack) {
     short  *aqua_mes;
@@ -2744,24 +2783,24 @@ void CAquaMes::Initialize(mgCMemory *stack) {
     memory = stack;
     title_mes = NULL;
     title_id = 0;
-    title_draw = 0;
+    title_draw = false;
     menu_mes = NULL;
     menu_cursor = 0;
-    menu_draw = 0;
+    menu_draw = false;
     cursor_pos[0] = 0.0f;
     cursor_pos[1] = 0.0f;
     cursor_target[0] = 0.0f;
     cursor_target[1] = 0.0f;
-    cursor_draw = 0;
-    cursor_snap = 1;
+    cursor_draw = false;
+    cursor_snap = true;
     question_mes = NULL;
     question_cursor = 0;
-    question_draw = 0;
+    question_draw = false;
     guide_mes = NULL;
-    guide_id = 0xC8;
-    guide_draw = 0;
+    guide_id = AQUA_MES_GUIDE_SELECT;
+    guide_draw = false;
     help_mes = NULL;
-    help_draw = 0;
+    help_draw = false;
     fish_mes_time = 0;
     unk_5c = -1;
     unk_60 = -1;
@@ -2771,13 +2810,13 @@ void CAquaMes::Initialize(mgCMemory *stack) {
     }
 
     system_mes = GetSystemMesBuffer();
-    title_mes = new ((u_long128 *) memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
-    menu_mes = new ((u_long128 *) memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
-    guide_mes = new ((u_long128 *) memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
-    question_mes = new ((u_long128 *) memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
-    help_mes = new ((u_long128 *) memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
-    info_mes = new ((u_long128 *) memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
-    fish_mes = new ((u_long128 *) memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
+    title_mes = new (memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
+    menu_mes = new (memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
+    guide_mes = new (memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
+    question_mes = new (memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
+    help_mes = new (memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
+    info_mes = new (memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
+    fish_mes = new (memory->Alloc(align16_blocks(sizeof(ClsMes)) + 2)) ClsMes;
     memory->Align64();
     aqua_mes = AquaMesBuffer(memory);
     sprintf(path, "menu/aqua/mes/fconv%d.bin", LanguageCode);
@@ -2819,7 +2858,7 @@ void CAquaMes::Initialize(mgCMemory *stack) {
     mes->select_top = 0;
     mes->abs_win.x = 0x1E;
     mes->abs_win.y = 0xB4;
-    mes->MakeMesWin(0xA);
+    mes->MakeMesWin(AQUA_MES_MENU_FIRST);
 
     mes = guide_mes;
     mes->Init();
@@ -2885,21 +2924,21 @@ void CAquaMes::Initialize(mgCMemory *stack) {
 
 void CAquaMes::SettingAquaMes(int kind) {
     switch (kind) {
-        case 0:
-            SetTitleId(0);
-            menu_mes->MakeMesWin(0xA);
+        case AQUARIUM_TANK_FIRST:
+            SetTitleId(AQUA_MES_TITLE_FIRST);
+            menu_mes->MakeMesWin(AQUA_MES_MENU_FIRST);
             break;
-        case 1:
-            SetTitleId(1);
-            menu_mes->MakeMesWin(0xB);
+        case AQUARIUM_TANK_SECOND:
+            SetTitleId(AQUA_MES_TITLE_SECOND);
+            menu_mes->MakeMesWin(AQUA_MES_MENU_SECOND);
             break;
-        case 2:
-            SetTitleId(2);
-            menu_mes->MakeMesWin(0xC);
+        case AQUARIUM_TANK_BREED:
+            SetTitleId(AQUA_MES_TITLE_BREED);
+            menu_mes->MakeMesWin(AQUA_MES_MENU_BREED);
             break;
     }
 
-    SetCtrlHelpId(0x32);
+    SetCtrlHelpId(AQUA_MES_HELP_VIEW);
 }
 
 void CAquaMes::SetTitleId(int id) {
@@ -2932,10 +2971,10 @@ int CAquaMes::AddMenuCursor(int step, int count) {
     }
 
     if (before != menu_cursor) {
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CAquaMes::SetQuestionId(int id, int top, int num) {
@@ -2948,7 +2987,7 @@ void CAquaMes::SetQuestionId(int id, int top, int num) {
     question_num = num;
     question_mes->select_top = top;
 
-    if (id == 0x320) {
+    if (id == AQUA_MES_FOOD_LIST) {
         int esa_num;
         int listed;
 
@@ -2956,11 +2995,11 @@ void CAquaMes::SetQuestionId(int id, int top, int num) {
         esa_num = GetUseableEsaNo(item_no);
 
         if (esa_num == 8) {
-            id = 0x320;
+            id = AQUA_MES_FOOD_LIST;
         }
 
         if (esa_num == 9) {
-            id = 0x321;
+            id = AQUA_MES_FOOD_LIST_ELECTRIC;
         }
 
         listed = 0;
@@ -3035,7 +3074,7 @@ int CAquaMes::AddQuestionCursor() {
     now = question_cursor;
 
     if (before != now) {
-        return 1;
+        return true;
     }
 
     window = question_mes;
@@ -3052,7 +3091,7 @@ int CAquaMes::AddQuestionCursor() {
     }
 
     window->select = now;
-    return 0;
+    return false;
 }
 
 void CAquaMes::SetCtrlHelpId(int id) {
@@ -3094,11 +3133,16 @@ void CAquaMes::EatMessage(int id, CAquaFish *fish) {
 
     fish_mes->mes_no = -1;
     fish_mes->MakeMesWin(id);
-    fish_mes_time = 0xFA;
+    fish_mes_time = 250;
     fish->GetPosition2D(pos);
     AquaMesDispAdjustPos(fish_mes, pos);
 }
 
+/**
+ *
+ * Gives the save data of an aquarium fish.
+ *
+ */
 static inline CGameDataUsed *fish_data(CAquaFish *fish) {
     return fish->data;
 }
@@ -3114,15 +3158,15 @@ void CAquaMes::ChangeManMessage(CAquaFish *fish) {
 
     fish_mes->mes_no = -1;
 
-    if (data->data.fish.sex == (int) BREEDFISH_SEX_MALE) {
-        fish_mes->MakeMesWin(0x138);
+    if (data->data.fish.sex == BREEDFISH_SEX_MALE) {
+        fish_mes->MakeMesWin(AQUA_MES_BECAME_MALE);
     }
 
-    if (data->data.fish.sex == (int) BREEDFISH_SEX_FEMALE) {
-        fish_mes->MakeMesWin(0x137);
+    if (data->data.fish.sex == BREEDFISH_SEX_FEMALE) {
+        fish_mes->MakeMesWin(AQUA_MES_BECAME_FEMALE);
     }
 
-    fish_mes_time = 0xFA;
+    fish_mes_time = 250;
     fish->GetPosition2D(pos);
     AquaMesDispAdjustPos(fish_mes, pos);
 }
@@ -3135,9 +3179,9 @@ void CAquaMes::DeadMessage(CAquaFish *fish) {
         name = fish->data->GetName(0);
         fish_mes->mes_no = -1;
         copy_name(fish_mes, 0, name);
-        fish_mes->MakeMesWin(0x134);
+        fish_mes->MakeMesWin(AQUA_MES_DEAD);
         fish_mes->Step();
-        fish_mes_time = 0xFA;
+        fish_mes_time = 250;
         fish->GetPosition2D(pos);
         AquaMesDispAdjustPos(fish_mes, pos);
     }
@@ -3200,7 +3244,7 @@ void CAquaMes::Step() {
     }
 
     if (cursor_snap != 0) {
-        cursor_snap = 0;
+        cursor_snap = false;
     }
 }
 
@@ -3251,7 +3295,7 @@ void CAquaMes::DrawTitleMes() {
     mgTexManager.ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) NULL);
     window = title_mes;
 
-    if ((window != NULL) && (title_draw != 0)) {
+    if (window != NULL && title_draw != 0) {
         window->DrawMesWin();
     }
 }
@@ -3266,48 +3310,48 @@ static int GetFishPath(int item_no, char *out) {
 
     file_name = GetItemFileName(item_no, 1);
 
-    if ((file_name == 0) || (out == NULL)) {
-        return 1;
+    if (file_name == NULL || out == NULL) {
+        return true;
     }
 
     sprintf(out, "menu/aqua/fish/%s", file_name);
-    return 0;
+    return false;
 }
 
 int GetFishImgPath(char *out, int item_no, BREEDFISH_USED *fish) {
     aqua_fish_info *info;
 
     if (item_no <= 0) {
-        return 0;
+        return false;
     }
 
     if (fish == NULL) {
-        return 0;
+        return false;
     }
 
     if (out == NULL) {
-        return 0;
+        return false;
     }
 
     for (info = aquafish_info; info->item_no > 0; info++) {
         if (info->item_no == item_no) {
             sprintf(out, "menu/aqua/fish/%s%d.img", info->img_path, fish->color);
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 int GetFishImageColor(int item_no, int sex) {
     aqua_fish_info *info = aquafish_info;
 
-    for (; info->img_path != 0; info++) {
-        if (sex == (int) BREEDFISH_SEX_MALE && info->item_no == item_no) {
+    for (; info->img_path != NULL; info++) {
+        if (sex == BREEDFISH_SEX_MALE && info->item_no == item_no) {
             return info->color_male;
         }
 
-        if (sex == (int) BREEDFISH_SEX_FEMALE && info->item_no == item_no) {
+        if (sex == BREEDFISH_SEX_FEMALE && info->item_no == item_no) {
             return info->color_female;
         }
     }
@@ -3321,13 +3365,11 @@ int FishIMGReplace(u_long128 *data, CCharacter2 *character, int item_no, BREEDFI
     char saved_dir[0x6C];
     u8  *texture_buffer;
 
-    u8 *character_bytes = (u8 *) character;
-
-    if (data == NULL || character_bytes == NULL || fish == NULL) {
+    if (data == NULL || character == NULL || fish == NULL) {
         return 0;
     }
 
-    if (fish->flags & (int) BREEDFISH_FLAG_ELECTRIC) {
+    if (fish->flags & BREEDFISH_FLAG_ELECTRIC) {
         return 0;
     }
 
@@ -3336,10 +3378,10 @@ int FishIMGReplace(u_long128 *data, CCharacter2 *character, int item_no, BREEDFI
         SetCurrentDir(NULL);
 
         if (LoadFile2(path, data, &size, 0) != 0) {
-            texture_buffer = *(u8 **) (character_bytes + 0x2C4);
-            mgTexManager.DeleteBlock(*(int *) (character_bytes + 0x2E4));
+            texture_buffer = (u8 *) character->images[0];
+            mgTexManager.DeleteBlock(character->texture_block);
             memcpy(texture_buffer, data, size);
-            mgTexManager.EnterIMGFile(texture_buffer, *(int *) (character_bytes + 0x2E4), NULL, NULL);
+            mgTexManager.EnterIMGFile(texture_buffer, character->texture_block, NULL, NULL);
         }
 
         SetCurrentDir(saved_dir);
@@ -3565,7 +3607,7 @@ void DrawFishParam(int x, int y, mgCTexture *tex, CGameDataUsed *data) {
             aqua_param_icon *icon = &get_paraxtbl[lang][i];
 
             PrimQuad(pen, bx + 2, by + 2, mgRect<int>(icon->x, icon->y, icon->w, 0x12));
-            PrimDrawNumber(pen, params[i], (int) MENU_NUMBER_ALIGN_RIGHT, bx + 0x56, by + 3, digit_rect, -2, 0);
+            PrimDrawNumber(pen, params[i], MENU_NUMBER_ALIGN_RIGHT, bx + 0x56, by + 3, digit_rect, -2, 0);
         }
 
         cx += 0x5C;
@@ -3656,8 +3698,8 @@ void CAquarium::Clear() {
     food = NULL;
     food_tex_block = -1;
     unk_326 = 0;
-    unk_386 = -1;
-    drop_root_draw = 0;
+    reserve_tex_block = -1;
+    drop_root_draw = false;
     naka_stack.stack_used = 0;
     naka_stack.lock = 0;
     naka_frame = 0;
@@ -3669,7 +3711,7 @@ void CAquarium::Clear() {
         tex_block[i] = -1;
     }
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         fish_stack[i].stack_used = 0;
         fish_stack[i].lock = 0;
         fish[i] = NULL;
@@ -3707,7 +3749,7 @@ void CAquarium::Initialize(mgCMemory *memory, int *blocks) {
     water_tex_block = tex_block[1];
     menu_tex_block = tex_block[2];
     food_tex_block = tex_block[3];
-    unk_386 = tex_block[4];
+    reserve_tex_block = tex_block[4];
     fish_tex_block[0] = tex_block[5];
     fish_tex_block[1] = tex_block[6];
     fish_tex_block[2] = tex_block[7];
@@ -3727,17 +3769,17 @@ void CAquarium::Initialize(mgCMemory *memory, int *blocks) {
     naka_stack.stSetBuffer(MenuMainTextureReadBuf.stGetTop(), 0x1E00);
     MenuMainTextureReadBuf.Alloc(0x1E00);
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         AquaFishEff[i] = new (MenuMainTextureReadBuf.Alloc(sizeof(CAquaFishEff) / 16 + 2)) CAquaFishEff;
         AquaFishEff[i]->Initialize();
     }
 
     float origin[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 
-    for (int no = 0; no < 6; no++) {
+    for (int no = 0; no < AQUA_FISH_SLOT_NUM; no++) {
         AquaFishBubble[no] = new (MenuMainTextureReadBuf.Alloc(sizeof(CBubble) / 16 + 2)) CBubble;
-        AquaFishBubble[no]->Initialize(&MenuMainTextureReadBuf, origin, 0x88, 47.0f);
-        AquaFishBubble[no]->one_shot = 1;
+        AquaFishBubble[no]->Initialize(&MenuMainTextureReadBuf, origin, 136, 47.0f);
+        AquaFishBubble[no]->one_shot = true;
         AquaFishBubble[no]->RunOff();
     }
 
@@ -3799,9 +3841,9 @@ void CAquarium::Initialize(mgCMemory *memory, int *blocks) {
 
     if (LoadFile2("snd2/sp/SP_004.snd", load_buf, NULL, 0) != 0) {
         sndInitPort(8);
-        Aqua_SpSndID = sndLoadSound((int) SND_PORT_MENU, (unsigned int *) load_buf, &sound_stack);
-        MenuSePlay(Aqua_SpSndID, 0);
-        MenuSePlayUsedFlag = 1;
+        Aqua_SpSndID = sndLoadSound(SND_PORT_MENU, (unsigned int *) load_buf, &sound_stack);
+        MenuSePlay(Aqua_SpSndID, AQUA_SE_OPEN);
+        MenuSePlayUsedFlag = true;
     }
 
     mgCTextureManager *textures = &mgTexManager;
@@ -3820,8 +3862,8 @@ void CAquarium::Initialize(mgCMemory *memory, int *blocks) {
     }
 
     mes.Initialize(&mes_stack);
-    mes.title_draw = 1;
-    mes.help_draw = 1;
+    mes.title_draw = true;
+    mes.help_draw = true;
     love_phase = AQUA_EVENT_NONE;
     love_time = 0;
     SettingAqua();
@@ -3841,17 +3883,17 @@ int CAquarium::LoadFish(int no, CGameDataUsed *data) {
     float           center_z;
 
     if (data == NULL) {
-        return 0;
+        return false;
     }
 
     if (GetFishPath(data->item_no, path) != 0) {
-        return 0;
+        return false;
     }
 
     aqua_no = m_aquarium_para->active_tank;
     breed = &data->data.fish;
 
-    if (data->data.fish.flags & (int) BREEDFISH_FLAG_ELECTRIC) {
+    if (data->data.fish.flags & BREEDFISH_FLAG_ELECTRIC) {
         strcpy(path, "menu/aqua/fish/f20a.chr");
     }
 
@@ -3899,14 +3941,14 @@ int CAquarium::LoadFish(int no, CGameDataUsed *data) {
             AquaFishEff[no]->fish = fish[no];
             AquaFishEff[no]->texture = Tex_FishEffect;
             effect = AquaFishEff[no];
-            effect->type = 0;
+            effect->type = AQUA_FISH_EFF_NONE;
             effect->timer = -1;
         }
 
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CAquarium::SettingAqua() {
@@ -3937,7 +3979,7 @@ void CAquarium::SettingAqua() {
         AquaBubble[i]->Initialize(&bubble_stack, generate_pos[i], counts[i], 47.0f);
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         if (AquaFishBubble[i] != NULL) {
             AquaFishBubble[i]->RunOff();
             AquaFishBubble[i]->generated = 0;
@@ -4056,10 +4098,10 @@ void CAquarium::SettingAqua() {
         naka_frame = mgLoadMDSFile((MDS_HEADER *) load_buf, &naka_stack, NULL, NULL);
     }
 
-    CGameDataUsed *fish_data[6];
+    CGameDataUsed *fish_data[AQUA_FISH_SLOT_NUM];
     CFishAquarium *aquarium = m_aquarium_para;
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         fish_data[i] = NULL;
         fish[i] = NULL;
         fish_stack[i].stack_used = 0;
@@ -4162,9 +4204,9 @@ void CAquarium::SettingAqua() {
     food_stack.stSetBuffer(food_top, fish_stack[fish_num - 1].stGetTop() - food_top);
     mes.SettingAquaMes(aqua_no);
     InitSelFish();
-    mes.cursor_draw = 0;
+    mes.cursor_draw = false;
     mode = AQUARIUM_MODE_VIEW;
-    mes.help_draw = 1;
+    mes.help_draw = true;
 }
 
 int CalcFishParam(BREEDFISH_USED *fish) {
@@ -4277,7 +4319,7 @@ void CAquarium::CombineFish(int no1, int no2) {
 
     child_breed->breed_feeds_remaining = 5;
     child_breed->flags = 0;
-    child_breed->flags |= (int) BREEDFISH_FLAG_RAISED;
+    child_breed->flags |= BREEDFISH_FLAG_RAISED;
     child_breed->kind = breed1->kind;
     total1 = CalcFishParam(breed1);
     total2 = CalcFishParam(breed2);
@@ -4334,7 +4376,7 @@ int CAquarium::GetBattleTarget(int slot) {
     int i;
 
     for (round = 0; round < 3; round++) {
-        for (i = 0; i < 6; i++) {
+        for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
             if (i != slot && fish[i] != NULL && GetRandI(3) == 0) {
                 return i;
             }
@@ -4344,13 +4386,18 @@ int CAquarium::GetBattleTarget(int slot) {
     return -1;
 }
 
+/**
+ *
+ * View of a fish from its action onwards, through which Thinking steers a fish along its route.
+ *
+ */
 struct AQUA_FISH_ROUTE_VIEW {
-    CAquaFishActionParam action;
-    AQUA_FISH_ROUND      round;
-    sceVu0FVECTOR        route[32];
-    s16                  route_num;
-    s16                  route_no;
-    s32                  route_time;
+    CAquaFishActionParam action;     /**< Steering of the current action. */
+    AQUA_FISH_ROUND      round;      /**< Way of circling the tank. */
+    sceVu0FVECTOR        route[32];  /**< Points of the route. */
+    s16                  route_num;  /**< Number of points in route. */
+    s16                  route_no;   /**< Point of route that the fish heads for. */
+    s32                  route_time; /**< Steps spent heading for the current point of route. */
 };
 
 void CAquarium::Thinking(int no) {
@@ -4553,16 +4600,16 @@ void CAquarium::Thinking(int no) {
 
             if (me->think_timer < 0) {
                 me->action.hit_count = 0;
-                me->action.phase = 0;
+                me->action.phase = AQUA_FISH_ACTION_APPROACH;
                 next = AQUA_FISH_THINK_BATTLE_REST;
-                effect->type = 0;
+                effect->type = AQUA_FISH_EFF_NONE;
                 effect->timer = -1;
             } else if (me->fatigue_max <= me->AddFatigue(0)) {
                 next = AQUA_FISH_THINK_BATTLE_REST;
                 me->swim_mode = AQUA_FISH_SWIM_ROUTE;
                 me->think_timer = 0;
-                me->action.phase = 0;
-                effect->type = 0;
+                me->action.phase = AQUA_FISH_ACTION_APPROACH;
+                effect->type = AQUA_FISH_EFF_NONE;
                 effect->timer = -1;
             }
 
@@ -4571,8 +4618,8 @@ void CAquarium::Thinking(int no) {
                     next = AQUA_FISH_THINK_BATTLE_REST;
                     me->swim_mode = AQUA_FISH_SWIM_ROUTE;
                     me->think_timer = 0;
-                    me->action.phase = 0;
-                    effect->type = 0;
+                    me->action.phase = AQUA_FISH_ACTION_APPROACH;
+                    effect->type = AQUA_FISH_EFF_NONE;
                     effect->timer = -1;
                 }
             }
@@ -4581,7 +4628,7 @@ void CAquarium::Thinking(int no) {
         case AQUA_FISH_THINK_BATTLE_REST: {
             bool rested = false;
 
-            if (me->action.phase == 3) {
+            if (me->action.phase == AQUA_FISH_ACTION_REST_MOVE) {
                 float pos[4];
                 float dist;
 
@@ -4598,10 +4645,10 @@ void CAquarium::Thinking(int no) {
                 }
 
                 if (dist < 3.4f && !(me->col_flags & AQUA_FISH_COL_FISH)) {
-                    me->action.phase = 4;
+                    me->action.phase = AQUA_FISH_ACTION_REST;
                     me->SetStep(0.5f);
                 }
-            } else if (me->action.phase == 4) {
+            } else if (me->action.phase == AQUA_FISH_ACTION_REST) {
                 me->AddFatigue(-4);
                 data->AddFishHp(2);
                 mgZeroVector(me->move);
@@ -4630,7 +4677,7 @@ void CAquarium::Thinking(int no) {
 
                 me->think_timer = 0;
                 me->turn[1] = 28.0f;
-                me->action.phase = 0;
+                me->action.phase = AQUA_FISH_ACTION_APPROACH;
             }
 
             break;
@@ -4650,7 +4697,7 @@ void CAquarium::Thinking(int no) {
                     me->SetMotion("\x83\x6f\x83\x67\x83\x8b\x81\x69\x8c\xb3\x8b\x43\x81\x6a", 0);
                     me->think_mode = AQUA_FISH_THINK_LOVE_CHASE;
                     me->think_timer = GetRandI(101) + 140;
-                    effect->StartFishEffect(1);
+                    effect->StartFishEffect(AQUA_FISH_EFF_PAIR);
                 }
             }
 
@@ -4693,15 +4740,15 @@ void CAquarium::Thinking(int no) {
                 }
             }
 
-            if (love_phase == AQUA_EVENT_NONE && me->action.hit_count > 0xA0) {
+            if (love_phase == AQUA_EVENT_NONE && me->action.hit_count > 160) {
                 if ((u32) (AquaMode - AQUA_MENU_CLOSE_FADE_WAIT) > 1 && AquaMode != AQUA_MENU_TANK_FADE_OUT_WAIT && AquaMode != AQUA_MENU_RENAME_FADE_OUT_WAIT && love_chara != NULL) {
-                    effect->type = 0;
+                    effect->type = AQUA_FISH_EFF_NONE;
                     effect->timer = -1;
                     sceVu0ScaleVectorXYZ(gap, gap, 0.5f);
                     sceVu0AddVector(love_pos, pos, gap);
                     love_phase = AQUA_EVENT_BREED_EFFECT_WAIT;
                     love_time = 0;
-                    sndSePlay(Aqua_SpSndID, 2, 0);
+                    sndSePlay(Aqua_SpSndID, AQUA_SE_BREED, 0);
                     love_chara->SetPosition(love_pos);
                     love_chara->SetMotion("\x94\x7a\x8d\x87", 6);
                     love_chara->SetScale(1.5f, 1.5f, 1.5f);
@@ -4724,7 +4771,7 @@ int CAquarium::ColCheck(int no) {
      * Stores the two fish effects selected by aquarium collisions.
      *
      */
-    static u8 tbl[2] = {2, 1};
+    static u8 tbl[2] = {AQUA_FISH_EFF_GROW, AQUA_FISH_EFF_PAIR};
 
     aqua_col_point       *point;
     int                   i;
@@ -4769,13 +4816,13 @@ int CAquarium::ColCheck(int no) {
         action = &me->action;
     }
 
-    calm = 0;
+    calm = false;
 
     if (AquaMode == AQUA_MENU_CLOSE_FADE_WAIT || AquaMode == AQUA_MENU_CLEAR || AquaMode == AQUA_MENU_TANK_FADE_OUT_WAIT || AquaMode == AQUA_MENU_RENAME_FADE_OUT_WAIT) {
-        calm = 1;
+        calm = true;
     }
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         if (i != no && fish[i] != NULL) {
             CAquaFish *other = fish[i];
             float      other_radius = other->radius;
@@ -4796,7 +4843,7 @@ int CAquarium::ColCheck(int no) {
                 move[3] = 1.0f;
                 sceVu0ScaleVector(me->move, move, 1.5f);
 
-                if (calm == 0) {
+                if (!calm) {
                     if (me->think_mode == AQUA_FISH_THINK_BATTLE || me->think_mode == AQUA_FISH_THINK_LOVE_CHASE) {
                         me->AddFatigue(1);
 
@@ -4869,13 +4916,13 @@ int CAquarium::ColCheck(int no) {
 
         food->GetPosition(food_pos);
         float dist = mgDistVector(pos, food_pos);
-        eat = 0;
+        eat = false;
 
         if (dist < radius + 1.06f * food_size) {
             me->col_flags |= AQUA_FISH_COL_FOOD;
 
             if (me->think_mode == AQUA_FISH_THINK_FOOD_EAT) {
-                eat = 1;
+                eat = true;
             }
         }
 
@@ -4891,17 +4938,17 @@ int CAquarium::ColCheck(int no) {
 
             food = NULL;
 
-            for (i = 0; i < 6; i++) {
+            for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
                 CAquaFishEff *effect = AquaFishEff[i];
 
-                effect->type = 0;
+                effect->type = AQUA_FISH_EFF_NONE;
                 effect->timer = -1;
             }
 
             int pick = GetRandI(2);
             AquaFishEff[no]->StartFishEffect(tbl[pick]);
 
-            if (me->eat_item == 0x168) {
+            if (me->eat_item == AQUA_FOOD_ITEM_ELECTRIC_WORM) {
                 target_fish = no;
                 result |= AQUA_FISH_RESULT_ELECTRIC_FOOD_EATEN;
                 strcpy(target_name, me->data->GetName(1));
@@ -4935,26 +4982,27 @@ int CAquarium::ColCheck(int no) {
 int CAquarium::InitSelFish() {
     int i;
     sel_fish = -1;
-    mes.cursor_draw = 1;
+    mes.cursor_draw = true;
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         if (fish[i] != NULL) {
-            float x, y;
+            float x;
+            float y;
             sel_fish = i;
-            x = (float) mes.menu_mes->cursor_x;
-            y = (float) mes.menu_mes->cursor_y;
+            x = mes.menu_mes->cursor_x;
+            y = mes.menu_mes->cursor_y;
             mes.cursor_pos[0] = x;
             mes.cursor_target[0] = x;
             mes.cursor_pos[1] = y;
             mes.cursor_target[1] = y;
-            mes.cursor_snap = 1;
+            mes.cursor_snap = true;
             SelFishSetCursor();
-            return 0;
+            return false;
         }
     }
 
-    mes.cursor_draw = 0;
-    return 1;
+    mes.cursor_draw = false;
+    return true;
 }
 
 void CAquarium::SelectFish(int force) {
@@ -4982,32 +5030,32 @@ void CAquarium::SelectFish(int force) {
     tries = 0;
 
     if (no < 0) {
-        no = 5;
+        no = AQUA_FISH_SLOT_NUM - 1;
     }
 
-    if (no > 5) {
+    if (no > AQUA_FISH_SLOT_NUM - 1) {
         no = 0;
     }
 
     while (fish[no] == NULL) {
         no += step;
 
-        if (no > 5) {
+        if (no > AQUA_FISH_SLOT_NUM - 1) {
             no = 0;
         }
 
         if (no < 0) {
-            no = 5;
+            no = AQUA_FISH_SLOT_NUM - 1;
         }
 
-        if (++tries > 6) {
+        if (++tries > AQUA_FISH_SLOT_NUM) {
             no = -1;
             break;
         }
     }
 
     if (old_fish != no) {
-        MenuSePlay(0);
+        MenuSePlay(SYSTEM_SE_CURSOR);
     }
 
     sel_fish = no;
@@ -5024,7 +5072,7 @@ void CAquarium::SelFishSetCursor() {
         Camera->GetCameraMatrix(view);
         Camera->GetPos(camera_pos);
         mgSetViewMatrix(view, camera_pos);
-        ((CAquaFish *) fish[sel_fish])->GetPosition(fish_pos);
+        fish[sel_fish]->GetPosition(fish_pos);
         mgTransWorldScreen(screen_int, fish_pos);
         sceVu0ITOF4Vector(screen, screen_int);
         screen[0] -= 50.0f;
@@ -5052,9 +5100,9 @@ int CAquarium::Step() {
      *
      */
     static s8 menu_id_tbl[3][6] = {
-        {0, 1, 2, 3, 4,  5 },
-        {0, 3, 4, 5, -1, -1},
-        {0, 3, 4, 5, -1, -1},
+        {AQUARIUM_COMMAND_FISH_INFO, AQUARIUM_COMMAND_FEED, AQUARIUM_COMMAND_RENAME, AQUARIUM_COMMAND_TAKE_OUT, AQUARIUM_COMMAND_MOVE, AQUARIUM_COMMAND_SWITCH_TANK},
+        {AQUARIUM_COMMAND_FISH_INFO, AQUARIUM_COMMAND_TAKE_OUT, AQUARIUM_COMMAND_MOVE, AQUARIUM_COMMAND_SWITCH_TANK, AQUARIUM_COMMAND_NONE, AQUARIUM_COMMAND_NONE},
+        {AQUARIUM_COMMAND_FISH_INFO, AQUARIUM_COMMAND_TAKE_OUT, AQUARIUM_COMMAND_MOVE, AQUARIUM_COMMAND_SWITCH_TANK, AQUARIUM_COMMAND_NONE, AQUARIUM_COMMAND_NONE},
     };
 
     /**
@@ -5063,9 +5111,9 @@ int CAquarium::Step() {
      *
      */
     static s8 another_aquarium_Notbl[3][2] = {
-        {1, 2},
-        {0, 2},
-        {0, 1}
+        {AQUARIUM_TANK_SECOND, AQUARIUM_TANK_BREED},
+        {AQUARIUM_TANK_FIRST, AQUARIUM_TANK_BREED},
+        {AQUARIUM_TANK_FIRST, AQUARIUM_TANK_SECOND}
     };
 
     /**
@@ -5082,8 +5130,8 @@ int CAquarium::Step() {
     int       j;
     CAquaMes *menu;
     int       result;
-    float     saved_pos[6][4];
-    float     saved_rot[6][4];
+    float     saved_pos[AQUA_FISH_SLOT_NUM][4];
+    float     saved_rot[AQUA_FISH_SLOT_NUM][4];
 
     lang = LanguageCode;
 
@@ -5142,7 +5190,7 @@ int CAquarium::Step() {
                     }
 
                     if (love_phase == AQUA_EVENT_ELECTRIC_RELOAD) {
-                        for (i = 0; i < 6; i++) {
+                        for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
                             if (fish[i] != NULL) {
                                 fish[i]->GetPosition(saved_pos[i]);
                                 fish[i]->GetRotation(saved_rot[i]);
@@ -5151,7 +5199,7 @@ int CAquarium::Step() {
 
                         SettingAqua();
 
-                        for (i = 0; i < 6; i++) {
+                        for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
                             if (fish[i] != NULL) {
                                 fish[i]->SetPosition(saved_pos[i]);
                                 fish[i]->SetRotation(saved_rot[i]);
@@ -5176,7 +5224,7 @@ int CAquarium::Step() {
                     CAquaFish *child = NULL;
 
                     if (love_phase == AQUA_EVENT_BREED_FADE_IN_WAIT) {
-                        menu->guide_draw = 1;
+                        menu->guide_draw = true;
                         copy_name(menu->guide_mes, 0, target_name);
                         copy_name(menu->guide_mes, 1, partner_name);
                         child = fish[0];
@@ -5187,21 +5235,21 @@ int CAquarium::Step() {
 
                         if (child != NULL) {
                             copy_name(menu->guide_mes, 2, child->data->GetName(1));
-                            menu->guide_id = 0x12C;
+                            menu->guide_id = AQUA_MES_BRED;
                             menu->guide_mes->MakeMesWin(menu->guide_id);
                             menu->guide_mes->fukidashi_pos = 5;
-                            menu->help_draw = 0;
+                            menu->help_draw = false;
                             MenuSePlay(0x1E);
                         }
                     }
 
                     if (love_phase == AQUA_EVENT_ELECTRIC_FADE_IN_WAIT) {
-                        menu->guide_draw = 1;
+                        menu->guide_draw = true;
                         copy_name(menu->guide_mes, 0, target_name);
                         child = fish[target_fish];
 
                         if (child == NULL) {
-                            for (int n = 0; n < 6; n++) {
+                            for (int n = 0; n < AQUA_FISH_SLOT_NUM; n++) {
                                 if (fish[n] != NULL) {
                                     child = fish[n];
                                     break;
@@ -5211,10 +5259,10 @@ int CAquarium::Step() {
 
                         if (child != NULL) {
                             copy_name(menu->guide_mes, 2, child->data->GetName(1));
-                            menu->guide_id = 0x12F;
+                            menu->guide_id = AQUA_MES_ELECTRIC;
                             menu->guide_mes->MakeMesWin(menu->guide_id);
                             menu->guide_mes->fukidashi_pos = 5;
-                            menu->help_draw = 0;
+                            menu->help_draw = false;
                         }
                     }
 
@@ -5257,7 +5305,7 @@ int CAquarium::Step() {
             case AQUARIUM_MODE_VIEW:
                 if (key & MENU_PUSH_BUTTON_CANCEL) {
                     MenuSePlay(SYSTEM_SE_CANCEL);
-                    return 1;
+                    return true;
                 }
 
                 if (GamePad__2.Down(PAD_TRIANGLE)) {
@@ -5563,7 +5611,7 @@ int CAquarium::Step() {
                             drop_pos[2] = 0.0f;
                             drop_pos[3] = 1.0f;
                             food->SetDropPosition(drop_pos);
-                            drop_root_draw = 1;
+                            drop_root_draw = true;
                         }
 
                         next = AQUARIUM_MODE_FOOD_POSITION;
@@ -5670,7 +5718,7 @@ int CAquarium::Step() {
 
                     if (data->data.fish.flags & BREEDFISH_FLAG_ELECTRIC) {
                         next = AQUARIUM_MODE_TAKE_OUT_INFO;
-                        menu->SetInfoMsgID(0x12D);
+                        menu->SetInfoMsgID(AQUA_MES_ELECTRIC_STAYS);
                         MenuSePlay(SYSTEM_SE_CANCEL);
                     } else {
                         CGameDataUsed *space = user_data->SearchSpaceUsedDataPtr();
@@ -5689,7 +5737,7 @@ int CAquarium::Step() {
                             MenuSePlay(SYSTEM_SE_DECIDE);
                         } else {
                             next = AQUARIUM_MODE_TAKE_OUT_INFO;
-                            menu->SetInfoMsgID(0x12E);
+                            menu->SetInfoMsgID(AQUA_MES_NO_SPACE);
                             MenuSePlay(SYSTEM_SE_CANCEL);
                         }
                     }
@@ -5717,7 +5765,7 @@ int CAquarium::Step() {
                         MenuSePlay(SYSTEM_SE_CANCEL);
                     } else if (selected->data->data.fish.flags & BREEDFISH_FLAG_ELECTRIC) {
                         next = AQUARIUM_MODE_TAKE_OUT_INFO;
-                        menu->SetInfoMsgID(0x12D);
+                        menu->SetInfoMsgID(AQUA_MES_ELECTRIC_STAYS);
                         MenuSePlay(SYSTEM_SE_CANCEL);
                     } else {
                         MenuSePlay(SYSTEM_SE_DECIDE);
@@ -5731,7 +5779,7 @@ int CAquarium::Step() {
                     MenuSePlay(SYSTEM_SE_CURSOR);
                 }
 
-                if (AquaDeadCheck == 1 || sel_sift_fish_select < 0 || (0 <= sel_sift_fish_select && fish[sel_sift_fish_select] == NULL)) {
+                if (AquaDeadCheck == true || sel_sift_fish_select < 0 || (0 <= sel_sift_fish_select && fish[sel_sift_fish_select] == NULL)) {
                     next = AQUARIUM_MODE_MOVE_SELECT;
                     sel_sift_fish_select = -1;
                 } else if (key & MENU_PUSH_BUTTON_DECIDE) {
@@ -5745,7 +5793,7 @@ int CAquarium::Step() {
 
                         if (m_aquarium_para->CheckHaigouTankSex(data) == 0) {
                             next = AQUARIUM_MODE_MOVE_INFO;
-                            menu->SetInfoMsgID(data->data.fish.sex + 0x130);
+                            menu->SetInfoMsgID(data->data.fish.sex + AQUA_MES_BREED_REFUSE_MALE);
                             MenuSePlay(SYSTEM_SE_CANCEL);
                             break;
                         }
@@ -5756,7 +5804,7 @@ int CAquarium::Step() {
                             next = AQUARIUM_MODE_MOVE_INFO;
                             info->values[0] = data->data.fish.breed_feeds_remaining;
                             info->value_width[0] = 0;
-                            menu->SetInfoMsgID(0x133);
+                            menu->SetInfoMsgID(AQUA_MES_BREED_NOT_READY);
                             MenuSePlay(SYSTEM_SE_CANCEL);
                             break;
                         }
@@ -5805,7 +5853,7 @@ int CAquarium::Step() {
                     m_next_aqua_no = another_aquarium_Notbl[m_aquarium_para->active_tank][i];
                     AquaMode = AQUA_MENU_TANK_FADE_OUT_WAIT;
                     mes.menu_cursor = 0;
-                    mes.cursor_snap = 1;
+                    mes.cursor_snap = true;
                     AquaScene->fade.FadeOut(30, 0.0f, 0.0f, 0.0f);
                     MenuSePlay(SYSTEM_SE_DECIDE);
                     next = AQUARIUM_MODE_TRANSITION_WAIT;
@@ -5819,121 +5867,121 @@ int CAquarium::Step() {
 
     if (0 <= next) {
         if (next == AQUARIUM_MODE_VIEW || next == AQUARIUM_MODE_TRANSITION_WAIT) {
-            menu->menu_draw = 0;
-            menu->guide_draw = 0;
-            menu->cursor_draw = 0;
-            menu->question_draw = 0;
-            menu->help_draw = 1;
-            menu->SetCtrlHelpId(0x32);
+            menu->menu_draw = false;
+            menu->guide_draw = false;
+            menu->cursor_draw = false;
+            menu->question_draw = false;
+            menu->help_draw = true;
+            menu->SetCtrlHelpId(AQUA_MES_HELP_VIEW);
 
             if (next == AQUARIUM_MODE_TRANSITION_WAIT) {
-                menu->help_draw = 0;
+                menu->help_draw = false;
             }
 
-            fish_info_draw = 0;
+            fish_info_draw = false;
         }
 
         if (next == AQUARIUM_MODE_COMMAND) {
-            menu->cursor_draw = 0;
-            menu->menu_draw = 1;
-            menu->guide_draw = 0;
-            menu->question_draw = 0;
-            menu->help_draw = 0;
-            fish_info_draw = 0;
+            menu->cursor_draw = false;
+            menu->menu_draw = true;
+            menu->guide_draw = false;
+            menu->question_draw = false;
+            menu->help_draw = false;
+            fish_info_draw = false;
         }
 
         if (next == AQUARIUM_MODE_FISH_INFO) {
-            menu->menu_draw = 0;
-            menu->cursor_draw = 1;
-            fish_info_draw = 1;
+            menu->menu_draw = false;
+            menu->cursor_draw = true;
+            fish_info_draw = true;
         }
 
         if (next == AQUARIUM_MODE_RENAME_GUIDE) {
-            menu->guide_id = 0x132;
+            menu->guide_id = AQUA_MES_RENAME_GUIDE;
             menu->guide_mes->MakeMesWin(menu->guide_id);
-            menu->guide_draw = 1;
-            menu->menu_draw = 0;
-            menu->cursor_draw = 0;
+            menu->guide_draw = true;
+            menu->menu_draw = false;
+            menu->cursor_draw = false;
         }
 
         if (next == AQUARIUM_MODE_RENAME_SELECT) {
-            menu->guide_id = 0xC8;
+            menu->guide_id = AQUA_MES_GUIDE_SELECT;
             menu->guide_mes->MakeMesWin(menu->guide_id);
-            menu->guide_draw = 1;
-            menu->menu_draw = 0;
-            menu->cursor_draw = 1;
-            fish_info_draw = 1;
+            menu->guide_draw = true;
+            menu->menu_draw = false;
+            menu->cursor_draw = true;
+            fish_info_draw = true;
         }
 
         if (next == AQUARIUM_MODE_RENAME_BLOCKED) {
-            menu->guide_id = 0x139;
+            menu->guide_id = AQUA_MES_RENAME_BLOCKED;
             menu->guide_mes->MakeMesWin(menu->guide_id);
-            menu->guide_draw = 1;
-            menu->menu_draw = 0;
-            menu->cursor_draw = 0;
-            fish_info_draw = 0;
+            menu->guide_draw = true;
+            menu->menu_draw = false;
+            menu->cursor_draw = false;
+            fish_info_draw = false;
         }
 
         if (next == AQUARIUM_MODE_FOOD_SELECT) {
-            menu->menu_draw = 0;
-            menu->question_draw = 1;
-            menu->SetQuestionId(0x320, 1, 7);
-            menu->help_draw = 0;
+            menu->menu_draw = false;
+            menu->question_draw = true;
+            menu->SetQuestionId(AQUA_MES_FOOD_LIST, 1, 7);
+            menu->help_draw = false;
             food = NULL;
             AquaCameraCtrlMode = AQUA_CAMERA_CTRL_FREE;
-            drop_root_draw = 0;
+            drop_root_draw = false;
         }
 
         if (next == AQUARIUM_MODE_FOOD_POSITION) {
-            menu->menu_draw = 0;
-            menu->guide_draw = 0;
-            menu->cursor_draw = 0;
-            menu->question_draw = 0;
-            menu->SetCtrlHelpId(0x34);
-            menu->help_draw = 1;
+            menu->menu_draw = false;
+            menu->guide_draw = false;
+            menu->cursor_draw = false;
+            menu->question_draw = false;
+            menu->SetCtrlHelpId(AQUA_MES_HELP_FOOD);
+            menu->help_draw = true;
             AquaCameraCtrlMode = AQUA_CAMERA_CTRL_FOOD;
-            drop_root_draw = 1;
+            drop_root_draw = true;
         }
 
         if (next == AQUARIUM_MODE_FOOD_WAIT) {
-            menu->help_draw = 0;
+            menu->help_draw = false;
             food->Drop();
-            food_time = 0xFA;
+            food_time = 250;
             AquaCameraCtrlMode = AQUA_CAMERA_CTRL_FREE;
-            drop_root_draw = 0;
+            drop_root_draw = false;
         }
 
         if (next == AQUARIUM_MODE_TAKE_OUT) {
-            menu->guide_id = 0xD2;
+            menu->guide_id = AQUA_MES_GUIDE_TAKE_OUT;
             menu->guide_mes->MakeMesWin(menu->guide_id);
-            menu->guide_draw = 1;
-            menu->menu_draw = 0;
-            menu->cursor_draw = 1;
-            menu->info_draw = 0;
-            fish_info_draw = 1;
+            menu->guide_draw = true;
+            menu->menu_draw = false;
+            menu->cursor_draw = true;
+            menu->info_draw = false;
+            fish_info_draw = true;
         }
 
         if (next == AQUARIUM_MODE_TAKE_OUT_INFO) {
-            menu->guide_draw = 0;
-            menu->info_draw = 1;
-            menu->cursor_draw = 0;
-            fish_info_draw = 0;
+            menu->guide_draw = false;
+            menu->info_draw = true;
+            menu->cursor_draw = false;
+            fish_info_draw = false;
         }
 
         if (next == AQUARIUM_MODE_SWITCH_TANK_SELECT) {
-            menu->menu_draw = 0;
-            menu->question_draw = 1;
-            menu->SetQuestionId(m_aquarium_para->active_tank + 0x384, 1, 2);
+            menu->menu_draw = false;
+            menu->question_draw = true;
+            menu->SetQuestionId(m_aquarium_para->active_tank + AQUA_MES_SWITCH_FROM_FIRST, 1, 2);
         }
 
         if (next == AQUARIUM_MODE_MOVE_SELECT) {
-            menu->menu_draw = 0;
-            menu->guide_id = 0xDC;
+            menu->menu_draw = false;
+            menu->guide_id = AQUA_MES_GUIDE_MOVE;
             menu->guide_mes->MakeMesWin(menu->guide_id);
-            menu->guide_draw = 1;
-            menu->cursor_draw = 1;
-            menu->question_draw = 0;
-            fish_info_draw = 1;
+            menu->guide_draw = true;
+            menu->cursor_draw = true;
+            menu->question_draw = false;
+            fish_info_draw = true;
             sel_sift_fish_select = -1;
             sel_sift_fish = NULL;
         }
@@ -5941,24 +5989,24 @@ int CAquarium::Step() {
         if (next == AQUARIUM_MODE_MOVE_TANK_SELECT) {
             sel_sift_fish = fish[sel_fish];
             sel_sift_fish_select = sel_fish;
-            menu->guide_draw = 0;
-            menu->cursor_draw = 0;
-            menu->info_draw = 0;
-            menu->question_draw = 1;
-            menu->SetQuestionId(m_aquarium_para->active_tank + 0x3E8, 1, 2);
+            menu->guide_draw = false;
+            menu->cursor_draw = false;
+            menu->info_draw = false;
+            menu->question_draw = true;
+            menu->SetQuestionId(m_aquarium_para->active_tank + AQUA_MES_MOVE_FROM_FIRST, 1, 2);
         }
 
         if (next == AQUARIUM_MODE_MOVE_INFO) {
-            menu->guide_draw = 0;
-            menu->cursor_draw = 0;
-            menu->info_draw = 1;
-            menu->question_draw = 0;
+            menu->guide_draw = false;
+            menu->cursor_draw = false;
+            menu->info_draw = true;
+            menu->question_draw = false;
         }
 
         mode = next;
     }
 
-    AquaDeadCheck = 0;
+    AquaDeadCheck = false;
 
     if (food != NULL) {
         food->Step();
@@ -5974,7 +6022,7 @@ int CAquarium::Step() {
         }
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         if (AquaFishBubble[i] != NULL) {
             AquaFishBubble[i]->Step();
         }
@@ -5986,7 +6034,7 @@ int CAquarium::Step() {
         }
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         AquaFishEff[i]->Step();
     }
 
@@ -6000,7 +6048,7 @@ int CAquarium::Step() {
 
     result = 0;
 
-    for (j = 0; j < 6; j++) {
+    for (j = 0; j < AQUA_FISH_SLOT_NUM; j++) {
         if (fish[j] != NULL) {
             Thinking(j);
             result |= ColCheck(j);
@@ -6008,7 +6056,7 @@ int CAquarium::Step() {
             result |= fish[j]->ParamStep();
 
             if (result & AQUA_FISH_RESULT_FEEDING_EXHAUSTED) {
-                mes.EatMessage(0x136, fish[j]);
+                mes.EatMessage(AQUA_MES_FULL, fish[j]);
                 result &= ~AQUA_FISH_RESULT_FEEDING_EXHAUSTED;
             }
 
@@ -6018,20 +6066,20 @@ int CAquarium::Step() {
             }
 
             if (result & AQUA_FISH_RESULT_DEAD) {
-                MenuSePlay(Aqua_SpSndID, 4);
+                MenuSePlay(Aqua_SpSndID, AQUA_SE_DEAD);
                 mes.DeadMessage(fish[j]);
                 fish[j]->Initialize();
                 fish[j] = NULL;
-                AquaDeadCheck = 1;
+                AquaDeadCheck = true;
                 SelectFish(1);
 
                 if (sel_fish < 0) {
-                    menu->menu_draw = 0;
-                    menu->guide_draw = 0;
-                    menu->cursor_draw = 0;
-                    menu->question_draw = 0;
-                    menu->help_draw = 1;
-                    menu->SetCtrlHelpId(0x32);
+                    menu->menu_draw = false;
+                    menu->guide_draw = false;
+                    menu->cursor_draw = false;
+                    menu->question_draw = false;
+                    menu->help_draw = true;
+                    menu->SetCtrlHelpId(AQUA_MES_HELP_VIEW);
                 }
 
                 result &= ~AQUA_FISH_RESULT_DEAD;
@@ -6049,7 +6097,7 @@ int CAquarium::Step() {
 
     if (result & AQUA_FISH_RESULT_BATTLE_HIT) {
         if (Aqua_SpSndBattleCount == 0) {
-            MenuSePlay(Aqua_SpSndID, 3);
+            MenuSePlay(Aqua_SpSndID, AQUA_SE_BATTLE_HIT);
             Aqua_SpSndBattleCount = 8;
         }
 
@@ -6080,7 +6128,7 @@ int CAquarium::Step() {
         love_phase = AQUA_EVENT_ELECTRIC_FADE_OUT;
     }
 
-    return 0;
+    return false;
 }
 
 void CAquarium::Draw() {
@@ -6125,7 +6173,7 @@ void CAquarium::Draw() {
 
     mgSetAmbient(water_ambient);
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         if (fish[i] != NULL) {
             textures->ReloadTexture(fish_tex_block[i], static_cast<sceVif1Packet *>(NULL));
             fish[i]->FishDraw();
@@ -6174,7 +6222,7 @@ void CAquarium::Draw() {
         }
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         if (AquaFishBubble[i] != NULL) {
             AquaFishBubble[i]->SetTexture(Tex_Aqualium, 0xF8, 0x64);
             AquaFishBubble[i]->Draw();
@@ -6188,7 +6236,7 @@ void CAquarium::Draw() {
         }
     }
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < AQUA_FISH_SLOT_NUM; i++) {
         AquaFishEff[i]->Draw();
     }
 
@@ -6220,7 +6268,7 @@ void CAquarium::Draw() {
         Camera->GetPos(camera_pos);
 
         if (camera_pos[1] < 47.0f) {
-            water->SetPosition(-34.0f, float(46.8), -21.5f);
+            water->SetPosition(-34.0f, 46.8f, -21.5f);
         } else {
             water->SetPosition(-34.0f, 47.0f, -21.5f);
         }
@@ -6260,7 +6308,7 @@ void CAquarium::Draw() {
         int row = fptosi(24.0f * GetRandF(1.0f));
         water->Shake(row, fptosi(16.0f * GetRandF(1.0f)), ripple);
         float speed = 0.0045f;
-        water->SetParam(float(0.15), speed, 0.0f, 10.0f);
+        water->SetParam(0.15f, speed, 0.0f, 10.0f);
         water->Step();
         water->SetColor(0x80, 0x80, 0x80, 0x80);
         mgDrawDirect(water);
@@ -6422,7 +6470,7 @@ void CAquarium::Draw() {
         DrawFishParam(mgScreenWidth - 0x152, 2, Tex_Aqualium, fish[sel_fish]->data);
     }
 
-    if (0 < love_phase && love_chara != NULL) {
+    if (AQUA_EVENT_NONE < love_phase && love_chara != NULL) {
         textures->ReloadTexture(love_tex_block, static_cast<sceVif1Packet *>(NULL));
         love_chara->DrawDirect();
     }
@@ -6500,16 +6548,16 @@ void MenuAquaInit(mgCMemory *memory, int *tex_block, int) {
     AQUA_TITLE_W = 0x9E;
     AQUA_TITLE_H = 0x42;
 
-    if (LanguageCode == 4) {
+    if (LanguageCode == LANG_ITALIAN) {
         AQUA_TITLE_W = 0xC4;
     }
 
-    if (LanguageCode == 5) {
+    if (LanguageCode == LANG_SPANISH) {
         AQUA_TITLE_W = 0xDA;
     }
 
     m_next_aqua_no = -1;
-    Camera = new ((u_long128 *) memory->Alloc(sizeof(mgCCameraFollow) / 16 + 2)) mgCCameraFollow(40.0f, 30.0f, 0.0f, 8.0f);
+    Camera = new (memory->Alloc(sizeof(mgCCameraFollow) / 16 + 2)) mgCCameraFollow(40.0f, 30.0f, 0.0f, 8.0f);
     aqua_old_env = (aqua_light_env *) memory->Alloc(sizeof(aqua_light_env) / 16);
     mgCMemory aqua_memory;
     int       rest = memory->stGetRest();
@@ -6545,7 +6593,7 @@ int MenuAquaKey() {
 
             break;
         case AQUA_MENU_ACTIVE:
-            if (AquaCameraCtrlMode == 0) {
+            if (AquaCameraCtrlMode == AQUA_CAMERA_CTRL_FREE) {
                 Camera->AddAngle(0.04f * -GamePad__2.GetRXf());
                 Camera->AddAngle(0.04f * -GamePad__2.GetLXf());
                 Camera->AddHeight(-2.0f * GamePad__2.GetRYf());
@@ -6567,7 +6615,7 @@ int MenuAquaKey() {
                 Camera->SetSpeed(pos_speed, -1.0f);
             }
 
-            if (AquaCameraCtrlMode == 1) {
+            if (AquaCameraCtrlMode == AQUA_CAMERA_CTRL_FOOD) {
                 Camera->AddAngle(0.04f * -GamePad__2.GetRXf());
                 Camera->AddHeight(-2.0f * GamePad__2.GetRYf());
 
@@ -6608,7 +6656,7 @@ int MenuAquaKey() {
             ReStartEnvSoundMenu();
             MenuMainScene->SetVolfBGM(Auqa_Bgm_Volf);
             MenuScreenBlackBeltSet(1);
-            return 1;
+            return true;
         case AQUA_MENU_TANK_FADE_OUT_WAIT:
             Aquarium.Step();
 
@@ -6656,7 +6704,7 @@ int MenuAquaKey() {
             break;
     }
 
-    return 0;
+    return false;
 }
 
 void MenuAquaDraw() {
@@ -6701,7 +6749,7 @@ void MenuGyoraceFishSelInit(mgCMemory *memory, int *tex_block, int) {
     GyoraceFishSelStack.Alloc(align16_blocks(file_size));
     Tex_Aqualium = NULL;
     GyoRaceFishReadPhase = -1;
-    GyoraceFishSelectMode = 0;
+    GyoraceFishSelectMode = GYORACE_FISH_SEL_LOAD;
     GyoraceFishSelNum = 0;
     GyoraceFish = NULL;
 }
@@ -6716,7 +6764,7 @@ int MenuGyoraceFishSelKey() {
     int            i;
 
     switch (GyoraceFishSelectMode) {
-        case 0:
+        case GYORACE_FISH_SEL_LOAD:
             if (ReadBGSync() == 0) {
                 BG_READ_INFO *file = GetReadBGFile(0);
 
@@ -6747,7 +6795,7 @@ int MenuGyoraceFishSelKey() {
                     if (fish->item_no > 0) {
                         names[GyoraceFishSelNum] = fish->GetName(1);
 
-                        if (fish->data.fish.flags & (int) BREEDFISH_FLAG_ELECTRIC) {
+                        if (fish->data.fish.flags & BREEDFISH_FLAG_ELECTRIC) {
                             names[GyoraceFishSelNum] = NULL;
                         }
 
@@ -6770,7 +6818,7 @@ int MenuGyoraceFishSelKey() {
             }
 
             break;
-        case 1: {
+        case GYORACE_FISH_SEL_CHOOSE: {
             int button;
 
             MenuDCMsg[1]->AddMsgCursor2(0, GyoraceFishSelNum - 1, 1);
@@ -6778,7 +6826,7 @@ int MenuGyoraceFishSelKey() {
             GyoraceFishSelectNo = MenuDCMsg[1]->GetMsgCursor();
             GyoraceFish = m_aquarium_para->GetAquariumFishTop(AQUARIUM_TANK_FIRST) + GyoraceFishSel[GyoraceFishSelectNo];
 
-            if (button & 1) {
+            if (button & MENU_PUSH_BUTTON_DECIDE) {
                 CGameDataUsed *selected;
 
                 MenuSePlay(SYSTEM_SE_DECIDE);
@@ -6789,19 +6837,19 @@ int MenuGyoraceFishSelKey() {
                 selected = &fish[MenuArg.result[0]];
 
                 if (selected != NULL) {
-                    if (!(selected->data.fish.flags & fish_flag_won_class0)) {
-                        MenuArg.result[1] |= 1;
+                    if (!(selected->data.fish.flags & GYORACE_FISH_FLAG_WON_CLASS0)) {
+                        MenuArg.result[1] |= GYORACE_CLASS_OPEN_0;
                     }
 
-                    if (!(selected->data.fish.flags & fish_flag_won_class1)) {
-                        MenuArg.result[1] |= 2;
+                    if (!(selected->data.fish.flags & GYORACE_FISH_FLAG_WON_CLASS1)) {
+                        MenuArg.result[1] |= GYORACE_CLASS_OPEN_1;
                     }
 
-                    if (!(selected->data.fish.flags & fish_flag_won_class2)) {
-                        MenuArg.result[1] |= 4;
+                    if (!(selected->data.fish.flags & GYORACE_FISH_FLAG_WON_CLASS2)) {
+                        MenuArg.result[1] |= GYORACE_CLASS_OPEN_2;
                     }
 
-                    MenuArg.result[1] |= 8;
+                    MenuArg.result[1] |= GYORACE_CLASS_OPEN_3;
 
                     if (selected->data.fish.race_placement_flags & 1) {
                         MenuArg.result[2] = 1;
@@ -6809,7 +6857,7 @@ int MenuGyoraceFishSelKey() {
                 }
 
                 GyoraceFishSelectMode++;
-            } else if (button & 2) {
+            } else if (button & MENU_PUSH_BUTTON_CANCEL) {
                 MenuSePlay(SYSTEM_SE_CANCEL);
                 MenuArg.result[1] = 0;
                 GyoraceFish = NULL;
@@ -6819,7 +6867,7 @@ int MenuGyoraceFishSelKey() {
 
             break;
         }
-        case 2:
+        case GYORACE_FISH_SEL_DONE:
             return 1;
     }
 
@@ -6849,19 +6897,19 @@ void MenuGyoraceFishSelDraw() {
     mgCTextureManager *tex_manager = &mgTexManager;
     mgRect<int>        dest;
     mgRect<int>        source;
-    tex_manager->ReloadTexture(MenuBGTextureBlock, (sceVif1Packet *) 0);
+    tex_manager->ReloadTexture(MenuBGTextureBlock, (sceVif1Packet *) NULL);
     source.Set(0, 0, mgScreenWidth >> 1, mgScreenHeight >> 1);
     dest.Set(0, 0, mgScreenWidth, mgScreenHeight);
     PrimQuad(MenuFrameTex, dest, source, 0x80, 0x80, 0x80, 0x80);
 
-    if (Tex_Aqualium != 0) {
-        tex_manager->ReloadTexture(GyoraceFishSelTexBk, (sceVif1Packet *) 0);
+    if (Tex_Aqualium != NULL) {
+        tex_manager->ReloadTexture(GyoraceFishSelTexBk, (sceVif1Packet *) NULL);
         DrawFishParam((mgScreenWidth - 0x14A >> 1) + 10, mgScreenHeight - 0x8E, Tex_Aqualium,
                       GyoraceFish);
     }
 
-    if (GyoraceFishSelectMode != 0) {
-        tex_manager->ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) 0);
+    if (GyoraceFishSelectMode != GYORACE_FISH_SEL_LOAD) {
+        tex_manager->ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) NULL);
         MenuDCMsg[0]->DrawMsg();
         MenuDCMsg[1]->DrawMsg();
     }
@@ -6917,30 +6965,29 @@ void SetGyoRaceRanking(int rank) {
     fish = GetGyoRaceFish();
 
     if (rank <= 2) {
-
-        *(&fish->data.fish.race_placement_flags) |= 1;
+        fish->data.fish.race_placement_flags |= 1;
     }
 
     if (rank == 0 && fish != NULL) {
-        flag_no = short_flag_wins_class0;
+        flag_no = GYORACE_SHORT_FLAG_WINS_CLASS0;
 
         if (race_class == 0) {
-            fish->data.fish.flags |= fish_flag_won_class0;
+            fish->data.fish.flags |= GYORACE_FISH_FLAG_WON_CLASS0;
         }
 
         if (race_class == 1) {
-            fish->data.fish.flags |= fish_flag_won_class1;
-            flag_no = short_flag_wins_class1;
+            fish->data.fish.flags |= GYORACE_FISH_FLAG_WON_CLASS1;
+            flag_no = GYORACE_SHORT_FLAG_WINS_CLASS1;
         }
 
         if (race_class == 2) {
-            fish->data.fish.flags |= fish_flag_won_class2;
-            flag_no = short_flag_wins_class2;
+            fish->data.fish.flags |= GYORACE_FISH_FLAG_WON_CLASS2;
+            flag_no = GYORACE_SHORT_FLAG_WINS_CLASS2;
         }
 
         if (race_class == 3) {
-            fish->data.fish.flags |= fish_flag_won_class3;
-            flag_no = short_flag_wins_class3;
+            fish->data.fish.flags |= GYORACE_FISH_FLAG_WON_CLASS3;
+            flag_no = GYORACE_SHORT_FLAG_WINS_CLASS3;
         }
 
         wins = save_data->GetShortFlag(flag_no) + 1;
@@ -6972,11 +7019,7 @@ static int _GYORACE_LISTNUM(SPI_STACK *stack, int arg_count) {
     spi_gyorace_data->fish_num[race_class] = spi_nowanalyze_gyorace_limmit;
     count = spi_nowanalyze_gyorace_limmit;
 
-    if (((unsigned int) count * sizeof(CGameDataUsed)) & 0xF) {
-        blocks = (((unsigned int) count * sizeof(CGameDataUsed)) >> 4) + 1;
-    } else {
-        blocks = ((unsigned int) count * sizeof(CGameDataUsed)) >> 4;
-    }
+    blocks = align16_blocks(count * sizeof(CGameDataUsed));
 
     spi_gyorace_data->fish[race_class] = new (spi_gyorace_stack->Alloc(blocks + 2)) CGameDataUsed[count];
     spi_nowanalyze_gyorace_data = spi_gyorace_data->fish[race_class];
@@ -6990,8 +7033,8 @@ static int _GYORACE_LISTNUM(SPI_STACK *stack, int arg_count) {
  *
  */
 static int _GYORACE_DATA(SPI_STACK *stack, int arg_count) {
-    CGameDataUsed *entry;
-    u8            *fields;
+    CGameDataUsed  *entry;
+    BREEDFISH_USED *breed;
 
     if (spi_nowanalyze_gyorace_limmit <= spi_gyorace_counter) {
         return 0;
@@ -6999,16 +7042,15 @@ static int _GYORACE_DATA(SPI_STACK *stack, int arg_count) {
 
     entry = &spi_nowanalyze_gyorace_data[spi_gyorace_counter];
     entry->CopyDataFish(spiGetStackInt(stack++));
-
-    fields = (u8 *) entry + 0x10;
+    breed = &entry->data.fish;
     entry->SetName(spiGetStackString(stack++));
-    *(fields + 0x16) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x2E) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x26) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x28) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x2A) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x2C) = spiGetStackInt(stack++);
-    *(short *) (fields + 0x18) = spiGetStackInt(stack);
+    breed->kind = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_BATTLE] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_BOOST] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_ENDURANCE] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_TENACITY] = spiGetStackInt(stack++);
+    breed->param[BREEDFISH_STAT_STAMINA] = spiGetStackInt(stack++);
+    breed->size = spiGetStackInt(stack);
     spi_gyorace_counter += 1;
     return 1;
 }
@@ -7125,13 +7167,13 @@ static int _PRIZE(SPI_STACK *stack, int arg_count) {
         return 0;
     }
 
-    spi_fish_prize_info->unk_0 = spiGetStackInt(stack);
-    spi_fish_prize_info->rank[0].unk_0 = spiGetStackInt(arg++);
-    spi_fish_prize_info->rank[0].unk_4 = spiGetStackInt(arg++);
-    spi_fish_prize_info->rank[1].unk_0 = spiGetStackInt(arg++);
-    spi_fish_prize_info->rank[1].unk_4 = spiGetStackInt(arg++);
-    spi_fish_prize_info->rank[2].unk_0 = spiGetStackInt(arg++);
-    spi_fish_prize_info->rank[2].unk_4 = spiGetStackInt(arg);
+    spi_fish_prize_info->rate = spiGetStackInt(stack);
+    spi_fish_prize_info->rank[0].item_no = spiGetStackInt(arg++);
+    spi_fish_prize_info->rank[0].num = spiGetStackInt(arg++);
+    spi_fish_prize_info->rank[1].item_no = spiGetStackInt(arg++);
+    spi_fish_prize_info->rank[1].num = spiGetStackInt(arg++);
+    spi_fish_prize_info->rank[2].item_no = spiGetStackInt(arg++);
+    spi_fish_prize_info->rank[2].num = spiGetStackInt(arg);
     spi_fish_prize_info++;
     return 1;
 }
@@ -7195,7 +7237,7 @@ int RefreshFishPrize() {
     save_data = GetSaveData();
 
     if (FishTournamentGoodsType == 0) {
-        for (race_class = 0, flag_no = short_flag_wins_class0; race_class < 4; race_class++) {
+        for (race_class = 0, flag_no = GYORACE_SHORT_FLAG_WINS_CLASS0; race_class < 4; race_class++) {
             s16 wins = save_data->GetShortFlag(flag_no);
             group = FishTournamentGoods + race_class * 3 + wins;
             flag_no++;
@@ -7214,7 +7256,7 @@ int RefreshFishPrize() {
         return 0;
     }
 
-    group = &FishTournamentGoods[save_data->GetShortFlag(short_flag_tour_count)];
+    group = &FishTournamentGoods[save_data->GetShortFlag(GYORACE_SHORT_FLAG_TOUR_COUNT)];
     save_fish_prize_list = group->prizes;
     fish_save_present[0][0] = save_fish_prize_list->rank[0];
     fish_save_present[0][1] = save_fish_prize_list->rank[1];
@@ -7244,8 +7286,8 @@ int GetFishPrize(int race_no, int rank, FISH_PRIZE_INFO *info) {
     }
 
     if (save_fish_prize_list != NULL) {
-        info->unk_0 = fish_save_present[race_no][rank].unk_0;
-        info->unk_4 = fish_save_present[race_no][rank].unk_4;
+        info->item_no = fish_save_present[race_no][rank].item_no;
+        info->num = fish_save_present[race_no][rank].num;
     }
 
     return 1;
@@ -7262,19 +7304,19 @@ void TuriTourCount() {
         return;
     }
 
-    count = save_data->GetShortFlag(short_flag_tour_count) + 1;
+    count = save_data->GetShortFlag(GYORACE_SHORT_FLAG_TOUR_COUNT) + 1;
     last_tour = 9;
 
-    if (save_data->GetBitFlag(bit_flag_tour_cycled) != 0) {
+    if (save_data->GetBitFlag(GYORACE_BIT_FLAG_TOUR_CYCLED) != 0) {
         last_tour = 8;
     }
 
     if (count > last_tour) {
         count = 1;
-        save_data->SetBitFlag(bit_flag_tour_cycled, count);
+        save_data->SetBitFlag(GYORACE_BIT_FLAG_TOUR_CYCLED, count);
     }
 
-    save_data->SetShortFlag(short_flag_tour_count, count);
+    save_data->SetShortFlag(GYORACE_SHORT_FLAG_TOUR_COUNT, count);
 }
 
 /**
@@ -7295,7 +7337,7 @@ static int SearchOmakeGyoracer(int slot) {
     int i;
 
     if (slot < 0) {
-        for (i = 0; i < omake_racer_slot_count; i++) {
+        for (i = 0; i < OMAKE_RACER_SLOT_NUM; i++) {
             if (0 > GyoracerIndexNo[i]) {
                 return i;
             }
@@ -7310,7 +7352,7 @@ static int SearchOmakeGyoracer(int slot) {
 int CheckSameRacerFish(int fish_no) {
     int i;
 
-    for (i = 0; i < omake_racer_slot_count; i++) {
+    for (i = 0; i < OMAKE_RACER_SLOT_NUM; i++) {
         if (fish_no == GyoracerIndexNo[i]) {
             return i;
         }
@@ -7335,7 +7377,7 @@ CGameDataUsed *GetOmakeGyoracer2(int slot) {
         return NULL;
     }
 
-    if (record->fish.used_type == gyorace_type_omake_racer) {
+    if (record->fish.used_type == USED_ITEM_TYPE_FISH) {
         return &record->fish;
     }
 
@@ -7343,7 +7385,7 @@ CGameDataUsed *GetOmakeGyoracer2(int slot) {
 }
 
 int GetOmakeGyoracerTactics(int slot) {
-    if (slot < 0 || slot > 5) {
+    if (slot < 0 || slot > OMAKE_RACER_SLOT_NUM - 1) {
         return -1;
     }
 
@@ -7351,7 +7393,7 @@ int GetOmakeGyoracerTactics(int slot) {
 }
 
 void SetOmakeGyoracerTactics(int slot, int tactics) {
-    if (slot < 0 || slot > 5) {
+    if (slot < 0 || slot > OMAKE_RACER_SLOT_NUM - 1) {
         return;
     }
 
@@ -7364,9 +7406,9 @@ void SetOmakeGyoracerTactics(int slot, int tactics) {
  *
  */
 static void GyoracerListUpdate() {
-    ((ClsMes *) GyoraceFishMes)->mes_no = -1;
+    GyoraceFishMes->ClsMes::mes_no = -1;
 
-    for (int slot = 0; slot < 6; slot++) {
+    for (int slot = 0; slot < OMAKE_RACER_SLOT_NUM; slot++) {
         int data_index = GyoracerIndexNo[slot];
 
         if (0 <= data_index) {
@@ -7439,7 +7481,7 @@ void GyoraceMenuInit(mgCMemory *memory, int *tex_block, int) {
     MenuLoadBoardTex = NULL;
     GyoraceExeCfgBuffer = NULL;
     GyoraceExeCfgBufferSize = 0;
-    GyoraceQuestionMsgDrawFlag = 0;
+    GyoraceQuestionMsgDrawFlag = false;
     memcpy(&GyoraceMenuOptionBuff, GetSaveData()->GetConfig(), sizeof(SV_CONFIG_OPTION));
     system_mes = GetSystemMesBuffer();
     menu_mes = GetMenuMainMessageBuffer();
@@ -7455,7 +7497,7 @@ void GyoraceMenuInit(mgCMemory *memory, int *tex_block, int) {
 
     GyoraceMes->MakeMsg(0x13A6);
     GyoraceMes->SetMsgCursor(0);
-    GyoraceMesDrawFlag = 1;
+    GyoraceMesDrawFlag = true;
     GyoraceFishMes = new (GyoraceStack.Alloc(sizeof(CDC2Mes) / 16 + 2)) CDC2Mes;
     GyoraceFishMes->SetMessData(system_mes, menu_mes);
     GyoraceFishMes->MsgPreset(0x10, language);
@@ -7466,23 +7508,23 @@ void GyoraceMenuInit(mgCMemory *memory, int *tex_block, int) {
     GyoraceFishHave->MsgPreset(0x10, language);
     GyoraceFishHave->MakeMsg(0x3C);
     GyoraceFishTacMes = MenuDCMsg[1];
-    GyoraceFishHaveDrawFlag = 0;
+    GyoraceFishHaveDrawFlag = false;
     GyoraceFishTacMes->SetMessData(menu_mes, menu_mes);
     GyoraceFishTacMes->MsgPreset(0x10, language);
     GyoraceFishTacMes->MakeMsg(-1);
     GyoraceFishHaveListSelect.cursor = 0;
     GyoraceHaveFishListTopY = 60.0f;
-    GyoraceFishTacMesDrawFlag = 0;
-    GyoraceFishInfoDrawFlag = 0;
+    GyoraceFishTacMesDrawFlag = false;
+    GyoraceFishInfoDrawFlag = false;
     GyoracerActive = NULL;
     GyoraceHaveFishListMakeLine = 0;
     GyoraceFishHaveListSelect.top = 0;
     Gyoracemenu_long_hand_count = 0;
-    GyoraceHaveFishCursorDrawFlag = 0;
+    GyoraceHaveFishCursorDrawFlag = false;
     GyoraceHaveFishCursor = 0.0f;
     GyoracerListUpdate();
     MenuBGTextureBlock = GyoraceTexBlock[0];
-    GyoraceHaveFishListScrlInit = 0;
+    GyoraceHaveFishListScrlInit = false;
     MenuCapture(MenuBGTextureBlock, &GyoraceStack, 1);
     MenuPosData->AttachCommonTexInfo();
     MenuCommonInfo->key_enable = 1;
@@ -7502,7 +7544,7 @@ static int OmakeGyoraceSelect(int key) {
     int distance = abs(movement);
 
     if (distance > 3) {
-        GyoraceHaveFishListScrlInit = 1;
+        GyoraceHaveFishListScrlInit = true;
     }
 
     return movement;
@@ -7537,9 +7579,14 @@ static void ForceSetGyoList() {
     }
 }
 
-static inline void SetHaveName(CDC2Mes *mes, int k, char *name) {
+/**
+ *
+ * Copies a name into a line of a message's name table, when there is a name.
+ *
+ */
+static inline void SetHaveName(CDC2Mes *mes, int line, char *name) {
     if (name != NULL) {
-        strcpy(mes->name[k], name);
+        strcpy(mes->name[line], name);
     }
 }
 
@@ -7551,12 +7598,16 @@ int GyoraceMenuKey() {
      */
     static int vol[6] = {5020, 5021, 5022, 5023, 5024, 5025};
 
-    /** Stores the fish being renamed while the name-entry menu is open. */
+    /**
+     *
+     * Stores the fish being renamed while the name-entry menu is open.
+     *
+     */
     static CGameDataUsed *local_gdata = NULL;
     CDC2Mes              *ask = MenuDCMsg[0];
     CDC2Mes              *tactics_mes = MenuDCMsg[1];
-    int                   list_update = 0;
-    int                   scroll_init = 0;
+    int                   list_update = false;
+    int                   scroll_init = false;
     int                   next = -1;
     int                   key;
     int                   button;
@@ -7568,12 +7619,16 @@ int GyoraceMenuKey() {
     char                 *name;
     GYORACE_DATA         *racer;
 
-    GyoraceHaveFishListScrlInit = 0;
+    GyoraceHaveFishListScrlInit = false;
     key = MenuCommonInfo->CheckSelectKey();
     key |= MenuCommonInfo->CheckLRKey();
     button = MenuCommonInfo->CheckPushButton();
     old_top = GyoraceFishHaveListSelect.top;
-    /** Keeps the selected saved-racer slot through the tactics prompt. */
+    /**
+     *
+     * Keeps the selected saved-racer slot through the tactics prompt.
+     *
+     */
     static s8 save_now_space_racer_no = 0;
 
     switch (GyoraceNowMode) {
@@ -7606,8 +7661,8 @@ int GyoraceMenuKey() {
                 Tex_Aqualium = textures->GetTexture("amenu0", -1);
                 MenuLoadBoardTex = textures->GetTexture("mt0", -1);
                 MenuPosData->AttachCommonTexInfo();
-                scroll_init = 1;
-                GyoraceHaveFishListScrlInit = scroll_init;
+                scroll_init = true;
+                GyoraceHaveFishListScrlInit = true;
             }
 
             break;
@@ -7619,7 +7674,7 @@ int GyoraceMenuKey() {
 
                 racer_num = 0;
 
-                for (i = 0; i < 6; i++) {
+                for (i = 0; i < OMAKE_RACER_SLOT_NUM; i++) {
                     if (0 <= GyoracerIndexNo[i]) {
                         racer_num++;
                     }
@@ -7632,7 +7687,7 @@ int GyoraceMenuKey() {
                     case GYORACE_COMMAND_REGISTER:
                         if (space == NULL) {
                             GyoraceNowMode = GYORACE_MENU_REGISTER_FULL;
-                            GyoraceQuestionMsgDrawFlag = se;
+                            GyoraceQuestionMsgDrawFlag = true;
                             GyoraceMes->cursor_on = 0;
                             GyoraceCFGAnalyze("\x93\x6f\x98\x5e\x95\x73\x89\xc2");
                             se = SYSTEM_SE_CANCEL;
@@ -7655,28 +7710,28 @@ int GyoraceMenuKey() {
                             GyoraceNowMode = GYORACE_MENU_DELETE_FISH;
                         }
 
-                        list_update = 1;
+                        list_update = true;
                         GyoraceMes->cursor_on = 0;
-                        GyoraceMesDrawFlag = 0;
-                        GyoraceFishHaveDrawFlag = list_update;
-                        GyoraceHaveFishCursorDrawFlag = list_update;
-                        GyoraceHaveFishListScrlInit = list_update;
+                        GyoraceMesDrawFlag = false;
+                        GyoraceFishHaveDrawFlag = true;
+                        GyoraceHaveFishCursorDrawFlag = true;
+                        GyoraceHaveFishListScrlInit = true;
                         break;
                     case GYORACE_COMMAND_WITHDRAW:
                         if (racer_num <= 0) {
                             se = SYSTEM_SE_CANCEL;
                         } else {
                             GyoraceNowMode = GYORACE_MENU_WITHDRAW_CONFIRM;
-                            GyoraceQuestionMsgDrawFlag = se;
+                            GyoraceQuestionMsgDrawFlag = true;
                             GyoraceCFGAnalyze("\x8e\x51\x89\xc1\x8e\xe6\x8f\xc1\x81\x48");
                         }
 
                         break;
                     case GYORACE_COMMAND_TACTICS:
                         GyoraceNowMode = GYORACE_MENU_VIEW_TACTICS;
-                        GyoraceFishInfoDrawFlag = se;
+                        GyoraceFishInfoDrawFlag = true;
                         GyoracerActive = NULL;
-                        GyoraceFishTacMesDrawFlag = se;
+                        GyoraceFishTacMesDrawFlag = true;
                         tactics_mes->MsgPreset(6);
                         tactics_mes->MakeMsg(0x139A);
 
@@ -7693,7 +7748,7 @@ int GyoraceMenuKey() {
                             se = SYSTEM_SE_CANCEL;
                         } else {
                             GyoraceNowMode = GYORACE_MENU_START_CONFIRM;
-                            GyoraceQuestionMsgDrawFlag = se;
+                            GyoraceQuestionMsgDrawFlag = true;
                             GyoraceCFGAnalyze("\x8b\xa3\x8b\x5a\x8a\x4a\x8e\x6e\x81\x48");
                         }
 
@@ -7744,12 +7799,12 @@ int GyoraceMenuKey() {
             break;
         case GYORACE_MENU_ASSIGN_FISH:
             if (MenuKeySelectCheck(OmakeGyoraceSelect(key), &GyoraceFishHaveListSelect.cursor,
-                                   &GyoraceFishHaveListSelect.top, 0, 0x40, 9, (int) MENU_CURSOR_LIMIT_CLAMP) != 0) {
+                                   &GyoraceFishHaveListSelect.top, 0, 0x40, 9, MENU_CURSOR_LIMIT_CLAMP) != 0) {
                 MenuSePlay(SYSTEM_SE_CURSOR);
 
                 if (old_top != GyoraceFishHaveListSelect.top) {
                     GyoraceHaveFishListMakeLine = (old_top < GyoraceFishHaveListSelect.top) ? 1 : 0;
-                    list_update = 1;
+                    list_update = true;
                 }
             }
 
@@ -7768,12 +7823,12 @@ int GyoraceMenuKey() {
                     GyoracerIndexNo[slot] = GyoraceFishHaveListSelect.cursor;
                     GyoracerListUpdate();
                     GyoracerTacticsNo[slot] = 0;
-                    list_update = 1;
-                    GyoraceFishTacMesDrawFlag = list_update;
+                    list_update = true;
+                    GyoraceFishTacMesDrawFlag = true;
                     GyoraceCFGAnalyze("\x8d\xec\x90\xed\x91\x49\x91\xf0");
                     tactics_mes->SetMsgItemNo(vol, 6);
-                    tactics_mes->select_top = list_update;
-                    tactics_mes->SetWindowBgOpaqueFlg(list_update);
+                    tactics_mes->select_top = 1;
+                    tactics_mes->SetWindowBgOpaqueFlg(1);
                     GyoraceNowMode = GYORACE_MENU_SELECT_TACTICS;
                 }
             } else if (button & MENU_PUSH_BUTTON_CANCEL) {
@@ -7805,7 +7860,7 @@ int GyoraceMenuKey() {
                 GyoraceNowMode = GYORACE_MENU_TACTICS_RESULT;
             } else if (button & MENU_PUSH_BUTTON_CANCEL) {
                 MenuSePlay(SYSTEM_SE_CANCEL);
-                GyoraceFishTacMesDrawFlag = 0;
+                GyoraceFishTacMesDrawFlag = false;
                 tactics_mes->SetWindowBgOpaqueFlg(0);
                 GyoraceNowMode = GYORACE_MENU_ASSIGN_FISH;
             }
@@ -7814,19 +7869,19 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_TACTICS_RESULT:
             if (button != 0) {
                 MenuSePlay(SYSTEM_SE_DECIDE);
-                GyoraceFishTacMesDrawFlag = 0;
+                GyoraceFishTacMesDrawFlag = false;
                 GyoraceNowMode = GYORACE_MENU_ASSIGN_FISH;
             }
 
             break;
         case GYORACE_MENU_DELETE_FISH:
             if (MenuKeySelectCheck(OmakeGyoraceSelect(key), &GyoraceFishHaveListSelect.cursor,
-                                   &GyoraceFishHaveListSelect.top, 0, 0x40, 9, (int) MENU_CURSOR_LIMIT_CLAMP) != 0) {
+                                   &GyoraceFishHaveListSelect.top, 0, 0x40, 9, MENU_CURSOR_LIMIT_CLAMP) != 0) {
                 MenuSePlay(SYSTEM_SE_CURSOR);
 
                 if (old_top != GyoraceFishHaveListSelect.top) {
                     GyoraceHaveFishListMakeLine = (old_top < GyoraceFishHaveListSelect.top) ? 1 : 0;
-                    list_update = 1;
+                    list_update = true;
                 }
             }
 
@@ -7838,7 +7893,7 @@ int GyoraceMenuKey() {
                 } else if (racer->IsUsed() == 0) {
                     MenuSePlay(SYSTEM_SE_CANCEL);
                 } else {
-                    GyoraceQuestionMsgDrawFlag = 1;
+                    GyoraceQuestionMsgDrawFlag = true;
                     name = racer->fish.GetName(0);
 
                     if (0 <= CheckSameRacerFish(GyoraceFishHaveListSelect.cursor)) {
@@ -7866,22 +7921,22 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_DELETE_CONFIRM: {
             int answer = ask->YesNoCursor2(0);
 
-            if (answer == 1) {
+            if (answer == MES_YESNO_YES) {
                 racer = GyoraceData->GetData(GyoraceFishHaveListSelect.cursor);
 
                 if (racer != NULL) {
                     racer->Init();
                 }
 
-                list_update = 1;
+                list_update = true;
                 GyoraceNowMode = GYORACE_MENU_DELETE_FISH;
-                GyoraceQuestionMsgDrawFlag = 0;
-                MenuSePlay(list_update);
+                GyoraceQuestionMsgDrawFlag = false;
+                MenuSePlay(SYSTEM_SE_DECIDE);
             }
 
-            if (answer == 2) {
+            if (answer == MES_YESNO_NO) {
                 GyoraceNowMode = GYORACE_MENU_DELETE_FISH;
-                GyoraceQuestionMsgDrawFlag = 0;
+                GyoraceQuestionMsgDrawFlag = false;
                 MenuSePlay(SYSTEM_SE_CANCEL);
             }
 
@@ -7890,7 +7945,7 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_ALREADY_ASSIGNED:
             if (button != 0) {
                 GyoraceNowMode = GYORACE_MENU_DELETE_FISH;
-                GyoraceQuestionMsgDrawFlag = 0;
+                GyoraceQuestionMsgDrawFlag = false;
                 MenuSePlay(SYSTEM_SE_DECIDE);
             }
 
@@ -7898,13 +7953,13 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_WITHDRAW_CONFIRM: {
             int answer = ask->YesNoCursor2(0);
 
-            if (answer == 1) {
+            if (answer == MES_YESNO_YES) {
                 GyoraceSubGameInitData();
                 GyoracerListUpdate();
                 MenuSePlay(SYSTEM_SE_DECIDE);
             }
 
-            if (answer == 2) {
+            if (answer == MES_YESNO_NO) {
                 MenuSePlay(SYSTEM_SE_CANCEL);
             }
 
@@ -7917,7 +7972,7 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_ACKNOWLEDGE:
             if (button != 0) {
                 next = GYORACE_MENU_MAIN;
-                MenuSePlay(next);
+                MenuSePlay(SYSTEM_SE_DECIDE);
             }
 
             break;
@@ -7948,16 +8003,16 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_START_CONFIRM: {
             int answer = ask->YesNoCursor2(0);
 
-            if (answer == 1) {
+            if (answer == MES_YESNO_YES) {
                 GyoraceNowMode = GYORACE_MENU_START_FADE;
                 MenuArg.end_code = 0x11;
                 MenuArg.result[0] = 1000;
-                GyoraceQuestionMsgDrawFlag = 0;
+                GyoraceQuestionMsgDrawFlag = false;
                 MenuMainScene->fade.FadeOut(40, 0.0f, 0.0f, 0.0f);
                 MenuSePlay(SYSTEM_SE_DECIDE);
             }
 
-            if (answer == 2) {
+            if (answer == MES_YESNO_NO) {
                 next = GYORACE_MENU_MAIN;
                 MenuSePlay(SYSTEM_SE_CANCEL);
             }
@@ -7979,10 +8034,10 @@ int GyoraceMenuKey() {
             break;
         case GYORACE_MENU_SAVE:
             if (0 < MenuSaveKey()) {
-                MenuLoadFishIsLoad = 0;
+                MenuLoadFishIsLoad = false;
 
-                if (MenuArg.end_code == 10) {
-                    MenuLoadFishIsLoad = 1;
+                if (MenuArg.end_code == SAVE_MENU_END_LOAD) {
+                    MenuLoadFishIsLoad = true;
                 }
 
                 next = GYORACE_MENU_RETURN_FROM_SAVE;
@@ -7996,7 +8051,7 @@ int GyoraceMenuKey() {
             if (MenuMainScene->fade.FadeCheck() != 0) {
                 next = GYORACE_MENU_MAIN;
 
-                if (MenuLoadFishIsLoad == 1) {
+                if (MenuLoadFishIsLoad == true) {
                     next = GYORACE_MENU_LOAD_FISH;
                 }
             }
@@ -8030,7 +8085,7 @@ int GyoraceMenuKey() {
         case GYORACE_MENU_ASSIGN_CONFIRM: {
             int answer = ask->YesNoCursor2(0);
 
-            if (answer == 1) {
+            if (answer == MES_YESNO_YES) {
                 MenuSePlay(SYSTEM_SE_DECIDE);
 
                 if (GyoraceNowMode == GYORACE_MENU_RESET_CONFIRM) {
@@ -8047,16 +8102,16 @@ int GyoraceMenuKey() {
                         ForceSetGyoList();
                         space->Init();
                         space->fish.CopyGameData(MenuLoadFishSelectData);
-                        list_update = 1;
+                        list_update = true;
                         next = GYORACE_MENU_ASSIGN_RESULT;
-                        GyoraceHaveFishListScrlInit = list_update;
+                        GyoraceHaveFishListScrlInit = true;
                     } else {
                         break;
                     }
                 }
             }
 
-            if (answer == 2) {
+            if (answer == MES_YESNO_NO) {
                 MenuSePlay(SYSTEM_SE_CANCEL);
 
                 if (GyoraceNowMode == GYORACE_MENU_RESET_CONFIRM) {
@@ -8084,16 +8139,16 @@ int GyoraceMenuKey() {
     if (0 <= next) {
         switch (next) {
             case GYORACE_MENU_MAIN:
-                GyoraceMesDrawFlag = 1;
-                GyoraceFishHaveDrawFlag = 0;
-                GyoraceFishInfoDrawFlag = 0;
-                GyoraceFishTacMesDrawFlag = 0;
-                GyoraceQuestionMsgDrawFlag = 0;
+                GyoraceMesDrawFlag = true;
+                GyoraceFishHaveDrawFlag = false;
+                GyoraceFishInfoDrawFlag = false;
+                GyoraceFishTacMesDrawFlag = false;
+                GyoraceQuestionMsgDrawFlag = false;
                 GyoraceMes->cursor_on = 1;
                 GyoraceFishMes->SetMsgCursor(-1);
                 break;
             case GYORACE_MENU_RETURN_FROM_SAVE:
-                GyoraceFishInfoDrawFlag = 0;
+                GyoraceFishInfoDrawFlag = false;
 
                 if (MenuLoadFishIsLoad != 0) {
                     int bag_max;
@@ -8104,25 +8159,25 @@ int GyoraceMenuKey() {
                     bag_max = GetNowBagMax(1);
                     MenuItemBrdSetInfo(MenuLoadFishSelect, MenuLoadFishTopLine, bag_max / 6, 5);
                     MenuItemBrdCalcManner = 0;
-                    list_update = 1;
+                    list_update = true;
                     GyoraceMes->cursor_on = 0;
                     Gyoracemenu_CursorXY[0] = 206.0f;
                     Gyoracemenu_CursorXY[1] = 28.0f;
                     MenuLoadFishBoardX = 0x208;
-                    GyoraceFishInfoDrawFlag = list_update;
+                    GyoraceFishInfoDrawFlag = true;
                     GyoracerActive = NULL;
                 }
 
                 break;
             case GYORACE_MENU_LOAD_FISH:
                 SetModeMenuDrawItemBoard(4);
-                GyoraceQuestionMsgDrawFlag = 0;
-                GyoraceFishHaveDrawFlag = 1;
-                GyoraceHaveFishCursorDrawFlag = 0;
+                GyoraceQuestionMsgDrawFlag = false;
+                GyoraceFishHaveDrawFlag = true;
+                GyoraceHaveFishCursorDrawFlag = false;
                 break;
             case GYORACE_MENU_RESET_CONFIRM:
             case GYORACE_MENU_ASSIGN_CONFIRM:
-                GyoraceQuestionMsgDrawFlag = 1;
+                GyoraceQuestionMsgDrawFlag = true;
                 ask->MsgPreset(0xB);
                 ask->SetAbsPos(5);
                 ask->SetMsgCursor(1);
@@ -8271,12 +8326,10 @@ void GyoraceMenuDraw() {
             textures->ReloadTexture(GyoraceTexBlock[1], (sceVif1Packet *) NULL);
 
             if (LanguageCode == 0) {
-
                 DrawSubGameTitle(GyoraceFishTex, 0, 0x116, 0x1E, 0xA0);
                 title.Set(0, 0x9E, 0x6C, 0x18);
                 PrimQuad(prim, GyoraceFishTex, 305.0f, 42.0f, title, 0x80, 0x80, 0x80, 0x80);
             } else {
-
                 DrawSubGameTitle(GyoraceFishTex, 0, 0x116, 0x1E, 0xA8);
                 wide_title.Set(0, 0x9E, 0x74, 0x18);
                 PrimQuad(prim, GyoraceFishTex, 305.0f, 42.0f, wide_title, 0x80, 0x80, 0x80, 0x80);
@@ -8320,7 +8373,7 @@ void GyoraceMenuDraw() {
                     list_rect[2] = 0xE4;
                     list_rect[3] = 0x118;
                     scroll[1] = 0x25;
-                    CalcMenu1(4.125f * GyoraceFishHaveListSelect.top, &GyoraceHaveFishListScrlBarY, 4.0f, float(2),
+                    CalcMenu1(4.125f * GyoraceFishHaveListSelect.top, &GyoraceHaveFishListScrlBarY, 4.0f, 2.0f,
                               GyoraceHaveFishListScrlInit);
                     scroll[0] = fptosi(GyoraceHaveFishListScrlBarY);
                     y = fptosi(21.0f + (112.0f + GyoraceHaveFishListTopY));
@@ -8355,7 +8408,6 @@ void GyoraceMenuDraw() {
             GyoraceFishMes->DrawMsg();
 
             if (GyoraceFishHaveDrawFlag != 0) {
-
                 have_clip.Set(0x14, 0x6D, 0xD2, 0x158);
                 SetMenuScissor(have_clip);
                 GyoraceFishHave->DrawMsg();
@@ -8381,11 +8433,11 @@ void GyoraceMenuDraw() {
             }
 
             board_x = MenuLoadFishBoardX;
-            show_cursor = 0;
+            show_cursor = false;
 
             switch (GyoraceNowMode) {
                 case GYORACE_MENU_LOAD_FISH:
-                    show_cursor = 1;
+                    show_cursor = true;
                 case GYORACE_MENU_RESET_CONFIRM:
                 case GYORACE_MENU_ASSIGN_CONFIRM:
                 case GYORACE_MENU_ASSIGN_RESULT:
@@ -8426,7 +8478,7 @@ void GyoraceMenuDraw() {
                 float accel = 2.0f;
                 float speed = 4.0f;
                 CalcMenu1(target_x, Gyoracemenu_CursorXY, speed, accel, 0);
-                CalcMenu1(target_y, Gyoracemenu_CursorXY + 1, speed, accel, 0);
+                CalcMenu1(target_y, &Gyoracemenu_CursorXY[1], speed, accel, 0);
 
                 if (board_x <= 0xE0) {
                     PrimQuad(prim, GyoraceCursor, Gyoracemenu_CursorXY[0], Gyoracemenu_CursorXY[1], menu_long_hand,
@@ -8449,7 +8501,7 @@ void GyoraceMenuDraw() {
         Gyoracemenu_long_hand_count = 0;
     }
 
-    GyoraceHaveFishListScrlInit = 0;
+    GyoraceHaveFishListScrlInit = false;
 }
 
 void DrawSubGameTitle(mgCTexture *texture, int large, int x, int y, int width) {

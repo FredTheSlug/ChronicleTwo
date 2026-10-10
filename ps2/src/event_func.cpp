@@ -7910,8 +7910,8 @@ static int _GET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
                 return false;
             }
 
-            SetStack(stack++, info.unk_0);
-            SetStack(stack++, info.unk_4);
+            SetStack(stack++, info.item_no);
+            SetStack(stack++, info.num);
             break;
         case EVENT_GET_GYORACE_TOUR: {
             CSaveData *save = GetSaveData();
@@ -10614,8 +10614,8 @@ static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
                 return false;
             }
 
-            SetStack(stack++, prize.unk_0);
-            SetStack(stack, prize.unk_4);
+            SetStack(stack++, prize.item_no);
+            SetStack(stack, prize.num);
             break;
         case EVENT_GET_FISHING_ENTRY_LEFT:
             tournament = GetFishTournament();

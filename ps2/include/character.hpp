@@ -426,10 +426,20 @@ public:
     CHRINFO_EFFECT_IMAGE *effect_image_list;                    /**< IMG archives that the effects entered. */
     s32                   effect_enable;                        /**< Nonzero while motions start their effects. */
 
+    /**
+     *
+     * Returns the width of the body.
+     *
+     */
     float GetBodyWidth() {
         return body_width;
     }
 
+    /**
+     *
+     * Returns the height of the body.
+     *
+     */
     float GetBodyHeight() {
         return body_height;
     }
@@ -545,7 +555,7 @@ public:
      * @address 0x176670
      * @size 0x110
      */
-    virtual void LoadChrFile(unsigned int *pack, char *name, mgCMemory *a, mgCMemory *b, mgCMemory *c, int d, CCharacter2 *e, int with_line);
+    virtual void LoadChrFile(unsigned int *pack, char *name, mgCMemory *model_stack, mgCMemory *motion_stack, mgCMemory *image_stack, int image_block, CCharacter2 *parent, int with_line);
 
     /**
      *

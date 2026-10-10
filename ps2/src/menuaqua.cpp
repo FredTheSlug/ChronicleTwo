@@ -1791,14 +1791,8 @@ void CAquaFish::Initialize() {
 }
 
 void CAquaFish::SetLiveParam(CGameDataUsed *item) {
-
-    u16 value;
-    int base;
-
     data = item;
-    value = data->data.fish.param[BREEDFISH_STAT_STAMINA];
-    base = ((value / 10) + (value >> 0x1F));
-    fatigue_max = (base + (GetRandI(0x14) + 0x1A)) * 0x14;
+    fatigue_max = (data->data.fish.param[BREEDFISH_STAT_STAMINA] / 10 + (GetRandI(20) + 26)) * 20;
     fatigue = 0;
 }
 

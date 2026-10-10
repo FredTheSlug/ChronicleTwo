@@ -2082,7 +2082,6 @@ void CAutoMapGen::SetHealingPointIndex() {
 }
 
 void CAutoMapGen::CreatFixedMap(int preset_no) {
-    CAutoMapParts     *cell;
     int                i;
     AUTOMAP_ROOM_INFO *preset = &room_info[preset_no];
     int                preset_width;
@@ -2092,16 +2091,7 @@ void CAutoMapGen::CreatFixedMap(int preset_no) {
     int                x;
 
     for (i = 0; i < grid_w * grid_h; i++) {
-        cell = &grid[i];
-        cell->parts_no = -1;
-        cell->attr = 0;
-        cell->kind = 0;
-        cell->room_no = -1;
-        cell->road_link = 0;
-        cell->link = 0;
-        cell->visible = false;
-        cell->wall = -1;
-        cell->parts = NULL;
+        grid[i].Initialize();
     }
 
     for (i = 0; i < AUTOMAP_ROOM_MAX; i++) {

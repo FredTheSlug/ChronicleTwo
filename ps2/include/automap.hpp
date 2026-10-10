@@ -106,10 +106,10 @@ enum AUTOMAP_GEN_FLAG {
  *
  */
 enum AUTOMAP_PARTS_NO {
-    AUTOMAP_PARTS_DEAD_END = 0x1C,   /**< First of the four corridor dead ends ("way28" to "way31"), one per side. */
-    AUTOMAP_PARTS_ROOM_ALT = 0x6C,   /**< First room part of the second room family ("room28"). */
-    AUTOMAP_PARTS_HEALING = 0x88,    /**< First of the four healing point room parts ("room56" to "room59"). */
-    AUTOMAP_PARTS_STEP_DOOR = 0xE8,  /**< First of the eight stepped entrances that never take a door ("door56" to "door63"). */
+    AUTOMAP_PARTS_DEAD_END = 0x1C,  /**< First of the four corridor dead ends ("way28" to "way31"), one per side. */
+    AUTOMAP_PARTS_ROOM_ALT = 0x6C,  /**< First room part of the second room family ("room28"). */
+    AUTOMAP_PARTS_HEALING = 0x88,   /**< First of the four healing point room parts ("room56" to "room59"). */
+    AUTOMAP_PARTS_STEP_DOOR = 0xE8, /**< First of the eight stepped entrances that never take a door ("door56" to "door63"). */
 };
 
 /**
@@ -198,10 +198,10 @@ STATIC_ASSERT(sizeof(AUTOMAP_ROOM_INFO) == 0x18);
  */
 struct AUTOMAP_ROOM {
     s32 no_door; /**< Non-zero keeps the floor's door out of the room. */
-    s32 x; /**< First cell of the room along a row. */
-    s32 y; /**< First row of the room. */
-    s32 w; /**< Width of the room in cells. */
-    s32 h; /**< Height of the room in rows. */
+    s32 x;       /**< First cell of the room along a row. */
+    s32 y;       /**< First row of the room. */
+    s32 w;       /**< Width of the room in cells. */
+    s32 h;       /**< Height of the room in rows. */
 };
 
 STATIC_ASSERT(sizeof(AUTOMAP_ROOM) == 0x14);
@@ -383,28 +383,28 @@ STATIC_ASSERT(sizeof(CHealingPoint) == 0x8);
  */
 class CAutoMapGen {
 public:
-    CMapParts         *gio_parts;        /**< Placed "p01_gio" part. */
+    CMapParts         *gio_parts;                              /**< Placed "p01_gio" part. */
     CMapParts         *random_stone[AUTOMAP_RANDOM_STONE_MAX]; /**< Placed "obj01" parts used as random stones. */
-    CMapParts         *pot_parts;        /**< Placed "obj02" part used by the pot. */
-    s16                random_map;       /**< Non-zero once a random floor has been generated. */
-    s16                minimap_enable;   /**< Non-zero once Build has run, letting the mini map reveal cells. */
-    u32                gen_flag;         /**< Generation options, an AUTOMAP_GEN_FLAG combination. */
-    CMiniMapSymbol     mini_map;         /**< Mini map of the floor. */
-    CHealingPoint      healing_point;    /**< Healing point of the floor. */
-    s16                grid_w;           /**< Width of the grid in cells. */
-    s16                grid_h;           /**< Height of the grid in cells. */
-    float              cell_w;           /**< Width of a cell along X in world units. */
-    float              cell_d;           /**< Depth of a cell along Z in world units. */
-    AUTOMAP_ROOM_INFO *room_info;        /**< Preset room layouts read from the room script. */
-    s32                room_info_num;    /**< Number of entries of room_info in use. */
-    CAutoMapParts     *grid;             /**< Cells of the grid, row by row. */
-    s32                place_parts_num;  /**< Number of parts placed in the map. */
-    AUTOMAP_ROOM       room[AUTOMAP_ROOM_MAX];          /**< Rooms of the generated floor. */
-    s32                room_num;         /**< Number of entries of room in use. */
-    s32                door_room;        /**< Room whose entrance has a door, or -1. */
-    s32                navi_valid;       /**< Non-zero once the navigation distances have been worked out. */
-    s32                navi_depth;       /**< Step count given to the navigation target. */
-    s32                navi_enable;      /**< Non-zero once Build has run, enabling navigation. */
+    CMapParts         *pot_parts;                              /**< Placed "obj02" part used by the pot. */
+    s16                random_map;                             /**< Non-zero once a random floor has been generated. */
+    s16                minimap_enable;                         /**< Non-zero once Build has run, letting the mini map reveal cells. */
+    u32                gen_flag;                               /**< Generation options, an AUTOMAP_GEN_FLAG combination. */
+    CMiniMapSymbol     mini_map;                               /**< Mini map of the floor. */
+    CHealingPoint      healing_point;                          /**< Healing point of the floor. */
+    s16                grid_w;                                 /**< Width of the grid in cells. */
+    s16                grid_h;                                 /**< Height of the grid in cells. */
+    float              cell_w;                                 /**< Width of a cell along X in world units. */
+    float              cell_d;                                 /**< Depth of a cell along Z in world units. */
+    AUTOMAP_ROOM_INFO *room_info;                              /**< Preset room layouts read from the room script. */
+    s32                room_info_num;                          /**< Number of entries of room_info in use. */
+    CAutoMapParts     *grid;                                   /**< Cells of the grid, row by row. */
+    s32                place_parts_num;                        /**< Number of parts placed in the map. */
+    AUTOMAP_ROOM       room[AUTOMAP_ROOM_MAX];                 /**< Rooms of the generated floor. */
+    s32                room_num;                               /**< Number of entries of room in use. */
+    s32                door_room;                              /**< Room whose entrance has a door, or -1. */
+    s32                navi_valid;                             /**< Non-zero once the navigation distances have been worked out. */
+    s32                navi_depth;                             /**< Step count given to the navigation target. */
+    s32                navi_enable;                            /**< Non-zero once Build has run, enabling navigation. */
     s32                unk_298[2];
 
     /**

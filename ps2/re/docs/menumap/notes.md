@@ -101,6 +101,9 @@ MapEnableNum (static s16) counts enabled areas.
   select, 301 clear ask, 400 quit ask. Top choices (Japanese): 0 play, 1 password, 2 clear,
   3 quit; other languages remap 1->2, 2->3 (no password entry).
 - `WMAP_POS_TYPE`: only 4 (Georama) has a known meaning.
+- `WMAP_NAME_SIDE` (WMAP_AREA_DATA::name_side): 0 right of name_x, 1 left of it.
+- `WORLD_MAP_MENU_TYPE` (WorldMapMenuType): 0 world map, 1 dungeon tree map.
+- `MenuArg.end_code` uses `MenuEndCode` (MENU_END_WORLD_MOVE, MENU_END_SPHIDA_START).
 - Names of all enums are invented.
 
 ## Globals (all file-local in retail -> `static` in menumap.cpp, no externs in the header)

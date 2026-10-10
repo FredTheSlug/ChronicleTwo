@@ -986,7 +986,7 @@ int MenuMainInit(MENU_INIT_ARG *arg) {
     MenuSePlayUsedFlag = 0;
     MenuCommonInfo->user_data = MenuArg.user_data;
     MenuPrevEndCode = MenuArg.end_code;
-    MenuArg.end_code = 0;
+    MenuArg.end_code = MENU_END_NONE;
     MenuCommonInfo->pack = init_arg->pack;
     MenuCommonInfo->pack_size = init_arg->pack_size;
     mgCTextureManager *texture_manager = &mgTexManager;
@@ -1129,7 +1129,7 @@ int MenuMainInit(MENU_INIT_ARG *arg) {
     SetCommonMenuModeID();
     int sound = -1;
     CMenuInterPt = NULL;
-    MenuInterMesDrawFlag = 0;
+    MenuInterMesDrawFlag = false;
     MenuInterMes = NULL;
 
     switch (MenuCommonInfo->open_type) {
@@ -1702,7 +1702,8 @@ int CursorSaveOptionState() {
     int        r = 0;
 
     if (save_data != NULL) {
-        r = (u8) !*(int *) &save_data->config;
+        SV_CONFIG_OPTION *config = save_data->GetConfig();
+        r = (u8) !config->cursor_save;
     }
 
     return r;
@@ -2168,7 +2169,7 @@ void MenuBaseTextureReEnter() {
     int                block = MenuCommonInfo->tex_block[1];
     tex->DeleteBlock(block);
     MenuMainImageDataEnter(block);
-    u_int *pack = (unsigned int *) MenuMainTextureReadBuf.stack;
+    u_int *pack = (u_int *) MenuMainTextureReadBuf.stack;
     int           size;
     tex->EnterIMGFile((u8 *) GetPackFile(pack, "edmenu.img", NULL), block, 0, 0);
     tex->EnterIMGFile((u8 *) GetPackFile(pack, "allitem.img", &size), block, 0, 0);

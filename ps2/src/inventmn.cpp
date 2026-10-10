@@ -962,7 +962,7 @@ int CInventUserData::CountNeta() {
     do {
         subject = user_data->photo_subject[slot];
 
-        if (0 < subject && subject < 1000) {
+        if (0 < subject && subject < INVENT_NETA_ID_SCOOP) {
             count++;
         }
 
@@ -985,7 +985,7 @@ int CInventUserData::CountScoop() {
     do {
         subject = user_data->photo_subject[slot];
 
-        if (subject >= 1000 && subject < 10000) {
+        if (subject >= INVENT_NETA_ID_SCOOP && subject < INVENT_NETA_ID_SCOOP_END) {
             count++;
         }
 
@@ -1044,7 +1044,7 @@ int CInventUserData::CalcPhotoExp() {
         subject = user_data->photo_subject[slot];
 
         if (subject > 0) {
-            if (subject < 1000) {
+            if (subject < INVENT_NETA_ID_SCOOP) {
                 experience += 2;
             } else {
                 experience += 5;
@@ -1200,13 +1200,13 @@ SCOOP_DATA *GetScoopDataTable(int scoop_id) {
         }
 
         i++;
-    } while (i < 53);
+    } while (i < INVENT_SCOOP_TABLE_NUM);
 
     return NULL;
 }
 
 SCOOP_DATA *GetScoopDataTableIndex(int index) {
-    if (index < 0 || index >= 53) {
+    if (index < 0 || index >= INVENT_SCOOP_TABLE_NUM) {
         return NULL;
     }
 
@@ -1216,7 +1216,7 @@ SCOOP_DATA *GetScoopDataTableIndex(int index) {
 void InitScoopString() {
     int i;
 
-    for (i = 0; i < 53; i++) {
+    for (i = 0; i < INVENT_SCOOP_TABLE_NUM; i++) {
         scoop_table[i].text = NULL;
         scoop_table[i].unk_c = 0;
         scoop_table[i].unk_10 = 0;
@@ -1289,17 +1289,16 @@ int CScoopDataManager::KnowScoop() {
         entry = GetScoopDataTableIndex(index);
 
         if (entry != NULL) {
-            info = GetScoopInfo((int) entry->scoop_id);
+            info = GetScoopInfo(entry->scoop_id);
 
-            if ((info != NULL) && (CheckBitFlagMenu((int) entry->flag_no) != 0) &&
-                (info->known == 0)) {
-                SetViewFlag((int) entry->scoop_id, 1);
+            if (info != NULL && CheckBitFlagMenu(entry->flag_no) != 0 && info->known == 0) {
+                SetViewFlag(entry->scoop_id, true);
                 count += 1;
             }
         }
 
         index += 1;
-    } while (index < 53);
+    } while (index < INVENT_SCOOP_TABLE_NUM);
 
     return count;
 }
@@ -1311,6 +1310,7 @@ int CScoopDataManager::CheckScoop() {
     USER_PICTURE_INFO *photo;
     SCOOP_INFO        *info;
     int                neta;
+
     user = GetInventUserDataPtr();
     n = 0;
 
@@ -1326,7 +1326,7 @@ int CScoopDataManager::CheckScoop() {
 
             if (info != NULL && info->obtained == 0) {
                 n++;
-                info->obtained = 1;
+                info->obtained = true;
             }
         }
     }
@@ -1334,12 +1334,12 @@ int CScoopDataManager::CheckScoop() {
     for (i = 0; i < 0x200; i++) {
         neta = user->GetNetaID(i);
 
-        if (neta >= 1000) {
+        if (neta >= INVENT_NETA_ID_SCOOP) {
             info = GetScoopInfo(neta);
 
             if (info != NULL && info->obtained == 0) {
                 n++;
-                info->obtained = 1;
+                info->obtained = true;
             }
         }
     }
@@ -1361,7 +1361,7 @@ int CScoopDataManager::GetScoopTotal(int *total) {
     } while (i < 0x80);
 
     if (total != NULL) {
-        *total = 53;
+        *total = INVENT_SCOOP_TABLE_NUM;
     }
 
     return count;
@@ -1489,16 +1489,16 @@ char *GetPhotoName(USER_PICTURE_INFO *info) {
 int GetPhotoNameStr(int neta_id, char *dest) {
     USER_PICTURE_INFO info;
     char             *name;
-    info.used = 1;
+    info.used = true;
     info.neta_id = neta_id;
     name = GetPhotoName(&info);
 
     if (name == NULL) {
-        return 1;
+        return true;
     }
 
     strcpy(dest, name);
-    return 0;
+    return false;
 }
 
 char *GetPhotoNameCheck(USER_PICTURE_INFO *info) {
@@ -1514,7 +1514,7 @@ char *GetPhotoNameCheck(USER_PICTURE_INFO *info) {
         if (0 < neta_id) {
             prefix = addstringtable_1722[0];
 
-            if (neta_id >= 1000) {
+            if (neta_id >= INVENT_NETA_ID_SCOOP) {
                 prefix = addstringtable_1722[1];
             }
 
@@ -1596,7 +1596,7 @@ int CInventDataManage::CheckInventEnable(int *ids, int *combined) {
 
                 for (k = 0; k < 3; k++) {
                     if (want[j] == ids[k]) {
-                        found[j] = 1;
+                        found[j] = true;
                     }
                 }
             }
@@ -1611,7 +1611,7 @@ int CInventDataManage::CheckInventEnable(int *ids, int *combined) {
             }
 
             if (combined != NULL && count >= 2) {
-                *combined = 1;
+                *combined = true;
             }
 
             if (found[0] != 0 && found[1] != 0 && found[2] != 0) {
@@ -1630,13 +1630,13 @@ int CInventDataManage::HowMuchZairyouMakeItem(int item_id, int count, int *needs
     MakeItemNeeds        *result;
 
     if (needs == NULL) {
-        return 0;
+        return false;
     }
 
     make_material = GetInventDataInfoByItemID(item_id);
 
     if (make_material == NULL) {
-        return 0;
+        return false;
     }
 
     list = &make_material->materials;
@@ -1658,7 +1658,7 @@ int CInventDataManage::HowMuchZairyouMakeItem(int item_id, int count, int *needs
         } while (i < 4);
     }
 
-    return 1;
+    return true;
 }
 
 int CInventDataManage::DeleteUserUsedItem(int item_id, int count) {
@@ -1666,11 +1666,12 @@ int CInventDataManage::DeleteUserUsedItem(int item_id, int count) {
     INVENT_MATERIAL_LIST *list;
     int                   i;
     INVENT_MATERIAL      *material;
+
     make_material = GetInventDataInfoByItemID(item_id);
     list = &make_material->materials;
 
     if (make_material == NULL) {
-        return 0;
+        return false;
     }
 
     i = 0;
@@ -1686,7 +1687,7 @@ int CInventDataManage::DeleteUserUsedItem(int item_id, int count) {
         i++;
     }
 
-    return 1;
+    return true;
 }
 
 int CInventDataManage::CheckMakeItem(int item_id, int count, CGameDataUsed *item) {
@@ -1788,7 +1789,7 @@ static SPI_TAG_PARAM invent_teigi_func[3] = {
 
 int CInventDataManage::LoadAnalyzeInventFile(char *script, int size) {
     if (script == NULL) {
-        return 0;
+        return false;
     }
 
     InventManagePt = this;
@@ -1798,7 +1799,7 @@ int CInventDataManage::LoadAnalyzeInventFile(char *script, int size) {
     interpreter.SetTag(invent_teigi_func);
     interpreter.SetScript(script, size);
     interpreter.Run();
-    return 1;
+    return true;
 }
 
 int CheckInventItem(int item_id) {
@@ -1810,6 +1811,7 @@ int CheckInventItem(int item_id) {
     INVENT_DATA_INFO *record;
     short            *neta_id;
     int               i;
+
     manage.num = 0;
     manage.table = NULL;
     buffer = (char *) MenuCalcBufAlignment((u_long128 *) align_buffer);
@@ -1820,7 +1822,7 @@ int CheckInventItem(int item_id) {
     record = manage.GetInventDataInfoByItemID(item_id);
 
     if (record == NULL) {
-        return 0;
+        return false;
     }
 
     neta_id = record->neta_id;
@@ -1829,20 +1831,20 @@ int CheckInventItem(int item_id) {
     for (i = 0; i < 30; i++) {
         USER_PICTURE_INFO *photo = InventUserDataPtr->GetPhotoInfo(i);
 
-        if (*(signed char *) &photo->used != 0) {
+        if (photo->used != 0) {
             short photo_neta = photo->neta_id;
 
             if (photo_neta > 0) {
                 if (neta_id[0] == photo_neta) {
-                    found[0] = 1;
+                    found[0] = true;
                 }
 
                 if (neta_id[1] == photo_neta) {
-                    found[1] = 1;
+                    found[1] = true;
                 }
 
                 if (neta_id[2] == photo_neta) {
-                    found[2] = 1;
+                    found[2] = true;
                 }
             }
         }
@@ -1852,23 +1854,23 @@ int CheckInventItem(int item_id) {
         int memo_neta = InventUserDataPtr->GetNetaID(i);
 
         if (neta_id[0] == memo_neta) {
-            found[0] = 1;
+            found[0] = true;
         }
 
         if (neta_id[1] == memo_neta) {
-            found[1] = 1;
+            found[1] = true;
         }
 
         if (neta_id[2] == memo_neta) {
-            found[2] = 1;
+            found[2] = true;
         }
     }
 
     if (found[0] != 0 && found[1] != 0 && found[2] != 0) {
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int CheckItemTable(int item_id, int *values) {
@@ -1878,6 +1880,7 @@ int CheckItemTable(int item_id, int *values) {
     char              teigi_buffer[0x4000];
     char             *buffer;
     INVENT_DATA_INFO *record;
+
     manage.num = 0;
     manage.table = NULL;
     buffer = (char *) MenuCalcBufAlignment((u_long128 *) align_buffer);
@@ -1906,6 +1909,7 @@ int CheckInventPhoto(int id, int kind) {
     int                count;
     int                i;
     short              value;
+
     user = GetInventUserDataPtr();
     count = 0;
 
@@ -1917,19 +1921,19 @@ int CheckInventPhoto(int id, int kind) {
         info = user->GetPhotoInfo(i);
 
         if (info != NULL && info->used != 0) {
-            if (kind == 0) {
+            if (kind == INVENT_PHOTO_CHECK_NETA) {
                 value = info->neta_id;
 
                 if (0 < value && value == id) {
                     count++;
                 }
-            } else if (kind == 2) {
+            } else if (kind == INVENT_PHOTO_CHECK_NPC) {
                 value = info->npc_no;
 
                 if (0 < value && value == id) {
                     count++;
                 }
-            } else if (kind == 3) {
+            } else if (kind == INVENT_PHOTO_CHECK_MONSTER) {
                 value = info->monster_no;
 
                 if (0 < value && value == id) {

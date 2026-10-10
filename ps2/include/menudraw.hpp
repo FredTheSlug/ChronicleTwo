@@ -25,28 +25,166 @@ class mgCDrawPrim;
 class mgCTexture;
 class CMenuPosDataForm;
 
+/**
+ *
+ * Alignment of a number drawn by DrawMenuNumber.
+ *
+ */
 enum MENU_NUMBER_ALIGN {
-    MENU_NUMBER_ALIGN_RIGHT = 0,
-    MENU_NUMBER_ALIGN_CENTER = 1,
-    MENU_NUMBER_ALIGN_LEFT = 2,
+    MENU_NUMBER_ALIGN_RIGHT = 0,  /**< The last digit ends at the given position. */
+    MENU_NUMBER_ALIGN_CENTER = 1, /**< The digits are centred on the given position. */
+    MENU_NUMBER_ALIGN_LEFT = 2,   /**< The first digit starts at the given position. */
 };
 
+/**
+ *
+ * State bits of an item icon part.
+ *
+ */
 enum MENU_ITEM_ICON_FLAG {
-    MENU_ITEM_ICON_HIGHLIGHT = 1,
-    MENU_ITEM_ICON_BUILD_UP = 2,
+    MENU_ITEM_ICON_HIGHLIGHT = 1, /**< The item is useful now and its icon blinks. */
+    MENU_ITEM_ICON_BUILD_UP = 2,  /**< The weapon can be built up and a build-up mark is drawn. */
 };
 
+/**
+ *
+ * Needs of the party that make an item worth highlighting, as
+ * NowUseNeedItemCheck reports them.
+ *
+ */
+// clang-format off
 enum MENU_ITEM_NEED {
-    MENU_ITEM_NEED_RESTORE_HP = 0x1,
-    MENU_ITEM_NEED_REPAIR_MELEE = 0x2,
-    MENU_ITEM_NEED_REPAIR_GUN = 0x4,
-    MENU_ITEM_NEED_REPAIR_MAGIC = 0x8,
-    MENU_ITEM_NEED_REFUEL_RIDEPOD = 0x80,
-    MENU_ITEM_NEED_CURE_POISON = 0x100,
-    MENU_ITEM_NEED_CURE_SLOW = 0x200,
-    MENU_ITEM_NEED_REPAIR_RIDEPOD = 0x8000,
-    MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT = 0x10000,
+    MENU_ITEM_NEED_RESTORE_HP         = 0x1,     /**< The character's health is low. */
+    MENU_ITEM_NEED_REPAIR_MELEE       = 0x2,     /**< The melee weapon is worn. */
+    MENU_ITEM_NEED_REPAIR_GUN         = 0x4,     /**< Max's gun is worn. */
+    MENU_ITEM_NEED_REPAIR_MAGIC       = 0x8,     /**< Monica's armlet is worn. */
+    MENU_ITEM_NEED_UNUSED_10          = 0x10,    /**< Always set; never tested. */
+    MENU_ITEM_NEED_MONICA_IN_PARTY    = 0x20,    /**< Monica is in the party. */
+    MENU_ITEM_NEED_UNUSED_40          = 0x40,    /**< Always set; never tested. */
+    MENU_ITEM_NEED_REFUEL_RIDEPOD     = 0x80,    /**< The ridepod's fuel is low. */
+    MENU_ITEM_NEED_CURE_POISON        = 0x100,   /**< The character is poisoned. */
+    MENU_ITEM_NEED_CURE_SLOW          = 0x200,   /**< The character has CHARA_STATUS_SLOW. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_4  = 0x400,   /**< The character has CHARA_STATUS_UNK_4. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_8  = 0x800,   /**< The character has CHARA_STATUS_UNK_8. */
+    MENU_ITEM_NEED_POWER              = 0x1000,  /**< The character has CHARA_STATUS_POWER; never tested. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_20 = 0x2000,  /**< The character has CHARA_STATUS_UNK_20. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_40 = 0x4000,  /**< The character has CHARA_STATUS_UNK_40. */
+    MENU_ITEM_NEED_REPAIR_RIDEPOD     = 0x8000,  /**< The ridepod's arm is worn. */
+    MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT = 0x10000, /**< The ridepod holds fewer shield kits than it can. */
+    MENU_ITEM_NEED_RECOVERY           = 0x6F01,  /**< Every health and status need, cleared where items cannot be used. */
 };
+
+// clang-format on
+
+/**
+ *
+ * Drawing state SetSpriteEnv prepares.
+ *
+ */
+// clang-format off
+enum MENU_SPRITE_ENV {
+    MENU_SPRITE_ENV_TEXTURE        = 0, /**< Textured, alpha blended, unfiltered. */
+    MENU_SPRITE_ENV_COLOR          = 1, /**< Untextured, shaded, alpha blended, depth tested. */
+    MENU_SPRITE_ENV_COLOR_AA       = 2, /**< As MENU_SPRITE_ENV_COLOR, antialiased and not depth tested. */
+    MENU_SPRITE_ENV_COLOR_NO_DEPTH = 3, /**< As MENU_SPRITE_ENV_COLOR, not depth tested. */
+    MENU_SPRITE_ENV_ADD            = 4, /**< Textured, additively blended, bilinear filtered. */
+    MENU_SPRITE_ENV_OPAQUE         = 5, /**< Textured, unblended, bilinear filtered. */
+    MENU_SPRITE_ENV_SHADED         = 6, /**< Textured, shaded, alpha blended, bilinear filtered. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Movement of the main menu frame that MenuMainFrameModeSet starts.
+ *
+ */
+// clang-format off
+enum MENU_MAIN_FRAME_MODE {
+    MENU_MAIN_FRAME_OPEN         = 0, /**< Brings the frame in while fading it in. */
+    MENU_MAIN_FRAME_CLOSE        = 1, /**< Takes the frame away while fading it out. */
+    MENU_MAIN_FRAME_SLIDE_LEFT   = 2, /**< Slides the lens to the left. */
+    MENU_MAIN_FRAME_SLIDE_BACK   = 3, /**< Slides the lens back from the left. */
+    MENU_MAIN_FRAME_LEAVE_RIGHT  = 4, /**< Swings the frame off to the right. */
+    MENU_MAIN_FRAME_RETURN_RIGHT = 5, /**< Swings the frame back from the right. */
+    MENU_MAIN_FRAME_LEAVE_DOWN   = 6, /**< Swings the frame off downwards. */
+    MENU_MAIN_FRAME_RETURN_DOWN  = 7, /**< Swings the frame back from below. */
+    MENU_MAIN_FRAME_LEAVE_UP     = 8, /**< Swings the frame off upwards. */
+    MENU_MAIN_FRAME_RETURN_UP    = 9, /**< Swings the frame back from above. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Items SetModeMenuDrawItemBoard lists on the item board.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_BOARD_MODE {
+    MENU_ITEM_BOARD_BAG         = 0, /**< Every item in the bag. */
+    MENU_ITEM_BOARD_WEAPON      = 1, /**< Equipped weapons, then weapons in the bag. */
+    MENU_ITEM_BOARD_RIDEPOD_ARM = 2, /**< The ridepod's arm, then ridepod arms in the bag. */
+    MENU_ITEM_BOARD_ENERGY_PACK = 3, /**< The ridepod's energy pack, then energy packs in the bag. */
+    MENU_ITEM_BOARD_FISH        = 4, /**< Fish in the aquarium, then fish in the bag. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Way the item board follows a change of its scroll position.
+ *
+ */
+enum MENU_ITEM_BRD_CALC {
+    MENU_ITEM_BRD_CALC_EASE = 0, /**< Eases towards the new position. */
+    MENU_ITEM_BRD_CALC_JUMP = 1, /**< Jumps to the new position. */
+};
+
+/**
+ *
+ * State of the action a form runs.
+ *
+ */
+// clang-format off
+enum MENUFORM_ACTION_STATE {
+    MENUFORM_ACTION_STATE_NONE = -1, /**< No action has run. */
+    MENUFORM_ACTION_STATE_RUN  = 1,  /**< The action is moving the form. */
+    MENUFORM_ACTION_STATE_END  = 4,  /**< The action's movement has ended. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Colour channels of a form, as bits of CMenuPosDataForm::rgba_bit.
+ *
+ */
+// clang-format off
+enum MENUFORM_RGBA_BIT {
+    MENUFORM_RGBA_BIT_RED   = 0x1, /**< Red. */
+    MENUFORM_RGBA_BIT_GREEN = 0x2, /**< Green. */
+    MENUFORM_RGBA_BIT_BLUE  = 0x4, /**< Blue. */
+    MENUFORM_RGBA_BIT_RGB   = 0x7, /**< Red, green and blue. */
+    MENUFORM_RGBA_BIT_ALPHA = 0x8, /**< Alpha. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Way a "sq_beta" part is filled, as its first extra value selects it.
+ *
+ */
+// clang-format off
+enum MENUFORMPARTS_FILL {
+    MENUFORMPARTS_FILL_FLAT       = 0, /**< One colour. */
+    MENUFORMPARTS_FILL_VERTICAL   = 1, /**< A top colour fading into a bottom colour. */
+    MENUFORMPARTS_FILL_HORIZONTAL = 2, /**< A left colour fading into a right colour. */
+    MENUFORMPARTS_FILL_CORNERS    = 3, /**< One colour per corner. */
+};
+
+// clang-format on
 
 /**
  *
@@ -146,18 +284,18 @@ enum MENUFORMPARTS_DTYPE {
  */
 // clang-format off
 enum MENU_PARTS_EFFECT_TYPE {
-    MENU_PARTS_EFFECT_UNK_1       = 1,   /**< Counts up to a limit, then sets the part colour. */
-    MENU_PARTS_EFFECT_BLINK       = 2,   /**< "blink". */
-    MENU_PARTS_EFFECT_ROT         = 3,   /**< "rot". */
-    MENU_PARTS_EFFECT_HURIKO      = 4,   /**< "huriko": pendulum swing. */
-    MENU_PARTS_EFFECT_STRETCH     = 6,   /**< "stretch". */
-    MENU_PARTS_EFFECT_STRETCH_REP = 7,   /**< "stretch_rep". */
-    MENU_PARTS_EFFECT_STRETCH_SIN = 8,   /**< "stretch_sin". */
-    MENU_PARTS_EFFECT_UNK_9       = 9,   /**< Sparkle that restarts with random parameters. */
-    MENU_PARTS_EFFECT_UNK_10      = 10,  /**< Counts like "rot". */
-    MENU_PARTS_EFFECT_UNK_11      = 11,  /**< Counts like "rot". */
-    MENU_PARTS_EFFECT_UNK_12      = 12,  /**< Counts up without end. */
-    MENU_PARTS_EFFECT_UNK_100     = 100, /**< Item icon effect; never stepped. */
+    MENU_PARTS_EFFECT_FILLBOX       = 1,   /**< Fill colours set by _MENU_FILLBOXINFO; as an effect, counts up to a limit, then sets the part colour. */
+    MENU_PARTS_EFFECT_BLINK         = 2,   /**< "blink". */
+    MENU_PARTS_EFFECT_ROT           = 3,   /**< "rot". */
+    MENU_PARTS_EFFECT_HURIKO        = 4,   /**< "huriko": pendulum swing. */
+    MENU_PARTS_EFFECT_STRETCH       = 6,   /**< "stretch". */
+    MENU_PARTS_EFFECT_STRETCH_REP   = 7,   /**< "stretch_rep". */
+    MENU_PARTS_EFFECT_STRETCH_SIN   = 8,   /**< "stretch_sin". */
+    MENU_PARTS_EFFECT_SPARKLE       = 9,   /**< Item icon sparkle that restarts with random parameters. */
+    MENU_PARTS_EFFECT_UNK_10        = 10,  /**< Counts like "rot". */
+    MENU_PARTS_EFFECT_UNK_11        = 11,  /**< Counts like "rot". */
+    MENU_PARTS_EFFECT_UNK_12        = 12,  /**< Counts up without end. */
+    MENU_PARTS_EFFECT_ICON_COUNTER  = 100, /**< Raster and hue counters of an item icon; never stepped. */
 };
 
 // clang-format on
@@ -489,17 +627,17 @@ public:
     float               rate_x;          /**< Horizontal speed or divisor of the movement. */
     float               rate_y;          /**< Vertical speed or divisor of the movement. */
     s16                 chara_tex_block; /**< Texture block of the model drawn by a poly form, or below 1 to draw its frame directly. */
-    s16                 secondary_tex_block;
+    s16                 secondary_tex_block; /**< Second texture block given with the model; never read. */
     CActionChara       *chara; /**< Model drawn by a poly form. */
     u8                  unk_3c[0x4];
     float               ambient[4];     /**< Ambient light a poly form is drawn with, unused when negative. */
-    u8                  rgba_bit;       /**< Bits of the RGBA channels for which the form colour replaces the part colour. */
+    u8                  rgba_bit;       /**< MENUFORM_RGBA_BIT channels for which the form colour replaces the part colour. */
     s8                  rgba_add[4];    /**< Per-frame change of each colour channel; 0 when settled. */
     u8                  rgba[4];        /**< Form colour and alpha. */
     u8                  rgba_target[4]; /**< Value each colour channel changes towards. */
     u8                  unk_5d;
     s16                 action_no;    /**< Index of the running action, or -1 for none. */
-    s16                 action_state; /**< 1 while an action runs, 4 once its movement ends. */
+    s16                 action_state; /**< State of the running action, a MENUFORM_ACTION_STATE. */
     s16                 action_num;   /**< Number of entries in action. */
     MENU_FORM_ACTION   *action;       /**< Actions of the form. */
     s16                 parts_num;    /**< Number of entries in parts. */
@@ -2696,7 +2834,7 @@ extern int MenuCursorReverseFlag;
 
 /**
  *
- * Way the item board scrolls: 0 eases, 1 jumps.
+ * Way the item board scrolls, a MENU_ITEM_BRD_CALC.
  *
  */
 extern s8 MenuItemBrdCalcManner;

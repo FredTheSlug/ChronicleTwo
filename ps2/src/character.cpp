@@ -2297,7 +2297,7 @@ int _MOTION(SPI_STACK *stack, int argc) {
         int count = root->frame_num;
 
         if (root->init_matrix != NULL) {
-            memcpy(root->init_matrix, entry[0].data, count << 6);
+            memcpy(root->init_matrix, entry[0].data, count * sizeof(sceVu0FMATRIX));
         }
     }
 
@@ -3402,7 +3402,7 @@ int _LOD_MODEL_START(SPI_STACK *stack, int argc) {
         return false;
     }
 
-    u_long128 *block = base_stack->Alloc(DynAnimeAlign16Blocks((u32) count * 0x18) + 2);
+    u_long128 *block = base_stack->Alloc(DynAnimeAlign16Blocks(count * sizeof(CCharaLOD)) + 2);
     nowChr->lod = new (block) CCharaLOD[count];
 
     if (nowChr->lod != NULL) {

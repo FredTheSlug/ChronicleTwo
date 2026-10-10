@@ -433,7 +433,7 @@ static short debug_invent_select;
  * Work buffer for photo name definitions.
  *
  */
-static char pic_name_text_buff_1660[0x2480];
+static u_long128 pic_name_text_buff_1660[0x248];
 
 /**
  *
@@ -1448,7 +1448,7 @@ void LoadFilePictureName() {
     char         align_buffer[0x5000];
     char        *buffer;
     unsigned int size;
-    stack.stSetBuffer((u_long128 *) pic_name_text_buff_1660, 0x248);
+    stack.stSetBuffer(pic_name_text_buff_1660, 0x248);
     PicNameStack = &stack;
     buffer = (char *) MenuCalcBufAlignment((u_long128 *) align_buffer);
     size = LoadFileMenu("neta2.lst", (u_long128 *) buffer, MENU_FILE_LOAD_DIRECT);

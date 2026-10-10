@@ -1067,15 +1067,15 @@ int LoopDungeonMain() {
                     BattleAreaScene->SetStatusBarNow(1);
                 }
 
-                if (MenuArg.end_code == 1) {
+                if (MenuArg.end_code == MENU_END_CHARA_CHANGE) {
                     MenuArg.active_chara_no = MenuArg.result[0];
                 }
 
-                if (MenuArg.end_code == 21) {
+                if (MenuArg.end_code == MENU_END_CHARA_CHANGE_FADE) {
                     MenuArg.active_chara_no = MenuArg.result[0];
                 }
 
-                if (MenuArg.end_code == 5 && MenuArg.result[2] == 0) {
+                if (MenuArg.end_code == MENU_END_DNG_MOVE && MenuArg.result[2] == 0) {
                     INIT_LOOP_ARG arg;
                     char         *map[7] = {"d01e01", "s02", "g02", "g03", "g04", "d06e01", "m05"};
                     arg.map_no = SearchMapNo(map[DngStatus.dungeon_no]);
@@ -1084,11 +1084,11 @@ int LoopDungeonMain() {
                     DngStatus.mode = DNG_STATUS_EXIT;
                 }
 
-                if (MenuArg.end_code != 11 && SubGameRunning() && GetSubGameNo() == SUBGAME_FISHING) {
+                if (MenuArg.end_code != MENU_END_FISHING && SubGameRunning() && GetSubGameNo() == SUBGAME_FISHING) {
                     sgExitSubGame();
                 }
 
-                if (MenuArg.end_code == 11) {
+                if (MenuArg.end_code == MENU_END_FISHING) {
                     SubGameInfo info;
 
                     DngMainScene->tex_block_base = 40;
@@ -1097,10 +1097,10 @@ int LoopDungeonMain() {
                     info.rod_no = MenuArg.result[0];
                     info.esa_no = MenuArg.result[1];
                     info.dungeon = true;
-                    MenuArg.end_code = 0;
+                    MenuArg.end_code = MENU_END_NONE;
                     SubGameInfo *now = GetNowSubGameInfo();
 
-                    if ((GetMenuEtcFlag() & 1) || !SubGameRunning() || now->rod_no != info.rod_no) {
+                    if ((GetMenuEtcFlag() & MENU_ETC_FLAG_CHARA_RELOAD) || !SubGameRunning() || now->rod_no != info.rod_no) {
                         sgInitSubGame(SUBGAME_FISHING, &info);
                     } else {
                         sgRestartSubGame(&info);

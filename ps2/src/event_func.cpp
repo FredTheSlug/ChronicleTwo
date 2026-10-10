@@ -5951,7 +5951,7 @@ static int _SET_TALK_CAMERA(RS_STACKDATA *stack, int argc) {
      * Camera offsets available to the scripted conversation camera.
      *
      */
-    static float offsets[3][4] = {
+    static float vv[3][4] = {
         {-94.0f, 35.5f, -106.5f, 1.0f},
         {105.0f, 32.5f, -28.5f,  1.0f},
         {113.0f, 34.5f, 82.5f,   1.0f},
@@ -5981,7 +5981,7 @@ static int _SET_TALK_CAMERA(RS_STACKDATA *stack, int argc) {
     *middle_y += 30.0f;
     sceVu0UnitMatrix(rotation);
     sceVu0RotMatrixY(rotation, rotation, angle);
-    sceVu0ApplyMatrix(offset, rotation, offsets[1]);
+    sceVu0ApplyMatrix(offset, rotation, vv[1]);
     sceVu0AddVector(offset, middle, offset);
     SetStack(stack++, offset[0]);
     SetStack(stack++, offset[1]);

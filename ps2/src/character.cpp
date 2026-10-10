@@ -1895,8 +1895,8 @@ int _OUTLINE(SPI_STACK *stack, int argc) {
         return false;
     }
 
-    if ((outline = (COutLineDraw *) operator new(sizeof(COutLineDraw), base_stack->Alloc(9))) != 0) {
-        outline->next = 0;
+    if ((outline = (COutLineDraw *) operator new(sizeof(COutLineDraw), base_stack->Alloc(9))) != NULL) {
+        outline->next = NULL;
         outline->Initialize();
     }
 

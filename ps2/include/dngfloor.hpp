@@ -95,17 +95,37 @@ enum DNGMAP_PRACTICE_RESULT {
     DNGMAP_PRACTICE_CLEAR_AGAIN = 3, /**< The practice condition is met again after an earlier clear. */
 };
 
+/**
+ *
+ * Kinds of attack and action that DNG_BATTLE_AREA::practice_actions records for a floor's practice condition.
+ *
+ */
 enum DNG_PRACTICE_ACTION {
-    DNG_PRACTICE_ACTION_ITEM = 0x01,
-    DNG_PRACTICE_ACTION_MAX_MELEE = 0x02,
-    DNG_PRACTICE_ACTION_MAX_GUN = 0x04,
-    DNG_PRACTICE_ACTION_MONICA_MELEE = 0x08,
-    DNG_PRACTICE_ACTION_MONICA_MAGIC = 0x10,
-    DNG_PRACTICE_ACTION_RIDEPOD = 0x20,
-    DNG_PRACTICE_ACTION_MONSTER = 0x40,
-    DNG_PRACTICE_ACTION_HEAL = 0x80,
+    DNG_PRACTICE_ACTION_ITEM = 0x01,         /**< A monster was hit by a thrown item. */
+    DNG_PRACTICE_ACTION_MAX_MELEE = 0x02,    /**< A monster was hit by Max's melee weapon. */
+    DNG_PRACTICE_ACTION_MAX_GUN = 0x04,      /**< A monster was hit by Max's gun. */
+    DNG_PRACTICE_ACTION_MONICA_MELEE = 0x08, /**< A monster was hit by Monica's sword. */
+    DNG_PRACTICE_ACTION_MONICA_MAGIC = 0x10, /**< A monster was hit by Monica's magic. */
+    DNG_PRACTICE_ACTION_RIDEPOD = 0x20,      /**< A monster was hit by the ridepod. */
+    DNG_PRACTICE_ACTION_MONSTER = 0x40,      /**< A monster was hit by Monica in monster form. */
+    DNG_PRACTICE_ACTION_HEAL = 0x80,         /**< The player healed. */
 };
 
+/**
+ *
+ * Practice conditions a floor can set, as DNGMAP_ROOM_INFO::practice_type holds them.
+ *
+ */
+enum DNGMAP_PRACTICE_TYPE {
+    DNGMAP_PRACTICE_TYPE_TIME = 0,         /**< Defeat every monster before the floor timer reaches practice_param. */
+    DNGMAP_PRACTICE_TYPE_ITEM_ONLY = 1,    /**< Defeat every monster using items only. */
+    DNGMAP_PRACTICE_TYPE_WEAPON_ONLY = 2,  /**< Defeat every monster using only the DNG_PRACTICE_ACTION bit numbered practice_param. */
+    DNGMAP_PRACTICE_TYPE_RIDEPOD_ONLY = 3, /**< Defeat every monster using the ridepod only. */
+    DNGMAP_PRACTICE_TYPE_MONSTER_ONLY = 4, /**< Defeat every monster in monster form only. */
+    DNGMAP_PRACTICE_TYPE_NO_HEAL = 5,      /**< Leave the floor without healing. */
+    DNGMAP_PRACTICE_TYPE_NONE = 6,         /**< A condition that is never met. */
+    DNGMAP_PRACTICE_TYPE_NUM = 7,          /**< Number of practice condition kinds. */
+};
 /**
  *
  * Special values of the floor manager.
@@ -115,6 +135,8 @@ enum {
     DNGMAP_DUNGEON_MAX = 6,      /**< Highest dungeon a data table can be loaded for. */
     DNGMAP_FLOOR_SPECIAL = 100,  /**< Floor number with a fixed answer outside the tree map's rooms. */
     DNGMAP_SPHEDA_PRIZE_NUM = 3, /**< Prizes a floor's spheda challenge offers. */
+    DNGMAP_DUNGEON_NUM = 7,      /**< Number of dungeons with a data table. */
+    DNGMAP_FLOOR_NUM = 40,       /**< Floors of a dungeon that the save data is searched through. */
 };
 
 // clang-format on

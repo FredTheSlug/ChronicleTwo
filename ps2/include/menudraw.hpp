@@ -22,28 +22,166 @@
  * board), and the small particle effects shown on menu screens.
  */
 
+/**
+ *
+ * Alignment of a number drawn by DrawMenuNumber.
+ *
+ */
 enum MENU_NUMBER_ALIGN {
-    MENU_NUMBER_ALIGN_RIGHT = 0,
-    MENU_NUMBER_ALIGN_CENTER = 1,
-    MENU_NUMBER_ALIGN_LEFT = 2,
+    MENU_NUMBER_ALIGN_RIGHT = 0,  /**< The last digit ends at the given position. */
+    MENU_NUMBER_ALIGN_CENTER = 1, /**< The digits are centred on the given position. */
+    MENU_NUMBER_ALIGN_LEFT = 2,   /**< The first digit starts at the given position. */
 };
 
+/**
+ *
+ * State bits of an item icon part.
+ *
+ */
 enum MENU_ITEM_ICON_FLAG {
-    MENU_ITEM_ICON_HIGHLIGHT = 1,
-    MENU_ITEM_ICON_BUILD_UP = 2,
+    MENU_ITEM_ICON_HIGHLIGHT = 1, /**< The item is useful now and its icon blinks. */
+    MENU_ITEM_ICON_BUILD_UP = 2,  /**< The weapon can be built up and a build-up mark is drawn. */
 };
 
+/**
+ *
+ * Needs of the party that make an item worth highlighting, as
+ * NowUseNeedItemCheck reports them.
+ *
+ */
+// clang-format off
 enum MENU_ITEM_NEED {
-    MENU_ITEM_NEED_RESTORE_HP = 0x1,
-    MENU_ITEM_NEED_REPAIR_MELEE = 0x2,
-    MENU_ITEM_NEED_REPAIR_GUN = 0x4,
-    MENU_ITEM_NEED_REPAIR_MAGIC = 0x8,
-    MENU_ITEM_NEED_REFUEL_RIDEPOD = 0x80,
-    MENU_ITEM_NEED_CURE_POISON = 0x100,
-    MENU_ITEM_NEED_CURE_SLOW = 0x200,
-    MENU_ITEM_NEED_REPAIR_RIDEPOD = 0x8000,
-    MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT = 0x10000,
+    MENU_ITEM_NEED_RESTORE_HP         = 0x1,     /**< The character's health is low. */
+    MENU_ITEM_NEED_REPAIR_MELEE       = 0x2,     /**< The melee weapon is worn. */
+    MENU_ITEM_NEED_REPAIR_GUN         = 0x4,     /**< Max's gun is worn. */
+    MENU_ITEM_NEED_REPAIR_MAGIC       = 0x8,     /**< Monica's armlet is worn. */
+    MENU_ITEM_NEED_UNUSED_10          = 0x10,    /**< Always set; never tested. */
+    MENU_ITEM_NEED_MONICA_IN_PARTY    = 0x20,    /**< Monica is in the party. */
+    MENU_ITEM_NEED_UNUSED_40          = 0x40,    /**< Always set; never tested. */
+    MENU_ITEM_NEED_REFUEL_RIDEPOD     = 0x80,    /**< The ridepod's fuel is low. */
+    MENU_ITEM_NEED_CURE_POISON        = 0x100,   /**< The character is poisoned. */
+    MENU_ITEM_NEED_CURE_SLOW          = 0x200,   /**< The character has CHARA_STATUS_SLOW. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_4  = 0x400,   /**< The character has CHARA_STATUS_UNK_4. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_8  = 0x800,   /**< The character has CHARA_STATUS_UNK_8. */
+    MENU_ITEM_NEED_POWER              = 0x1000,  /**< The character has CHARA_STATUS_POWER; never tested. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_20 = 0x2000,  /**< The character has CHARA_STATUS_UNK_20. */
+    MENU_ITEM_NEED_CURE_STATUS_UNK_40 = 0x4000,  /**< The character has CHARA_STATUS_UNK_40. */
+    MENU_ITEM_NEED_REPAIR_RIDEPOD     = 0x8000,  /**< The ridepod's arm is worn. */
+    MENU_ITEM_NEED_RIDEPOD_SHIELD_KIT = 0x10000, /**< The ridepod holds fewer shield kits than it can. */
+    MENU_ITEM_NEED_RECOVERY           = 0x6F01,  /**< Every health and status need, cleared where items cannot be used. */
 };
+
+// clang-format on
+
+/**
+ *
+ * Drawing state SetSpriteEnv prepares.
+ *
+ */
+// clang-format off
+enum MENU_SPRITE_ENV {
+    MENU_SPRITE_ENV_TEXTURE        = 0, /**< Textured, alpha blended, unfiltered. */
+    MENU_SPRITE_ENV_COLOR          = 1, /**< Untextured, shaded, alpha blended, depth tested. */
+    MENU_SPRITE_ENV_COLOR_AA       = 2, /**< As MENU_SPRITE_ENV_COLOR, antialiased and not depth tested. */
+    MENU_SPRITE_ENV_COLOR_NO_DEPTH = 3, /**< As MENU_SPRITE_ENV_COLOR, not depth tested. */
+    MENU_SPRITE_ENV_ADD            = 4, /**< Textured, additively blended, bilinear filtered. */
+    MENU_SPRITE_ENV_OPAQUE         = 5, /**< Textured, unblended, bilinear filtered. */
+    MENU_SPRITE_ENV_SHADED         = 6, /**< Textured, shaded, alpha blended, bilinear filtered. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Movement of the main menu frame that MenuMainFrameModeSet starts.
+ *
+ */
+// clang-format off
+enum MENU_MAIN_FRAME_MODE {
+    MENU_MAIN_FRAME_OPEN         = 0, /**< Brings the frame in while fading it in. */
+    MENU_MAIN_FRAME_CLOSE        = 1, /**< Takes the frame away while fading it out. */
+    MENU_MAIN_FRAME_SLIDE_LEFT   = 2, /**< Slides the lens to the left. */
+    MENU_MAIN_FRAME_SLIDE_BACK   = 3, /**< Slides the lens back from the left. */
+    MENU_MAIN_FRAME_LEAVE_RIGHT  = 4, /**< Swings the frame off to the right. */
+    MENU_MAIN_FRAME_RETURN_RIGHT = 5, /**< Swings the frame back from the right. */
+    MENU_MAIN_FRAME_LEAVE_DOWN   = 6, /**< Swings the frame off downwards. */
+    MENU_MAIN_FRAME_RETURN_DOWN  = 7, /**< Swings the frame back from below. */
+    MENU_MAIN_FRAME_LEAVE_UP     = 8, /**< Swings the frame off upwards. */
+    MENU_MAIN_FRAME_RETURN_UP    = 9, /**< Swings the frame back from above. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Items SetModeMenuDrawItemBoard lists on the item board.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_BOARD_MODE {
+    MENU_ITEM_BOARD_BAG         = 0, /**< Every item in the bag. */
+    MENU_ITEM_BOARD_WEAPON      = 1, /**< Equipped weapons, then weapons in the bag. */
+    MENU_ITEM_BOARD_RIDEPOD_ARM = 2, /**< The ridepod's arm, then ridepod arms in the bag. */
+    MENU_ITEM_BOARD_ENERGY_PACK = 3, /**< The ridepod's energy pack, then energy packs in the bag. */
+    MENU_ITEM_BOARD_FISH        = 4, /**< Fish in the aquarium, then fish in the bag. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Way the item board follows a change of its scroll position.
+ *
+ */
+enum MENU_ITEM_BRD_CALC {
+    MENU_ITEM_BRD_CALC_EASE = 0, /**< Eases towards the new position. */
+    MENU_ITEM_BRD_CALC_JUMP = 1, /**< Jumps to the new position. */
+};
+
+/**
+ *
+ * State of the action a form runs.
+ *
+ */
+// clang-format off
+enum MENUFORM_ACTION_STATE {
+    MENUFORM_ACTION_STATE_NONE = -1, /**< No action has run. */
+    MENUFORM_ACTION_STATE_RUN  = 1,  /**< The action is moving the form. */
+    MENUFORM_ACTION_STATE_END  = 4,  /**< The action's movement has ended. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Colour channels of a form, as bits of CMenuPosDataForm::rgba_bit.
+ *
+ */
+// clang-format off
+enum MENUFORM_RGBA_BIT {
+    MENUFORM_RGBA_BIT_RED   = 0x1, /**< Red. */
+    MENUFORM_RGBA_BIT_GREEN = 0x2, /**< Green. */
+    MENUFORM_RGBA_BIT_BLUE  = 0x4, /**< Blue. */
+    MENUFORM_RGBA_BIT_RGB   = 0x7, /**< Red, green and blue. */
+    MENUFORM_RGBA_BIT_ALPHA = 0x8, /**< Alpha. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Way a "sq_beta" part is filled, as its first extra value selects it.
+ *
+ */
+// clang-format off
+enum MENUFORMPARTS_FILL {
+    MENUFORMPARTS_FILL_FLAT       = 0, /**< One colour. */
+    MENUFORMPARTS_FILL_VERTICAL   = 1, /**< A top colour fading into a bottom colour. */
+    MENUFORMPARTS_FILL_HORIZONTAL = 2, /**< A left colour fading into a right colour. */
+    MENUFORMPARTS_FILL_CORNERS    = 3, /**< One colour per corner. */
+};
+
+// clang-format on
 
 /**
  *
@@ -143,18 +281,18 @@ enum MENUFORMPARTS_DTYPE {
  */
 // clang-format off
 enum MENU_PARTS_EFFECT_TYPE {
-    MENU_PARTS_EFFECT_UNK_1       = 1,   /**< Counts up to a limit, then sets the part colour. */
-    MENU_PARTS_EFFECT_BLINK       = 2,   /**< "blink". */
-    MENU_PARTS_EFFECT_ROT         = 3,   /**< "rot". */
-    MENU_PARTS_EFFECT_HURIKO      = 4,   /**< "huriko": pendulum swing. */
-    MENU_PARTS_EFFECT_STRETCH     = 6,   /**< "stretch". */
-    MENU_PARTS_EFFECT_STRETCH_REP = 7,   /**< "stretch_rep". */
-    MENU_PARTS_EFFECT_STRETCH_SIN = 8,   /**< "stretch_sin". */
-    MENU_PARTS_EFFECT_UNK_9       = 9,   /**< Sparkle that restarts with random parameters. */
-    MENU_PARTS_EFFECT_UNK_10      = 10,  /**< Counts like "rot". */
-    MENU_PARTS_EFFECT_UNK_11      = 11,  /**< Counts like "rot". */
-    MENU_PARTS_EFFECT_UNK_12      = 12,  /**< Counts up without end. */
-    MENU_PARTS_EFFECT_UNK_100     = 100, /**< Item icon effect; never stepped. */
+    MENU_PARTS_EFFECT_FILLBOX       = 1,   /**< Fill colours set by _MENU_FILLBOXINFO; as an effect, counts up to a limit, then sets the part colour. */
+    MENU_PARTS_EFFECT_BLINK         = 2,   /**< "blink". */
+    MENU_PARTS_EFFECT_ROT           = 3,   /**< "rot". */
+    MENU_PARTS_EFFECT_HURIKO        = 4,   /**< "huriko": pendulum swing. */
+    MENU_PARTS_EFFECT_STRETCH       = 6,   /**< "stretch". */
+    MENU_PARTS_EFFECT_STRETCH_REP   = 7,   /**< "stretch_rep". */
+    MENU_PARTS_EFFECT_STRETCH_SIN   = 8,   /**< "stretch_sin". */
+    MENU_PARTS_EFFECT_SPARKLE       = 9,   /**< Item icon sparkle that restarts with random parameters. */
+    MENU_PARTS_EFFECT_UNK_10        = 10,  /**< Counts like "rot". */
+    MENU_PARTS_EFFECT_UNK_11        = 11,  /**< Counts like "rot". */
+    MENU_PARTS_EFFECT_UNK_12        = 12,  /**< Counts up without end. */
+    MENU_PARTS_EFFECT_ICON_COUNTER  = 100, /**< Raster and hue counters of an item icon; never stepped. */
 };
 
 // clang-format on
@@ -325,27 +463,114 @@ STATIC_ASSERT(sizeof(MENUFORM_MAKEBRD_INFO) == 0x2C);
 
 /**
  *
- * State of one particle of a menu effect; the meaning of each value
- * depends on the effect kind.
+ * Kind of particle effect a CMenuEffect runs.
+ *
+ */
+// clang-format off
+enum MENU_EFFECT_TYPE {
+    MENU_EFFECT_TYPE_NONE           = -1, /**< No effect. */
+    MENU_EFFECT_TYPE_GATHER         = 0,  /**< Sparks spiralling in to a point, shown when an item is made. */
+    MENU_EFFECT_TYPE_FALL           = 1,  /**< Drops thrown up that fall under gravity. */
+    MENU_EFFECT_TYPE_BURST          = 2,  /**< Sparks bursting out and slowing as they fade. */
+    MENU_EFFECT_TYPE_FADE           = 3,  /**< Fades out the whole effect. */
+    MENU_EFFECT_TYPE_FLASH          = 4,  /**< Flash that grows and shrinks over a made item. */
+    MENU_EFFECT_TYPE_FUSION_SWIRL   = 10, /**< Swaying sparks spiralling in, shown while a spectrum is fused. */
+    MENU_EFFECT_TYPE_STILL          = 11, /**< Particles that do not move. */
+    MENU_EFFECT_TYPE_SWIRL          = 12, /**< Sparks spiralling in, drawn with one texture rectangle. */
+    MENU_EFFECT_TYPE_SQUARE         = 15, /**< Squares that shrink towards a point. */
+    MENU_EFFECT_TYPE_SCATTER        = 16, /**< Sparks flying apart as they fade. */
+    MENU_EFFECT_TYPE_SPECTOL_BREAK  = 18, /**< Pieces of a spectrum icon bouncing apart. */
+    MENU_EFFECT_TYPE_SPECTOL_FLASH  = 19, /**< Flash shown before a spectrum icon breaks. */
+    MENU_EFFECT_TYPE_SPECTOL_GATHER = 20, /**< Sparks gathering into a ring after a spectrum icon breaks. */
+    MENU_EFFECT_TYPE_FUSION_ITEM    = 21, /**< Shaking item icon shown while a spectrum is fused. */
+};
+
+// clang-format on
+
+/**
+ *
+ * State of one particle of a menu effect; members that share an offset
+ * belong to different effect kinds.
  *
  */
 struct MENU_EFFECT_INFO {
-    float unk_0;
-    float unk_4;
-    float unk_8;
+    float frame; /**< Frames the particle has run. */
+    union {
+        float life;     /**< Lifetime bounding the random start frame of a spiralling spark. */
+        float interval; /**< Frames between size steps of a shrinking square. */
+        float piece;    /**< Piece of the spectrum icon a spectrum effect particle stands for. */
+        float item_no;  /**< Item whose icon a fusion item effect shows. */
+    };
+    union {
+        float corner;  /**< Texture corner a fusion swirl spark shows. */
+        float damping; /**< Factor applied to a piece's horizontal speed every six frames. */
+    };
     float x; /**< Screen position. */
     float y; /**< Screen position. */
-    float unk_14;
-    float unk_18;
-    float unk_1c;
-    float unk_20;
-    float unk_24;
-    float unk_28;
-    float unk_2c;
-    float unk_30;
-    float unk_34;
-    float unk_38;
-    float unk_3c;
+    union {
+        float variant;       /**< Random value from 0 to 3 given to a spiralling spark; never read. */
+        float vx;            /**< Horizontal speed. */
+        float w;             /**< Width of a flash. */
+        float half_size;     /**< Half the size of a shrinking square. */
+        float vertex1_angle; /**< Angle of the second corner of a spectrum piece. */
+        float grow;          /**< Amount added to each side of a spectrum flash. */
+        float orbit;         /**< Radius of the orbit of a gathered spark. */
+        float shake;         /**< Amplitude of the shake of a fusion item. */
+    };
+    union {
+        float period;        /**< Frames a spiralling spark takes for half a turn. */
+        float vy;            /**< Vertical speed. */
+        float h;             /**< Height of a flash. */
+        float size_step;     /**< Amount added to half_size at each interval. */
+        float vertex2_angle; /**< Angle of the third corner of a spectrum piece. */
+        float offset_x;      /**< Horizontal offset of a spectrum flash; never read. */
+        float ring_size;     /**< Half the size of the ring the gathered sparks form. */
+        float shake_decay;   /**< Factor applied to the shake every other frame. */
+    };
+    union {
+        float radius;      /**< Distance of a spiralling spark from the centre. */
+        float gravity;     /**< Downward acceleration of a falling drop. */
+        float burst_alpha; /**< Alpha of a bursting spark. */
+        float half_w;      /**< Half the width of a flash. */
+        float bounce;      /**< Speed a spectrum piece bounces up with. */
+        float offset_y;    /**< Vertical offset of a spectrum flash; never read. */
+        float shrinking;   /**< 1 once the ring of gathered sparks has started to shrink. */
+        float red;         /**< Red of a fusion item. */
+    };
+    union {
+        float radius_speed; /**< Change of radius per frame. */
+        float fade_speed;   /**< Amount burst_alpha falls per frame. */
+        float half_h;       /**< Half the height of a flash. */
+        float star_color;   /**< Entry of star_color_table a gathered spark is drawn with. */
+        float green;        /**< Green and blue of a fusion item. */
+    };
+    union {
+        float cycles;   /**< Restarts left before the particle stops. */
+        float piece_vx; /**< Horizontal speed of a spectrum piece. */
+        float blue;     /**< Blue of a fusion item; never read. */
+    };
+    union {
+        float alpha;    /**< Alpha. */
+        float piece_vy; /**< Vertical speed of a spectrum piece. */
+    };
+    union {
+        float alpha_speed;   /**< Change of alpha per frame. */
+        float piece_gravity; /**< Change of a spectrum piece's vertical speed. */
+    };
+    union {
+        float sway_x;      /**< Horizontal amplitude of the sway of a fusion swirl spark. */
+        float piece_alpha; /**< Alpha of a spectrum piece or gathered spark. */
+        float peak_alpha;  /**< Highest alpha of a spectrum flash. */
+    };
+    union {
+        float sway_y;     /**< Vertical amplitude of the sway of a fusion swirl spark. */
+        float spark_flag; /**< 96 for the sparks of a spectrum break and 0 for its pieces; never read. */
+    };
+    union {
+        float sway_period; /**< Frames of half a sway of a fusion swirl spark. */
+        float floor_y;     /**< Height a spectrum piece bounces at. */
+    };
+    float pulse; /**< Amplitude of the size pulse of a fusion swirl spark. */
 };
 
 STATIC_ASSERT(sizeof(MENU_EFFECT_INFO) == 0x40);
@@ -356,12 +581,10 @@ STATIC_ASSERT(sizeof(MENU_EFFECT_INFO) == 0x40);
  *
  */
 struct REPAIR_EFFECT_PARTICLE {
-    float unk_0;
-    float unk_4;
-    float unk_8;
+    float color[3]; /**< Colour given to the spark; never read. */
     float alpha; /**< Alpha; the spark ends when it reaches 0. */
     float vx;    /**< Horizontal speed. */
-    float unk_14;
+    float vy;      /**< Vertical speed; set to 0 and never read. */
     float x;       /**< Screen position. */
     float y;       /**< Screen position. */
     int   counter; /**< Frames the spark has lived. */
@@ -401,17 +624,17 @@ public:
     float               rate_x;          /**< Horizontal speed or divisor of the movement. */
     float               rate_y;          /**< Vertical speed or divisor of the movement. */
     s16                 chara_tex_block; /**< Texture block of the model drawn by a poly form, or below 1 to draw its frame directly. */
-    s16                 secondary_tex_block;
+    s16                 secondary_tex_block; /**< Second texture block given with the model; never read. */
     CActionChara       *chara; /**< Model drawn by a poly form. */
     u8                  unk_3c[0x4];
     float               ambient[4];     /**< Ambient light a poly form is drawn with, unused when negative. */
-    u8                  rgba_bit;       /**< Bits of the RGBA channels for which the form colour replaces the part colour. */
+    u8                  rgba_bit;       /**< MENUFORM_RGBA_BIT channels for which the form colour replaces the part colour. */
     s8                  rgba_add[4];    /**< Per-frame change of each colour channel; 0 when settled. */
     u8                  rgba[4];        /**< Form colour and alpha. */
     u8                  rgba_target[4]; /**< Value each colour channel changes towards. */
     u8                  unk_5d;
     s16                 action_no;    /**< Index of the running action, or -1 for none. */
-    s16                 action_state; /**< 1 while an action runs, 4 once its movement ends. */
+    s16                 action_state; /**< State of the running action, a MENUFORM_ACTION_STATE. */
     s16                 action_num;   /**< Number of entries in action. */
     MENU_FORM_ACTION   *action;       /**< Actions of the form. */
     s16                 parts_num;    /**< Number of entries in parts. */
@@ -944,9 +1167,7 @@ public:
     u_long128  *pallet[3][2];       /**< Item icon palettes: normal, grey and sepia, for each icon texture. */
     s16         trans_pallet_no[2]; /**< First transparent entry of each item icon palette. */
     mgCTexture *common_tex;         /**< Common menu texture. */
-    int         unk_40;
-    int         unk_44;
-    int         unk_48;
+    mgCTexture *unused_tex[3];         /**< Texture slots that are cleared and never loaded. */
     mgCTexture *icon_effect_tex;       /**< Texture of the item icon effects. */
     mgCTexture *effect_tex;            /**< Texture of the menu effects. */
     mgCTexture *item_icon_tex[4][2];   /**< Item icon textures: original, normal, grey and sepia, for each icon texture. */
@@ -1054,7 +1275,7 @@ public:
     int                     y;            /**< Screen position. */
     int                     alpha;        /**< Alpha of the flash. */
     REPAIR_EFFECT_PARTICLE *particle;     /**< Sparks. */
-    mgCTexture             *unk_1c;
+    mgCTexture             *sub_tex;      /**< Second texture, copied from CRepairManager::sub_tex; never drawn with. */
     mgCTexture             *tex; /**< Texture the effect is drawn with. */
 
     /**
@@ -1112,7 +1333,7 @@ public:
     s16            tex_block;       /**< Texture block of the repair textures. */
     CRepairEffect *effect[8];       /**< Running effects. */
     mgCMemory      effect_stack[8]; /**< Stack each effect is allocated from. */
-    mgCTexture    *unk_1a4;
+    mgCTexture    *sub_tex;         /**< Second texture handed to each effect; always NULL. */
     mgCTexture    *tex;           /**< Texture of the effects. */
     u32           *data;          /**< Pack file of the repair data. */
     CActionChara  *model;         /**< Repair model, or NULL. */
@@ -1275,7 +1496,7 @@ public:
      * @address 0x2304A0
      * @size 0x40
      */
-    void Generate(mgCTexture *spark_texture, int param, int x, int y);
+    void Generate(mgCTexture *spark_texture, int effect_kind, int x, int y);
 
     /**
      *
@@ -1285,7 +1506,7 @@ public:
      * @address 0x2304E0
      * @size 0x190
      */
-    void Generate(mgCTexture *spark_texture, int param, CCharacter2 *target);
+    void Generate(mgCTexture *spark_texture, int effect_kind, CCharacter2 *target);
 
     /**
      *
@@ -1359,7 +1580,7 @@ public:
      * @address 0x230BB0
      * @size 0xC0
      */
-    void Generate(int param, int x, int y);
+    void Generate(int effect_kind, int x, int y);
 
     /**
      *
@@ -1369,7 +1590,7 @@ public:
      * @address 0x230C70
      * @size 0xA0
      */
-    void Generate(int param, CCharacter2 *chara);
+    void Generate(int effect_kind, CCharacter2 *chara);
 
     /**
      *
@@ -1512,7 +1733,7 @@ public:
     s16               tex_block;     /**< Texture block of the texture. */
     mgCTexture       *tex;           /**< Texture the effect is drawn with. */
     u8                end;           /**< Non-zero once the effect has ended. */
-    s8                type;          /**< Kind of effect, or -1 for none. */
+    s8                type;          /**< Kind of effect, a MENU_EFFECT_TYPE. */
     u8                run;           /**< Non-zero while the effect runs. */
     s16               info_num;      /**< Number of entries in info. */
     MENU_EFFECT_INFO *info;          /**< Particles. */
@@ -1559,7 +1780,7 @@ public:
      * @address 0x232000
      * @size 0x20
      */
-    void SetTexInfo(mgCTexture *texture, int *params);
+    void SetTexInfo(mgCTexture *texture, int *block);
 
     /**
      *
@@ -1569,7 +1790,7 @@ public:
      * @address 0x232020
      * @size 0xE0
      */
-    void SetBaseInfo(int *values, int preset, int kind, int count);
+    void SetBaseInfo(int *values, int preset, int initial, int count);
 
     /**
      *
@@ -1589,7 +1810,7 @@ public:
      * @address 0x232110
      * @size 0x80
      */
-    void PresetInfoAll(int kind);
+    void PresetInfoAll(int initial);
 
     /**
      *
@@ -1599,7 +1820,7 @@ public:
      * @address 0x232190
      * @size 0xA40
      */
-    void PresetInfo(MENU_EFFECT_INFO *particle, int no, int mode);
+    void PresetInfo(MENU_EFFECT_INFO *particle, int no, int initial);
 
     /**
      *
@@ -1987,7 +2208,7 @@ void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int reverse, int alp
  * @address 0x225FF0
  * @size 0x20
  */
-void MenuCursorDraw(mgCTexture *tex, float *pos, float value, int flag);
+void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int alpha);
 
 /**
  *
@@ -2007,7 +2228,7 @@ void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float x, float y, m
  * @address 0x2261D0
  * @size 0xE0
  */
-void DrawMenuMainFrmImg(int &loaded_tex_no, mgRect<int> dest, mgRect<int> source, int red, int green, int blue, int alpha, int a);
+void DrawMenuMainFrmImg(int &loaded_tex_no, mgRect<int> dest, mgRect<int> source, int red, int green, int blue, int alpha, int unused);
 
 /**
  *
@@ -2067,7 +2288,7 @@ void MenuMainFrameStep();
  * @address 0x226B40
  * @size 0x4C0
  */
-void MenuMainFrameDraw(int &loaded_tex, int alpha);
+void MenuMainFrameDraw(int &loaded_tex, int unused);
 
 /**
  *
@@ -2127,7 +2348,7 @@ void MenuPosDataTypeInit(MENUFORMPARTS_TYPE *part);
  * @address 0x227AC0
  * @size 0x30
  */
-void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int value34, int value38);
+void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int item_no, int original_item_no);
 
 /**
  *
@@ -2610,7 +2831,7 @@ extern int MenuCursorReverseFlag;
 
 /**
  *
- * Way the item board scrolls: 0 eases, 1 jumps.
+ * Way the item board scrolls, a MENU_ITEM_BRD_CALC.
  *
  */
 extern s8 MenuItemBrdCalcManner;

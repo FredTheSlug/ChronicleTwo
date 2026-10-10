@@ -82,7 +82,7 @@ void DrawRoboUnitStatusBord(float rate);
  * @address 0x1BF330
  * @size 0x670
  */
-void DrawMonsterUnitStatusBord(float alpha);
+void DrawMonsterUnitStatusBord(float rate);
 
 /**
  *

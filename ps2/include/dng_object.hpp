@@ -45,6 +45,32 @@ enum SHOT_DRAW_FLAG {
 
 /**
  *
+ * Numbers of slots in the shot and bullet arrays of the player's guns.
+ *
+ */
+enum DNG_SHOT_SIZE {
+    ROCKET_TRAIL_NUM = 16,       /**< Positions in a rocket's trail ring. */
+    ROCKET_LAUNCHER_NUM = 24,    /**< Rocket slots of the launcher. */
+    MACHINE_GUN_BULLET_NUM = 16, /**< Bullet slots of the machine gun. */
+    LASER_TRAIL_NUM = 8,         /**< Positions in a laser shot's trail ring. */
+    LASER_GUN_NUM = 16,          /**< Laser shot slots of the gun. */
+};
+
+/**
+ *
+ * Looks a laser shot can take, as CLaserGun::SetVisualCode chooses them.
+ *
+ */
+enum LASER_VISUAL_CODE {
+    LASER_VISUAL_GREEN = 0,  /**< Small green shot. */
+    LASER_VISUAL_BLUE = 1,   /**< Faster blue shot. */
+    LASER_VISUAL_PURPLE = 2, /**< Large purple shot that speeds up as it flies. */
+    LASER_VISUAL_CYAN = 3,   /**< Cyan shot that starts still, speeds up and homes for its whole life. */
+    LASER_VISUAL_ORANGE = 4, /**< Large orange shot that speeds up and homes only briefly. */
+};
+
+/**
+ *
  * One homing rocket fired by the player's launcher, drawn as a model with a smoke trail.
  *
  */
@@ -58,7 +84,7 @@ public:
     sceVu0FVECTOR start_pos;     /**< World position the rocket was fired from. */
     sceVu0FVECTOR target_pos;    /**< World position the rocket homes in on. */
     sceVu0FVECTOR dir;           /**< Unit direction of flight. */
-    sceVu0FVECTOR trail[16];     /**< Ring of past head positions the smoke trail is drawn through. */
+    sceVu0FVECTOR trail[ROCKET_TRAIL_NUM];     /**< Ring of past head positions the smoke trail is drawn through. */
     int           trail_len;     /**< Number of trail sprites drawn. */
     int           trail_index;   /**< Ring slot the next trail position is written to. */
     int           trail_timer;   /**< Frames since a trail position was last recorded. */
@@ -84,7 +110,7 @@ public:
      * @address 0x1B7400
      * @size 0xE0
      */
-    void SetPos(float *pos, float *muzzle_vec, float *direction);
+    void SetPos(float *start, float *target, float *direction);
 
     /**
      *
@@ -126,7 +152,7 @@ STATIC_ASSERT(sizeof(CRocketLauncher) == 0x190);
  */
 class CRocketLauncherMan {
 public:
-    CRocketLauncher rocket[24]; /**< Rocket slots. */
+    CRocketLauncher rocket[ROCKET_LAUNCHER_NUM]; /**< Rocket slots. */
 
     /**
      *
@@ -188,12 +214,12 @@ STATIC_ASSERT(sizeof(CRocketLauncherMan) == 0x2580);
  */
 class CMachineGun {
 public:
-    sceVu0FVECTOR start_pos[16];   /**< World position each bullet was fired from. */
-    sceVu0FVECTOR velocity[16];    /**< Distance each bullet moves each frame. */
-    sceVu0FVECTOR pos[16];         /**< Current world position of each bullet. */
-    s16           active[16];      /**< Non-zero while the bullet slot is in flight. */
-    s16           col_prim_id[16]; /**< Identifier of the collision primitive dealing each bullet's damage, or -1. */
-    int           life[16];        /**< Frames left before each bullet vanishes. */
+    sceVu0FVECTOR start_pos[MACHINE_GUN_BULLET_NUM];   /**< World position each bullet was fired from. */
+    sceVu0FVECTOR velocity[MACHINE_GUN_BULLET_NUM];    /**< Distance each bullet moves each frame. */
+    sceVu0FVECTOR pos[MACHINE_GUN_BULLET_NUM];         /**< Current world position of each bullet. */
+    s16           active[MACHINE_GUN_BULLET_NUM];      /**< Non-zero while the bullet slot is in flight. */
+    s16           col_prim_id[MACHINE_GUN_BULLET_NUM]; /**< Identifier of the collision primitive dealing each bullet's damage, or -1. */
+    int           life[MACHINE_GUN_BULLET_NUM];        /**< Frames left before each bullet vanishes. */
     s16           index;           /**< Bullet slot last fired. */
     u8            unk_382[0xE];
 
@@ -235,7 +261,7 @@ public:
     sceVu0FVECTOR start_pos;    /**< World position the shot was fired from. */
     sceVu0FVECTOR target_pos;   /**< World position the shot homes in on. */
     sceVu0FVECTOR dir;          /**< Unit direction of flight. */
-    sceVu0FVECTOR trail[8];     /**< Ring of past head positions the trail is drawn through. */
+    sceVu0FVECTOR trail[LASER_TRAIL_NUM];     /**< Ring of past head positions the trail is drawn through. */
     int           trail_len;    /**< Number of trail sprites drawn. */
     int           trail_index;  /**< Ring slot the next trail position is written to. */
     int           trail_timer;  /**< Frames since a trail position was last recorded. */
@@ -319,7 +345,7 @@ STATIC_ASSERT(sizeof(CLaserGun) == 0x130);
  */
 class CLaserGunMan {
 public:
-    CLaserGun laser[16]; /**< Laser shot slots. */
+    CLaserGun laser[LASER_GUN_NUM]; /**< Laser shot slots. */
 
     /**
      *
@@ -553,6 +579,15 @@ enum ROBO_VOICE_STATUS {
     ROBO_VOICE_STANDBY = 3, /**< The voice stream is being readied for playback. */
     ROBO_VOICE_PLAY = 4,    /**< The voice is playing. */
     ROBO_VOICE_WAIT = 5,    /**< Waiting before choosing the next voice. */
+};
+
+/**
+ *
+ * Sound stream channel the robot's voices play on.
+ *
+ */
+enum ROBO_VOICE_STREAM {
+    ROBO_VOICE_STREAM_CHANNEL = 1, /**< Channel of the robot's voice stream. */
 };
 
 /**

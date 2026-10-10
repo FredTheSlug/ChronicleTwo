@@ -94,7 +94,9 @@ DNG_FLOOR_FLAG_OPEN, [4] |= same. [0..2] from _ROOT_INFO args. Signedness of [1]
   (function-local `static u16[4][5]`, type 2, row practice_param-1); then require bit
   `1<<practice_param`. The three tables keep their signed-byte/unsigned-halfword layouts. Type 5:
   2, or 1 when bit 0x80. Then 2 -> 3 if PRACTICE_CLEAR already set; 2/3 set PRACTICE_CLEAR; 2 adds
-  a medal. Practice types are not named (meaning of the battle-area bits not established).
+  a medal. Practice type numbers are named by DNGMAP_PRACTICE_TYPE. Type 1 forbids every bit but
+  DNG_PRACTICE_ACTION_ITEM; 3 forbids every bit but RIDEPOD; 4 forbids every bit but MONSTER;
+  2 forbids ITEM, RIDEPOD and MONSTER and every weapon bit but `1 << practice_param`; 5 fails on HEAL.
 - GetNextGlid(glid, &dir): three block-scoped function-local statics each named `search_tbl`
   (`int[GLID_DIR_NUM][3]` of `GLID_DIR` candidate directions; one for dng 2, one for dng 3, one
   for the rest); first with link_glid non-NULL becomes *dir.
@@ -116,3 +118,7 @@ DNG_FLOOR_FLAG_OPEN, [4] |= same. [0..2] from _ROOT_INFO args. Signedness of [1]
 ## Unresolved
 - GLID_INFO 0x6/0x8, room 0x0 string, 0x4C meaning; root [1]/[2] signedness (0x44 is `selectable`).
 - DNGMAP_FLOOR_SPECIAL (100) meaning beyond the two special cases above.
+
+## Reverted candidates
+
+- `LoadDataTable` bound: `dungeon > DNGMAP_DUNGEON_MAX` does not match; `dungeon >= DNGMAP_DUNGEON_NUM` does.

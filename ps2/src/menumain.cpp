@@ -217,11 +217,11 @@ struct MovePoint {
 
 /**
  *
- * Stores menu pages reached by the page keys.
+ * Top menu mode to go back to for each top-menu open type.
  *
  */
 struct MenuKeyPageTable {
-    int next[2]; /**< Page destinations for the two page keys. */
+    int mode[2]; /**< Top menu mode for a town and for a dungeon. */
 };
 
 /**
@@ -278,7 +278,17 @@ static char *fname_1858[2] = {
 static int loopnumtbl_2360[2] = {
     3, 2};
 
+/**
+ *
+ * Point that the menu camera looks at by default.
+ *
+ */
 static float menu_basedgRef[4] = {0.0f, 0.0f, -100.0f, 1.0f};
+/**
+ *
+ * Default position of the menu camera.
+ *
+ */
 static float menu_basedgCamPos[4] = {0.0f, 0.0f, 100.0f, 1.0f};
 
 /**
@@ -598,14 +608,14 @@ static float SndPortVol_Enemy;
 
 /**
  *
- * Game loop mode that opened the menu.
+ * Where the main menu was opened. @see MenuLoopType
  *
  */
 static signed char MenuLoopType;
 
 /**
  *
- * Additional result code returned by the menu.
+ * Flags that tell the game loop what else the menu did. @see MenuEtcFlag
  *
  */
 static int MenuEtcSpecialCode;
@@ -750,7 +760,7 @@ int MenuBGTextureBlock = -1;
  */
 int MenuItemIconTextureBlock = -1;
 
-void MenuScreenBlackBeltSet(int enable) {
+void MenuScreenBlackBeltSet(int show) {
 }
 
 int GetMenuLoopType() {
@@ -758,13 +768,13 @@ int GetMenuLoopType() {
 }
 
 int CheckTrushMenu() {
-    short mode = MenuCommonInfo->open_type;
+    short open_type = MenuCommonInfo->open_type;
 
-    if (mode == 0x10 || mode == 0x11) {
-        return 1;
+    if (open_type == MENU_OPEN_MAIN_TOWN_ITEM_OVER || open_type == MENU_OPEN_MAIN_DUNGEON_ITEM_OVER) {
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 CSaveDataDungeon *menu_GetSaveDataDungeon() {
@@ -803,25 +813,25 @@ CMenuSystemData *GetMenuSysData() {
     return NULL;
 }
 
-int CheckBitFlagMenu(int flag) {
+int CheckBitFlagMenu(int flag_no) {
     CSaveData *save_data;
 
     save_data = GetSaveData();
 
     if (save_data != NULL) {
-        return save_data->GetBitFlag(flag);
+        return save_data->GetBitFlag(flag_no);
     }
 
     return 0;
 }
 
-int CheckShortFlagMenu(int flag) {
+int CheckShortFlagMenu(int flag_no) {
     CSaveData *save_data;
 
     save_data = GetSaveData();
 
     if (save_data != NULL) {
-        return save_data->GetShortFlag(flag);
+        return save_data->GetShortFlag(flag_no);
     }
 
     return 0;
@@ -829,16 +839,16 @@ int CheckShortFlagMenu(int flag) {
 
 int CheckStartChapter8(CSaveData *save_data) {
     if (save_data == NULL) {
-        return 0;
+        return false;
     }
 
     if (save_data->GetBitFlag(0x2E0) == 1) {
         if (!save_data->GetBitFlag(0x320)) {
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 void InitMenuEtcSpecialFlag() {
@@ -888,16 +898,16 @@ void SetMenuKeyCtrlEnv(int layout) {
 }
 
 void DisablePadReset(int disable) {
-    DNG_BATTLE_AREA *scene;
+    DNG_BATTLE_AREA *area;
 
-    if (GetNowLoopNo() == (int) LOOP_DUNGEON) {
-        scene = menu_GetBattleAreaScene();
+    if (GetNowLoopNo() == LOOP_DUNGEON) {
+        area = menu_GetBattleAreaScene();
 
-        if (scene != NULL) {
+        if (area != NULL) {
             if (disable != 0) {
-                scene->pause_flag |= DNG_PAUSE_PAD_RESET;
+                area->pause_flag |= DNG_PAUSE_PAD_RESET;
             } else {
-                scene->pause_flag &= ~DNG_PAUSE_PAD_RESET;
+                area->pause_flag &= ~DNG_PAUSE_PAD_RESET;
             }
         }
     }
@@ -976,7 +986,7 @@ int MenuMainInit(MENU_INIT_ARG *arg) {
     MenuSePlayUsedFlag = 0;
     MenuCommonInfo->user_data = MenuArg.user_data;
     MenuPrevEndCode = MenuArg.end_code;
-    MenuArg.end_code = 0;
+    MenuArg.end_code = MENU_END_NONE;
     MenuCommonInfo->pack = init_arg->pack;
     MenuCommonInfo->pack_size = init_arg->pack_size;
     mgCTextureManager *texture_manager = &mgTexManager;
@@ -986,7 +996,7 @@ int MenuMainInit(MENU_INIT_ARG *arg) {
         texture_manager->DeleteBlock(MenuCommonInfo->tex_block[i]);
     }
 
-    MenuCommonInfo->unk_4C = -1;
+    MenuCommonInfo->tex_block_end = -1;
     MenuBGTextureBlock = -1;
     MenuItemIconTextureBlock = -1;
     MenuCommonInfo->open_type = init_arg->open_type;
@@ -1068,8 +1078,8 @@ int MenuMainInit(MENU_INIT_ARG *arg) {
         MenuAreaName = GetMapTitle(map);
     }
 
-    SndPortVol_Enemy = sndGetPortVol((int) SND_PORT_ENEMY);
-    sndSetPortVol((int) SND_PORT_ENEMY, 0.0f);
+    SndPortVol_Enemy = sndGetPortVol(SND_PORT_ENEMY);
+    sndSetPortVol(SND_PORT_ENEMY, 0.0f);
     MenuPrim->Initialize(NULL, NULL);
     mgCDrawPrim *prim = MenuPrim;
     prim->offset_x = 0;
@@ -1096,193 +1106,193 @@ int MenuMainInit(MENU_INIT_ARG *arg) {
     TopicTex = NULL;
     InitMenuEtcSpecialFlag();
     SetModeMenuDrawItemBoard(0);
-    TreeMapSaveFlag = 0;
-    TreeMapCallDungeonSubMap = 0;
-    TreeMapCalledWorldMap = 0;
+    TreeMapSaveFlag = false;
+    TreeMapCallDungeonSubMap = false;
+    TreeMapCalledWorldMap = false;
     int *texture_blocks = MenuCommonInfo->tex_block;
     MenuMainStack.Align64();
     mgCMemory *menu_stack = &MenuMainStack;
-    ItemOverFlowCheckFlag = 0;
+    ItemOverFlowCheckFlag = false;
 
-    if (CheckItemOver() > 0 && (MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_TOWN || MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_DUNGEON)) {
-        MenuCommonInfo->open_type += (int) MENU_OPEN_ITEM_OVER;
-        ItemOverFlowCheckFlag = 1;
+    if (CheckItemOver() > 0 && (MenuCommonInfo->open_type == MENU_OPEN_MAIN_TOWN || MenuCommonInfo->open_type == MENU_OPEN_MAIN_DUNGEON)) {
+        MenuCommonInfo->open_type += MENU_OPEN_ITEM_OVER;
+        ItemOverFlowCheckFlag = true;
     }
 
-    MenuLoopType = (int) MENU_LOOP_TOWN;
+    MenuLoopType = MENU_LOOP_TOWN;
 
-    if (MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_DUNGEON || MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_DUNGEON_ITEM_OVER ||
-        MenuCommonInfo->open_type == (int) MENU_OPEN_CHARA_CHANGE_DUNGEON || MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_CHARA_BG_DUNGEON) {
-        MenuLoopType = (int) MENU_LOOP_DUNGEON;
+    if (MenuCommonInfo->open_type == MENU_OPEN_MAIN_DUNGEON || MenuCommonInfo->open_type == MENU_OPEN_MAIN_DUNGEON_ITEM_OVER ||
+        MenuCommonInfo->open_type == MENU_OPEN_CHARA_CHANGE_DUNGEON || MenuCommonInfo->open_type == MENU_OPEN_MAIN_CHARA_BG_DUNGEON) {
+        MenuLoopType = MENU_LOOP_DUNGEON;
     }
 
     SetCommonMenuModeID();
     int sound = -1;
     CMenuInterPt = NULL;
-    MenuInterMesDrawFlag = 0;
+    MenuInterMesDrawFlag = false;
     MenuInterMes = NULL;
 
     switch (MenuCommonInfo->open_type) {
         case MENU_OPEN_MAIN_TOWN:
         case MENU_OPEN_MAIN_DUNGEON:
-            sound = 1;
-            MenuInternInit(menu_stack, MenuCommonInfo->open_type, 1);
+            sound = SYSTEM_SE_DECIDE;
+            MenuInternInit(menu_stack, MenuCommonInfo->open_type, true);
             break;
         case MENU_OPEN_GEORAMA:
-            sound = 1;
+            sound = SYSTEM_SE_DECIDE;
             MenuGeoramaInit(menu_stack, MenuCommonInfo->open_type);
             break;
         case MENU_OPEN_DNG_TREE_MAP:
             TreeMapSaveNum = 0;
-            TreeMapSaveFlag = 1;
-            MenuCommonInfo->now_mode = (int) MENU_MODE_DNG_TREE_MAP;
+            TreeMapSaveFlag = true;
+            MenuCommonInfo->now_mode = MENU_MODE_DNG_TREE_MAP;
             DngTreeMapInit(menu_stack, texture_blocks, MenuCommonInfo->open_type, MenuArg.param[0]);
             break;
         case MENU_OPEN_CHARA_CHANGE:
         case MENU_OPEN_CHARA_CHANGE_DUNGEON:
-            MenuInternInit(menu_stack, MenuCommonInfo->open_type, 0);
+            MenuInternInit(menu_stack, MenuCommonInfo->open_type, false);
 
             while (ReadBGSync() != 0) {
             }
 
             CMenuInterPt->InitEnd();
             ReturnMenuIntern(1);
-            NextMenuInit((int) MENU_MODE_CHARA_CHANGE, &MenuMainStack_Next, &texture_blocks[3]);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_CHARA_CHANGE;
+            NextMenuInit(MENU_MODE_CHARA_CHANGE, &MenuMainStack_Next, &texture_blocks[3]);
+            MenuCommonInfo->now_mode = MENU_MODE_CHARA_CHANGE;
             MenuMainScene->fade.FadeIn(30);
             break;
         case MENU_OPEN_SHOP:
-            MenuShopInit(menu_stack, texture_blocks, 6);
+            MenuShopInit(menu_stack, texture_blocks, MENU_OPEN_SHOP);
             break;
         case MENU_OPEN_USE_ITEM:
-            sound = 1;
+            sound = SYSTEM_SE_DECIDE;
         case MENU_OPEN_USE_ITEM_B:
             MenuScreenBlackBeltSet(0);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_ITEM_SELECT;
+            MenuCommonInfo->now_mode = MENU_MODE_ITEM_SELECT;
             MenuItemSelectInit(menu_stack, texture_blocks, MenuCommonInfo->open_type);
             break;
         case MENU_OPEN_INVENT:
-            sound = 1;
-            MenuInternInit(menu_stack, MenuCommonInfo->open_type, 1);
-            NextMenuInit((int) MENU_MODE_INVENT_DIRECT, menu_stack, &texture_blocks[3]);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_INVENT_DIRECT;
+            sound = SYSTEM_SE_DECIDE;
+            MenuInternInit(menu_stack, MenuCommonInfo->open_type, true);
+            NextMenuInit(MENU_MODE_INVENT_DIRECT, menu_stack, &texture_blocks[3]);
+            MenuCommonInfo->now_mode = MENU_MODE_INVENT_DIRECT;
             break;
         case MENU_OPEN_CHAPTER:
-            MenuCommonInfo->now_mode = (int) MENU_MODE_CHAPTER;
-            MenuChapterInit(menu_stack, texture_blocks, 11, MenuArg.param[0]);
+            MenuCommonInfo->now_mode = MENU_MODE_CHAPTER;
+            MenuChapterInit(menu_stack, texture_blocks, MENU_OPEN_CHAPTER, MenuArg.param[0]);
             break;
         case MENU_OPEN_SAVE:
         case MENU_OPEN_TITLE_SAVE:
             SetDngTreeFlag(0);
 
-            if (MenuCommonInfo->open_type == (int) MENU_OPEN_SAVE) {
+            if (MenuCommonInfo->open_type == MENU_OPEN_SAVE) {
                 SaveMapInfo(-1);
                 NowProgramLoopNo = GetNowLoopNo();
-                MenuCommonInfo->now_mode = (int) MENU_MODE_SAVE;
+                MenuCommonInfo->now_mode = MENU_MODE_SAVE;
             }
 
-            if (MenuCommonInfo->open_type == (int) MENU_OPEN_TITLE_SAVE) {
-                MenuCommonInfo->now_mode = (int) MENU_MODE_TITLE_SAVE;
+            if (MenuCommonInfo->open_type == MENU_OPEN_TITLE_SAVE) {
+                MenuCommonInfo->now_mode = MENU_MODE_TITLE_SAVE;
             }
 
             MenuSaveInit(menu_stack, texture_blocks, MenuCommonInfo->open_type);
             break;
         case MENU_OPEN_SUBGAME_SAVE:
         case MENU_OPEN_TITLE_SUBGAME_SAVE:
-            MenuCommonInfo->now_mode = (int) MENU_MODE_SUBGAME_SAVE;
+            MenuCommonInfo->now_mode = MENU_MODE_SUBGAME_SAVE;
             SubGameSaveInit(menu_stack, texture_blocks, MenuCommonInfo->open_type);
             break;
         case MENU_OPEN_REMOVAL:
             MenuScreenBlackBeltSet(0);
             MenuRemovalInit(menu_stack, texture_blocks);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_REMOVAL;
+            MenuCommonInfo->now_mode = MENU_MODE_REMOVAL;
             break;
         case MENU_OPEN_WORLD_MOVE:
         case MENU_OPEN_WORLD_MOVE_B:
             WorldMoveInit(menu_stack, texture_blocks, MenuCommonInfo->open_type);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_WORLD_MOVE;
+            MenuCommonInfo->now_mode = MENU_MODE_WORLD_MOVE;
             break;
         case MENU_OPEN_NAME_REGIST:
             Nameregi_Target.target = 2;
             NameRegistInit(menu_stack, texture_blocks, MenuCommonInfo->open_type);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_NAME_REGIST;
+            MenuCommonInfo->now_mode = MENU_MODE_NAME_REGIST;
             break;
         case MENU_OPEN_GYORACE_FISH_SEL:
             MenuScreenBlackBeltSet(0);
-            sound = 1;
+            sound = SYSTEM_SE_DECIDE;
             MenuGyoraceFishSelInit(menu_stack, texture_blocks, MenuCommonInfo->open_type);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_GYORACE_FISH_SEL;
+            MenuCommonInfo->now_mode = MENU_MODE_GYORACE_FISH_SEL;
             break;
         case MENU_OPEN_MAIN_TOWN_ITEM_OVER:
         case MENU_OPEN_MAIN_DUNGEON_ITEM_OVER:
-            MenuInternInit(menu_stack, MenuCommonInfo->open_type, 0);
+            MenuInternInit(menu_stack, MenuCommonInfo->open_type, false);
 
             while (ReadBGSync() != 0) {
             }
 
             CMenuInterPt->InitEnd();
-            CMenuInterPt->ReadBGTexture(2, 1);
+            CMenuInterPt->ReadBGTexture(MENU_MODE_ITEM, true);
 
-            while (CMenuInterPt->ReadBGTexture(2, 0) == 0) {
+            while (CMenuInterPt->ReadBGTexture(MENU_MODE_ITEM, false) == 0) {
             }
 
             ReturnMenuIntern(1);
-            NextMenuInit((int) MENU_MODE_ITEM, &MenuMainStack_Next, &texture_blocks[3]);
+            NextMenuInit(MENU_MODE_ITEM, &MenuMainStack_Next, &texture_blocks[3]);
             MenuMainScene->fade.FadeIn(40);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_ITEM;
+            MenuCommonInfo->now_mode = MENU_MODE_ITEM;
             break;
         case MENU_OPEN_OPTION:
             GamePad__2.KeyLock(1);
-            MenuInternInit(menu_stack, MenuCommonInfo->open_type, 0);
+            MenuInternInit(menu_stack, MenuCommonInfo->open_type, false);
 
             while (ReadBGSync() != 0) {
             }
 
             CMenuInterPt->InitEnd();
-            CMenuInterPt->ReadBGTexture(7, 1);
+            CMenuInterPt->ReadBGTexture(MENU_MODE_OPTION, true);
 
-            while (CMenuInterPt->ReadBGTexture(7, 0) == 0) {
+            while (CMenuInterPt->ReadBGTexture(MENU_MODE_OPTION, false) == 0) {
             }
 
             ReturnMenuIntern(1);
-            NextMenuInit((int) MENU_MODE_OPTION, &MenuMainStack_Next, &texture_blocks[3]);
+            NextMenuInit(MENU_MODE_OPTION, &MenuMainStack_Next, &texture_blocks[3]);
             break;
         case MENU_OPEN_COSTUME:
             MenuCostumeInit(menu_stack, texture_blocks, 0);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_COSTUME;
+            MenuCommonInfo->now_mode = MENU_MODE_COSTUME;
             break;
         case MENU_OPEN_MAIN_CHARA_BG_DUNGEON:
         case MENU_OPEN_MAIN_CHARA_BG: {
-            int town = 0;
+            int town = false;
 
-            if (MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_CHARA_BG) {
-                town = 1;
+            if (MenuCommonInfo->open_type == MENU_OPEN_MAIN_CHARA_BG) {
+                town = true;
             }
 
             MenuScreenBlackBeltSet(0);
             InitMainCharaBG(MenuArg.param[0], menu_stack, town);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_MAIN_CHARA_BG;
+            MenuCommonInfo->now_mode = MENU_MODE_MAIN_CHARA_BG;
             break;
         }
         case MENU_OPEN_GYORACE:
             MenuScreenBlackBeltSet(0);
             GyoraceMenuInit(menu_stack, texture_blocks, 0);
-            sound = 1;
-            MenuCommonInfo->now_mode = (int) MENU_MODE_GYORACE;
+            sound = SYSTEM_SE_DECIDE;
+            MenuCommonInfo->now_mode = MENU_MODE_GYORACE;
             break;
         case MENU_OPEN_SPHIDA:
             SphidaMenuInit(menu_stack, texture_blocks, 0);
-            sound = 1;
-            MenuCommonInfo->now_mode = (int) MENU_MODE_SPHIDA;
+            sound = SYSTEM_SE_DECIDE;
+            MenuCommonInfo->now_mode = MENU_MODE_SPHIDA;
             break;
         case MENU_OPEN_SPHIDA_SCORE_VIEW:
             MenuScreenBlackBeltSet(0);
             SphidaScoreViewInit(menu_stack, texture_blocks, 0);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_SPHIDA_SCORE_VIEW;
+            MenuCommonInfo->now_mode = MENU_MODE_SPHIDA_SCORE_VIEW;
             break;
         case MENU_OPEN_MONSTER_BOOK:
             MonsterBookInit(menu_stack, texture_blocks, 1);
-            MenuCommonInfo->now_mode = (int) MENU_MODE_MONSTER_BOOK;
+            MenuCommonInfo->now_mode = MENU_MODE_MONSTER_BOOK;
             break;
     }
 
@@ -1294,7 +1304,7 @@ int MenuMainExit() {
     CCharacter2 *chara;
     int          i;
     int          active_chara;
-    int          is_fishing_menu;
+    int          leaving;
     CScene      *scene;
     mgCCamera   *camera;
     float        view_matrix[4][4];
@@ -1311,16 +1321,16 @@ int MenuMainExit() {
     MenuPrimFix.offset_y = 0;
 
     if (MenuSePlayUsedFlag != 0) {
-        sndInitPort(8);
+        sndInitPort(SND_PORT_MENU);
     }
 
-    sndSetPortVol((int) SND_PORT_ENEMY, SndPortVol_Enemy);
+    sndSetPortVol(SND_PORT_ENEMY, SndPortVol_Enemy);
     active_chara = MenuUserDataManPtr->active_chr_no;
     GetBattleCharaInfo();
 
-    if (MenuArg.end_code == 1) {
+    if (MenuArg.end_code == MENU_END_CHARA_CHANGE) {
         active_chara = MenuArg.result[0];
-        SetMenuEtcFlag(1);
+        SetMenuEtcFlag(MENU_ETC_FLAG_CHARA_RELOAD);
     }
 
     MenuCommonInfo->user_data->SetActiveChrNo(active_chara);
@@ -1333,7 +1343,7 @@ int MenuMainExit() {
             chara->SetRotation(menu_old_chara_rotation);
         }
 
-        if ((MenuArg.end_code == 1 || MenuArg.end_code == 21) && chara != NULL) {
+        if ((MenuArg.end_code == MENU_END_CHARA_CHANGE || MenuArg.end_code == MENU_END_CHARA_CHANGE_FADE) && chara != NULL) {
             chara->UpdatePosition();
             i = 0;
 
@@ -1344,22 +1354,22 @@ int MenuMainExit() {
                 }
             }
 
-            (&MenuMainScene->fade)->FadeOut(-1, 0.0f, 0.0f, 0.0f);
+            MenuMainScene->fade.FadeOut(-1, 0.0f, 0.0f, 0.0f);
         }
 
         MenuMainScene->SetVolBGM(MenuBGMVolume_Save);
     }
 
-    is_fishing_menu = (MenuArg.end_code == 5) | (MenuArg.end_code == 6);
+    leaving = (MenuArg.end_code == MENU_END_DNG_MOVE) | (MenuArg.end_code == MENU_END_WORLD_MOVE);
 
     if (active_chara == 0) {
         if (MenuUserParam.chara[0]->equip[0].IsFishingRod() != 0) {
-            if (is_fishing_menu == 0) {
-                MenuArg.end_code = 11;
+            if (!leaving) {
+                MenuArg.end_code = MENU_END_FISHING;
                 MenuArg.result[0] = MenuUserDataManPtr->GetFishingRodNo();
                 MenuArg.result[1] = MenuUserDataManPtr->GetFishBait();
 
-                if (GetMenuLoopType() == (int) MENU_LOOP_DUNGEON) {
+                if (GetMenuLoopType() == MENU_LOOP_DUNGEON) {
                     chara = MenuMainScene->GetCharacter(1);
 
                     if (chara != NULL) {
@@ -1398,7 +1408,7 @@ int MenuMainExit() {
         mgSetViewMatrix(world_matrix, pos);
     }
 
-    return 1;
+    return true;
 }
 
 int MenuMainLoop() {
@@ -1409,7 +1419,7 @@ int MenuMainLoop() {
 
 int MenuMainKey() {
     int   result;
-    short page;
+    short open_type;
     int   menu;
 
     MenuWorldTrans();
@@ -1427,36 +1437,36 @@ int MenuMainKey() {
 
     switch (result) {
         case 1:
-            page = MenuCommonInfo->open_type;
+            open_type = MenuCommonInfo->open_type;
 
-            switch (page) {
-                case 0:
-                case 1: {
+            switch (open_type) {
+                case MENU_OPEN_MAIN_TOWN:
+                case MENU_OPEN_MAIN_DUNGEON: {
                     menu = MenuCommonInfo->now_mode;
 
-                    if (menu >= 2 && menu < 12) {
+                    if (menu >= MENU_MODE_ITEM && menu < MENU_MODE_SHOP) {
                         MenuKeyPageTable page_table = {
                             {MENU_MODE_MAIN_TOWN, MENU_MODE_MAIN_DUNGEON}
                         };
-                        MenuCommonInfo->now_mode = page_table.next[page];
-                        MenuCommonInfo->key_enable = 1;
+                        MenuCommonInfo->now_mode = page_table.mode[open_type];
+                        MenuCommonInfo->key_enable = true;
 
                         if (MenuCommonInfo->cursor_form != NULL) {
-                            MenuCommonInfo->cursor_form->draw_flag = 1;
+                            MenuCommonInfo->cursor_form->draw_flag = true;
                         }
 
                         MenuCommonInfo->CursorFadeIn(10.0f, 1);
                         MenuCommonInfo->SetVibeCnt(60, 30);
-                        CMenuInterPt->cursor_jump = 1;
+                        CMenuInterPt->cursor_jump = true;
                         MenuPosData->FormInfoClear(10, 80);
                         MenuPosData->InitDrawList();
                         result = 0;
-                        CMenuInterPt->step = 0;
-                        CMenuInterPt->help_update = 1;
-                        (&MenuCommonInfo->cursor)[0] = CMenuInterPt->select_no;
+                        CMenuInterPt->step = MENU_INTER_STEP_SELECT;
+                        CMenuInterPt->help_update = true;
+                        MenuCommonInfo->cursor = CMenuInterPt->select_no;
 
-                        if (menu == 11 || menu == 6) {
-                            (&MenuMainScene->fade)->FadeIn(40);
+                        if (menu == MENU_MODE_DNG_TREE_MAP || menu == MENU_MODE_WORLD_MOVE) {
+                            MenuMainScene->fade.FadeIn(40);
                             ReturnMenuIntern(0);
                         }
 
@@ -1467,8 +1477,8 @@ int MenuMainKey() {
 
             break;
         case 2:
-            if (MenuCommonInfo->now_mode == (int) MENU_MODE_CHARA_CHANGE) {
-                (&MenuMainScene->fade)->FadeIn(40);
+            if (MenuCommonInfo->now_mode == MENU_MODE_CHARA_CHANGE) {
+                MenuMainScene->fade.FadeIn(40);
             }
 
             break;
@@ -1493,7 +1503,7 @@ int MenuMainKey() {
         UserDataRefresh();
     }
 
-    MenuDoubleDrawCheck = 0;
+    MenuDoubleDrawCheck = false;
     return result;
 }
 
@@ -1501,7 +1511,7 @@ void MenuMainDraw() {
     mgCDrawPrim *prim;
     int          next_page;
 
-    if (MenuDoubleDrawCheck == 0) {
+    if (!MenuDoubleDrawCheck) {
         prim = GetMenuPrim();
         prim->offset_x = 0;
         prim->offset_y = 0;
@@ -1515,7 +1525,7 @@ void MenuMainDraw() {
         }
 
         MenuPolygonEnvReset();
-        (&MenuMainScene->fade)->Draw();
+        MenuMainScene->fade.Draw();
         next_page = MenuCommonInfo->next_mode;
 
         if (next_page >= 0) {
@@ -1525,75 +1535,75 @@ void MenuMainDraw() {
             }
         }
 
-        MenuDoubleDrawCheck = 1;
+        MenuDoubleDrawCheck = true;
     }
 }
 
 int NextMenuInit(int menu, mgCMemory *memory, int *args) {
-    int   page;
-    int   known;
-    int   dungeon_mode;
+    int   open_type;
+    int   opened;
+    int   dng_no;
     char *map_name;
 
-    page = MenuCommonInfo->open_type;
-    known = 1;
+    open_type = MenuCommonInfo->open_type;
+    opened = true;
 
     switch (menu) {
         case MENU_MODE_ITEM:
-            MenuItemInit(memory, args, page);
+            MenuItemInit(memory, args, open_type);
             break;
         case MENU_MODE_CHARA_CHANGE:
-            MenuCharaChangeInit(memory, args, page);
+            MenuCharaChangeInit(memory, args, open_type);
             break;
         case MENU_MODE_INVENT:
         case MENU_MODE_INVENT_DIRECT:
-            MenuInventInit(memory, args, page);
+            MenuInventInit(memory, args, open_type);
             break;
         case MENU_MODE_DNG_TREE_MAP:
-            dungeon_mode = 0;
+            dng_no = 0;
 
             if (MenuMainScene != NULL) {
-                dungeon_mode = MenuSaveDataDungeonPtr->stage_id;
+                dng_no = MenuSaveDataDungeonPtr->stage_id;
             }
 
             if (TreeMapCallDungeonSubMap != 0) {
                 map_name = MenuMainScene->GetMapName(MenuMainScene->active_map);
 
                 if (strcmp(map_name, "s05") == 0) {
-                    dungeon_mode = 1;
+                    dng_no = 1;
                 }
 
                 if (strcmp(map_name, "d04b01") == 0) {
-                    dungeon_mode = 3;
+                    dng_no = 3;
                 }
             }
 
-            DngTreeMapInit(memory, args, page, dungeon_mode);
+            DngTreeMapInit(memory, args, open_type, dng_no);
             break;
         case MENU_MODE_AQUA:
-            MenuAquaInit(memory, args, page);
+            MenuAquaInit(memory, args, open_type);
             break;
         case MENU_MODE_WORLD_MOVE:
-            WorldMoveInit(memory, args, page);
+            WorldMoveInit(memory, args, open_type);
             break;
         case MENU_MODE_MANUAL:
-            MenuManualInit(memory, args, page);
+            MenuManualInit(memory, args, open_type);
             break;
         case MENU_MODE_OPTION:
-            MenuOptionInit(memory, args, page);
+            MenuOptionInit(memory, args, open_type);
             break;
         default:
-            known = 0;
+            opened = false;
             break;
     }
 
-    if (known != 0) {
+    if (opened) {
         MenuCommonInfo->next_mode = menu;
     } else {
         MenuCommonInfo->next_mode = -1;
     }
 
-    return known;
+    return opened;
 }
 
 void MenuCamInit(float roll) {
@@ -1663,21 +1673,21 @@ void SetCommonMenuModeID() {
     table = MenuCommonInfo->open_type;
     bit_ctrl = GetSaveData()->GetBitCtrl();
 
-    if (table == 0x10) {
-        table = 0;
+    if (table == MENU_OPEN_MAIN_TOWN_ITEM_OVER) {
+        table = MENU_OPEN_MAIN_TOWN;
     }
 
-    if (table == 0x11) {
-        table = 1;
+    if (table == MENU_OPEN_MAIN_DUNGEON_ITEM_OVER) {
+        table = MENU_OPEN_MAIN_DUNGEON;
     }
 
     if ((unsigned int) table < 2) {
         for (i = 0; i < 8; i++) {
             CommonMenuModeID2[i] = CommonMenuModeID[table][i];
 
-            if (CommonMenuModeID2[i] == (int) MENU_MODE_WORLD_MOVE && (bit_ctrl & 0x10)) {
-                CommonMenuModeID2[i] = (int) MENU_MODE_DNG_TREE_MAP;
-                TreeMapCallDungeonSubMap = 1;
+            if (CommonMenuModeID2[i] == MENU_MODE_WORLD_MOVE && (bit_ctrl & MENU_DEBUG_BIT_CTRL_BOOT_TREEMAP)) {
+                CommonMenuModeID2[i] = MENU_MODE_DNG_TREE_MAP;
+                TreeMapCallDungeonSubMap = true;
             }
         }
     }
@@ -1692,7 +1702,8 @@ int CursorSaveOptionState() {
     int        r = 0;
 
     if (save_data != NULL) {
-        r = (u8) !*(int *) &save_data->config;
+        SV_CONFIG_OPTION *config = save_data->GetConfig();
+        r = (u8) !config->cursor_save;
     }
 
     return r;
@@ -1764,7 +1775,7 @@ void MenuAreaBoardNameStep() {
             } else {
                 MenuTimeBrdForm->SetPartDrawFlag("\x96\xA2\x97\x88", false);
 
-                if (LanguageCode == 3) {
+                if (LanguageCode == LANG_GERMAN) {
                     MenuTimeBrdForm->SetPartDrawFlag("AM", false);
                     MenuTimeBrdForm->SetPartDrawFlag("PM", false);
                 } else if (12.0f <= hours) {
@@ -1777,7 +1788,7 @@ void MenuAreaBoardNameStep() {
                 }
             }
 
-            if (LanguageCode != 3 && LanguageCode > 0 && hours == 0.0f) {
+            if (LanguageCode != LANG_GERMAN && LanguageCode > LANG_JAPANESE && hours == 0.0f) {
                 hours = 12.0f;
             }
 
@@ -1879,7 +1890,7 @@ void DrawMenuTopic() {
         prim->Color(0x80, 0x80, 0x80, MenuTopicAlpha);
         int title_width = 0x28;
 
-        if (LanguageCode == 3) {
+        if (LanguageCode == LANG_GERMAN) {
             title_width = 0x32;
         }
 
@@ -1940,23 +1951,23 @@ void DrawMenuTopic() {
 }
 
 int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
-    MenuArg.end_code = 0;
+    MenuArg.end_code = MENU_END_NONE;
 
     if (capture != 0) {
         MenuCapture(MenuCommonInfo->tex_block[0], stack, 1);
     }
 
-    int early_game = 1;
+    int early_game = true;
 
     if (CheckBitFlagMenu(0x36) != 0) {
-        early_game = 0;
+        early_game = false;
     }
 
     CMenuInterPt = &CMenuInterStatic;
     CMenuInterPt->Initialize(0);
 
-    if (open_type == (int) MENU_OPEN_INVENT) {
-        MenuCommonInfo->now_mode = (int) MENU_MODE_MAIN_TOWN;
+    if (open_type == MENU_OPEN_INVENT) {
+        MenuCommonInfo->now_mode = MENU_MODE_MAIN_TOWN;
     } else {
         open_type = GetMenuLoopType();
         CMenuInterPt->mode_list = GetCommonMenuModeID();
@@ -1964,7 +1975,7 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
     }
 
     MenuMainImageDataEnter(MenuCommonInfo->tex_block[1]);
-    MenuInterMes = new (stack->Alloc(0x2A7)) CDC2Mes;
+    MenuInterMes = new (stack->Alloc(align16_blocks(sizeof(CDC2Mes)) + 2)) CDC2Mes;
     int   script_size;
     char *config = GetMenuMainPosCfgBuffer(&script_size);
     char *script = (char *) (stack->stack + stack->stack_used) + (stack->stack_size - stack->stack_used) * 16 - 0x32000;
@@ -1974,9 +1985,9 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
     MenuAreaBrdForm = MenuPosData->GetFormInfo("areaboard");
     MenuTimeBrdForm = MenuPosData->GetFormInfo("timeboard");
 
-    if (early_game != 0) {
+    if (early_game) {
         if (MenuTimeBrdForm != NULL) {
-            MenuTimeBrdForm->draw_flag = 0;
+            MenuTimeBrdForm->draw_flag = false;
             MenuTimeBrdForm = NULL;
         }
     }
@@ -1987,37 +1998,37 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
     MenuDCMsg[1]->MsgPreset(5);
     MenuDCMsg[1]->value_sign = 0;
     MenuDCMsg[1]->value_zero = 1;
-    MenuMesForm[0]->draw_flag = 1;
-    MenuMesForm[1]->draw_flag = 1;
-    MenuInterMesDrawFlag = 0;
+    MenuMesForm[0]->draw_flag = true;
+    MenuMesForm[1]->draw_flag = true;
+    MenuInterMesDrawFlag = false;
     MenuPosData->AttachCommonTexInfo();
-    HatumeiMenuOkFlag = 0;
+    HatumeiMenuOkFlag = false;
 
     if (0 < MenuUserDataManPtr->GetNumSameItem(0x171)) {
-        HatumeiMenuOkFlag = 1;
+        HatumeiMenuOkFlag = true;
     }
 
-    ManualMenuOkFlag = 0;
+    ManualMenuOkFlag = false;
 
     if (0 < MenuUserDataManPtr->GetNumSameItem(0x167)) {
-        ManualMenuOkFlag = 1;
+        ManualMenuOkFlag = true;
     }
 
     if (OmakeFlag == 1) {
-        if (GetNowLoopNo() == (int) LOOP_DUNGEON) {
-            ManualMenuOkFlag = 1;
+        if (GetNowLoopNo() == LOOP_DUNGEON) {
+            ManualMenuOkFlag = true;
         }
     }
 
-    WorldMapOkFlag = 1;
-    DngMoveMenuOkFlag = 1;
+    WorldMapOkFlag = true;
+    DngMoveMenuOkFlag = true;
 
-    if (early_game != 0) {
-        WorldMapOkFlag = 0;
-        DngMoveMenuOkFlag = 0;
+    if (early_game) {
+        WorldMapOkFlag = false;
+        DngMoveMenuOkFlag = false;
     }
 
-    if (open_type != (int) MENU_OPEN_INVENT) {
+    if (open_type != MENU_OPEN_INVENT) {
         MenuMainSubDataPackAdr = stack->stack + stack->stack_used;
         MenuCommonReadData(stack, fname_1858, 0);
         MenuMainFrameModeSet(0, 1);
@@ -2042,7 +2053,7 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
         CMenuPosDataForm *form = MenuPosData->GetFormInfo("mi3");
 
         if (form != NULL) {
-            if (HatumeiMenuOkFlag == 0) {
+            if (!HatumeiMenuOkFlag) {
                 shown = false;
                 hidden = true;
             }
@@ -2058,7 +2069,7 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
             bool manual_shown = true;
             manual_hidden = false;
 
-            if (ManualMenuOkFlag == 0) {
+            if (!ManualMenuOkFlag) {
                 manual_shown = false;
                 manual_hidden = true;
             }
@@ -2074,7 +2085,7 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
             bool world_shown = true;
             world_hidden = false;
 
-            if (WorldMapOkFlag == 0) {
+            if (!WorldMapOkFlag) {
                 world_shown = false;
                 world_hidden = true;
             }
@@ -2083,7 +2094,7 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
             world_form->SetPartDrawFlag("mi1", world_hidden);
 
             if (GetMenuLoopType() == MENU_LOOP_DUNGEON) {
-                world_form->draw_flag = 0;
+                world_form->draw_flag = false;
             }
         }
 
@@ -2094,7 +2105,7 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
             bool floor_shown = true;
             floor_hidden = false;
 
-            if (DngMoveMenuOkFlag == 0) {
+            if (!DngMoveMenuOkFlag) {
                 floor_shown = false;
                 floor_hidden = true;
             }
@@ -2103,53 +2114,53 @@ int MenuInternInit(mgCMemory *stack, int open_type, int capture) {
             floor_form->SetPartDrawFlag("mi1", floor_hidden);
 
             if (GetMenuLoopType() == MENU_LOOP_TOWN) {
-                floor_form->draw_flag = 0;
+                floor_form->draw_flag = false;
             }
         }
     }
 
-    CMenuInterPt->help_update = 1;
+    CMenuInterPt->help_update = true;
     CMenuInterPt->step = MENU_INTER_STEP_OPEN;
     MenuCommonInfo->cursor = -1;
     MenuCommonInfo->AttachFuncData();
-    MenuCommonInfo->key_enable = 0;
+    MenuCommonInfo->key_enable = false;
 
     if (MenuCommonInfo->cursor_form != NULL) {
-        MenuCommonInfo->cursor_form->draw_flag = 0;
+        MenuCommonInfo->cursor_form->draw_flag = false;
     }
 
     MenuCommonInfo->SetWakuType(-1);
-    return 1;
+    return true;
 }
 
 void CMenuInter::Initialize(int unused) {
-    step = 1;
+    step = MENU_INTER_STEP_OPEN;
     select_no = 0;
     select_num = 6;
     mode_list = NULL;
-    bg_read_step = 0;
+    bg_read_step = MENU_INTER_BG_READ_WAIT;
     bg_read_wait = 30;
-    cursor_jump = 1;
+    cursor_jump = true;
     next_mode = -1;
-    help_update = 0;
+    help_update = false;
 }
 
-void MenuCommonBaseDataEnter(mgCMemory *pallet_memory, unsigned int *pack, int pack_size, int block) {
+void MenuCommonBaseDataEnter(mgCMemory *pallet_memory, u_int *pack, int pack_size, int block) {
     mgCTextureManager *tex = &mgTexManager;
     int                size;
     MenuMainTextureReadBuf.stSetBuffer((u_long128 *) pack, pack_size / 16);
-    mgTexManager.EnterIMGFile((u8 *) GetPackFile(pack, "edmenu.img", 0), block, 0, 0);
+    mgTexManager.EnterIMGFile((u8 *) GetPackFile(pack, "edmenu.img", NULL), block, 0, 0);
     mgTexManager.EnterIMGFile((u8 *) GetPackFile(pack, "allitem.img", &size), block, 0, 0);
-    u8 *image = (u8 *) GetPackFile(pack, "spectre.img", 0);
+    u8 *image = (u8 *) GetPackFile(pack, "spectre.img", NULL);
 
     if (image) {
         tex->EnterIMGFile(image, block, 0, 0);
     }
 
-    (MenuPosData)->AttachCommonTexInfo();
+    MenuPosData->AttachCommonTexInfo();
     MenuItemIconTextureBlock = block;
-    (MenuPosData)->MallocPallet(pallet_memory);
-    (MenuPosData)->SearchTransPalletNo();
+    MenuPosData->MallocPallet(pallet_memory);
+    MenuPosData->SearchTransPalletNo();
     MenuPosData->ResetTextureInfoAll();
 }
 
@@ -2158,17 +2169,17 @@ void MenuBaseTextureReEnter() {
     int                block = MenuCommonInfo->tex_block[1];
     tex->DeleteBlock(block);
     MenuMainImageDataEnter(block);
-    unsigned int *pack = (unsigned int *) MenuMainTextureReadBuf.stack;
+    u_int *pack = (u_int *) MenuMainTextureReadBuf.stack;
     int           size;
-    tex->EnterIMGFile((u8 *) GetPackFile(pack, "edmenu.img", 0), block, 0, 0);
+    tex->EnterIMGFile((u8 *) GetPackFile(pack, "edmenu.img", NULL), block, 0, 0);
     tex->EnterIMGFile((u8 *) GetPackFile(pack, "allitem.img", &size), block, 0, 0);
-    u8 *image = (u8 *) GetPackFile(pack, "spectre.img", 0);
+    u8 *image = (u8 *) GetPackFile(pack, "spectre.img", NULL);
 
     if (image) {
         tex->EnterIMGFile(image, block, 0, 0);
     }
 
-    (MenuPosData)->AttachCommonTexInfo();
+    MenuPosData->AttachCommonTexInfo();
     MenuPosData->ResetTextureInfoAll();
 }
 
@@ -2179,19 +2190,19 @@ void CMenuInter::InitEnd() {
 
     if (base_data != NULL) {
         MenuCommonBaseDataEnter(&MenuMainStack, (u_int *) base_data->buffer, base_data->size, base_block);
-        help_update = 1;
+        help_update = true;
         MenuMainStack.Align64();
         int remain = MenuMainStack.stGetRest();
         MenuMainStack_Next.stSetBuffer(MenuMainStack.stGetTop(), remain);
     }
 
     MenuCommonInfo->cursor = 0;
-    step = 0;
-    MenuCommonInfo->key_enable = 1;
-    CMenuPosDataForm *cursor_form_ptr = MenuCommonInfo->cursor_form;
+    step = MENU_INTER_STEP_SELECT;
+    MenuCommonInfo->key_enable = true;
+    CMenuPosDataForm *cursor_form = MenuCommonInfo->cursor_form;
 
-    if (cursor_form_ptr != NULL) {
-        cursor_form_ptr->draw_flag = 1;
+    if (cursor_form != NULL) {
+        cursor_form->draw_flag = true;
     }
 
     MenuCommonInfo->CursorFadeIn(10.0f, 1);
@@ -2220,20 +2231,20 @@ void CMenuInter::InitEnd() {
 void CMenuInter::PushOk() {
     int mode = mode_list[select_no];
     MenuCommonInfo->SetWakuType(-1);
-    int show_message = 0;
+    int show_message = false;
     int message_no = -1;
-    int enable = 1;
+    int enable = true;
 
     switch (mode) {
         case MENU_MODE_MANUAL:
-            if (ManualMenuOkFlag == 0) {
-                enable = 0;
+            if (!ManualMenuOkFlag) {
+                enable = false;
             }
 
             break;
         case MENU_MODE_INVENT:
-            if (HatumeiMenuOkFlag == 0) {
-                enable = 0;
+            if (!HatumeiMenuOkFlag) {
+                enable = false;
             }
 
             break;
@@ -2244,7 +2255,7 @@ void CMenuInter::PushOk() {
             break;
         case MENU_MODE_WORLD_MOVE:
             if (MenuNowMapType == 5 || MenuNowMapType == 6) {
-                show_message = 1;
+                show_message = true;
                 message_no = 0x28;
 
                 if (CheckBitFlagMenu(0x258) == 1) {
@@ -2253,55 +2264,55 @@ void CMenuInter::PushOk() {
                     }
                 }
 
-                enable = 0;
-            } else if (WorldMapOkFlag == 0) {
-                enable = 0;
-            } else if (MenuActiveSaveData->GetBitCtrl() & 1) {
+                enable = false;
+            } else if (!WorldMapOkFlag) {
+                enable = false;
+            } else if (MenuActiveSaveData->GetBitCtrl() & MENU_DEBUG_BIT_CTRL_NO_MOVE) {
                 show_message = enable;
                 message_no = 0x2A;
-                enable = 0;
+                enable = false;
             } else {
                 MenuMainScene->fade.FadeOut(0x28, 0.0f, 0.0f, 0.0f);
             }
 
             break;
         case MENU_MODE_DNG_TREE_MAP:
-            if (DngMoveMenuOkFlag == 0) {
-                enable = 0;
-            } else if (MenuActiveSaveData->GetBitCtrl() & 1) {
+            if (!DngMoveMenuOkFlag) {
+                enable = false;
+            } else if (MenuActiveSaveData->GetBitCtrl() & MENU_DEBUG_BIT_CTRL_NO_MOVE) {
                 show_message = enable;
                 message_no = 0x2A;
-                enable = 0;
+                enable = false;
             } else {
                 MenuMainScene->fade.FadeOut(0x28, 0.0f, 0.0f, 0.0f);
             }
 
             break;
         default:
-            enable = 0;
+            enable = false;
             break;
     }
 
-    if (show_message != 0) {
+    if (show_message) {
         step = MENU_INTER_STEP_MESSAGE;
         MenuInterMes->Init();
         MenuInterMes->SetMessData(GetSystemMesBuffer(), GetMenuMainMessageBuffer());
         MenuInterMes->MsgPreset(10);
         MenuInterMes->MakeMsg(message_no);
         MenuInterMes->SetAbsPos(5);
-        MenuInterMesDrawFlag = 1;
+        MenuInterMesDrawFlag = true;
         CMenuKeyFunc *common = MenuCommonInfo;
 
         if (common->cursor_form != NULL) {
-            common->cursor_form->draw_flag = 0;
+            common->cursor_form->draw_flag = false;
         }
     }
 
-    if (enable != 0) {
+    if (enable) {
         next_mode = mode;
-        MenuCommonInfo->key_enable = 0;
+        MenuCommonInfo->key_enable = false;
         MenuCommonInfo->CursorFadeOut(1.0f, 0);
-        MenuSePlay(0x13);
+        MenuSePlay(SYSTEM_SE_WINDOW);
         bg_read_wait = 0;
         CMenuPosDataForm *form = MenuFormMI2;
 
@@ -2323,7 +2334,7 @@ void CMenuInter::PushOk() {
     } else {
         next_mode = -1;
         MenuCommonInfo->next_mode = -1;
-        MenuSePlay(5);
+        MenuSePlay(SYSTEM_SE_CANCEL);
     }
 }
 
@@ -2333,41 +2344,41 @@ int CMenuInter::ReadBGTexture(int bg_no, int restart) {
 
     if (restart != 0) {
         bg_read_wait = 30;
-        bg_read_step = 0;
+        bg_read_step = MENU_INTER_BG_READ_WAIT;
     }
 
     if (0 < bg_read_wait) {
         bg_read_wait -= 1;
     }
 
-    if (bg_read_step == 0 && bg_read_wait <= 0) {
+    if (bg_read_step == MENU_INTER_BG_READ_WAIT && bg_read_wait <= 0) {
         BreakReadBG();
         StartReadBG();
         MenuMainStack_Next.stack_used = 0;
         MenuMainStack_Next.lock = 0;
-        entry = &filetbl_2141[bg_no - 2];
+        entry = &filetbl_2141[bg_no - MENU_MODE_ITEM];
 
         if (strlen(*entry) != 0) {
             unsigned int size;
             strcpy(name, *entry);
             size = LoadFileMenu(
                 name, (MenuMainStack_Next.stack + MenuMainStack_Next.stack_used), 0);
-            MenuMainStack_Next.Alloc((size & 15) ? (size >> 4) + 1 : size >> 4);
-            bg_read_step = 1;
+            MenuMainStack_Next.Alloc(align16_blocks(size));
+            bg_read_step = MENU_INTER_BG_READ_BUSY;
         } else {
             MenuMainStack_Next.stack_used = 0;
             MenuMainStack_Next.lock = 0;
-            bg_read_step = 2;
+            bg_read_step = MENU_INTER_BG_READ_DONE;
         }
-    } else if (bg_read_step == 1) {
+    } else if (bg_read_step == MENU_INTER_BG_READ_BUSY) {
         ReadBG();
 
         if (ReadBGSync() == 0) {
-            bg_read_step = 2;
+            bg_read_step = MENU_INTER_BG_READ_DONE;
         }
     }
 
-    return bg_read_step == 2;
+    return bg_read_step == MENU_INTER_BG_READ_DONE;
 }
 
 int MenuInternSelectKey() {
@@ -2375,7 +2386,7 @@ int MenuInternSelectKey() {
     int  select_key = MenuCommonInfo->CheckSelectKey();
     int  push = MenuCommonInfo->CheckPushButton();
     int  old_select = CMenuInterPt->select_no;
-    char moved = 0;
+    char moved = false;
 
     if (CMenuInterPt->step == MENU_INTER_STEP_MESSAGE) {
         select_key = 0;
@@ -2383,26 +2394,26 @@ int MenuInternSelectKey() {
 
     int direction = 0;
 
-    if (select_key & 1) {
+    if (select_key & MENU_SELECT_KEY_UP) {
         direction -= 1;
     }
 
-    if (select_key & 2) {
+    if (select_key & MENU_SELECT_KEY_DOWN) {
         direction += 1;
     }
 
-    if (MenuKeySelectCheck(direction, &CMenuInterPt->select_no, NULL, 0, CMenuInterPt->select_num, CMenuInterPt->select_num, (int) MENU_CURSOR_LIMIT_WRAP) != 0 &&
+    if (MenuKeySelectCheck(direction, &CMenuInterPt->select_no, NULL, 0, CMenuInterPt->select_num, CMenuInterPt->select_num, MENU_CURSOR_LIMIT_WRAP) != 0 &&
         CMenuInterPt->step == MENU_INTER_STEP_SELECT) {
-        moved = 1;
+        moved = true;
         MenuSePlay(SYSTEM_SE_CURSOR);
         CMenuInterPt->help_update = moved;
     }
 
     int *mode_list = CMenuInterPt->mode_list;
-    int  closing = 0;
+    int  closing = false;
 
     if (CMenuInterPt->step == MENU_INTER_STEP_CLOSE) {
-        closing = 1;
+        closing = true;
     }
 
     int mode = -1;
@@ -2414,7 +2425,7 @@ int MenuInternSelectKey() {
     int next_mode = CMenuInterPt->next_mode;
 
     if (next_mode == MENU_MODE_CHARA_CHANGE || next_mode == MENU_MODE_DNG_TREE_MAP || next_mode == MENU_MODE_WORLD_MOVE) {
-        closing = 0;
+        closing = false;
     }
 
     if ((next_mode != MENU_MODE_DNG_TREE_MAP && next_mode != MENU_MODE_WORLD_MOVE) || GetMenuMainFrameEndFlag() == 0) {
@@ -2424,7 +2435,7 @@ int MenuInternSelectKey() {
     CMenuPosDataForm *icon_form = MenuPosData->GetFormInfo(GetMenuMainIconChar(mode));
 
     if (old_select != CMenuInterPt->select_no && abs(old_select - CMenuInterPt->select_no) > 1) {
-        CMenuInterPt->cursor_jump = 1;
+        CMenuInterPt->cursor_jump = true;
     }
 
     if (icon_form != NULL) {
@@ -2435,7 +2446,7 @@ int MenuInternSelectKey() {
 
         if (CMenuInterPt->cursor_jump != 0) {
             SetCursorPos(MenuCommonInfo, &pos.x);
-            CMenuInterPt->cursor_jump = 0;
+            CMenuInterPt->cursor_jump = false;
         }
     }
 
@@ -2446,15 +2457,15 @@ int MenuInternSelectKey() {
             mode = mode_list[CMenuInterPt->select_no];
             int message = mode + 10;
 
-            if ((mode == MENU_MODE_INVENT && HatumeiMenuOkFlag == 0) || (mode == MENU_MODE_MANUAL && ManualMenuOkFlag == 0) ||
-                (mode == MENU_MODE_WORLD_MOVE && WorldMapOkFlag == 0) || (mode == MENU_MODE_DNG_TREE_MAP && DngMoveMenuOkFlag == 0)) {
+            if ((mode == MENU_MODE_INVENT && !HatumeiMenuOkFlag) || (mode == MENU_MODE_MANUAL && !ManualMenuOkFlag) ||
+                (mode == MENU_MODE_WORLD_MOVE && !WorldMapOkFlag) || (mode == MENU_MODE_DNG_TREE_MAP && !DngMoveMenuOkFlag)) {
                 message = 30;
             }
 
             MenuDCMsg[0]->MakeMsg(message);
         }
 
-        CMenuInterPt->help_update = 0;
+        CMenuInterPt->help_update = false;
     }
 
     int frame_end = GetMenuMainFrameEndFlag();
@@ -2478,11 +2489,11 @@ int MenuInternSelectKey() {
 
             if (push != 0) {
                 MenuSePlay(SYSTEM_SE_DECIDE);
-                MenuInterMesDrawFlag = 0;
+                MenuInterMesDrawFlag = false;
                 CMenuInterPt->step = MENU_INTER_STEP_SELECT;
 
                 if (MenuCommonInfo->cursor_form != NULL) {
-                    MenuCommonInfo->cursor_form->draw_flag = 1;
+                    MenuCommonInfo->cursor_form->draw_flag = true;
                 }
             }
 
@@ -2531,27 +2542,27 @@ int MenuInternSelectKey() {
             }
 
             switch (push) {
-                case 1:
-                case 4:
-                case 8:
+                case MENU_PUSH_BUTTON_DECIDE:
+                case MENU_PUSH_BUTTON_TRIANGLE:
+                case MENU_PUSH_BUTTON_SQUARE:
                     CMenuInterPt->PushOk();
                     break;
-                case 2:
+                case MENU_PUSH_BUTTON_CANCEL:
                     CMenuInterPt->step = MENU_INTER_STEP_CLOSE;
                     CMenuInterPt->select_no = -1;
                     MenuTopicAlphaCalc = 1;
-                    MenuCommonInfo->key_enable = 0;
+                    MenuCommonInfo->key_enable = false;
                     MenuCommonInfo->cursor = -1;
                     MenuCommonInfo->SetWakuType(-1);
 
                     if (MenuCommonInfo->cursor_form != NULL) {
-                        MenuCommonInfo->cursor_form->draw_flag = 0;
+                        MenuCommonInfo->cursor_form->draw_flag = false;
                     }
 
                     ReturnMenuIntern(1);
                     MenuMainFrameModeSet(1, 1);
                     MenuMesForm[0]->SetAction("\x8A\x4F\x82\xD6");
-                    MenuSePlay(5);
+                    MenuSePlay(SYSTEM_SE_CANCEL);
                     break;
             }
 
@@ -2562,14 +2573,11 @@ int MenuInternSelectKey() {
     return result;
 }
 
-/**
- * Draws the internal menu's message, topic ticker and debug status.
- */
 void MenuInternSelectDraw() {
     MenuPosData->FormDraw();
 
     if (MenuInterMesDrawFlag != 0 && MenuInterMes != NULL) {
-        mgTexManager.ReloadTexture(MenuArg.mes_tex_block, static_cast<sceVif1Packet *>(NULL));
+        mgTexManager.ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) NULL);
         MenuInterMes->DrawMsg();
     }
 
@@ -2614,7 +2622,7 @@ void MenuInternSelectDraw() {
     }
 }
 
-void CopyActiveItemAndWeapon(int slot, int weapon_slot) {
+void CopyActiveItemAndWeapon(int chara_no, int unused) {
     mgCTexture *textures[2];
 
     mgCTextureManager *manager = &mgTexManager;
@@ -2625,8 +2633,8 @@ void CopyActiveItemAndWeapon(int slot, int weapon_slot) {
         return;
     }
 
-    CopyActiveIconTexture(textures, slot, 0);
-    manager->ReloadTexture(-1, (sceVif1Packet *) 0);
+    CopyActiveIconTexture(textures, chara_no, NULL);
+    manager->ReloadTexture(-1, (sceVif1Packet *) NULL);
 }
 
 int CopyActiveIconTexture(mgCTexture **textures, int chara_no, u_int *unused) {
@@ -2647,7 +2655,7 @@ int CopyActiveIconTexture(mgCTexture **textures, int chara_no, u_int *unused) {
     int items[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     int part;
 
-    if (chara_no < 2) {
+    if (chara_no < USER_CHARA_ROBO) {
         CHARA_DATA *chara = user->GetCharaDataPtr(chara_no);
 
         if (chara == NULL) {
@@ -2661,7 +2669,7 @@ int CopyActiveIconTexture(mgCTexture **textures, int chara_no, u_int *unused) {
         items[5] = chara->equip[1].item_no;
         items[6] = chara->equip[2].item_no;
         items[7] = chara->equip[3].item_no;
-    } else if (chara_no == 2) {
+    } else if (chara_no == USER_CHARA_ROBO) {
         items[4] = user->robo_data.parts[2].item_no;
         items[5] = user->robo_data.parts[0].item_no;
     }
@@ -2728,7 +2736,7 @@ int CopyActiveIconTexture(mgCTexture **textures, int chara_no, u_int *unused) {
 void MenuDebugModeDraw() {
 
     float margin = 6.0f, width = 110.0f, height = 24.0f;
-    mgTexManager.ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) 0);
+    mgTexManager.ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) NULL);
     DrawMenuFillBox(margin, margin, width, height, 0x5C, 0, 0, 0);
     CMenuFont menu_font;
     menu_font.SetStr("MenuDebugMode");
@@ -2747,7 +2755,7 @@ void BookshelfMessageMake(ClsMes *message, int base_window, int item_no, int mon
         window_no = 0;
         chara = GetUserDataMan()->active_chr_no;
 
-        if (chara == 0) {
+        if (chara == USER_CHARA_MAX) {
             window_no = 0xBBB;
 
             if (0 < item_no) {
@@ -2762,7 +2770,7 @@ void BookshelfMessageMake(ClsMes *message, int base_window, int item_no, int mon
             }
         }
 
-        if (chara == 1) {
+        if (chara == USER_CHARA_MONICA) {
             window_no = base_window + 0xBC5;
 
             if (0 <= monster_no) {

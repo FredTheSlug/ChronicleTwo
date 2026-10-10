@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <libvu0.h>
 
 #include "automap.hpp"
 #include "cameracontrol.hpp"
@@ -13,6 +14,7 @@
 #include "colprim.hpp"
 #include "dng_debug.hpp"
 #include "dng_effect.hpp"
+#include "dng_event.hpp"
 #include "dng_main.hpp"
 #include "dng_object.hpp"
 #include "dng_status.hpp"
@@ -21,6 +23,7 @@
 #include "event.hpp"
 #include "event_func.hpp"
 #include "font.hpp"
+#include "gamedata.hpp"
 #include "gameutil.hpp"
 #include "mainloop.hpp"
 #include "maintex.hpp"
@@ -32,17 +35,20 @@
 #include "mg_drawprim.hpp"
 #include "mg_frame.hpp"
 #include "mg_math.hpp"
+#include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "monster.hpp"
 #include "prespr.hpp"
 #include "quest.hpp"
 #include "savedatadungeon.hpp"
+#include "scene.hpp"
 #include "sceneevent.hpp"
 #include "scenesnd.hpp"
 #include "snd_mngr.hpp"
 #include "snd_seseq.hpp"
 #include "sound.hpp"
+#include "userdata.hpp"
 #include "water.hpp"
 
 /**
@@ -55,19 +61,39 @@ union CopyVector {
     u_long128 word; /**< The same components as a quadword. */
 };
 
+/**
+ *
+ * Direction the machine gun's hit sparks fly in.
+ *
+ */
 static float at_1112[4] = {0.0f, 1.0f, 0.0f, 1.0f};
+
+/**
+ *
+ * Direction the laser shot's hit sparks fly in.
+ *
+ */
 static float at_1240__3[4] = {0.0f, 1.0f, 0.0f, 1.0f};
+
+/**
+ *
+ * Phase of the pulsing glow drawn behind glowing pickups.
+ *
+ */
 static float anim_1410;
-static s8    init_1411;
 
-#include <libvu0.h>
+/**
+ *
+ * Whether anim_1410 has been given its starting phase.
+ *
+ */
+static s8 init_1411;
 
-#include "dng_event.hpp"
-#include "gamedata.hpp"
-#include "mg_memory.hpp"
-#include "scene.hpp"
-#include "userdata.hpp"
-
+/**
+ *
+ * Japanese names of the monster families, indexed by family.
+ *
+ */
 static char *mons_attr_tbl[12] = {
     "",
     "\203P\203\202\203m",
@@ -83,6 +109,11 @@ static char *mons_attr_tbl[12] = {
     NULL,
 };
 
+/**
+ *
+ * English names of the monster families, indexed by family.
+ *
+ */
 static char *mons_attr_tbl2[12] = {
     "",
     "Beast",
@@ -98,6 +129,11 @@ static char *mons_attr_tbl2[12] = {
     NULL,
 };
 
+/**
+ *
+ * French names of the monster families, indexed by family.
+ *
+ */
 static char *mons_attr_tbl3[12] = {
     "",
     "Beast",
@@ -113,6 +149,11 @@ static char *mons_attr_tbl3[12] = {
     "Carte",
 };
 
+/**
+ *
+ * German names of the monster families, indexed by family.
+ *
+ */
 static char *mons_attr_tbl4[12] = {
     "",
     "Tier",
@@ -128,6 +169,11 @@ static char *mons_attr_tbl4[12] = {
     NULL,
 };
 
+/**
+ *
+ * Italian names of the monster families, indexed by family.
+ *
+ */
 static char *mons_attr_tbl5[12] = {
     "",
     "Bestia",
@@ -143,6 +189,11 @@ static char *mons_attr_tbl5[12] = {
     NULL,
 };
 
+/**
+ *
+ * Spanish names of the monster families, indexed by family.
+ *
+ */
 static char *mons_attr_tbl6[12] = {
     "",
     "Bestia",
@@ -158,6 +209,11 @@ static char *mons_attr_tbl6[12] = {
     NULL,
 };
 
+/**
+ *
+ * Message, by language, for a transformation badge the player already has.
+ *
+ */
 static char *dung_progtxt_badge_already[7] = {
     "\203\202\203\223\203X\203^\201[\202\326\202\361\202\260\203o\203b\203W\201i%s\201j\202\360\n\214\251\202\302\202\257\202\275\201A\202\265\202\251\202\265\202\267\202\305\202\311\223\374\216\350\202\265\202\304\202\242\202\351",
     "You got a Monster Transformation\201i%s\201jBadge,\nbut you already have it.",
@@ -168,6 +224,11 @@ static char *dung_progtxt_badge_already[7] = {
     "You got a Monster Transformation (%s) Badge,\nbut you already have it.",
 };
 
+/**
+ *
+ * Message, by language, for a newly obtained transformation badge.
+ *
+ */
 static char *dung_progtxt_badge_get[7] = {
     "\203\202\203\223\203X\203^\201[\202\326\202\361\202\260\203o\203b\203W\201i%s\201j\202\360\n\216\350\202\311\223\374\202\352\202\275",
     "You got a Monster Transformation\201i%s\201jBadge.",
@@ -178,6 +239,11 @@ static char *dung_progtxt_badge_get[7] = {
     "You got a Monster Transformation (%s)Badge.",
 };
 
+/**
+ *
+ * Message, by language, for an obtained gate key.
+ *
+ */
 static char *dung_progtxt_gkey_get[7] = {
     "\203Q\201[\203g\203L\201[\201u%s\201v\202\360\216\350\202\311\223\374\202\352\202\275",
     "You got the '%s'.",
@@ -188,6 +254,11 @@ static char *dung_progtxt_gkey_get[7] = {
     "You got the '%s'.",
 };
 
+/**
+ *
+ * Message, by language, for an item taken back from a monster.
+ *
+ */
 static char *dung_progtxt_steal[7] = {
     "\223G\202\251\202\347\201u%s\201v\202\360\223\220\202\335\216\346\202\301\202\275",
     "Stolen '%s' from the enemy.",
@@ -198,6 +269,11 @@ static char *dung_progtxt_steal[7] = {
     "Stolen '%s' from the enemy.",
 };
 
+/**
+ *
+ * Messages, by language, for found items that the player cannot carry, for one item and for several.
+ *
+ */
 static char *dung_progtxt_getitem_overnum[7][2] = {
     {
      "\201w%s\201x\202\252\223\374\202\301\202\304\202\242\202\351\201B\n\202\265\202\251\202\265\202\261\202\352\210\310\217\343\201A\202\261\202\314\203A\203C\203e\203\200\202\360\216\235\202\302\202\261\202\306\202\252\202\305\202\253\202\310\202\242\201B",
@@ -229,6 +305,11 @@ static char *dung_progtxt_getitem_overnum[7][2] = {
      },
 };
 
+/**
+ *
+ * Messages, by language, for found items, for one item and for several.
+ *
+ */
 static char *dung_progtxt_getitem[7][2] = {
     {
      "\201w%s\201x\202\360%d\214\302\201A\216\350\202\311\223\374\202\352\202\275\201B",
@@ -260,6 +341,11 @@ static char *dung_progtxt_getitem[7][2] = {
      },
 };
 
+/**
+ *
+ * Monster family name tables, indexed by LanguageCode.
+ *
+ */
 static char **mons_attr_list[8] = {
     mons_attr_tbl,
     mons_attr_tbl2,
@@ -271,26 +357,26 @@ static char **mons_attr_list[8] = {
     mons_attr_tbl6,
 };
 
-void CRocketLauncher::SetPos(float *pos, float *muzzle_vec, float *direction_vec) {
+void CRocketLauncher::SetPos(float *start, float *target, float *direction) {
     int i;
     Initialize();
-    sceVu0CopyVector(start_pos, pos);
-    sceVu0CopyVector(this->pos, pos);
-    sceVu0CopyVector(target_pos, muzzle_vec);
-    sceVu0CopyVector(dir, direction_vec);
+    sceVu0CopyVector(start_pos, start);
+    sceVu0CopyVector(pos, start);
+    sceVu0CopyVector(target_pos, target);
+    sceVu0CopyVector(dir, direction);
     speed = 15.0f;
     state = SHOT_STATE_FIRED;
     trail_timer = 0;
 
-    for (i = 0; i < 16; i++) {
-        sceVu0CopyVector(trail[i], this->pos);
+    for (i = 0; i < ROCKET_TRAIL_NUM; i++) {
+        sceVu0CopyVector(trail[i], pos);
     }
 
     trail_len = 0;
     homing_delay = 15;
     homing_time = 60;
     life = 150;
-    draw_flags = 3;
+    draw_flags = SHOT_DRAW_MODEL | SHOT_DRAW_TRAIL;
 }
 
 void CRocketLauncher::Step() {
@@ -339,7 +425,7 @@ void CRocketLauncher::Step() {
 
             sceVu0SubVector(to_target, target_pos, pos);
             sceVu0Normalize(to_target, to_target);
-            mgVectorInterpolate(dir, dir, to_target, 0.05235988f, 0);
+            mgVectorInterpolate(dir, dir, to_target, PI / 60.0f, 0);
         }
 
         sceVu0CopyVector(old_pos, pos);
@@ -421,7 +507,7 @@ void CRocketLauncher::Step() {
             sceVu0CopyVector(trail[trail_index], pos);
             trail_index++;
 
-            if (trail_index >= 16) {
+            if (trail_index >= ROCKET_TRAIL_NUM) {
                 trail_index = 0;
             }
 
@@ -440,7 +526,7 @@ void CRocketLauncher::Step() {
 }
 
 void CRocketLauncher::Draw() {
-    if (state == 0) {
+    if (state == SHOT_STATE_FREE) {
         return;
     }
 
@@ -454,24 +540,24 @@ void CRocketLauncher::Draw() {
     float      fade;
     float      size;
 
-    if (draw_flags & 2) {
-        points = CreatSmoothPass(smooth, trail, 0x10, 6, trail_index, 0x10);
+    if (draw_flags & SHOT_DRAW_TRAIL) {
+        points = CreatSmoothPass(smooth, trail, ROCKET_TRAIL_NUM, 6, trail_index, ROCKET_TRAIL_NUM);
 
         if (points < trail_len) {
             trail_len = points;
         }
 
-        sprite.Initialize(0, 0);
+        sprite.Initialize(NULL, NULL);
         sprite.Preset2D();
         sprite.AlphaBlendEnable(1);
         sprite.AlphaTestEnable(1);
         sprite.AlphaTest(1, 0);
         sprite.DepthTestEnable(1);
-        sprite.ZMask(-1);
+        sprite.ZMask(MG_Z_MASK_MASKED);
         sprite.Bilinear(1);
         sprite.TextureMapEnable(1);
         sprite.Coord(1);
-        sprite.Begin(6);
+        sprite.Begin(MG_PRIM_SPRITE);
         sprite.Texture(trail_texture);
         sprite.AlphaTestEnable(1);
         sprite.SetAlphaBlend(MG_ALPHA_BLEND_NORMAL);
@@ -500,8 +586,8 @@ void CRocketLauncher::Draw() {
         sprite.End();
     }
 
-    if (draw_flags & 1) {
-        ((mgCFrame *) model)->SetPosition(pos);
+    if (draw_flags & SHOT_DRAW_MODEL) {
+        model->SetPosition(pos);
         mgLookAtMatrixZ(look_matrix, dir);
         model->SetTransMatrix(look_matrix);
         mgDrawDirect(model);
@@ -524,7 +610,7 @@ CRocketLauncher *CRocketLauncherMan::Get() {
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 void CRocketLauncherMan::Draw() {
@@ -532,22 +618,22 @@ void CRocketLauncherMan::Draw() {
     int                i;
     int                offset = 0;
 
-    for (i = 0; i < 24; i++) {
+    for (i = 0; i < ROCKET_LAUNCHER_NUM; i++) {
         CRocketLauncher *entry = (CRocketLauncher *) ((u8 *) this + offset);
-        (manager)->ReloadTexture(entry->tex_block, (sceVif1Packet *) NULL);
+        manager->ReloadTexture(entry->tex_block, (sceVif1Packet *) NULL);
         entry->Draw();
         offset += 0x190;
     }
 }
 
 void CRocketLauncherMan::Step() {
-    for (int i = 0; i < 24; i++) {
+    for (int i = 0; i < ROCKET_LAUNCHER_NUM; i++) {
         rocket[i].Step();
     }
 }
 
 void CRocketLauncherMan::Clear() {
-    for (int i = 0; i < 24; i++) {
+    for (int i = 0; i < ROCKET_LAUNCHER_NUM; i++) {
         rocket[i].Initialize();
     }
 }
@@ -556,7 +642,7 @@ void CRocketLauncherMan::Initialize(mgCFrame *frame, int texture_id, mgCTexture 
     int i;
     int offset = 0;
 
-    for (i = 0; i < 24; i++) {
+    for (i = 0; i < ROCKET_LAUNCHER_NUM; i++) {
         CRocketLauncher *entry = (CRocketLauncher *) ((u8 *) this + offset);
         entry->Initialize();
         entry->model = frame;
@@ -573,19 +659,19 @@ void CMachineGun::Set(float *position, float *direction) {
     do {
         index++;
 
-        if (index >= 16) {
+        if (index >= MACHINE_GUN_BULLET_NUM) {
             index = 0;
         }
 
         int candidate = index;
 
-        if (active[candidate] == 0) {
+        if (!active[candidate]) {
             slot = candidate;
             break;
         }
 
         tries++;
-    } while (tries < 16);
+    } while (tries < MACHINE_GUN_BULLET_NUM);
 
     if (slot >= 0) {
         sceVu0CopyVector(start_pos[slot], position);
@@ -593,7 +679,7 @@ void CMachineGun::Set(float *position, float *direction) {
         sceVu0ScaleVectorXYZ(direction, direction, 40.0f);
         sceVu0CopyVector(velocity[slot], direction);
         sceVu0CopyVector(pos[slot], position);
-        active[slot] = 1;
+        active[slot] = true;
         life[slot] = 90;
     }
 }
@@ -601,7 +687,7 @@ void CMachineGun::Set(float *position, float *direction) {
 void CMachineGun::Step() {
     int bullet;
 
-    for (bullet = 0; bullet < 16; bullet++) {
+    for (bullet = 0; bullet < MACHINE_GUN_BULLET_NUM; bullet++) {
         s16 state = active[bullet];
 
         if (state != 0 && state == 1) {
@@ -626,10 +712,10 @@ void CMachineGun::Step() {
             box.min[1] = (pos[bullet][1] - 40.0f) - 20.0f;
             box.max[2] = 20.0f + (40.0f + pos[bullet][2]);
             box.min[2] = (pos[bullet][2] - 40.0f) - 20.0f;
-            int count = ((CMap *) DngMainMap)->GetColPoly(polys, box, 128);
+            int count = DngMainMap->GetColPoly(polys, box, 128);
 
             if (CheckHit(polys, count, pos[bullet], previous_pos, hit, 1, 4) >= 0) {
-                active[bullet] = 0;
+                active[bullet] = false;
 
                 if (col_prim != NULL) {
                     col_prim->Delete(-1);
@@ -658,16 +744,16 @@ void CMachineGun::Step() {
                     float speed = 30.0f;
                     float gravity = 0.1f;
                     image->SethitEffect(previous_pos, dir.f, spread, speed, power, gravity, 16, 8);
-                    image->kind = 1;
+                    image->kind = HIT_EFFECT_SPARK_SHORT;
                 }
             } else if (col_prim != NULL && col_prim->hit_num > 0) {
-                active[bullet] = 0;
+                active[bullet] = false;
                 col_prim->Delete(-1);
             } else {
                 life[bullet]--;
 
                 if (life[bullet] <= 0) {
-                    active[bullet] = 0;
+                    active[bullet] = false;
 
                     if (col_prim != NULL) {
                         col_prim->Delete(-1);
@@ -678,20 +764,20 @@ void CMachineGun::Step() {
     }
 }
 
-void CLaserGun::SetPos(float *start, float *target, float *direction_vec) {
+void CLaserGun::SetPos(float *start, float *target, float *direction) {
     int i;
     Initialize();
     sceVu0CopyVector(start_pos, start);
     sceVu0CopyVector(pos, start);
     sceVu0CopyVector(target_pos, target);
-    sceVu0CopyVector(dir, direction_vec);
-    *(int *) &speed = 0x41A00000;
-    *(int *) &speed_add = 0;
-    *(int *) &speed_max = 0x41A00000;
+    sceVu0CopyVector(dir, direction);
+    speed = 20.0f;
+    speed_add = 0.0f;
+    speed_max = 20.0f;
     state = SHOT_STATE_FIRED;
     trail_timer = 0;
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < LASER_TRAIL_NUM; i++) {
         sceVu0CopyVector(trail[i], pos);
     }
 
@@ -699,21 +785,21 @@ void CLaserGun::SetPos(float *start, float *target, float *direction_vec) {
     homing_delay = 15;
     homing_time = 60;
     life = 120;
-    *(int *) &color[0] = 0;
-    *(int *) &color[1] = 0x43000000;
-    *(int *) &color[2] = 0x43000000;
-    *(int *) &color[3] = 0x43000000;
-    *(int *) &scale = 0x3F800000;
-    *(int *) &scale_add = 0;
-    *(int *) &scale_max = 0x3F800000;
-    draw_flags = 3;
+    color[0] = 0.0f;
+    color[1] = 128.0f;
+    color[2] = 128.0f;
+    color[3] = 128.0f;
+    scale = 1.0f;
+    scale_add = 0.0f;
+    scale_max = 1.0f;
+    draw_flags = SHOT_DRAW_MODEL | SHOT_DRAW_TRAIL;
     visual_code = 0;
 }
 
 void CLaserGun::SetVisualCode(int code) {
-    visual_code = (s16) code;
+    visual_code = code;
 
-    if (code == 0) {
+    if (code == LASER_VISUAL_GREEN) {
         scale = 0.1f;
         scale_add = 0.1f;
         scale_max = 0.5f;
@@ -722,7 +808,7 @@ void CLaserGun::SetVisualCode(int code) {
         color[2] = 64.0f;
     }
 
-    if (code == 1) {
+    if (code == LASER_VISUAL_BLUE) {
         scale = 0.2f;
         scale_add = 0.4f;
         scale_max = 0.8f;
@@ -732,7 +818,7 @@ void CLaserGun::SetVisualCode(int code) {
         color[2] = 128.0f;
     }
 
-    if (code == 2) {
+    if (code == LASER_VISUAL_PURPLE) {
         scale = 0.2f;
         scale_add = 0.4f;
         scale_max = 1.4f;
@@ -744,7 +830,7 @@ void CLaserGun::SetVisualCode(int code) {
         color[2] = 128.0f;
     }
 
-    if (code == 3) {
+    if (code == LASER_VISUAL_CYAN) {
         scale = 0.2f;
         scale_add = 0.2f;
         scale_max = 0.6f;
@@ -759,7 +845,7 @@ void CLaserGun::SetVisualCode(int code) {
         color[2] = 128.0f;
     }
 
-    if (code == 4) {
+    if (code == LASER_VISUAL_ORANGE) {
         scale = 0.4f;
         scale_add = 0.4f;
         scale_max = 1.8f;
@@ -794,12 +880,12 @@ void CLaserGun::Step() {
     float      flash_color2[4];
     float      hit_effect_dir[4];
 
-    if (state != 0) {
-        if (state == 1) {
+    if (state != SHOT_STATE_FREE) {
+        if (state == SHOT_STATE_FIRED) {
             state = SHOT_STATE_FLYING;
         }
 
-        if (state == 2) {
+        if (state == SHOT_STATE_FLYING) {
             CColPrim *col_prim = ColPrimMan.GetID2Prim(col_prim_id);
 
             if (homing_delay > 0) {
@@ -824,7 +910,7 @@ void CLaserGun::Step() {
 
                     sceVu0SubVector(to_target, target_pos, pos);
                     sceVu0Normalize(to_target, to_target);
-                    mgVectorInterpolate(dir, dir, to_target, 0.05235988f, 0);
+                    mgVectorInterpolate(dir, dir, to_target, PI / 60.0f, 0);
                 }
             }
 
@@ -844,11 +930,11 @@ void CLaserGun::Step() {
             box.min[1] = (pos[1] - gun->speed) - 20.0f;
             box.max[2] = 20.0f + (pos[2] + gun->speed);
             box.min[2] = (pos[2] - gun->speed) - 20.0f;
-            int count = ((CMap *) DngMainMap)->GetColPoly(polys, box, 128);
+            int count = DngMainMap->GetColPoly(polys, box, 128);
 
             if (CheckHit(polys, count, pos, previous, hit, 1, 4) >= 0) {
                 state = SHOT_STATE_BURST;
-                draw_flags &= ~1;
+                draw_flags &= ~SHOT_DRAW_MODEL;
                 mgCCamera *camera = DngMainScene->GetCamera(DngMainScene->active_camera);
 
                 if (camera != NULL) {
@@ -873,7 +959,7 @@ void CLaserGun::Step() {
 
             if (col_prim != NULL && col_prim->hit_num > 0) {
                 state = SHOT_STATE_BURST;
-                draw_flags &= ~1;
+                draw_flags &= ~SHOT_DRAW_MODEL;
                 mgCCamera *camera = DngMainScene->GetCamera(DngMainScene->active_camera);
 
                 if (camera != NULL) {
@@ -910,10 +996,10 @@ void CLaserGun::Step() {
 
             if (life <= 0) {
                 state = SHOT_STATE_BURST;
-                draw_flags &= ~1;
+                draw_flags &= ~SHOT_DRAW_MODEL;
             }
 
-            if (state == 3) {
+            if (state == SHOT_STATE_BURST) {
                 if (life > 0) {
                     *(CopyVector *) hit_effect_dir = *(CopyVector *) at_1240__3;
                     CHitEffectImage *image;
@@ -932,7 +1018,7 @@ void CLaserGun::Step() {
                     if (image != NULL) {
                         image->SethitEffect(pos, hit_effect_dir, spread, speed2, power, gravity,
                                             30, 32);
-                        image->kind = 1;
+                        image->kind = HIT_EFFECT_SPARK_SHORT;
                     }
                 }
 
@@ -947,7 +1033,7 @@ void CLaserGun::Step() {
                 sceVu0CopyVector(trail[trail_index], pos);
                 trail_index += 1;
 
-                if (trail_index >= 8) {
+                if (trail_index >= LASER_TRAIL_NUM) {
                     trail_index = 0;
                 }
 
@@ -956,7 +1042,7 @@ void CLaserGun::Step() {
             }
         }
 
-        if (state == 3) {
+        if (state == SHOT_STATE_BURST) {
             trail_len -= 1;
 
             if (trail_len < 3) {
@@ -967,7 +1053,7 @@ void CLaserGun::Step() {
 }
 
 void CLaserGun::Draw() {
-    if (state == 0) {
+    if (state == SHOT_STATE_FREE) {
         return;
     }
 
@@ -988,16 +1074,16 @@ void CLaserGun::Draw() {
     float step[4];
 
     {
-        (mgTexManager).ReloadTexture(tex_block, (sceVif1Packet *) NULL);
+        mgTexManager.ReloadTexture(tex_block, (sceVif1Packet *) NULL);
 
-        if (draw_flags & 2) {
-            count = CreatSmoothPass(smooth, trail, 8, 6, trail_index, 8);
+        if (draw_flags & SHOT_DRAW_TRAIL) {
+            count = CreatSmoothPass(smooth, trail, LASER_TRAIL_NUM, 6, trail_index, LASER_TRAIL_NUM);
 
             if (count < trail_len) {
                 trail_len = count;
             }
 
-            sprite.Initialize(0, 0);
+            sprite.Initialize(NULL, NULL);
             sprite.Preset2D();
             sprite.AlphaBlendEnable(1);
             sprite.AlphaTestEnable(1);
@@ -1084,7 +1170,7 @@ void CLaserGun::Draw() {
             sprite.End();
         }
 
-        if (draw_flags & 1) {
+        if (draw_flags & SHOT_DRAW_MODEL) {
             mgCFrameAttr attr;
             float        matrix[4][4];
             attr.no_light = 1;
@@ -1094,7 +1180,7 @@ void CLaserGun::Draw() {
             attr.color[3] = 128.0f;
             model->SetAttrParam(attr, 1, MG_FRAME_ATTR_COLOR);
             float model_scale = scale;
-            ((mgCObject *) model)->SetScale(model_scale, model_scale, model_scale);
+            model->SetScale(model_scale, model_scale, model_scale);
             model->SetPosition(pos);
             mgLookAtMatrixZ(matrix, dir);
             model->SetTransMatrix(matrix);
@@ -1114,12 +1200,12 @@ void CLaserGun::Initialize() {
 
 CLaserGun *CLaserGunMan::Get() {
     for (int i = 0; i < 16; i++) {
-        if (laser[i].state == 0) {
+        if (laser[i].state == SHOT_STATE_FREE) {
             return &laser[i];
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 void CLaserGunMan::Draw() {
@@ -1127,22 +1213,22 @@ void CLaserGunMan::Draw() {
     int                i;
     int                offset = 0;
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < LASER_GUN_NUM; i++) {
         CLaserGun *entry = (CLaserGun *) ((u8 *) this + offset);
-        (manager)->ReloadTexture(entry->tex_block, (sceVif1Packet *) NULL);
+        manager->ReloadTexture(entry->tex_block, (sceVif1Packet *) NULL);
         entry->Draw();
         offset += 0x130;
     }
 }
 
 void CLaserGunMan::Step() {
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < LASER_GUN_NUM; i++) {
         laser[i].Step();
     }
 }
 
 void CLaserGunMan::Clear() {
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < LASER_GUN_NUM; i++) {
         laser[i].Initialize();
     }
 }
@@ -1151,7 +1237,7 @@ void CLaserGunMan::Initialize(mgCFrame *frame, int texture_id, mgCTexture *textu
     int i;
     int offset = 0;
 
-    for (i = 0; i < 16; i++) {
+    for (i = 0; i < LASER_GUN_NUM; i++) {
         CLaserGun *entry = (CLaserGun *) ((u8 *) this + offset);
         entry->Initialize();
         entry->model = frame;
@@ -1162,7 +1248,7 @@ void CLaserGunMan::Initialize(mgCFrame *frame, int texture_id, mgCTexture *textu
 }
 
 void CPullItem::Draw(mgCTexture *texture) {
-    if (state == 0) {
+    if (state == PULL_ITEM_STATE_FREE) {
         return;
     }
 
@@ -1173,7 +1259,7 @@ void CPullItem::Draw(mgCTexture *texture) {
     float center[4];
 
     {
-        sprite.Initialize(0, 0);
+        sprite.Initialize(NULL, NULL);
 
         if (glow != 0) {
             sprite.AlphaBlend(MG_ALPHA_BLEND_ADD);
@@ -1200,15 +1286,15 @@ void CPullItem::Draw(mgCTexture *texture) {
         center[1] += height / 2.0f;
         center[1] += bob_height * sinf(angle);
 
-        if (init_1411 == 0) {
+        if (!init_1411) {
             anim_1410 = 0.0f;
-            init_1411 = 1;
+            init_1411 = true;
         }
 
         if (anim_1410 > PI) {
             anim_1410 = 0.0f;
         } else {
-            anim_1410 += 0.20943952f;
+            anim_1410 += PI / 15.0f;
         }
 
         float base_width = width;
@@ -1237,6 +1323,11 @@ void CPullItem::Draw(mgCTexture *texture) {
     }
 }
 
+/**
+ *
+ * Gives the monster box of the dungeon's user data.
+ *
+ */
 static inline CMonsterBox *MonsterBox() {
     return &DngUserData->monster_box;
 }
@@ -1330,7 +1421,7 @@ void CPullItem::Step() {
             ground_dist = pos[1] - hit_pos[1];
 
             if (ground_dist <= 1.0f) {
-                can_get = 1;
+                can_get = true;
                 velocity[1] *= -0.6f;
 
                 if (ground_dist <= 0.0f) {
@@ -1364,13 +1455,13 @@ void CPullItem::Step() {
 
     if (state == PULL_ITEM_STATE_FADE) {
         wait_time--;
-        alpha -= 4.266667f;
+        alpha -= 128.0f / 30.0f;
 
         if (wait_time <= 0) {
             state = PULL_ITEM_STATE_FREE;
 
             if (wire_index >= 0) {
-                afterWire[wire_index].SetMode(0);
+                afterWire[wire_index].SetMode(false);
                 wire_index = -1;
             }
         }
@@ -1384,28 +1475,28 @@ void CPullItem::Step() {
             state = PULL_ITEM_STATE_FREE;
         }
 
-        if (angle < 2.3561945f) {
-            angle += 0.1308997f;
+        if (angle < 3.0f * QUARTER_PI) {
+            angle += PI / 24.0f;
         }
     }
 
     if (state == PULL_ITEM_STATE_FLOAT) {
         if (get_delay > 0) {
             get_delay--;
-            angle += 0.20943952f;
+            angle += PI / 15.0f;
 
             if (angle >= PI) {
                 angle -= TWO_PI;
             }
         } else {
-            can_get = 1;
+            can_get = true;
             angle = 0.0f;
         }
     }
 
     if (state == PULL_ITEM_STATE_COLLECT) {
         if (type == PULL_ITEM_MONEY || type == PULL_ITEM_MONEY_LARGE) {
-            angle += 0.15707964f;
+            angle += PI / 20.0f;
             sceVu0SubVector(money_direction, player_pos, pos);
             sceVu0Normalize(money_direction, money_direction);
             sceVu0ScaleVectorXYZ(money_direction, money_direction, 2.5f);
@@ -1430,7 +1521,7 @@ void CPullItem::Step() {
                 MsgTaskMan.Print(badge_message, 90, 8, 0);
                 state = PULL_ITEM_STATE_FREE;
             } else {
-                angle += 0.15707964f;
+                angle += PI / 20.0f;
 
                 if (angle >= PI) {
                     sprintf(badge_message, dung_progtxt_badge_get[LanguageCode], badge_name);
@@ -1449,7 +1540,7 @@ void CPullItem::Step() {
 
         if (type == PULL_ITEM_ITEM || type == PULL_ITEM_ITEM2) {
             if (mgDistVector(collect_pos, pos) > 5.0f) {
-                angle += 0.15707964f;
+                angle += PI / 20.0f;
                 sceVu0SubVector(item_direction, player_pos, pos);
                 sceVu0Normalize(item_direction, item_direction);
                 sceVu0ScaleVectorXYZ(item_direction, item_direction, 2.5f);
@@ -1469,7 +1560,7 @@ void CPullItem::Step() {
                 if (CheckGetItemLimmitOver(item_no, num) < num) {
                     item_count = num;
 
-                    if (LanguageCode == 0) {
+                    if (LanguageCode == LANG_JAPANESE) {
                         sprintf(item_message, dung_progtxt_getitem_overnum[0][1], GetItemMessage(item_no), item_count);
                     } else if (item_count < 2) {
                         sprintf(item_message, dung_progtxt_getitem_overnum[LanguageCode][0], GetItemMessage(item_no));
@@ -1479,13 +1570,13 @@ void CPullItem::Step() {
 
                     MsgTaskMan.Print(item_message, 90, 8, 0);
                     state = PULL_ITEM_STATE_LAND;
-                    can_get = 1;
+                    can_get = true;
                     get_delay = 60;
                     wait_time = 300;
                 } else {
                     item_count = num;
 
-                    if (LanguageCode == 0) {
+                    if (LanguageCode == LANG_JAPANESE) {
                         sprintf(item_message, dung_progtxt_getitem[0][1], GetItemMessage(item_no), item_count);
                     } else if (item_count < 2) {
                         sprintf(item_message, dung_progtxt_getitem[LanguageCode][0], GetItemMessage(item_no));
@@ -1553,7 +1644,7 @@ void CPullItem::Step() {
                 state = PULL_ITEM_STATE_FREE;
 
                 if (wire_index >= 0) {
-                    afterWire[wire_index].SetMode(0);
+                    afterWire[wire_index].SetMode(false);
                     wire_index = -1;
                 }
             }
@@ -1566,19 +1657,19 @@ void CPullItem::Step() {
 }
 
 void CPullItem::IsGet(float *player_pos) {
-    if (state == PULL_ITEM_STATE_FREE || can_get == 0 || get_delay > 0) {
+    if (state == PULL_ITEM_STATE_FREE || !can_get || get_delay > 0) {
         return;
     }
 
     if (type == PULL_ITEM_GATE_KEY || type == PULL_ITEM_STOLEN) {
-        can_get = 0;
+        can_get = false;
         state = PULL_ITEM_STATE_COLLECT;
         return;
     }
 
     if (mgDistVector(player_pos, pos) < 20.0f * get_range) {
         state = PULL_ITEM_STATE_COLLECT;
-        can_get = 0;
+        can_get = false;
 
         if (type == PULL_ITEM_ITEM || type == PULL_ITEM_BADGE) {
             sndSePlay(SystemSND_ID, 18, 0);
@@ -1591,17 +1682,17 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
     sceVu0CopyVector(this->velocity, new_velocity);
     this->type = kind;
     angle = 0.0f;
-    can_get = 0;
+    can_get = false;
     fall_time = 300;
     exp_param = -1;
     item_no = -1;
     alpha = 128.0f;
-    glow = 0;
+    glow = false;
     bob_height = 15.0f;
     wire_index = -1;
 
     switch (kind) {
-        case 2:
+        case PULL_ITEM_GATE_KEY:
             state = PULL_ITEM_STATE_FLOAT;
             tex_u = 0;
             tex_v = 0;
@@ -1615,9 +1706,9 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
             pull_speed = 1.8f;
             pull_accel = 0.1f;
             bob_height = 4.0f;
-            glow = 1;
+            glow = true;
             return;
-        case 7:
+        case PULL_ITEM_STOLEN:
             state = PULL_ITEM_STATE_FLOAT;
             tex_u = 0x61;
             tex_v = 0x21;
@@ -1631,9 +1722,9 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
             pull_speed = 1.8f;
             pull_accel = 0.1f;
             bob_height = 4.0f;
-            glow = 1;
+            glow = true;
             return;
-        case 3:
+        case PULL_ITEM_MONEY_LARGE:
             state = PULL_ITEM_STATE_FALL;
             tex_u = 32;
             tex_v = 0;
@@ -1646,7 +1737,7 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
             get_delay = 40;
             wait_time = 240;
             return;
-        case 0:
+        case PULL_ITEM_MONEY:
             state = PULL_ITEM_STATE_FALL;
             tex_u = 0;
             tex_v = 32;
@@ -1659,7 +1750,7 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
             get_delay = 40;
             wait_time = 180;
             return;
-        case 1: {
+        case PULL_ITEM_WEAPON_EXP: {
             state = PULL_ITEM_STATE_FALL;
             tex_u = 1;
             tex_v = 0x31;
@@ -1672,12 +1763,12 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
             wait_time = 180;
             pull_speed = 1.8f;
             pull_accel = 0.1f;
-            glow = 1;
+            glow = true;
             int i = 0;
 
             for (; i < 16; i++) {
-                if (afterWire[i].mode == 0) {
-                    afterWire[i].SetMode(1);
+                if (!afterWire[i].mode) {
+                    afterWire[i].SetMode(true);
                     wire_index = i;
                     return;
                 }
@@ -1685,7 +1776,7 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
 
             return;
         }
-        case 4:
+        case PULL_ITEM_ITEM:
             state = PULL_ITEM_STATE_FALL;
             tex_u = 64;
             tex_v = 0;
@@ -1699,7 +1790,7 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
             wait_time = 300;
             bob_height = 25.0f;
             return;
-        case 5:
+        case PULL_ITEM_ITEM2:
             state = PULL_ITEM_STATE_FALL;
             tex_u = 64;
             tex_v = 32;
@@ -1713,7 +1804,7 @@ void CPullItem::SetItem(float *position, float *new_velocity, int kind) {
             wait_time = 300;
             bob_height = 25.0f;
             return;
-        case 6:
+        case PULL_ITEM_BADGE:
             state = PULL_ITEM_STATE_FALL;
             tex_u = 64;
             tex_v = 0;
@@ -1742,7 +1833,7 @@ void CPullItem::Initialize() {
     tex_v = 0;
     tex_w = 32;
     tex_h = 32;
-    can_get = 0;
+    can_get = false;
     anim_frame = 0;
 }
 
@@ -1773,29 +1864,29 @@ void CPullItemManager::Clear() {
 }
 
 void CRoboVoiceSystem::SetStatus(int voice, int value) {
-    status = 1;
+    status = ROBO_VOICE_OPEN;
     voice_no = voice;
     unk_10 = value;
 }
 
 void CRoboVoiceSystem::StartVoiceSystem() {
-    status = 5;
+    status = ROBO_VOICE_WAIT;
     voice_no = -1;
     wait_time = iRand(240) + 60;
-    stream_open = 0;
+    stream_open = false;
 }
 
 void CRoboVoiceSystem::StopVoice(int frames) {
-    if (stream_open != 0) {
+    if (stream_open) {
         do {
         } while (CSnd.StreamOpenState() != 0);
 
-        CSnd.StreamClose(1);
+        CSnd.StreamClose(ROBO_VOICE_STREAM_CHANNEL);
     }
 
-    stream_open = 0;
-    status = 0;
-    pause_time = (s16) frames;
+    stream_open = false;
+    status = ROBO_VOICE_OFF;
+    pause_time = frames;
 }
 
 void CRoboVoiceSystem::Step() {
@@ -1883,14 +1974,14 @@ void CRoboVoiceSystem::Step() {
                 sprintf(voice_file, "8520%d.wav", voice_no);
             }
 
-            CSnd.StreamOpenFast(1, voice_file);
+            CSnd.StreamOpenFast(ROBO_VOICE_STREAM_CHANNEL, voice_file);
             status = ROBO_VOICE_OPENING;
-            stream_open = 1;
+            stream_open = true;
             break;
 
         case ROBO_VOICE_OPENING:
             if (CSnd.StreamOpenState() == 0) {
-                CSnd.StreamStandBy(1);
+                CSnd.StreamStandBy(ROBO_VOICE_STREAM_CHANNEL);
                 status = ROBO_VOICE_STANDBY;
             }
 
@@ -1898,18 +1989,18 @@ void CRoboVoiceSystem::Step() {
 
         case ROBO_VOICE_STANDBY:
             if (CSnd.StreamOpenState() == 0) {
-                CSnd.StreamSetVol(1, 0x7FFF, 0x7FFF);
-                CSnd.StreamPlay(1);
+                CSnd.StreamSetVol(ROBO_VOICE_STREAM_CHANNEL, 0x7FFF, 0x7FFF);
+                CSnd.StreamPlay(ROBO_VOICE_STREAM_CHANNEL);
                 status = ROBO_VOICE_PLAY;
             }
 
             break;
 
         case ROBO_VOICE_PLAY:
-            if (CSnd.StreamGetState(1) == 0x8000) {
-                CSnd.StreamClose(1);
+            if (CSnd.StreamGetState(ROBO_VOICE_STREAM_CHANNEL) == 0x8000) {
+                CSnd.StreamClose(ROBO_VOICE_STREAM_CHANNEL);
                 status = ROBO_VOICE_WAIT;
-                stream_open = 0;
+                stream_open = false;
                 wait_time = iRand(300) + 90;
 
                 if (voice_no == 200) {

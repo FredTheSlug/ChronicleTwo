@@ -1295,8 +1295,6 @@ void CMenuChrCngMenu::EnterNPCFaceData() {
     }
 }
 
-#pragma inline_depth(8)
-
 int CMenuChrCngMenu::LoadBGNPCModel(int restart_read) {
     mgCMemory *stack = &MenuCharaLoadStack;
     stack->stReset();
@@ -1329,8 +1327,6 @@ int CMenuChrCngMenu::LoadBGNPCModel(int restart_read) {
     ExeScript("CHRFADEPRE");
     return size;
 }
-
-#pragma inline_depth reset
 
 int CMenuChrCngMenu::CheckBGNPCModel() {
     int load_result;
@@ -4204,8 +4200,6 @@ inline CMenuMosSelect::CMenuMosSelect() {
     model_form = NULL;
 }
 
-#pragma inline_depth(smart)
-
 void MenuMonsterBoxInit(mgCMemory *stack, int *tex_block, int mode) {
     /**
      *
@@ -4322,8 +4316,6 @@ void MenuMonsterBoxInit(mgCMemory *stack, int *tex_block, int mode) {
         MenuMosSelectPtr->view_monster = MenuMosSelectPtr->badge[MenuMosSelectPtr->select].monster_id;
     }
 }
-
-#pragma inline_depth reset
 
 int CMenuMosSelect::KeyStep() {
     /**
@@ -6286,8 +6278,6 @@ int MenuMonsterLoadBGCheck(MENU_BGREAD_INFO2 **info, CActionChara **chara, int t
     return 1;
 }
 
-#pragma inline_depth(8)
-
 void MenuItemCharaDataLoadEndCheckAfter(MENU_BGREAD_INFO2 **info, int chara_no) {
     /**
      *
@@ -6330,8 +6320,6 @@ void MenuItemCharaDataLoadEndCheckAfter(MENU_BGREAD_INFO2 **info, int chara_no) 
 
     SetupUnitMan(&scene, user_data, chara_no, robo);
 }
-
-#pragma inline_depth reset
 
 void InitMainCharaBG(int chara_no, mgCMemory *stack, int mode) {
     int                reason;
@@ -6753,8 +6741,6 @@ int CosutmeSelDefaultSet(int costume_id, short *costume_list) {
     return 0;
 }
 
-#pragma inline_depth(8)
-
 void CMenuCostumeSel::LoadMenuData(mgCMemory *stack, int *tex_block) {
     /**
      *
@@ -6827,8 +6813,6 @@ void CMenuCostumeSel::LoadMenuData(mgCMemory *stack, int *tex_block) {
     this->load_wait = 0;
     MenuCosutumeLoadPhase = 2;
 }
-
-#pragma inline_depth reset
 
 int CMenuCostumeSel::KeyStep() {
     /**
@@ -7854,8 +7838,6 @@ void CMosBookMenu::Draw() {
     font.DrawDirect(font.str, font.pos_x, font.pos_y);
 }
 
-#pragma inline_depth(8)
-
 int CMosBookMenu::KeyStep() {
     int select;
     int lr;
@@ -8019,8 +8001,6 @@ int CMosBookMenu::KeyStep() {
 
     return 0;
 }
-
-#pragma inline_depth reset
 
 void MonsterBookInit(mgCMemory *stack, int *tex_block, int mode) {
     /**

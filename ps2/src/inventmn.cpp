@@ -597,8 +597,8 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
     USER_PICTURE_INFO  info_tmp;
     int                i;
     int                j;
-    USER_PICTURE_INFO *a;
-    USER_PICTURE_INFO *b;
+    USER_PICTURE_INFO *first;
+    USER_PICTURE_INFO *second;
     int                swap;
     short              key_a;
     short              key_b;
@@ -608,30 +608,30 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
     }
 
     for (i = 0; i < count; i++) {
-        a = &photos[i];
+        first = &photos[i];
 
         for (j = i + 1; j < count; j++) {
-            b = &photos[j];
+            second = &photos[j];
 
-            if (b->used == 0) {
+            if (second->used == 0) {
                 continue;
             }
 
             swap = false;
 
             if (pict_seiton_case == INVENT_PHOTO_SORT_NETA) {
-                if (a->used == 0 && b->used == 1) {
+                if (first->used == 0 && second->used == 1) {
                     swap = true;
                 }
 
-                key_a = a->neta_id;
+                key_a = first->neta_id;
 
-                if (key_a < 0 && 0 < b->neta_id) {
+                if (key_a < 0 && 0 < second->neta_id) {
                     swap = true;
                 }
 
                 if (0 < key_a) {
-                    key_b = b->neta_id;
+                    key_b = second->neta_id;
 
                     if (0 < key_b && key_b < key_a) {
                         swap = true;
@@ -640,18 +640,18 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
             }
 
             if (pict_seiton_case == INVENT_PHOTO_SORT_MAP) {
-                if (a->used == 0 && b->used == 1) {
+                if (first->used == 0 && second->used == 1) {
                     swap = true;
                 }
 
-                key_a = a->map_no;
+                key_a = first->map_no;
 
-                if (key_a < 0 && 0 <= b->map_no) {
+                if (key_a < 0 && 0 <= second->map_no) {
                     swap = true;
                 }
 
                 if (0 <= key_a) {
-                    key_b = b->map_no;
+                    key_b = second->map_no;
 
                     if (0 <= key_b && key_b < key_a) {
                         swap = true;
@@ -660,18 +660,18 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
             }
 
             if (pict_seiton_case == INVENT_PHOTO_SORT_NPC) {
-                if (a->used == 0 && b->used == 1) {
+                if (first->used == 0 && second->used == 1) {
                     swap = true;
                 }
 
-                key_a = a->npc_no;
+                key_a = first->npc_no;
 
-                if (key_a < 0 && 0 <= b->npc_no) {
+                if (key_a < 0 && 0 <= second->npc_no) {
                     swap = true;
                 }
 
                 if (0 <= key_a) {
-                    key_b = b->npc_no;
+                    key_b = second->npc_no;
 
                     if (0 <= key_b && key_b < key_a) {
                         swap = true;
@@ -680,18 +680,18 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
             }
 
             if (pict_seiton_case == INVENT_PHOTO_SORT_MONSTER) {
-                if (a->used == 0 && b->used == 1) {
+                if (first->used == 0 && second->used == 1) {
                     swap = true;
                 }
 
-                key_a = a->monster_no;
+                key_a = first->monster_no;
 
-                if (key_a < 0 && 0 <= b->monster_no) {
+                if (key_a < 0 && 0 <= second->monster_no) {
                     swap = true;
                 }
 
                 if (0 <= key_a) {
-                    key_b = b->monster_no;
+                    key_b = second->monster_no;
 
                     if (0 <= key_b && key_b < key_a) {
                         swap = true;
@@ -700,14 +700,14 @@ void PictureSeiton(USER_PICTURE_INFO *photos, char *work_base, int count) {
             }
 
             if (swap != 0) {
-                memcpy(work_tmp, a->image, 0x2000);
-                memcpy(a->image, b->image, 0x2000);
-                memcpy(b->image, work_tmp, 0x2000);
-                memcpy(&info_tmp, a, sizeof(USER_PICTURE_INFO));
-                memcpy(a, b, sizeof(USER_PICTURE_INFO));
-                memcpy(b, &info_tmp, sizeof(USER_PICTURE_INFO));
-                a->image = work_base + i * 0x2000;
-                b->image = work_base + j * 0x2000;
+                memcpy(work_tmp, first->image, 0x2000);
+                memcpy(first->image, second->image, 0x2000);
+                memcpy(second->image, work_tmp, 0x2000);
+                memcpy(&info_tmp, first, sizeof(USER_PICTURE_INFO));
+                memcpy(first, second, sizeof(USER_PICTURE_INFO));
+                memcpy(second, &info_tmp, sizeof(USER_PICTURE_INFO));
+                first->image = work_base + i * 0x2000;
+                second->image = work_base + j * 0x2000;
             }
 
             if (swap != 0) {
@@ -747,21 +747,21 @@ void AttachPictTex(int block, mgCTexture **textures, USER_PICTURE_INFO *info, in
 }
 
 int CheckPhotoDataNoNeed(USER_PICTURE_INFO *photos, int count, int *unneeded) {
-    int found;
+    int unneeded_count;
     int i;
 
     if (photos == NULL) {
         return 0;
     }
 
-    found = 0;
+    unneeded_count = 0;
     i = 0;
 
     if (0 < count) {
         do {
             if (photos->neta_id <= 0 && unneeded != NULL) {
-                unneeded[found] = i;
-                found++;
+                unneeded[unneeded_count] = i;
+                unneeded_count++;
             }
 
             i++;
@@ -769,7 +769,7 @@ int CheckPhotoDataNoNeed(USER_PICTURE_INFO *photos, int count, int *unneeded) {
         } while (i < count);
     }
 
-    return found;
+    return unneeded_count;
 }
 
 int IsTakePhoto() {
@@ -1241,7 +1241,7 @@ void InitScoopString() {
  * Stores the text of a scoop, read by the STR tag of the scoop text file.
  *
  */
-static int _SCOOP_STR(SPI_STACK *stack, int unused) {
+static int _SCOOP_STR(SPI_STACK *stack, int arg_count) {
     SCOOP_DATA *entry;
     SPI_STACK  *text_arg = stack + 1;
     entry = GetScoopDataTable(spiGetStackInt(stack));
@@ -1323,14 +1323,14 @@ int CScoopDataManager::KnowScoop() {
 
 int CScoopDataManager::CheckScoop() {
     CInventUserData   *user;
-    int                n;
+    int                obtained_count;
     int                i;
     USER_PICTURE_INFO *photo;
     SCOOP_INFO        *info;
-    int                neta;
+    int                neta_id;
 
     user = GetInventUserDataPtr();
-    n = 0;
+    obtained_count = 0;
 
     if (user == NULL) {
         return 0;
@@ -1343,27 +1343,27 @@ int CScoopDataManager::CheckScoop() {
             info = GetScoopInfo(photo->neta_id);
 
             if (info != NULL && info->obtained == 0) {
-                n++;
+                obtained_count++;
                 info->obtained = true;
             }
         }
     }
 
     for (i = 0; i < 0x200; i++) {
-        neta = user->GetNetaID(i);
+        neta_id = user->GetNetaID(i);
 
-        if (neta >= INVENT_NETA_ID_SCOOP) {
-            info = GetScoopInfo(neta);
+        if (neta_id >= INVENT_NETA_ID_SCOOP) {
+            info = GetScoopInfo(neta_id);
 
             if (info != NULL && info->obtained == 0) {
-                n++;
+                obtained_count++;
                 info->obtained = true;
             }
         }
     }
 
     CheckPhotoFlag();
-    return n;
+    return obtained_count;
 }
 
 int CScoopDataManager::GetScoopTotal(int *total) {
@@ -1390,7 +1390,7 @@ int CScoopDataManager::GetScoopTotal(int *total) {
  * Reserves the picture name records, read by the PIC_INFO tag.
  *
  */
-static int _PIC_INFO(SPI_STACK *stack, int unused) {
+static int _PIC_INFO(SPI_STACK *stack, int arg_count) {
     unsigned int size;
     unsigned int blocks;
     pic_name_info_num = spiGetStackInt(stack);
@@ -1413,7 +1413,7 @@ static int _PIC_INFO(SPI_STACK *stack, int unused) {
  * Stores one idea's picture name, read by the PIC_NAME tag.
  *
  */
-static int _PIC_NAME(SPI_STACK *stack, int unused) {
+static int _PIC_NAME(SPI_STACK *stack, int arg_count) {
     PIC_NAME_INFO *entry;
     SPI_STACK     *arg;
     char          *name;
@@ -1596,43 +1596,43 @@ INVENT_DATA_INFO *CInventDataManage::GetInventDataInfoByItemID(int item_id) {
 }
 
 int CInventDataManage::CheckInventEnable(int *ids, int *combined) {
-    int               want[3];
+    int               recipe_neta[3];
     int               i;
     INVENT_DATA_INFO *entry;
-    short            *ingredient;
-    int               count;
+    short            *recipe_ids;
+    int               match_count;
     int               j;
     int               k;
-    int               m;
+    int               slot;
     GetInventUserDataPtr();
 
     for (i = 0; i < num; i++) {
         entry = &table[i];
-        ingredient = &entry->neta_id[0];
+        recipe_ids = &entry->neta_id[0];
 
-        if (ingredient != NULL) {
+        if (recipe_ids != NULL) {
             u8 found[3] = {0, 0, 0};
 
             for (j = 0; j < 3; j++) {
-                want[j] = ingredient[j];
+                recipe_neta[j] = recipe_ids[j];
 
                 for (k = 0; k < 3; k++) {
-                    if (want[j] == ids[k]) {
+                    if (recipe_neta[j] == ids[k]) {
                         found[j] = true;
                     }
                 }
             }
 
-            count = 0;
+            match_count = 0;
 
-            for (m = 0; m < 3; m++) {
-                if (found[m] != 0) {
-                    count++;
-                    want[m] = 0;
+            for (slot = 0; slot < 3; slot++) {
+                if (found[slot] != 0) {
+                    match_count++;
+                    recipe_neta[slot] = 0;
                 }
             }
 
-            if (combined != NULL && count >= 2) {
+            if (combined != NULL && match_count >= 2) {
                 *combined = true;
             }
 
@@ -1646,36 +1646,36 @@ int CInventDataManage::CheckInventEnable(int *ids, int *combined) {
 }
 
 int CInventDataManage::HowMuchZairyouMakeItem(int item_id, int count, int *needs) {
-    INVENT_DATA_INFO     *make_material;
-    INVENT_MATERIAL_LIST *list;
+    INVENT_DATA_INFO     *recipe;
+    INVENT_MATERIAL_LIST *materials;
     int                   i;
-    MakeItemNeeds        *result;
+    MakeItemNeeds        *make_needs;
 
     if (needs == NULL) {
         return false;
     }
 
-    make_material = GetInventDataInfoByItemID(item_id);
+    recipe = GetInventDataInfoByItemID(item_id);
 
-    if (make_material == NULL) {
+    if (recipe == NULL) {
         return false;
     }
 
-    list = &make_material->materials;
+    materials = &recipe->materials;
     i = 0;
-    result = reinterpret_cast<MakeItemNeeds *>(needs);
-    result->num = make_material->materials.num;
+    make_needs = reinterpret_cast<MakeItemNeeds *>(needs);
+    make_needs->num = recipe->materials.num;
 
-    while (i < list->num) {
-        result->need[i].item_id = list->material[i].item_id;
-        result->need[i].amount = count * list->material[i].num;
+    while (i < materials->num) {
+        make_needs->need[i].item_id = materials->material[i].item_id;
+        make_needs->need[i].amount = count * materials->material[i].num;
         i++;
     }
 
     if (i < 4) {
         do {
-            result->need[i].item_id = 0;
-            result->need[i].amount = 0;
+            make_needs->need[i].item_id = 0;
+            make_needs->need[i].amount = 0;
             i++;
         } while (i < 4);
     }
@@ -1684,22 +1684,22 @@ int CInventDataManage::HowMuchZairyouMakeItem(int item_id, int count, int *needs
 }
 
 int CInventDataManage::DeleteUserUsedItem(int item_id, int count) {
-    INVENT_DATA_INFO     *make_material;
-    INVENT_MATERIAL_LIST *list;
+    INVENT_DATA_INFO     *recipe;
+    INVENT_MATERIAL_LIST *materials;
     int                   i;
     INVENT_MATERIAL      *material;
 
-    make_material = GetInventDataInfoByItemID(item_id);
-    list = &make_material->materials;
+    recipe = GetInventDataInfoByItemID(item_id);
+    materials = &recipe->materials;
 
-    if (make_material == NULL) {
+    if (recipe == NULL) {
         return false;
     }
 
     i = 0;
 
-    while (i < list->num) {
-        material = &list->material[i];
+    while (i < materials->num) {
+        material = &materials->material[i];
 
         if (material == NULL) {
             break;
@@ -1735,7 +1735,7 @@ int CInventDataManage::CheckMakeItem(int item_id, int count, CGameDataUsed *item
  * Reserves the invention recipe table, read by the DATATABLESET tag.
  *
  */
-static int _INVENT_DATATABLESET(SPI_STACK *stack, int unused) {
+static int _INVENT_DATATABLESET(SPI_STACK *stack, int arg_count) {
     int          num;
     int          i;
     unsigned int size;
@@ -1767,7 +1767,7 @@ static int _INVENT_DATATABLESET(SPI_STACK *stack, int unused) {
  * Stores one invention recipe, read by the DATASET tag.
  *
  */
-static int _INVENT_DATASET(SPI_STACK *stack, int argument_count) {
+static int _INVENT_DATASET(SPI_STACK *stack, int arg_count) {
     if (InventManagePt->num <= invent_num_counter) {
         return 0;
     }
@@ -1779,7 +1779,7 @@ static int _INVENT_DATASET(SPI_STACK *stack, int argument_count) {
     ideas[2] = spiGetStackInt(stack++);
     int                   index;
     INVENT_MATERIAL_LIST *materials = &inventSpiDataTblTop->materials;
-    materials->num = (argument_count - 9) / 2;
+    materials->num = (arg_count - 9) / 2;
 
     if (materials->num <= 0) {
         return 0;
@@ -1840,8 +1840,8 @@ int CheckInventItem(int item_id) {
     char              align_buffer[0x7800];
     char              teigi_buffer[0x4000];
     char             *buffer;
-    INVENT_DATA_INFO *record;
-    short            *neta_id;
+    INVENT_DATA_INFO *recipe;
+    short            *recipe_neta;
     int               i;
 
     manage.Clear();
@@ -1850,13 +1850,13 @@ int CheckInventItem(int item_id) {
     InventTeigiStack.stSetBuffer((u_long128 *) teigi_buffer, 0x400);
     manage.LoadAnalyzeInventFile(buffer, file_size);
     InventUserDataPtr = GetInventUserDataPtr();
-    record = manage.GetInventDataInfoByItemID(item_id);
+    recipe = manage.GetInventDataInfoByItemID(item_id);
 
-    if (record == NULL) {
+    if (recipe == NULL) {
         return false;
     }
 
-    neta_id = record->neta_id;
+    recipe_neta = recipe->neta_id;
     s8 found[3] = {0, 0, 0};
 
     for (i = 0; i < 30; i++) {
@@ -1866,15 +1866,15 @@ int CheckInventItem(int item_id) {
             short photo_neta = photo->neta_id;
 
             if (photo_neta > 0) {
-                if (neta_id[0] == photo_neta) {
+                if (recipe_neta[0] == photo_neta) {
                     found[0] = true;
                 }
 
-                if (neta_id[1] == photo_neta) {
+                if (recipe_neta[1] == photo_neta) {
                     found[1] = true;
                 }
 
-                if (neta_id[2] == photo_neta) {
+                if (recipe_neta[2] == photo_neta) {
                     found[2] = true;
                 }
             }
@@ -1884,15 +1884,15 @@ int CheckInventItem(int item_id) {
     for (i = 0; i < 0x200; i++) {
         int memo_neta = InventUserDataPtr->GetNetaID(i);
 
-        if (neta_id[0] == memo_neta) {
+        if (recipe_neta[0] == memo_neta) {
             found[0] = true;
         }
 
-        if (neta_id[1] == memo_neta) {
+        if (recipe_neta[1] == memo_neta) {
             found[1] = true;
         }
 
-        if (neta_id[2] == memo_neta) {
+        if (recipe_neta[2] == memo_neta) {
             found[2] = true;
         }
     }
@@ -1904,13 +1904,13 @@ int CheckInventItem(int item_id) {
     return false;
 }
 
-int CheckItemTable(int item_id, int *values) {
+int CheckItemTable(int item_id, int *neta_ids) {
     CInventDataManage manage;
     int               file_size;
     char              align_buffer[0x7800];
     char              teigi_buffer[0x4000];
     char             *buffer;
-    INVENT_DATA_INFO *record;
+    INVENT_DATA_INFO *recipe;
 
     manage.Clear();
     buffer = (char *) MenuCalcBufAlignment((u_long128 *) align_buffer);
@@ -1918,15 +1918,15 @@ int CheckItemTable(int item_id, int *values) {
     if (LoadFile2("menu/inv6.lst", buffer, &file_size, 0) != 0) {
         InventTeigiStack.stSetBuffer((u_long128 *) teigi_buffer, 0x400);
         manage.LoadAnalyzeInventFile(buffer, file_size);
-        record = manage.GetInventDataInfoByItemID(item_id);
+        recipe = manage.GetInventDataInfoByItemID(item_id);
 
-        if (record == NULL) {
+        if (recipe == NULL) {
             return 0;
         }
 
-        values[0] = record->neta_id[0];
-        values[1] = record->neta_id[1];
-        values[2] = record->neta_id[2];
+        neta_ids[0] = recipe->neta_id[0];
+        neta_ids[1] = recipe->neta_id[1];
+        neta_ids[2] = recipe->neta_id[2];
         return 3;
     }
 

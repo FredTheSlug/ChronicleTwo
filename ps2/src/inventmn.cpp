@@ -667,7 +667,6 @@ static InventCommandList modecmdtbl_3636[12] = {
 static u8 jp_conv_lentbl_2835[12] = {
     2, 2, 2, 4, 4, 8, 6, 4, 6, 14, 10, 6};
 
-// Code (.text)
 CInventUserData *GetInventUserDataPtr() {
     CSaveData *save = GetSaveData();
 
@@ -2241,7 +2240,7 @@ void CMenuInvent::LoadCharaCheck() {
             chara_load_step = 2;
             poly_chr_form[0]->SetActionCharaPtr(chara, tex_block[1], -1);
             unk_642 = 0;
-            unk_648 = -3.1415927f / 5.0f;
+            unk_648 = -PI / 5.0f;
             unk_640 = 0;
             break;
         case 2:
@@ -3936,7 +3935,7 @@ void CMenuInvent::CalcTex() {
         blink_count = 0;
     }
 
-    float wave = sinf(mgAngleLimit(3.1415927f * blink_count / 50.0f));
+    float wave = sinf(mgAngleLimit(PI * blink_count / 50.0f));
     float shade = 128.0f + 64.0f * wave;
     neta_color[0] = shade;
     neta_color[1] = shade;
@@ -3962,13 +3961,13 @@ void CMenuInvent::CalcTex() {
         float slot_angle = 0.0f;
 
         if (neta_select_num > 0) {
-            slot_angle = 6.2831855f / neta_select_num;
+            slot_angle = TWO_PI / neta_select_num;
         }
 
-        neta_circle_angle += 3.1415927f / 60.0f;
+        neta_circle_angle += PI / 60.0f;
 
-        if (neta_circle_angle >= 3.1415927f) {
-            neta_circle_angle -= 6.2831855f;
+        if (neta_circle_angle >= PI) {
+            neta_circle_angle -= TWO_PI;
         }
 
         float clip[2] = {neta_board_form->y, neta_board_form->y + 6.0f + 270.0f};
@@ -4000,10 +3999,10 @@ void CMenuInvent::CalcTex() {
                 }
 
                 if (unk_622[i] != 0) {
-                    neta_flash_angle += 3.1415927f / 40.0f;
+                    neta_flash_angle += PI / 40.0f;
 
-                    if (neta_flash_angle > 3.1415927f) {
-                        neta_flash_angle -= 6.2831855f;
+                    if (neta_flash_angle > PI) {
+                        neta_flash_angle -= TWO_PI;
                     }
 
                     sinf(neta_flash_angle);
@@ -4086,7 +4085,7 @@ void CMenuInvent::CalcTex() {
 
         if (neta_memo_arrow != NULL && neta_board_arrow != NULL) {
             neta_board_arrow->x = neta_memo_arrow->x;
-            neta_board_arrow->y = neta_memo_arrow->y + 6.0f * sinf(3.1415927f / 25.0f * arrow_count);
+            neta_board_arrow->y = neta_memo_arrow->y + 6.0f * sinf(PI / 25.0f * arrow_count);
         }
 
         neta_board_form->SetNumber("nownum", InventUserDataPtr->GetNowHavePictureNum());
@@ -4220,14 +4219,14 @@ void CMenuInvent::CalcTex() {
                             scale[1] = 0.6f + 0.4f * bob;
                             frame->SetScale(scale);
                             frame->SetPosition(pos);
-                            effect_sway_angle += 3.1415927f / 46.0f;
+                            effect_sway_angle += PI / 46.0f;
 
-                            if (effect_sway_angle >= 3.1415927f) {
-                                effect_sway_angle -= 6.2831855f;
+                            if (effect_sway_angle >= PI) {
+                                effect_sway_angle -= TWO_PI;
                                 effect_sway = 1.0f + 2.0f * mgRnd();
                             }
 
-                            if (CalcMenuAdd(&effect_bob_angle, 3.1415927f / 22.0f, 3.1415927f)) {
+                            if (CalcMenuAdd(&effect_bob_angle, PI / 22.0f, PI)) {
                                 effect_bob_angle = 0.0f;
                                 effect_bob_count++;
                                 effect_bob -= 0.6f + 2.0f * mgRnd() / 10.0f;
@@ -4244,10 +4243,10 @@ void CMenuInvent::CalcTex() {
                             frame->SetPosition(pos);
                             float size = 0.6f + 0.2f * sinf(effect_bob_angle);
                             frame->SetScale(size, size, size);
-                            effect_bob_angle += 3.1415927f / 36.0f;
+                            effect_bob_angle += PI / 36.0f;
 
-                            if (effect_bob_angle >= 3.1415927f) {
-                                effect_bob_angle -= 6.2831855f;
+                            if (effect_bob_angle >= PI) {
+                                effect_bob_angle -= TWO_PI;
                             }
                         }
                     } else {
@@ -7634,7 +7633,6 @@ void MenuInventDraw() {
     }
 }
 
-// Uninitialised data (.bss)
 static mgCMemory MenuInventStack;
 static mgCMemory MenuInventCharaStack;
 static mgCMemory MenuInventMCStack;

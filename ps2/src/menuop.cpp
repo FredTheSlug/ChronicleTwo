@@ -387,7 +387,6 @@ static short MenuMapInfoSave_DngNo;
 
 static const int kDungeonNoOffset = 0x1C5B4;
 
-// Code (.text)
 void InitMenuReturnMsg(mgCMemory *stack) {
     CDC2Mes *window;
     short   *system_mes;
@@ -3874,7 +3873,6 @@ void SubGameSaveDraw() {
     MenuDCMsg[0]->DrawMsg();
 }
 
-// Uninitialised data (.bss)
 /**
  *
  * Map information saved while the save menu temporarily changes the active map.

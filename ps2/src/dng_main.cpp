@@ -164,7 +164,7 @@ CFireAfterHit         fireAfterHit[DNG_ELEMENT_EFFECT_NUM];
 CWeaponElement *GetWeaponEffect() {
     CWeaponElement *effect = &wep_effect[wep_effect_cnt++];
 
-    if (wep_effect_cnt >= 8) {
+    if (wep_effect_cnt >= DNG_WEAPON_EFFECT_NUM) {
         wep_effect_cnt = 0;
     }
 
@@ -289,15 +289,15 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     DNG_BATTLE_AREA *area = BattleAreaScene;
 
     DngMainMap = NULL;
-    area->battle_clear = 1;
-    area->battle_bgm_state = (int) DNG_BGM_MAP;
+    area->battle_clear = true;
+    area->battle_bgm_state = DNG_BGM_MAP;
     area->battle_bgm_vol = 0.0f;
     area->camera_mode = 0;
     area->pause_flag = 0;
     area->timer = 0;
     area->minimap_reveal = 0;
     area->quake_count = 0;
-    area->script.running = 0;
+    area->script.running = false;
     area->subject_counter = 0;
     area->practice_actions = 0;
     area->floor_status = 0;
@@ -305,7 +305,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     area->lock_on_mode = 0;
     BattleAreaScene->map_name[0] = '\0';
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < DNG_CHARA_PARTY_NUM; i++) {
         CActionChara *chara = new (MainBuffer->Alloc(DngAlign16Size(sizeof(CActionChara)) + 2)) CActionChara;
 
         DngMainScene->AssignChara(i, chara, NULL);
@@ -316,22 +316,22 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     DngMainScene->SetActive(SCENE_DATA_CHARA, 0);
     DngMainScene->player_chara = 0;
 
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < DNG_CHARA_EVENT_NUM; i++) {
         CCharacter2 *chara = new (MainBuffer->Alloc(DngAlign16Size(sizeof(CCharacter2)) + 2)) CCharacter2;
 
         chara->Initialize();
-        DngMainScene->AssignChara(i + 8, chara, NULL);
-        DngMainScene->ResetActive(SCENE_DATA_CHARA, i + 8);
-        DngMainScene->SetType(SCENE_DATA_CHARA, i + 8, 2);
+        DngMainScene->AssignChara(i + DNG_CHARA_SLOT_EVENT, chara, NULL);
+        DngMainScene->ResetActive(SCENE_DATA_CHARA, i + DNG_CHARA_SLOT_EVENT);
+        DngMainScene->SetType(SCENE_DATA_CHARA, i + DNG_CHARA_SLOT_EVENT, 2);
     }
 
     memset(&MainBuffer->stack[MainBuffer->stack_used], 0xFF, 0x1EF00);
-    CActiveMonster *mons = new (MainBuffer->Alloc(DngAlign16Size(sizeof(CActiveMonster) * 24) + 2)) CActiveMonster[24];
+    CActiveMonster *mons = new (MainBuffer->Alloc(DngAlign16Size(sizeof(CActiveMonster) * MONSTER_ACTIVE_MAX) + 2)) CActiveMonster[MONSTER_ACTIVE_MAX];
 
-    for (int i = 0; i < 24; i++) {
+    for (int i = 0; i < MONSTER_ACTIVE_MAX; i++) {
         mons[i].Initialize();
-        DngMainScene->AssignChara(i + 24, &mons[i], NULL);
-        DngMainScene->SetType(SCENE_DATA_CHARA, i + 24, 3);
+        DngMainScene->AssignChara(i + DNG_CHARA_SLOT_MONSTER, &mons[i], NULL);
+        DngMainScene->SetType(SCENE_DATA_CHARA, i + DNG_CHARA_SLOT_MONSTER, 3);
     }
 
     BattleAreaScene->floor_manager.LoadDataTable(arg.map_no, MainBuffer);
@@ -352,13 +352,13 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     DngStatus.mode = DNG_STATUS_FIELD;
     DngStatus.active_item = 0;
     DngStatus.status_count = 0;
-    DngStatus.debug_window = 0;
-    DngStatus.eye_view = 0;
+    DngStatus.debug_window = false;
+    DngStatus.eye_view = false;
     mgSetAllScissorFlag(0);
     mgInitLighting();
     test_dist = 160.0f;
-    debag_param = 1;
-    init_camera = 0;
+    debag_param = true;
+    init_camera = false;
     MainCamera.SetPos(0.0f, 0.0f, 0.0f);
     MainCamera.SetDistance(test_dist);
     MainCamera.SetFollowOffset(0.0f, 30.0f, 0.0f);
@@ -367,7 +367,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     MainCamera.SetSpeed(6.0f, -1.0f);
     MainCamera.Step(10);
     MainCamera.ControlOn();
-    MainCamera.SetRotCameraCancel((int) CAMERA_ROT_CANCEL_BUTTON);
+    MainCamera.SetRotCameraCancel(CAMERA_ROT_CANCEL_BUTTON);
     EventCamera = MainCamera;
     EdEventLoopInit();
     InitTakePhoto();
@@ -406,7 +406,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     DngMess->draw_speed = 0;
     DngMess->texture_block = 0x58;
 
-    if (LanguageCode > 0 && LanguageCode < 6) {
+    if (LanguageCode > LANG_JAPANESE && LanguageCode < LANG_CHINESE) {
         DngMess->value_half = 1;
     }
 
@@ -480,7 +480,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     attr.color[2] = 255.0f;
     attr.color[3] = 128.0f;
     RedMarkModel->frame->SetAttrParam(attr, 1, 0);
-    RedMarkModel->draw_request = 0;
+    RedMarkModel->draw_request = false;
     GeoStone.Initialize();
     u32 *pack = (u32 *) GetPackFile((u32 *) BuffReadData, "giostone.chr", &pack_size);
 
@@ -642,13 +642,13 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     AutoMapGen.grid = NULL;
     AutoMapGen.gio_parts = NULL;
 
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0; i < AUTOMAP_RANDOM_STONE_MAX; i++) {
         AutoMapGen.random_stone[i] = NULL;
     }
 
     AutoMapGen.pot_parts = NULL;
 
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < AUTOMAP_ROOM_MAX; i++) {
         AutoMapGen.room[i].no_door = 0;
     }
 
@@ -670,7 +670,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     AutoMapGen.grid_h = 30;
     MainChara__2->sound_info.foot_se_bank = DngMainScene->se_base_id;
     MainChara__2->sound_info.foot_sound_id = -1;
-    sndInitPort(7);
+    sndInitPort(SND_PORT_CHARA);
     char snd_path[64];
 
     GetCharacterSnd(DngUserData, DngUserData->active_chr_no, snd_path);
@@ -678,15 +678,15 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     if (LoadFile2(snd_path, BuffReadData, NULL, 0)) {
         int base = 3;
 
-        if (DngUserData->active_chr_no == 2) {
+        if (DngUserData->active_chr_no == USER_CHARA_ROBO) {
             base = 1;
         }
 
-        if (DngUserData->active_chr_no == 3) {
+        if (DngUserData->active_chr_no == USER_CHARA_MONSTER) {
             base = 0;
         }
 
-        MainChara__2->sound_info.se_bank = sndLoadSound((int) SND_PORT_CHARA, (u32 *) BuffReadData, &BaseCharacter[base]);
+        MainChara__2->sound_info.se_bank = sndLoadSound(SND_PORT_CHARA, (u32 *) BuffReadData, &BaseCharacter[base]);
     }
 
     MainChara__2->sound_info.se_bank_2 = DngMainScene->se_battle_id;
@@ -713,7 +713,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     BTsuboCol = NULL;
     DngMainScene->time_step = 1;
 
-    for (int e = 0; e < 6; e++) {
+    for (int e = 0; e < DNG_ELEMENT_EFFECT_NUM; e++) {
         Sparc_fx[e].Initialize();
         Sparc_fx[e].model[0] = SparcModel[0];
         Sparc_fx[e].model[1] = SparcModel[1];
@@ -725,12 +725,12 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
         fireAfterHit[e].Initialize();
     }
 
-    DebugPause = 0;
+    DebugPause = false;
     InitPauseMenu(0x6C);
-    VoiceUnit.status = 0;
+    VoiceUnit.status = ROBO_VOICE_OFF;
     VoiceUnit.pause_time = 2;
     VoiceUnit.play_time = 0;
-    VoiceUnit.stream_open = 0;
+    VoiceUnit.stream_open = false;
     EdEventInfo.script_name[0] = '\0';
     EntryEventScript(DngStatus.dungeon_no);
     static mgCMemory debug_event_stack;
@@ -742,7 +742,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     script->event_no = arg.event_no;
 
     if (arg.event_no <= 0) {
-        script->event_no = 1000;
+        script->event_no = DNG_EVENT_FLOOR_START;
     }
 
     EventScriptSetup(script);
@@ -752,7 +752,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
 }
 
 void CRedMarkModel::Initialize() {
-    draw_request = 0;
+    draw_request = false;
     angle = 0.0f;
     frame = NULL;
 }
@@ -766,7 +766,7 @@ void CommonStageClassInit() {
     LevelupInfo.phase = 0;
     SwordLuminous.root_frame = NULL;
     SwordLuminous.tip_frame = NULL;
-    SwordLuminous.mode = (int) SWORD_LUMINOUS_OFF;
+    SwordLuminous.mode = SWORD_LUMINOUS_OFF;
     map_effect.spawn_wait = 0;
     map_effect.live_num = 0;
     map_effect.sprite_num = 0;
@@ -782,7 +782,7 @@ void CommonStageClassInit() {
     DamageScore.digit_v = 202;
     DamageScore2.phase = 0;
 
-    for (i = 0; i < 8; i++) {
+    for (i = 0; i < DNG_DAMAGE_SCORE_MONS_NUM; i++) {
         DamageScoreMons[i].active = 0;
         DamageScoreMons[i].unk_00 = 0;
         DamageScoreMons[i].unk_54 = 0;
@@ -796,22 +796,22 @@ void CommonStageClassInit() {
     AccumulateEffect.frame = NULL;
     AccumulateEffect.unk_320 = 0;
     AccumulateEffect.mode = 0;
-    WarningGage2.warning[0] = 0;
-    WarningGage2.warning[1] = 0;
-    WarningGage2.warning[2] = 0;
+    WarningGage2.warning[0] = false;
+    WarningGage2.warning[1] = false;
+    WarningGage2.warning[2] = false;
     WarningGage2.time = 0;
 
-    for (i = 0; i < 72; i++) {
+    for (i = 0; i < DNG_PULL_ITEM_NUM; i++) {
         PullItem[i].Initialize();
     }
 
     PullItemMan.list = NULL;
     PullItemMan.num = 0;
     PullItemMan.list = PullItem;
-    PullItemMan.num = 72;
+    PullItemMan.num = DNG_PULL_ITEM_NUM;
 
-    for (int w = 0; w < 16; w++) {
-        afterWire[w].mode = 0;
+    for (int w = 0; w < DNG_AFTER_WIRE_NUM; w++) {
+        afterWire[w].mode = false;
     }
 
     for (int b = 0; b < 16; b++) {
@@ -821,7 +821,7 @@ void CommonStageClassInit() {
 
     MachineGun.index = 0;
 
-    for (int e = 0; e < 8; e++) {
+    for (int e = 0; e < DNG_WEAPON_EFFECT_NUM; e++) {
         wep_effect[e].Initialize();
     }
 
@@ -847,10 +847,10 @@ void CommonClassInit() {
     BattleFX.dead_next = 0;
     BattleFX.chara_slot = NULL;
     BattleFX.chara_num = 0;
-    BattleFX.AllocEffect(0, MainBuffer, 4);
-    BattleFX.AllocEffect(1, MainBuffer, 4);
-    BattleFX.AllocEffect(2, MainBuffer, 8);
-    BattleFX.AllocEffect(3, MainBuffer, 4);
+    BattleFX.AllocEffect(BATTLE_EFFECT_HIT, MainBuffer, 4);
+    BattleFX.AllocEffect(BATTLE_EFFECT_FLUSH, MainBuffer, 4);
+    BattleFX.AllocEffect(BATTLE_EFFECT_POWER_LINE, MainBuffer, 8);
+    BattleFX.AllocEffect(BATTLE_EFFECT_DEAD, MainBuffer, 4);
     BattleAreaScene->battle_effect = &BattleFX;
     InitPause(0x69);
 }
@@ -995,11 +995,11 @@ int LoopDungeonMain() {
                     char         *map[7] = {"d01e01", "s02", "g02", "g03", "g04", "d06e01", "m05"};
                     arg.map_no = SearchMapNo(map[DngStatus.dungeon_no]);
                     arg.event_no = 100;
-                    NextLoop((int) LOOP_EDIT, arg);
+                    NextLoop(LOOP_EDIT, arg);
                     DngStatus.mode = DNG_STATUS_EXIT;
                 }
 
-                if (MenuArg.end_code != 11 && SubGameRunning() && GetSubGameNo() == 1) {
+                if (MenuArg.end_code != 11 && SubGameRunning() && GetSubGameNo() == SUBGAME_FISHING) {
                     sgExitSubGame();
                 }
 
@@ -1011,12 +1011,12 @@ int LoopDungeonMain() {
                     info.scene = DngMainScene;
                     info.rod_no = MenuArg.result[0];
                     info.esa_no = MenuArg.result[1];
-                    info.dungeon = 1;
+                    info.dungeon = true;
                     MenuArg.end_code = 0;
                     SubGameInfo *now = GetNowSubGameInfo();
 
                     if ((GetMenuEtcFlag() & 1) || !SubGameRunning() || now->rod_no != info.rod_no) {
-                        sgInitSubGame(1, &info);
+                        sgInitSubGame(SUBGAME_FISHING, &info);
                     } else {
                         sgRestartSubGame(&info);
                     }
@@ -1033,11 +1033,11 @@ int LoopDungeonMain() {
     PAUSE_INFO pause;
     pause.scene = NULL;
     pause.scene = DngMainScene;
-    pause.event_skip = 0;
+    pause.event_skip = false;
 
     if (!OmakeFlag) {
         if (DngStatus.mode == DNG_STATUS_EVENT && CheckEventSkip()) {
-            pause.event_skip = 1;
+            pause.event_skip = true;
         }
 
         if (PadCtrl.Btn(PAD_BTN_PAUSE) || !GamePad__2.Connect()) {
@@ -1050,7 +1050,7 @@ int LoopDungeonMain() {
     }
 
     if (DngMainScene->exit_flag) {
-        DngMainScene->exit_flag = 0;
+        DngMainScene->exit_flag = false;
         DngStatus.mode = DNG_STATUS_EXIT;
     }
 
@@ -1077,10 +1077,10 @@ int LoopDungeonMain() {
         DngMainScene->StopSeSrc();
         sndSeAllStop(-1);
         sndStopVoice(1);
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void DngMainDraw() {
@@ -1251,9 +1251,9 @@ void DngMainDraw() {
         sceVu0FVECTOR pos;
         sceVu0FVECTOR normal = {0.0f, 1.0f, 0.0f, 0.0f};
 
-        for (int c = 0; c < 16; c++) {
-            if (DngMainScene->CheckDrawCharaShadow(c + 8)) {
-                CCharacter2 *chara = DngMainScene->GetCharacter(c + 8);
+        for (int c = 0; c < DNG_CHARA_EVENT_NUM; c++) {
+            if (DngMainScene->CheckDrawCharaShadow(c + DNG_CHARA_SLOT_EVENT)) {
+                CCharacter2 *chara = DngMainScene->GetCharacter(c + DNG_CHARA_SLOT_EVENT);
 
                 if (chara != NULL) {
                     chara->GetEntryObjectPos(1, 0, pos);
@@ -1309,12 +1309,12 @@ void DngMainDraw() {
             MainChara__2->DrawDirect();
         }
 
-        for (int c = 0; c < 16; c++) {
-            if (DngMainScene->CheckDrawChara(c + 8) && DngMainScene->GetType(SCENE_DATA_CHARA, c + 8) != 4) {
-                CCharacter2 *chara = DngMainScene->GetCharacter(c + 8);
+        for (int c = 0; c < DNG_CHARA_EVENT_NUM; c++) {
+            if (DngMainScene->CheckDrawChara(c + DNG_CHARA_SLOT_EVENT) && DngMainScene->GetType(SCENE_DATA_CHARA, c + DNG_CHARA_SLOT_EVENT) != 4) {
+                CCharacter2 *chara = DngMainScene->GetCharacter(c + DNG_CHARA_SLOT_EVENT);
 
                 if (chara != NULL) {
-                    tex_man->ReloadTexture(DngMainScene->GetCharaTexb(c + 8), (sceVif1Packet *) NULL);
+                    tex_man->ReloadTexture(DngMainScene->GetCharaTexb(c + DNG_CHARA_SLOT_EVENT), (sceVif1Packet *) NULL);
                     chara->DrawDirect();
                 }
             }
@@ -1356,7 +1356,7 @@ void DngMainDraw() {
     if (!(BattleAreaScene->pause_flag & DNG_PAUSE_PICKUPS)) {
         mgCTexture *tex = tex_man->GetTexture("keyetc", 0x6A);
 
-        for (int p = 0; p < 72; p++) {
+        for (int p = 0; p < DNG_PULL_ITEM_NUM; p++) {
             PullItem[p].Draw(tex);
         }
     }
@@ -1364,7 +1364,7 @@ void DngMainDraw() {
     float work[256][4];
 
     if (!(BattleAreaScene->pause_flag & DNG_PAUSE_PICKUPS)) {
-        for (int w = 0; w < 16; w++) {
+        for (int w = 0; w < DNG_AFTER_WIRE_NUM; w++) {
             afterWire[w].StepWire();
             afterWire[w].DrawWire(work);
         }
@@ -1413,12 +1413,12 @@ void DngMainDraw() {
         mgSetLight(ld, lc);
         mgSetAmbient(amb);
 
-        for (int c = 0; c < 16; c++) {
-            if (DngMainScene->CheckDrawChara(c + 8) && DngMainScene->GetType(SCENE_DATA_CHARA, c + 8) == 4) {
-                CCharacter2 *chara = DngMainScene->GetCharacter(c + 8);
+        for (int c = 0; c < DNG_CHARA_EVENT_NUM; c++) {
+            if (DngMainScene->CheckDrawChara(c + DNG_CHARA_SLOT_EVENT) && DngMainScene->GetType(SCENE_DATA_CHARA, c + DNG_CHARA_SLOT_EVENT) == 4) {
+                CCharacter2 *chara = DngMainScene->GetCharacter(c + DNG_CHARA_SLOT_EVENT);
 
                 if (chara != NULL) {
-                    tex_man->ReloadTexture(DngMainScene->GetCharaTexb(c + 8), (sceVif1Packet *) NULL);
+                    tex_man->ReloadTexture(DngMainScene->GetCharaTexb(c + DNG_CHARA_SLOT_EVENT), (sceVif1Packet *) NULL);
                     chara->DrawDirect();
                 }
             }
@@ -1431,7 +1431,7 @@ void DngMainDraw() {
     HealingEffectMan.Draw(&MainCamera);
     BattleFX.Draw();
 
-    for (int e = 0; e < 8; e++) {
+    for (int e = 0; e < DNG_WEAPON_EFFECT_NUM; e++) {
         wep_effect[e].Step();
         wep_effect[e].Draw();
     }
@@ -1443,7 +1443,7 @@ void DngMainDraw() {
     LaserGun.Draw();
     tex_man->ReloadTexture(0x6B, (sceVif1Packet *) NULL);
 
-    for (int e = 0; e < 6; e++) {
+    for (int e = 0; e < DNG_ELEMENT_EFFECT_NUM; e++) {
         Sparc_fx[e].Draw();
         thunder[e].Draw();
         tornado[e].Draw();
@@ -1457,9 +1457,9 @@ void DngMainDraw() {
         MainChara__2->DrawEffect();
     }
 
-    for (int c = 0; c < 16; c++) {
-        if (DngMainScene->CheckDrawChara(c + 8) && DngMainScene->GetType(SCENE_DATA_CHARA, c + 8) != 4) {
-            CCharacter2 *chara = DngMainScene->GetCharacter(c + 8);
+    for (int c = 0; c < DNG_CHARA_EVENT_NUM; c++) {
+        if (DngMainScene->CheckDrawChara(c + DNG_CHARA_SLOT_EVENT) && DngMainScene->GetType(SCENE_DATA_CHARA, c + DNG_CHARA_SLOT_EVENT) != 4) {
+            CCharacter2 *chara = DngMainScene->GetCharacter(c + DNG_CHARA_SLOT_EVENT);
 
             if (chara != NULL) {
                 chara->DrawEffect();
@@ -1469,7 +1469,7 @@ void DngMainDraw() {
 
     ActiveMonster->DrawEffectScript();
 
-    if (BattleAreaScene->weather == (int) DNG_WEATHER_RAIN) {
+    if (BattleAreaScene->weather == DNG_WEATHER_RAIN) {
         CPreSprite prim;
 
         prim.Initialize(NULL, NULL);
@@ -1511,7 +1511,7 @@ void DngMainDraw() {
     s8  show = BattleAreaScene->statusbar_show;
 
     if (NowTakePhoto()) {
-        show = 0;
+        show = false;
     }
 
     if (show && debag_param && !(BattleAreaScene->pause_flag & DNG_PAUSE_MONSTER_DRAW)) {
@@ -1519,7 +1519,7 @@ void DngMainDraw() {
         LockOnModel.Draw();
     }
 
-    if (show && debag_param && !(BattleAreaScene->pause_flag & 0x10010) && !config->monster_name) {
+    if (show && debag_param && !(BattleAreaScene->pause_flag & (DNG_PAUSE_MONSTER_NAMES | DNG_PAUSE_MONSTER_DRAW)) && !config->monster_name) {
         LockOnModel.DrawMess(0x58);
     }
 
@@ -1536,7 +1536,7 @@ void DngMainDraw() {
                 DamageScore.Draw();
                 DamageScore2.Draw(DngMainScene);
 
-                for (k = 0; k < 8; k++) {
+                for (k = 0; k < DNG_DAMAGE_SCORE_MONS_NUM; k++) {
                     DamageScoreMons[k].Draw();
                 }
             }
@@ -1592,7 +1592,7 @@ void DngMainDraw() {
         }
     }
 
-    for (int c = 0; c < 64; c++) {
+    for (int c = 0; c < COLPRIM_MAX; c++) {
         ColPrimMan.prim[c].DebugDraw();
     }
 
@@ -1658,7 +1658,7 @@ void DngMainDraw() {
 
             if (neta > 0) {
                 picture->neta_id = neta;
-                sndSePlay(GetSystemSndID(), 14, 0);
+                sndSePlay(GetSystemSndID(), SYSTEM_SE_IDEA, 0);
             }
 
             if (monster >= 0) {
@@ -1666,7 +1666,7 @@ void DngMainDraw() {
 
                 if (photo_neta > 0) {
                     picture->neta_id = photo_neta;
-                    sndSePlay(GetSystemSndID(), 14, 0);
+                    sndSePlay(GetSystemSndID(), SYSTEM_SE_IDEA, 0);
                 }
             }
 
@@ -1762,25 +1762,25 @@ void DngStep() {
 
             MainChara__2->GetPosition(pos);
             int foot_no = MainChara__2->CheckFootEffect();
-            int effect[35] = {-1, 1, -1, -1, -1, -1, -1, 0, 0, -1, -1, 2, -1, -1, 0, -1, 0, -1,
-                              2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+            int effect[35] = {DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_GRASS, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_SPLASH, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_DUST, DNG_FOOT_EFFECT_NONE,
+                              DNG_FOOT_EFFECT_SPLASH, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE, DNG_FOOT_EFFECT_NONE};
 
             if (foot_no >= 0) {
                 int kind = effect[foot_no];
 
-                if (kind == 0) {
+                if (kind == DNG_FOOT_EFFECT_DUST) {
                     FxScriptMan->CreateEffSpt("\x91\xab\x8d\xbb\x89\x8c", 0, -1);
                     FxScriptMan->SetScriptVect1(pos, -1, -1);
                 }
 
-                if (kind == 1) {
+                if (kind == DNG_FOOT_EFFECT_GRASS) {
                     FxScriptMan->CreateEffSpt("\x91\xab\x8d\xbb\x89\x8c", 0, -1);
                     FxScriptMan->SetScriptVect1(pos, -1, -1);
                     FxScriptMan->CreateEffSpt("\x91\xab\x8e\xc5\x90\xb6", 0, -1);
                     FxScriptMan->SetScriptVect1(pos, -1, -1);
                 }
 
-                if (kind == 2) {
+                if (kind == DNG_FOOT_EFFECT_SPLASH) {
                     FxScriptMan->CreateEffSpt("\x91\xab\x90\x85\x83p\x83V\x83\x83", 0, -1);
                     FxScriptMan->SetScriptVect1(pos, -1, -1);
                 }
@@ -1797,7 +1797,7 @@ void DngStep() {
     sgLoopSubGame2();
     int pot = BTsubo.Step();
 
-    if (pot == 1 || pot == 2) {
+    if (pot == POT_STEP_BREAK || pot == POT_STEP_TIMEOUT) {
         if (BTsuboCol != NULL) {
             BTsuboCol->Delete(-1);
             BTsuboCol = NULL;
@@ -1817,7 +1817,7 @@ void DngStep() {
                 sceVu0CopyVector(velo, BTsubo.velocity);
                 sceVu0Normalize(velo, velo);
                 sceVu0ScaleVector(velo, velo, -2.0f);
-                item->SetItem(pos, velo, 4);
+                item->SetItem(pos, velo, PULL_ITEM_ITEM);
 
                 if (iRand(100) % 10 == 0) {
                     no = iRand(10) + 175;
@@ -1906,7 +1906,7 @@ void DngStep() {
     if (water_cnt2 >= 10) {
         water_cnt2 = 0;
 
-        for (int m = 0; m < 24; m++) {
+        for (int m = 0; m < MONSTER_ACTIVE_MAX; m++) {
             CActiveMonster *mons = ActiveMonster->active[m];
 
             if (mons != NULL && mons->state && mons->target_dist <= mons->clip_dist && mons->mons_move_check.in_water) {
@@ -1942,9 +1942,9 @@ void DngStep() {
     FxScriptMan->Step();
     FxScriptMan->PauseFromLevel(3, 0);
 
-    for (i = 0; i < 16; i++) {
-        if (DngMainScene->CheckDrawChara(i + 8) || DngMainScene->CheckDrawCharaShadow(i + 8)) {
-            CCharacter2 *chara = DngMainScene->GetCharacter(i + 8);
+    for (i = 0; i < DNG_CHARA_EVENT_NUM; i++) {
+        if (DngMainScene->CheckDrawChara(i + DNG_CHARA_SLOT_EVENT) || DngMainScene->CheckDrawCharaShadow(i + DNG_CHARA_SLOT_EVENT)) {
+            CCharacter2 *chara = DngMainScene->GetCharacter(i + DNG_CHARA_SLOT_EVENT);
 
             if (chara != NULL) {
                 sceVu0FVECTOR foot;
@@ -1982,14 +1982,14 @@ void DngStep() {
     DamageScore.Step();
     DamageScore2.Step();
 
-    for (int d = 0; d < 8; d++) {
+    for (int d = 0; d < DNG_DAMAGE_SCORE_MONS_NUM; d++) {
         DamageScoreMons[d].Step();
     }
 
     map_effect.Step(&MainCamera);
     BattleFX.Step();
 
-    for (int e = 0; e < 6; e++) {
+    for (int e = 0; e < DNG_ELEMENT_EFFECT_NUM; e++) {
         Sparc_fx[e].Step();
         thunder[e].Step();
         tornado[e].Step();
@@ -1998,12 +1998,12 @@ void DngStep() {
     }
 
     if (!(BattleAreaScene->pause_flag & DNG_PAUSE_PICKUPS)) {
-        for (int p = 0; p < 72; p++) {
+        for (int p = 0; p < DNG_PULL_ITEM_NUM; p++) {
             PullItem[p].Step();
             PullItem[p].IsGet(player);
         }
 
-        for (int w = 0; w < 16; w++) {
+        for (int w = 0; w < DNG_AFTER_WIRE_NUM; w++) {
             afterWire[w].StepWire();
         }
     }
@@ -2046,7 +2046,7 @@ int RunMainEvent() {
     switch (EventLoop()) {
         case EVENT_REQUEST_END:
             DngStatus.mode = DNG_STATUS_FIELD;
-            BattleAreaScene->script.running = 0;
+            BattleAreaScene->script.running = false;
             DngMainScene->active_camera = 0;
             BattleAreaScene->pause_flag &= ~DNG_PAUSE_PLAYER_STATUS;
             LoopSoundManager(1);
@@ -2140,11 +2140,11 @@ int DngMainKey() {
         }
     }
 
-    int               dead = 0;
+    int               dead = false;
     CBattleCharaInfo *chara_info = GetBattleCharaInfo();
 
     if (chara_info != NULL && chara_info->GetNowHp_i() <= 0) {
-        dead = 1;
+        dead = true;
     }
 
     if (SubGameRunning()) {
@@ -2152,13 +2152,13 @@ int DngMainKey() {
 
         if (GamePad__2.Down(PAD_TRIANGLE) && sgMenuOpenEnable()) {
             VoiceUnit.StopVoice(10);
-            MenuArg.open_type = (int) MENU_OPEN_MAIN_DUNGEON;
+            MenuArg.open_type = MENU_OPEN_MAIN_DUNGEON;
             DngStatus.mode = DNG_STATUS_MENU;
             DngMainScene->fade.ResetFade();
             BattleAreaScene->SetStatusBarNow(0);
-            WarningGage2.warning[0] = 0;
-            WarningGage2.warning[1] = 0;
-            WarningGage2.warning[2] = 0;
+            WarningGage2.warning[0] = false;
+            WarningGage2.warning[1] = false;
+            WarningGage2.warning[2] = false;
             LockOnModel.pos[3] = 0.0f;
             return 0;
         }
@@ -2182,7 +2182,7 @@ int DngMainKey() {
     if (DngMainScene->event_run) {
         int no;
 
-        DngMainScene->event_run = 0;
+        DngMainScene->event_run = false;
         script = &BattleAreaScene->script;
         script->event_no = no = DngMainScene->event_no;
     }
@@ -2191,7 +2191,7 @@ int DngMainKey() {
 
     if (sphida != NULL) {
         if (OmakeFlag && (PadCtrl.Btn(PAD_BTN_PAUSE) || !GamePad__2.Connect())) {
-            MenuArg.open_type = (int) MENU_OPEN_SPHIDA_SCORE_VIEW;
+            MenuArg.open_type = MENU_OPEN_SPHIDA_SCORE_VIEW;
             VoiceUnit.StopVoice(10);
             DngStatus.mode = DNG_STATUS_MENU;
             DngMainScene->fade.ResetFade();
@@ -2229,14 +2229,14 @@ int DngMainKey() {
         if (unit >= 0) {
             VoiceUnit.StopVoice(10);
             MenuArg.param[0] = unit;
-            MenuArg.open_type = (int) MENU_OPEN_MAIN_CHARA_BG_DUNGEON;
+            MenuArg.open_type = MENU_OPEN_MAIN_CHARA_BG_DUNGEON;
             DngStatus.mode = DNG_STATUS_MENU;
             DngMainScene->fade.ResetFade();
             BattleAreaScene->SetStatusBarNow(0);
             MainChara__2->RemoveThrowItem();
-            WarningGage2.warning[0] = 0;
-            WarningGage2.warning[1] = 0;
-            WarningGage2.warning[2] = 0;
+            WarningGage2.warning[0] = false;
+            WarningGage2.warning[1] = false;
+            WarningGage2.warning[2] = false;
             LockOnModel.pos[3] = 0.0f;
             return 0;
         }
@@ -2244,9 +2244,9 @@ int DngMainKey() {
 
     if (GamePad__2.On(PAD_TRIANGLE) && MainChara__2->CheckRunEvent() && !dead) {
         if (NowTakePhoto()) {
-            MenuArg.open_type = (int) MENU_OPEN_INVENT;
+            MenuArg.open_type = MENU_OPEN_INVENT;
         } else {
-            MenuArg.open_type = (int) MENU_OPEN_MAIN_DUNGEON;
+            MenuArg.open_type = MENU_OPEN_MAIN_DUNGEON;
         }
 
         VoiceUnit.StopVoice(10);
@@ -2254,9 +2254,9 @@ int DngMainKey() {
         DngMainScene->fade.ResetFade();
         BattleAreaScene->SetStatusBarNow(0);
         MainChara__2->RemoveThrowItem();
-        WarningGage2.warning[0] = 0;
-        WarningGage2.warning[1] = 0;
-        WarningGage2.warning[2] = 0;
+        WarningGage2.warning[0] = false;
+        WarningGage2.warning[1] = false;
+        WarningGage2.warning[2] = false;
         LockOnModel.pos[3] = 0.0f;
         return 0;
     }
@@ -2274,21 +2274,21 @@ int DngMainKey() {
         return 0;
     }
 
-    if (!DngStatus.eye_view && GamePad__2.Down(PAD_SQUARE) && !(BattleAreaScene->pause_flag & DNG_PAUSE_PLAYER_CONTROL) && chara_info->chr_no == 0 &&
+    if (!DngStatus.eye_view && GamePad__2.Down(PAD_SQUARE) && !(BattleAreaScene->pause_flag & DNG_PAUSE_PLAYER_CONTROL) && chara_info->chr_no == USER_CHARA_MAX &&
         MainChara__2->CheckRunEvent()) {
-        int            found = 0;
+        int            found = false;
         CGameDataUsed *items = GetBattleCharaInfo()->GetActiveItemInfo(0);
 
         if (BattleAreaScene->statusbar_show) {
             CGameDataUsed *item = &items[DngStatus.active_item];
 
             if (item->item_no == 369) {
-                found = 1;
+                found = true;
             }
         } else {
             for (int i = 0; i < 3; i++) {
                 if (items[i].item_no == 369) {
-                    found = 1;
+                    found = true;
                 }
             }
         }
@@ -2304,7 +2304,7 @@ int DngMainKey() {
         ResetEyeView(MainChara__2);
     }
 
-    if (DngUserData->active_chr_no == USER_CHARA_ROBO && DngUserData->CheckRoboVoiceFlag() && VoiceUnit.status == 0) {
+    if (DngUserData->active_chr_no == USER_CHARA_ROBO && DngUserData->CheckRoboVoiceFlag() && VoiceUnit.status == ROBO_VOICE_OFF) {
         VoiceUnit.StartVoiceSystem();
     }
 
@@ -2318,7 +2318,7 @@ int DngMainKey() {
         }
 
         if (MainChara__2->CheckReleaseTimming(-1)) {
-            if (MainChara__2->CheckReleaseTimming(-1) == 5) {
+            if (MainChara__2->CheckReleaseTimming(-1) == ACTION_RELEASE_KICK) {
                 BTsubo.Hold(MainChara__2->hold_parts);
                 BTsubo2.SetObject2(DngStatus.dungeon_no, AutoMapGen.pot_parts);
                 BTsubo.Throw();
@@ -2329,12 +2329,12 @@ int DngMainKey() {
                 }
             }
 
-            if (MainChara__2->CheckReleaseTimming(4) == 1) {
+            if (MainChara__2->CheckReleaseTimming(ACTION_HOLD_STONE) == ACTION_RELEASE_CATCH) {
                 BTsubo.Hold(MainChara__2->hold_parts);
                 BTsubo2.SetObject2(DngStatus.dungeon_no, AutoMapGen.pot_parts);
             }
 
-            if (MainChara__2->CheckReleaseTimming(-1) == 3) {
+            if (MainChara__2->CheckReleaseTimming(-1) == ACTION_RELEASE_THROW_STONE) {
                 MainChara__2->GetNowFrame(0);
                 BTsubo.Throw();
                 BTsuboCol = ColPrimMan.GetPrim();
@@ -2392,7 +2392,7 @@ int DngMainKey() {
         camera->SetFollow(ref[0], ref[1], ref[2]);
 
         if (chara->lock_on && chara->target_no >= 0) {
-            int             no = chara->target_no - 24;
+            int             no = chara->target_no - DNG_CHARA_SLOT_MONSTER;
             CActiveMonster *mons = ActiveMonster->active[no];
 
             if (mons != NULL) {
@@ -2515,7 +2515,7 @@ int DngMainKey() {
                 float angle = rot[1];
 
                 if (MainChara__2->lock_on && chara->target_no >= 0) {
-                    int             no = chara->target_no - 24;
+                    int             no = chara->target_no - DNG_CHARA_SLOT_MONSTER;
                     CActiveMonster *mons = ActiveMonster->active[no];
 
                     if (mons != NULL) {
@@ -2541,7 +2541,7 @@ int DngMainKey() {
 
         if (BattleAreaScene->camera_mode == 1) {
             MainCamera.FollowOff();
-            CCharacter2  *boss = DngMainScene->GetCharacter(24);
+            CCharacter2  *boss = DngMainScene->GetCharacter(DNG_CHARA_SLOT_MONSTER);
             sceVu0FVECTOR chara_pos;
 
             MainChara__2->GetPosition(chara_pos);
@@ -2651,7 +2651,7 @@ int DngMainKey() {
                 float angle = rot2[1];
 
                 if (MainChara__2->lock_on && chara->target_no >= 0) {
-                    int             no = chara->target_no - 24;
+                    int             no = chara->target_no - DNG_CHARA_SLOT_MONSTER;
                     CActiveMonster *mons = ActiveMonster->active[no];
 
                     if (mons != NULL) {
@@ -2749,13 +2749,13 @@ void IsEventRun() {
         int max;
         int attr;
 
-        attr = info->GetAttr() & 0x6F;
+        attr = info->GetAttr() & (CHARA_STATUS_ALL & ~CHARA_STATUS_POWER);
         max = info->GetMaxHp_i();
 
         if ((max > info->GetNowHp_i() || attr) && AutoMapGen.healing_point.CheckHealingTime()) {
             float healing = 9999.0f;
             info->AddHp_Point(healing, 0.0f);
-            info->SetAttr(0x6F, 1);
+            info->SetAttr(CHARA_STATUS_ALL & ~CHARA_STATUS_POWER, 1);
             FxScriptMan->CreateEffSpt("\x92\xca\x8f\xed\x89\xf1\x95\x9c", 0, 0);
             FxScriptMan->SetScriptTargetId(0, -1, -1);
             CPalletAnime *pallet = &MainChara__2->script_pallet;
@@ -2771,7 +2771,7 @@ void IsEventRun() {
         }
     }
 
-    if (info->GetAttr() & 0x28) {
+    if (info->GetAttr() & (CHARA_STATUS_UNK_8 | CHARA_STATUS_UNK_20)) {
         return;
     }
 
@@ -2785,9 +2785,9 @@ void IsEventRun() {
     int num = ActiveMonster->GetMonsterNum(-1.0f);
     num += TreasureBoxMan->MimicCount();
 
-    if (num == 0 && BattleAreaScene->battle_clear == 0) {
-        *event_no = 1500;
-        BattleAreaScene->battle_clear = 1;
+    if (num == 0 && !BattleAreaScene->battle_clear) {
+        *event_no = DNG_EVENT_FLOOR_CLEAR;
+        BattleAreaScene->battle_clear = true;
         ColPrimMan.Initialize(DngMainScene);
         BTsubo.Clear();
         BTsuboCol = NULL;
@@ -2799,7 +2799,7 @@ void IsEventRun() {
     }
 
     if (!DngSaveData->GetBitFlag(0x3B) && info->GetMagicSwordCounterNow() > 0) {
-        *event_no = 2540;
+        *event_no = DNG_EVENT_MAGIC_SWORD_GUIDE;
         DngSaveData->SetBitFlag(0x3B, 1);
         return;
     }
@@ -2809,7 +2809,7 @@ void IsEventRun() {
     }
 
     if (RandomCircle.CheckEvent(pos) != -1) {
-        *event_no = 1120;
+        *event_no = DNG_EVENT_RANDOM_CIRCLE;
         MainChara__2->ResetAccele();
         return;
     }
@@ -2824,11 +2824,11 @@ void IsEventRun() {
         button = 2;
     }
 
-    near = 0;
+    near = false;
     CActiveMonster *target = ActiveMonster->GetPriorityLevelIndex(0, NULL);
 
     if (target != NULL && target->target_dist < 200.0f) {
-        near = 1;
+        near = true;
     }
 
     CSceneEventData data;
@@ -2839,38 +2839,38 @@ void IsEventRun() {
     }
 
     if (DngMainScene->map_event_no) {
-        RedMarkModel->draw_request = 1;
+        RedMarkModel->draw_request = true;
     }
 
-    if (!DngSaveData->GetBitFlag((int) SAVE_FLAG_ROBO_BIKE_EVENT_SEEN) && info->chr_no == USER_CHARA_ROBO && MainChara__2->move_type == 3) {
-        *event_no = 2530;
-        DngSaveData->SetBitFlag((int) SAVE_FLAG_ROBO_BIKE_EVENT_SEEN, 1);
+    if (!DngSaveData->GetBitFlag(SAVE_FLAG_ROBO_BIKE_EVENT_SEEN) && info->chr_no == USER_CHARA_ROBO && MainChara__2->move_type == ACTION_MOVE_ROBO_BIKE) {
+        *event_no = DNG_EVENT_ROBO_BIKE_GUIDE;
+        DngSaveData->SetBitFlag(SAVE_FLAG_ROBO_BIKE_EVENT_SEEN, 1);
     }
 
     if (!DngSaveData->GetBitFlag(0x32) && (info->chr_no == USER_CHARA_MAX || info->chr_no == USER_CHARA_MONICA)) {
         if (AutoMapGen.SearchRandomStone(pos, 30.0f)) {
             if (button == 1) {
-                *event_no = 2500;
+                *event_no = DNG_EVENT_RANDOM_STONE;
                 return;
             }
 
-            RedMarkModel->draw_request = 1;
+            RedMarkModel->draw_request = true;
         }
     }
 
     if (!DngSaveData->GetBitFlag(0x34) && LevelupInfo.phase != 0) {
-        *event_no = 2520;
+        *event_no = DNG_EVENT_LEVEL_UP_GUIDE;
         DngSaveData->SetBitFlag(0x34, 1);
         return;
     }
 
     if (GeoStone.CheckEvent(pos)) {
         if (button == 1) {
-            *event_no = 1130;
+            *event_no = DNG_EVENT_GEOSTONE;
             return;
         }
 
-        RedMarkModel->draw_request = 1;
+        RedMarkModel->draw_request = true;
     }
 
     float dist = 30.0f;
@@ -2881,23 +2881,23 @@ void IsEventRun() {
 
     if (TreasureBoxMan->CheckEvent(pos, dist) >= 0 && !near) {
         if (button == 1) {
-            *event_no = 1100;
+            *event_no = DNG_EVENT_TREASURE_BOX;
             return;
         }
 
-        RedMarkModel->draw_request = 1;
+        RedMarkModel->draw_request = true;
     }
 
     int talk = ActiveMonster->CheckMonsterTolk(pos);
 
     if (talk != -1) {
         if (button == 1 || button == 2) {
-            *event_no = 1150;
-            EdEventInfo.monster_talk[0] = talk + 24;
+            *event_no = DNG_EVENT_MONSTER_TALK;
+            EdEventInfo.monster_talk[0] = talk + DNG_CHARA_SLOT_MONSTER;
             EdEventInfo.monster_talk[2] = ActiveMonster->active[talk]->locate_param;
             EdEventInfo.monster_talk[1] = ActiveMonster->active[talk]->monster_id;
         } else {
-            RedMarkModel->draw_request = 1;
+            RedMarkModel->draw_request = true;
         }
     }
 }
@@ -2908,7 +2908,7 @@ int EventScriptSetup(SYSTEM_SCRIPT_INFO *script) {
     DngMainScene->fade.ResetFade();
 
     if (RunEvent(script->event_no, DngMainScene)) {
-        script->running = 1;
+        script->running = true;
         printf("RUN SYS_SCRIPT %d\n", script->event_no);
         DngStatus.mode = DNG_STATUS_EVENT;
         DngMainScene->before_camera = 0;
@@ -2921,17 +2921,17 @@ int EventScriptSetup(SYSTEM_SCRIPT_INFO *script) {
         MainChara__2->RemoveThrowItem();
         MsgTaskMan.Clear();
         BattleAreaScene->script.event_no = -1;
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int IsRunDeadEvent(CActionChara *chara) {
     CBattleCharaInfo *info;
 
     if (DngStatus.mode != DNG_STATUS_FIELD) {
-        return 0;
+        return false;
     }
 
     info = GetBattleCharaInfo();
@@ -2939,16 +2939,16 @@ int IsRunDeadEvent(CActionChara *chara) {
     if (info->chr_no == USER_CHARA_MONSTER) {
         if (info->GetWhpNowVol(0) <= 0) {
             chara->damage_req = ACTION_DAMAGE_REQ_DEAD;
-            return 1;
+            return true;
         }
     }
 
     if (info->GetNowHp_i() <= 0) {
         chara->damage_req = ACTION_DAMAGE_REQ_DEAD;
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int ChangeSetUnit(int change) {
@@ -3029,11 +3029,11 @@ void CheckStatusError() {
             MainChara__2->pallet[0].SetAnim(0xA0, 0x40, 0xA0, 1, 45, 0);
         }
 
-        if (attr & 0x8) {
+        if (attr & CHARA_STATUS_UNK_8) {
             MainChara__2->pallet[0].SetAnim(0x80, 0x40, 0, 1, 45, 0);
         }
 
-        if (attr & 0x20) {
+        if (attr & CHARA_STATUS_UNK_20) {
             MainChara__2->pallet[0].SetAnim(0x20, 0x20, 0x20, 1, 45, 0);
         }
     }
@@ -3070,10 +3070,10 @@ void InitEyeCamera(CActionChara *chara) {
     if (camera != NULL) {
         camera->GetPos(backup_pos);
         ((mgCCameraFollow *) camera)->FollowOff();
-        init_camera = 1;
+        init_camera = true;
     }
 
-    DngStatus.eye_view = 1;
+    DngStatus.eye_view = true;
     MainChara__2->Show(0, 1);
     mgSetAllScissorFlag(1);
 }
@@ -3101,7 +3101,7 @@ void CheckWeaponEnable() {
 void ResetEyeView(CActionChara *chara) {
     mgCCamera *camera;
 
-    if (DngStatus.eye_view == 0) {
+    if (!DngStatus.eye_view) {
         return;
     }
 
@@ -3115,11 +3115,11 @@ void ResetEyeView(CActionChara *chara) {
         ((mgCCameraFollow *) camera)->FollowOn();
     }
 
-    DngStatus.eye_view = 0;
+    DngStatus.eye_view = false;
     chara->Show(1, 1);
     CheckWeaponEnable();
     mgSetAllScissorFlag(0);
-    init_camera = 0;
+    init_camera = false;
 
     if (NowTakePhoto()) {
         EndTakePhoto();
@@ -3282,7 +3282,7 @@ void DBGCMD_RunScript(int no) {
     InitEvent(DngMainScene);
 
     if (RunEvent(no, DngMainScene)) {
-        DngStatus.debug_window = 0;
+        DngStatus.debug_window = false;
         DngStatus.mode = DNG_STATUS_EVENT;
         DngMainScene->before_camera = 0;
     }

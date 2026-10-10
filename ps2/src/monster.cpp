@@ -1850,8 +1850,6 @@ static inline DNG_BATTLE_AREA *BattleArea(CScene *scene) {
     return &scene->battle_area;
 }
 
-#pragma divbyzerocheck on
-
 void CMonsterMan::CheckDamage() {
     CActionChara     *player;
     int               gift_pack_num;
@@ -2400,8 +2398,6 @@ void CMonsterMan::CheckDamage() {
         }
     }
 }
-
-#pragma divbyzerocheck reset
 
 void CMonsterMan::MoveUnit(CActiveMonster *monster, CCPoly *poly, int poly_num) {
     float position[4];

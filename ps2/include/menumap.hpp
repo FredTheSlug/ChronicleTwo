@@ -39,6 +39,26 @@ enum WMAP_POS_TYPE {
 
 /**
  *
+ * Side of an area's mark that its name window is placed on, as WMAP_AREA_DATA::name_side holds it.
+ *
+ */
+enum WMAP_NAME_SIDE {
+    WMAP_NAME_SIDE_RIGHT = 0, /**< The window starts right of name_x. */
+    WMAP_NAME_SIDE_LEFT = 1,  /**< The window ends left of name_x. */
+};
+
+/**
+ *
+ * Menu that the world move menu mode shows, as WorldMapMenuType holds it.
+ *
+ */
+enum WORLD_MAP_MENU_TYPE {
+    WORLD_MAP_MENU_WORLD = 0,    /**< The world map. */
+    WORLD_MAP_MENU_TREE_MAP = 1, /**< The tree map of a dungeon chosen on the world map. */
+};
+
+/**
+ *
  * States of the world map menu, as CBaseMenuClass::mode holds them.
  *
  */
@@ -123,7 +143,7 @@ struct WMAP_AREA_DATA {
     s32            y;         /**< Screen y of the area's mark. */
     s32            name_x;    /**< Screen x that the area's name window is placed from. */
     s32            name_y;    /**< Screen y of the area's name window. */
-    s32            name_side; /**< 0 to put the name window right of name_x, 1 to put it left. */
+    s32            name_side; /**< Side of name_x that the name window is placed on. @see WMAP_NAME_SIDE */
     s32            enable;    /**< Non-zero once one of the area's places can be travelled to. */
     char          *name;      /**< Name of the area. */
     float          dist;      /**< Distance from the area the cursor is on, while the cursor moves. */

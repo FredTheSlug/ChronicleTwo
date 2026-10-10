@@ -35,8 +35,12 @@ The menu layout script parser in `menucommon` maps keywords to values with
   `_MENU_NUMBER1` 5, `_MENU_NUMBER2` 6, `_MENU_WAKU_RECT` 0xD, `_MENU_WAKU_CIRCLE` 0xE,
   `_MENU_FORM` 0x19, `_MENU_ITEM_CHECKMARK` 0x39. -> `MENUFORMPARTS_DTYPE`.
 - `tbl_2144` (`_MENU_PARTS_EFFECT`): blink 2, rot 3, huriko 4, stretch 6, stretch_rep 7,
-  stretch_sin 8. Values 1, 9, 10, 11, 12, 100 appear only in code (`MenuPartsStep`,
-  `GetNowPosRGBA`, `Func_MenuItemIconSetEffectOne`) -> `MENU_PARTS_EFFECT_UNK_*`.
+  stretch_sin 8. Value 1 is stored by `_MENU_FILLBOXINFO` (`MENU_PARTS_EFFECT_FILLBOX`; its four parameters are the
+  fill colour that `sq_beta` parts draw with). 9 (`MENU_PARTS_EFFECT_SPARKLE`, set by
+  `Func_MenuItemIconSetEffectOne` for effects 2..7 of an item icon and drawn by `DrawItemIconEffect2`)
+  and 100 (`MENU_PARTS_EFFECT_ICON_COUNTER`, effects 0 and 1 of an item icon, whose param[0] are the
+  raster and hue counters `DrawOneItem` advances) appear only in code. 10, 11 and 12 are only tested by
+  `MenuPartsStep` and never set anywhere, so they keep `MENU_PARTS_EFFECT_UNK_*` names.
 
 ## CPosDataManage (0x20)
 From `Initialize`, `EtcTblClear` (stride 0xC), `EtcTbl2Clear` (stride 0x14), `TexGetInfoClear`
@@ -47,9 +51,8 @@ retail names (named after the `_ETCINFO_MALLOC`/`_ETCINFO2_MALLOC` script tags).
 
 ## CMenuPosDataManage : CPosDataManage (0x5BC)
 Size from `MenuMainInit` (`__nw(0x5BC)`). `InitializeCMenuPosDataManage` zeroes 0x30..0x60,
-0x6C, 0x70, memsets 0x74 (600 bytes, 0), 0x2CC (600, 0), 0x524 (0x96, value 2). Nothing in
-the decompiled corpus reads 0x40..0x48, 0x74, 0x2CC or 0x524 through `MenuPosData`; types
-unknown. `MallocPallet` loops i=0..1: palettes at 0x20/0x28/0x30 + 4i (normal / grey
+0x6C, 0x70, memsets 0x74 (600 bytes, 0), 0x2CC (600, 0), 0x524 (0x96, value 2). 0x40..0x48 are only cleared (`AttachCommonTexInfo` clears 0x40, `InitializeCMenuPosDataManage`
+all three) and never loaded: `unused_tex[3]`. 0x74/0x2CC/0x524 are the item board fish jump arrays. `MallocPallet` loops i=0..1: palettes at 0x20/0x28/0x30 + 4i (normal / grey
 quantised / sepia copies of the source texture's clut), textures at 0x5C/0x64/0x6C + 4i built
 by `memcpy` of the source `mgCTexture` at 0x54 + 4i. `GetMenuItemIconTexInfo(item, kind)`
 reads {0x54,0x5C,0x64,0x6C}[kind] + `use_trans_rect`*4 -> `item_icon_tex[4][2]`.
@@ -67,8 +70,9 @@ Stride 0x80 in `CPosDataManage`. Layout from `Initialize`, script tags in `menuc
 `MenuFormStep` (`CalcMenuAdd(&rgba[i], (s8)rgba_add[i], rgba_target[i])`), `SetAction`
 (0x5E, 0x60, 0x62, 0x64 stride 0x14, name compared inline), `FormReLink` (0x70/0x74).
 - 0x34: below 1 -> `mgDrawDirect(chara->frame)`, else reload that texture block and call a
-  chara vfunc. 0x36 never read here. 0x3C and 0x78..0x7F never seen.
-- `action_state` values: 1 set by `SetAction`, 4 once `MenuFormStep` reaches target.
+  chara vfunc. 0x36 (`secondary_tex_block`) is stored by `SetActionCharaPtr` and never read. 0x3C and 0x78..0x7F never seen.
+- `action_state` is a `MENUFORM_ACTION_STATE`: -1 none (`Initialize`), 1 run (`SetAction`), 4 end (`MenuFormStep`
+  once the target is reached; `CheckMoveEnd()` tests it). `rgba_bit` bits are `MENUFORM_RGBA_BIT`.
 - `MenuFormStep`/`StepMainMenuIconMove` return a comparison result (ghidra: bool); declared
   `int`. `GetNextMovePos` always returns 1.
 - Action entry `MENU_FORM_ACTION` {char[0x10], ptr} and its `MENU_FORM_ACTION_MOVE` {s16 mtype,
@@ -102,11 +106,11 @@ editmenu/inventmn, then the board width at +0x10.
 
 ## Effects
 - `CRepairEffect` 0x24: `CRepairManager::Generate` does `__nw(0x24, ...)`. Particles stride 0x30
-  (`__nwa(n*0x30)`), struct `REPAIR_EFFECT_PARTICLE` not retail. Particle 0x0/0x4/0x8 set to
-  128/128/64 but never read; 0x14 set 0.
+  (`__nwa(n*0x30)`), struct `REPAIR_EFFECT_PARTICLE` not retail. Particle `color[3]` (0x0..0x8) is set to 128/128/64 and `vy`
+  (0x14) to 0; neither is read.
 - `CRepairManager` 0x1EC: `MenuModeMalloc__13CMenuItemInfo` `__nw(0x1EC)` and constructs
   `mgCMemory` at 0x24..0x1A4 step 0x30 plus 0x1B4 (implicit ctor of the member array).
-  0x1A4 copied into effect+0x1C, never set in this unit. 0x1B0 holds an inline-constructed
+  0x1A4 `sub_tex` is cleared by `Initialize` and copied into each effect's `sub_tex` (0x1C); neither is drawn with. 0x1B0 holds an inline-constructed
   `CActionChara` (`__nw(0x1030)`), driven by vtable calls. 0x1D0/0x1D8 writes in
   `GeneratePoly`/`Step` are fields of `model_stack`.
 - `CLevelUpEffect` 0x30 / `CLevelUpEffectManager` 0x190 (`MenuLevelUpMan` symbol size). Effects
@@ -119,11 +123,35 @@ editmenu/inventmn, then the board width at +0x10.
   (inline, emitted in inventmn) clears byte 0xA.
 - `CEffVerticalLine` 0x40: `__nwa(n << 6)`; `mgTransWorldPrim3DSprite(..., this, w, h)` so
   pos is a 4-float vector at 0; 0x34..0x3F unseen.
-- `CMenuEffect` 0x38: `__nw(0x38)` in inventmn/menusys. Effect type byte 0x9 values seen:
-  0, 1, 2, 4, 0xA, 0xB, 0xC, 0xF, 0x10, 0x12, 0x13 (spectrum break), 0x14, 0x15 (fusion item);
-  no names known, so no enum. 0x14 is s16[16] copied from an int array (low halves).
-  `MENU_EFFECT_INFO` (0x40, stride in `PresetInfoAll`) is 16 floats used per kind; only
-  0xC/0x10 (screen x/y in `Draw`) named.
+- `CMenuEffect` 0x38: `__nw(0x38)` in inventmn/menusys. `type` (0x9, signed byte) is a `MENU_EFFECT_TYPE`.
+  `PresetEffect` prepares only kinds 0 (`GATHER`, inventmn item creation, 0x80 particles), 4 (`FLASH`, item
+  creation, 1 particle), 10 (`FUSION_SWIRL`, 0x60), 19 (`SPECTOL_FLASH`, 0x70) and 21 (`FUSION_ITEM`, 1);
+  `Step` turns 19 into 18 (`SPECTOL_BREAK`) once the flash fades and 18 into 20 (`SPECTOL_GATHER`) once 48
+  pieces are invisible after 90 frames, then sets `end` for the frame the kind changed. Kinds 1, 2, 3, 11,
+  12, 15 and 16 have `PresetInfo`/`Step`/`Draw` code but nothing in the game selects them. 0x14 is s16[16]
+  copied from an int array (low halves).
+  `MENU_EFFECT_INFO` (0x40) members mean different things per kind, so offsets other than `frame` (0x0)
+  and `x`/`y` (0xC/0x10) are anonymous unions of per-kind names:
+
+  | Offset | 0/10/12 swirl | 1 fall / 2 burst / 16 scatter | 4 flash | 15 square | 18 break | 19 flash | 20 gather | 21 item |
+  |---|---|---|---|---|---|---|---|---|
+  | 0x04 | life | - | - | interval | piece | piece | piece | item_no |
+  | 0x08 | corner | - | - | - | damping | - | - | - |
+  | 0x14 | variant | vx | w | half_size | vertex1_angle | grow | orbit | shake |
+  | 0x18 | period | vy | h | size_step | vertex2_angle | offset_x | ring_size | shake_decay |
+  | 0x1C | radius | gravity / burst_alpha | half_w | radius | bounce | offset_y | shrinking | red |
+  | 0x20 | radius_speed | - / fade_speed | half_h | - | star_color | - | star_color | green |
+  | 0x24 | cycles | - / - / cycles | - | cycles | piece_vx | - | - | blue |
+  | 0x28 | alpha | - / - / alpha | alpha | alpha | piece_vy | alpha | - | alpha |
+  | 0x2C | alpha_speed (10/12) | - / - / alpha_speed | - | alpha_speed | piece_gravity | - | - | - |
+  | 0x30 | sway_x | - | - | - | piece_alpha | peak_alpha | piece_alpha | - |
+  | 0x34 | sway_y | - | - | - | spark_flag | - | - | - |
+  | 0x38 | sway_period | - | - | - | floor_y | - | - | - |
+  | 0x3C | pulse | - | - | - | pulse (0) | - | - | - |
+
+  Never-read members: `variant`, `offset_x`, `offset_y`, `blue`, `spark_flag`; kind 15 only zeroes `radius`.
+  menusys reads the last `SPECTOL_GATHER` particle (`info[111]`): `shrinking == 1` or `ring_size >= 29`
+  triggers the spectrum transfer.
 
 ## Globals
 Only non-local data is declared `extern` (checked against `local_symbols.tsv`). Types:
@@ -256,10 +284,10 @@ active native implementations of both functions.
 
 ## Native data and matching constraints
 
-MenuCursorReverseFlag is the sole retained data marker: retail declares one byte while
-the public header exposes extern int. Its four-byte reservation contains three alignment
-bytes. Other state and initialized data are native, including GeneratePoly's inline
-literals.
+All menudraw data is native. MenuCursorReverseFlag is defined as int, matching the
+public header and the word stores in menuchr and menumain; menudraw reads it through a
+u8 cast (lbu). Retail declares one byte, and the int's four bytes cover that byte and
+its three alignment bytes. Initialized data includes GeneratePoly's inline literals.
 
 Exported extents are nine forms, 150 item pointers, three gift-box position pairs, five
 creation-board floats and 156 display-limit bytes. Counters and flags retain their
@@ -306,3 +334,11 @@ branch, while MenuMainFrameStep owns its signed-byte MainFrameStepFlag at
 the frame-step point. C++ emits both initialization guards; no explicit
 compiler latch is needed in the source. Their localized forms preserve the
 complete unit's bytes, data extents and resolved relocations.
+
+## Item needs (NowUseNeedItemCheck)
+`MENU_ITEM_NEED` bits: 0x10 and 0x40 are always set and never tested (`UNUSED_10`/`UNUSED_40`); 0x20 is
+`MONICA_IN_PARTY` (cleared when party bit `1 << USER_CHARA_MONICA` is clear; item 0x185 is highlighted
+only with it); 0x400/0x800/0x2000/0x4000 mirror `CHARA_STATUS_UNK_4/8/20/40` and pair with the
+`ITEM_USE_FLAG_CURE_STATUS_UNK_*` flags in `Func_MenuIconDrawPrepare`; 0x1000 mirrors `CHARA_STATUS_POWER`
+and is never tested. On floors with `DNG_FLOOR_DISABLE_ITEMS` the health/status bits (`MENU_ITEM_NEED_RECOVERY`,
+0x6F01) are cleared. Items 0x128 and 0x184 are always highlighted; 0x1A7 needs `RIDEPOD_SHIELD_KIT`.

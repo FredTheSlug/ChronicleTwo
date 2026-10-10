@@ -225,7 +225,7 @@ in the asm across all units (no other base+offset access exists; the addiu users
 | ext_func (symbol file `ext_func__2`) | 0x1770 | local | `static EventFunc ext_func[EVENT_EXT_FUNC_NUM]` (0x5DC typed `int (*)(RS_STACKDATA *, int)`) |
 | ext_func_info (symbol file `ext_func_info__2`) | 0x15C8 .data | local | `static RS_EXTFUNC_INFO ext_func_info[697]`: 696 typed handlers followed by `{NULL, EVENT_EXT_END}`; `EventExternalCommand` names every retail command number (sparse and out of order); eight-byte zero tail is retail piece padding (`SetEventFunc`, numbers 0..0x5DB) |
 | esa_ext_func_info | 0x18 .data | local | `static RS_EXTFUNC_INFO esa_ext_func_info[3]`: `_DATA`, `_ID_OFFSET` (`EventArgumentCommand`) and the null sentinel |
-| offsets (retail `vv$3333`) | 0x30 .data | local | `static float offsets[3][4]` inside `_SET_TALK_CAMERA`; it transforms `offsets[1]`, the other two rows are retail data |
+| vv (retail `vv$3333`) | 0x30 .data | local | `static float vv[3][4]` inside `_SET_TALK_CAMERA`; it transforms `vv[1]`, the other two rows are retail data |
 
 `Hit_para` holds `BattleEffectPrim` (dng_effect.hpp, 0x50) sparks, the type `HitEffect[n].spark`
 points at: +0x10 pos, +0x20 velocity, +0x34 speed, +0x38 rate, +0x3C life, +0x44 alpha,

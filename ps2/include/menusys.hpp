@@ -7,6 +7,7 @@
 #include "actionchara.hpp"
 #include "character.hpp"
 #include "gamedata.hpp"
+#include "menucls1.hpp"
 #include "menudraw.hpp"
 #include "mg_memory.hpp"
 #include "mg_tanime.hpp"
@@ -20,19 +21,22 @@
  */
 /**
  *
- * Kinds of item transfer handled by the menu swap state.
+ * Kind of place an item is moved from or to, as MENU_SWAPITEM_INFO::type holds it.
  *
  */
+// clang-format off
 enum MENU_SWAP_TYPE {
-    MENU_SWAP_TYPE_ACTIVE_ITEM = 0,
-    MENU_SWAP_TYPE_EQUIP = 1,
-    MENU_SWAP_TYPE_ROBO_PART = 2,
-    MENU_SWAP_TYPE_ITEM_BOARD = 3,
-    MENU_SWAP_TYPE_UNK_4 = 4,
-    MENU_SWAP_TYPE_UNK_9 = 9,
-    MENU_SWAP_TYPE_ACTIVE_ESA = 10,
+    MENU_SWAP_TYPE_ACTIVE_ITEM = 0,  /**< One of a character's active item slots. */
+    MENU_SWAP_TYPE_EQUIP       = 1,  /**< One of a character's equipment slots. */
+    MENU_SWAP_TYPE_ROBO_PART   = 2,  /**< One of the ridepod's part slots. */
+    MENU_SWAP_TYPE_ITEM_BOARD  = 3,  /**< A place on the inventory board. */
+    MENU_SWAP_TYPE_INVENT_ITEM = 4,  /**< A place of the inventory listed by the invention menu. */
+    MENU_SWAP_TYPE_VIEW_WEAPON = 7,  /**< The weapon shown on the weapon page. */
+    MENU_SWAP_TYPE_UNK_9       = 9,
+    MENU_SWAP_TYPE_ACTIVE_ESA  = 10, /**< The bait on the fishing rod. */
 };
 
+// clang-format on
 /**
  *
  * Weapon ability bits displayed by the item-menu status icons and debug labels.
@@ -56,38 +60,84 @@ enum MENU_WEAPON_ABILITY {
 
 // clang-format on
 
+/**
+ *
+ * Cursor layouts of the item menu, as CBaseMenuClass::key_arg_no holds them for CMenuItemInfo.
+ *
+ */
+// clang-format off
 enum ITEM_MENU_PANEL {
-    ITEM_MENU_PANEL_ACTIVE_ITEMS = 0,
-    ITEM_MENU_PANEL_EQUIPMENT = 1,
-    ITEM_MENU_PANEL_BAG = 2,
-    ITEM_MENU_PANEL_WEAPON = 4,
-    ITEM_MENU_PANEL_WEAPON_STATS = 5,
-    ITEM_MENU_PANEL_RIDEPOD_PARTS = 7,
-    ITEM_MENU_PANEL_FISHING_ROD = 9,
-    ITEM_MENU_PANEL_FISHING_ROD_STATS = 10,
-    ITEM_MENU_PANEL_FISHING_BAIT = 11,
+    ITEM_MENU_PANEL_ACTIVE_ITEMS      = 0,  /**< Active items of the shown character. */
+    ITEM_MENU_PANEL_EQUIPMENT         = 1,  /**< Equipment of the shown character. */
+    ITEM_MENU_PANEL_BAG               = 2,  /**< The inventory board. */
+    ITEM_MENU_PANEL_CHARA             = 3,  /**< The character of a character page, to use the carried item on. */
+    ITEM_MENU_PANEL_WEAPON            = 4,  /**< The weapon of the weapon page. */
+    ITEM_MENU_PANEL_WEAPON_STATS      = 5,  /**< Parameters of the weapon page. */
+    ITEM_MENU_PANEL_RIDEPOD           = 6,  /**< The ridepod of the ridepod page, to use the carried item on. */
+    ITEM_MENU_PANEL_RIDEPOD_PARTS     = 7,  /**< Parts of the ridepod page. */
+    ITEM_MENU_PANEL_MONSTER           = 8,  /**< The monster of the monster page, to use the carried item on. */
+    ITEM_MENU_PANEL_FISHING_ROD       = 9,  /**< The fishing rod of the fishing rod page. */
+    ITEM_MENU_PANEL_FISHING_ROD_STATS = 10, /**< Parameters of the fishing rod page. */
+    ITEM_MENU_PANEL_FISHING_BAIT      = 11, /**< The bait on Max's fishing rod. */
+    ITEM_MENU_PANEL_NUM               = 12, /**< Number of cursor layouts. */
 };
 
+// clang-format on
+
+/**
+ *
+ * Commands offered for an item, numbered from ITEM_MENU_COMMAND_MSG_BASE as their messages are.
+ *
+ */
+// clang-format off
 enum ITEM_MENU_COMMAND {
-    ITEM_MENU_COMMAND_EQUIP = 2,
-    ITEM_MENU_COMMAND_REPAIR = 4,
-    ITEM_MENU_COMMAND_SET_ACTIVE_ITEM = 5,
-    ITEM_MENU_COMMAND_SPECTRUMIZE = 9,
-    ITEM_MENU_COMMAND_EQUIP_RIDEPOD_PART = 10,
-    ITEM_MENU_COMMAND_GIFT_BOX_CONTENTS = 13,
-    ITEM_MENU_COMMAND_PUT_IN_AQUARIUM = 14,
-    ITEM_MENU_COMMAND_USE_ON_MAX = 15,
-    ITEM_MENU_COMMAND_USE_ON_MONICA = 16,
-    ITEM_MENU_COMMAND_USE_ON_MONSTER = 18,
-    ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON = 19,
-    ITEM_MENU_COMMAND_USE_ON_SECONDARY_WEAPON = 20,
-    ITEM_MENU_COMMAND_VIEW_BUILD_UP = 23,
-    ITEM_MENU_COMMAND_RENAME = 26,
-    ITEM_MENU_COMMAND_ENABLE_RIDEPOD_VOICE = 34,
-    ITEM_MENU_COMMAND_DISABLE_RIDEPOD_VOICE = 35,
-    ITEM_MENU_COMMAND_BOIL_FISH = 42,
-    ITEM_MENU_COMMAND_VIEW_FISHING_ROD = 46,
+    ITEM_MENU_COMMAND_NONE                    = 0,    /**< No command. */
+    ITEM_MENU_COMMAND_THROW_AWAY              = 1,    /**< Throws the item away. */
+    ITEM_MENU_COMMAND_EQUIP                   = 2,    /**< Equips the item on its character. */
+    ITEM_MENU_COMMAND_STATUS                  = 3,    /**< Shows the status page of the item. */
+    ITEM_MENU_COMMAND_REPAIR                  = 4,    /**< Repairs the item with the repair powder it needs. */
+    ITEM_MENU_COMMAND_SET_ACTIVE_ITEM         = 5,    /**< Puts the item into an active item slot. */
+    ITEM_MENU_COMMAND_UNEQUIP                 = 6,    /**< Moves the equipment back into the inventory. */
+    ITEM_MENU_COMMAND_REMOVE_ACTIVE_ITEM      = 7,    /**< Moves the active item back into the inventory. */
+    ITEM_MENU_COMMAND_INFO                    = 8,    /**< Shows the status page of the item, as ITEM_MENU_COMMAND_STATUS does. */
+    ITEM_MENU_COMMAND_SPECTRUMIZE             = 9,    /**< Turns the item into a synth sphere. */
+    ITEM_MENU_COMMAND_EQUIP_RIDEPOD_PART      = 10,   /**< Fits the part to the ridepod. */
+    ITEM_MENU_COMMAND_OPEN_AQUARIUM           = 11,   /**< Opens the aquarium. */
+    ITEM_MENU_COMMAND_OPEN_MONSTER_BOX        = 12,   /**< Opens the monster badge box. */
+    ITEM_MENU_COMMAND_GIFT_BOX_CONTENTS       = 13,   /**< Takes an item out of the gift box. */
+    ITEM_MENU_COMMAND_PUT_IN_AQUARIUM         = 14,   /**< Puts the fish into the aquarium. */
+    ITEM_MENU_COMMAND_USE_ON_MAX              = 15,   /**< Uses the item on Max. */
+    ITEM_MENU_COMMAND_USE_ON_MONICA           = 16,   /**< Uses the item on Monica. */
+    ITEM_MENU_COMMAND_USE_ON_RIDEPOD          = 17,   /**< Offered on the ridepod page in place of the character commands; does nothing. */
+    ITEM_MENU_COMMAND_USE_ON_MONSTER          = 18,   /**< Uses the item on Monica's monster form. */
+    ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON   = 19,   /**< Uses the item on the character's first weapon. */
+    ITEM_MENU_COMMAND_USE_ON_SECONDARY_WEAPON = 20,   /**< Uses the item on the character's second weapon. */
+    ITEM_MENU_COMMAND_REPAIR_RIDEPOD          = 21,   /**< Repairs the ridepod with the item. */
+    ITEM_MENU_COMMAND_RECHARGE_RIDEPOD        = 22,   /**< Refills the ridepod's energy with ridepod fuel. */
+    ITEM_MENU_COMMAND_VIEW_BUILD_UP           = 23,   /**< Shows what the weapon can be built up into. */
+    ITEM_MENU_COMMAND_SET_BAIT                = 24,   /**< Puts the item on the fishing rod as bait. */
+    ITEM_MENU_COMMAND_SET_LURE                = 25,   /**< Puts the item on the lure rod as a lure. */
+    ITEM_MENU_COMMAND_RENAME                  = 26,   /**< Gives the item or the ridepod a new name. */
+    ITEM_MENU_COMMAND_REMOVE_BAIT             = 27,   /**< Takes the bait off the fishing rod. */
+    ITEM_MENU_COMMAND_REMOVE_LURE             = 28,   /**< Takes the lure off the lure rod. */
+    ITEM_MENU_COMMAND_VIEW_QUESTS             = 29,   /**< Opens the quest list. */
+    ITEM_MENU_COMMAND_TAKE_ONE                = 30,   /**< Picks up one of the item onto the cursor. */
+    ITEM_MENU_COMMAND_TAKE_BAIT               = 32,   /**< Takes the bait off the fishing rod, as ITEM_MENU_COMMAND_REMOVE_BAIT does. */
+    ITEM_MENU_COMMAND_TAKE_LURE               = 33,   /**< Takes the lure off the lure rod, as ITEM_MENU_COMMAND_REMOVE_LURE does. */
+    ITEM_MENU_COMMAND_ENABLE_RIDEPOD_VOICE    = 34,   /**< Turns the ridepod's voice unit on. */
+    ITEM_MENU_COMMAND_DISABLE_RIDEPOD_VOICE   = 35,   /**< Turns the ridepod's voice unit off. */
+    ITEM_MENU_COMMAND_USE_ON_CORE             = 37,   /**< Uses the item on the ridepod's core. */
+    ITEM_MENU_COMMAND_VIEW_SCOOP_MEMO         = 38,   /**< Opens the scoop memo. */
+    ITEM_MENU_COMMAND_BOIL_FISH               = 42,   /**< Boils the fish. */
+    ITEM_MENU_COMMAND_ESCAPE_DUNGEON          = 43,   /**< Uses the item up to leave the dungeon, after asking. */
+    ITEM_MENU_COMMAND_BREAK_SEAL              = 44,   /**< Uses the item up to break the seals of the dungeon floor. */
+    ITEM_MENU_COMMAND_SHOW_FISH_CODE          = 45,   /**< Shows the fish's password for Finny Frenzy. */
+    ITEM_MENU_COMMAND_VIEW_FISHING_ROD        = 46,   /**< Opens the page that spends the fishing rod's points. */
+    ITEM_MENU_COMMAND_OPEN_MONSTER_BOOK       = 47,   /**< Opens the monster book. */
+    ITEM_MENU_COMMAND_MSG_BASE                = 5000, /**< Message number of command 0; each command's message is this plus the command. */
 };
+
+// clang-format on
 
 /**
  *
@@ -109,6 +159,8 @@ enum MENU_ASK_MODE {
     MENU_ASK_MODE_ITEM_USE_NUM = 10, /**< Using up an item. */
     MENU_ASK_MODE_GIFT_BOX     = 11, /**< Taking an item out of a gift box. */
     MENU_ASK_MODE_EXTEND       = 12, /**< A question of the derived menu; runs IsAskExtend. */
+    MENU_ASK_MODE_ITEM_OVER    = 13, /**< The item menu is telling the player to throw away items over the limit. */
+    MENU_ASK_MODE_ROD_POINTS   = 15, /**< The item menu is spending a fishing rod's points on its parameters. */
 };
 
 // clang-format on
@@ -151,20 +203,35 @@ enum MENU_PUSH_BUTTON {
 
 // clang-format on
 
+/**
+ *
+ * What a cursor does when a move passes the end of its range, as MenuKeySelectCheck takes it.
+ *
+ */
+// clang-format off
 enum MENU_CURSOR_LIMIT {
-    MENU_CURSOR_LIMIT_CLAMP = 0,
-    MENU_CURSOR_LIMIT_WRAP = 1,
-    MENU_CURSOR_LIMIT_EXIT = 2,
-    MENU_CURSOR_LIMIT_REJECT = 3,
+    MENU_CURSOR_LIMIT_CLAMP  = 0, /**< Stops at the end. */
+    MENU_CURSOR_LIMIT_WRAP   = 1, /**< Wraps round to the other end. */
+    MENU_CURSOR_LIMIT_EXIT   = 2, /**< Stops at the end and reports that the cursor leaves the layout. */
+    MENU_CURSOR_LIMIT_REJECT = 3, /**< Undoes the move and reports it as blocked. */
 };
 
+// clang-format on
+
+/**
+ *
+ * How a cursor move ended, as MenuKeySelectCheck returns it.
+ *
+ */
+// clang-format off
 enum MENU_CURSOR_RESULT {
-    MENU_CURSOR_UNCHANGED = 0,
-    MENU_CURSOR_MOVED = 1,
-    MENU_CURSOR_EXIT = 3,
-    MENU_CURSOR_BLOCKED = 4,
+    MENU_CURSOR_UNCHANGED = 0, /**< The cursor did not move. */
+    MENU_CURSOR_MOVED     = 1, /**< The cursor moved. */
+    MENU_CURSOR_EXIT      = 3, /**< The move passed the end of a range that exits. */
+    MENU_CURSOR_BLOCKED   = 4, /**< The move was undone at the end of a range that rejects it. */
 };
 
+// clang-format on
 /**
  *
  * How the cursor of a key layout moves, as MENU_INPUTKEY_ARG::type holds it.
@@ -180,12 +247,134 @@ enum MENU_INPUTKEY_TYPE {
 
 /**
  *
+ * Question of the item menu while CBaseMenuClass::mode is MENU_ASK_MODE_EXTEND, as MENU_ASKMODE_PARA::ask_mode holds it.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_EXTEND_KIND {
+    MENU_ITEM_EXTEND_NONE     = 0, /**< No question is open. */
+    MENU_ITEM_EXTEND_REPAIR   = 1, /**< The repair effect is running. */
+    MENU_ITEM_EXTEND_BUILD_UP = 2, /**< A weapon build-up is being chosen or shown. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Screens opened from the item menu, as CMenuItemInfo::sub_menu holds them.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_SUB_MENU {
+    MENU_ITEM_SUB_MENU_NONE         = -1, /**< The item menu itself. */
+    MENU_ITEM_SUB_MENU_AQUARIUM     = 0,  /**< The aquarium. */
+    MENU_ITEM_SUB_MENU_MONSTER_BOX  = 1,  /**< The monster badge box. */
+    MENU_ITEM_SUB_MENU_NAME_REGIST  = 2,  /**< Naming an item or the ridepod. */
+    MENU_ITEM_SUB_MENU_QUEST_LIST   = 3,  /**< The quest list. */
+    MENU_ITEM_SUB_MENU_SCOOP_MEMO   = 4,  /**< The scoop memo. */
+    MENU_ITEM_SUB_MENU_MONSTER_BOOK = 5,  /**< The monster book. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Kind of place in a row of an item move table, as the first entry of each row passed to CommonSetMoveItemClass holds it.
+ *
+ */
+// clang-format off
+enum MENU_MOVE_PLACE {
+    MENU_MOVE_PLACE_CHARA    = 0, /**< A slot of a character or the ridepod; the row gives the character, MENU_MOVE_LIST and slot. */
+    MENU_MOVE_PLACE_BAG      = 1, /**< A place on the inventory board, given by the row's last entry. */
+    MENU_MOVE_PLACE_CURSOR   = 2, /**< The item the cursor carries. */
+    MENU_MOVE_PLACE_TEMP     = 3, /**< The split-off copy of a stack, moved as if from the inventory board. */
+    MENU_MOVE_PLACE_OVERFLOW = 4, /**< A place of the overflow board, given by the row's last entry. */
+    MENU_MOVE_PLACE_BAIT     = 5, /**< The bait on the fishing rod. */
+};
+
+// clang-format on
+
+/**
+ *
+ * List of a character that a MENU_MOVE_PLACE_CHARA row names in its third entry.
+ *
+ */
+// clang-format off
+enum MENU_MOVE_LIST {
+    MENU_MOVE_LIST_ACTIVE_ITEM = 0, /**< The character's active items. */
+    MENU_MOVE_LIST_EQUIP       = 1, /**< The character's equipment, or the ridepod's parts. */
+    MENU_MOVE_LIST_BAIT        = 2, /**< The bait slot. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Whether the carried item may be put down at the cursor, as CMenuKeyFunc::EnableSwapNowPos returns it.
+ *
+ */
+// clang-format off
+enum MENU_SWAP_CHECK {
+    MENU_SWAP_CHECK_OK          = 0, /**< The carried item can be put down here. */
+    MENU_SWAP_CHECK_WRONG_ITEM  = 1, /**< The carried item does not belong here. */
+    MENU_SWAP_CHECK_REFUSED     = 2, /**< Refused; EnableSwapNowPos does not return it. */
+    MENU_SWAP_CHECK_NO_CAPACITY = 3, /**< The ridepod part does not fit the ridepod's capacity. */
+    MENU_SWAP_CHECK_HOW_MUCH    = 4, /**< The player is asked how many of the stack to take. */
+    MENU_SWAP_CHECK_USE_ITEM    = 5, /**< The carried item is used on the item here. */
+    MENU_SWAP_CHECK_STATUS      = 8, /**< The character's status prevents changing equipment. */
+    MENU_SWAP_CHECK_INVALID     = 9, /**< The place cannot take the item. */
+};
+
+// clang-format on
+
+/**
+ *
+ * How an exchange of items went, as MenuDataSwap and CMenuKeyFunc::MenuSwapItem return it.
+ *
+ */
+// clang-format off
+enum MENU_SWAP_RESULT {
+    MENU_SWAP_RESULT_FAILED = 0,               /**< The requested exchange cannot run. */
+    MENU_SWAP_RESULT_NORMAL = 1,               /**< The exchange uses the ordinary completion path. */
+    MENU_SWAP_RESULT_DESTINATION_OCCUPIED = 2, /**< The general exchange starts with an occupied destination. */
+    MENU_SWAP_RESULT_DESTINATION_EMPTY = 3,    /**< The general exchange places an item in an empty destination. */
+    MENU_SWAP_RESULT_GIFT_BOX = 4,             /**< The destination handles gift-box insertion. */
+    MENU_SWAP_RESULT_STACK = 5,                /**< Matching stackable items handle the exchange. */
+    MENU_SWAP_RESULT_AQUARIUM = 7,             /**< The aquarium handles the source fish. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Shape of the inventory board.
+ *
+ */
+// clang-format off
+enum MENU_ITEM_BOARD {
+    MENU_ITEM_BOARD_COLUMNS = 6, /**< Places in each row of the inventory board. */
+    MENU_ITEM_BOARD_ROWS    = 5, /**< Rows of the inventory board shown at once. */
+};
+
+// clang-format on
+
+/**
+ *
+ * Size of the inventory as the item menus walk it.
+ *
+ */
+enum MENU_BAG {
+    MENU_BAG_PLACE_MAX = 150, /**< Places of the inventory: the item board followed by its overflow places. */
+};
+
+/**
+ *
  * Where an item that is being moved came from, so that it can be put back or swapped.
  *
  */
 struct MENU_SWAPITEM_INFO {
     s16 flag;  /**< Non-zero once the source has been recorded. */
-    s16 type;  /**< Kind of place the item came from; -1 for none. */
+    s16 type;  /**< Kind of place the item came from; -1 for none. @see MENU_SWAP_TYPE */
     s16 no;    /**< Slot within that place. */
     s16 chara; /**< Character owning that place; -1 for none. */
 
@@ -243,7 +432,7 @@ struct MENU_ASKMODE_PARA {
     s16               arg1; /**< Second value that depends on the question. */
     s16               unk_6C;
     s16               unk_6E;
-    s16               ask_mode; /**< Kind of question shown by the menu. */
+    s16               ask_mode; /**< Question of the derived menu while mode is MENU_ASK_MODE_EXTEND. @see MENU_ITEM_EXTEND_KIND */
     s32               unk_74;
     CMenuPosDataForm *form;  /**< Form the question was opened from. */
     CGameDataUsed    *item;  /**< Item the question acts on. */
@@ -284,12 +473,12 @@ STATIC_ASSERT(sizeof(MENU_ASKMODE_PARA) == 0x94);
  *
  */
 struct ITEMCMD_RET_PARA {
-    s16            cmd;      /**< Command that was run, or -1 for none. */
-    s8             menu_cmd; /**< Item menu command returned to the caller. */
+    s16            se_no;      /**< Sound effect played once the command has run, or -1 for none. @see SYSTEM_SE */
+    s8             menu_cmd; /**< Item command that was chosen, or -1 / -2 when none was. @see ITEM_MENU_COMMAND */
     s8             chara;    /**< Character the item is equipped on. */
     s16            result;   /**< Value the command returned, such as what using the item did. */
-    s16            item_no;  /**< Item number of the item the command acted on. */
-    s16            no_equipped_rod;
+    s16            detail;  /**< Further outcome of the command, such as the item number used or why equipping failed. */
+    s16            no_equipped_rod; /**< Non-zero when a bait command acted on a fishing rod that is not equipped. */
     s16            num;   /**< Number of items used by the returned command. */
     CGameDataUsed *item;  /**< Item the command acted on. */
     CGameDataUsed *item2; /**< Second item the command acted on. */
@@ -354,8 +543,8 @@ struct MENU_INPUTKEY_ARG {
     u8  disp_columns; /**< Number of columns on screen at once. */
     u8  rows;         /**< Number of rows of a grid. */
     u8  columns;      /**< Number of columns of a grid. */
-    s16 limit[4];     /**< What each direction does at an edge, as MenuKeySelectCheck takes it. */
-    s16 exit_no[4];   /**< Layout each direction leaves to when it passes an edge, or -1. */
+    s16 limit[4];     /**< What each direction does at an edge, as MenuKeySelectCheck takes it. @see MENU_CURSOR_LIMIT */
+    s16 exit_no[4];   /**< Layout each direction leaves to when it passes an edge, or -1. @see ITEM_MENU_PANEL */
 };
 
 STATIC_ASSERT(sizeof(MENU_INPUTKEY_ARG) == 0x24);
@@ -373,12 +562,12 @@ public:
     s16                message_type; /**< Message type used by the open question. */
     char              *script;       /**< Menu command script of the screen. */
     int                script_size;  /**< Size of the menu command script in bytes. */
-    s32                unk_10;
-    s16                key_arg_no;    /**< Cursor layout in use, as an index into the screen's layout table. */
+    s32                fade_alpha;    /**< Alpha the screen fades with; 0x80 while it is fully shown. */
+    s16                key_arg_no;    /**< Cursor layout in use, as an index into the screen's layout table. @see ITEM_MENU_PANEL */
     int                tex_block[16]; /**< Texture blocks the screen uses, ending at the first negative one. */
     MENU_ASKMODE_PARA  ask_para;      /**< Contents of the open question. */
     MENU_SWAPITEM_INFO swap_info;     /**< Where the item being moved came from. */
-    s16                cmd_arg_pos;   /**< Position of the item that the command list was opened for. */
+    s16                cmd_arg_pos;   /**< Kind of place of the item the command list was opened for. @see MENU_SWAP_TYPE */
     s32                unk_F8;
     s32                make_item_no;  /**< Identifier of the item selected for creation. */
     int                make_num;      /**< Number of objects chosen to make. */
@@ -484,7 +673,7 @@ public:
      * @address 0x239650
      * @size 0x7C
      */
-    int MenuItemCommnadSelectPrepare(CGameDataUsed *item, int slot, int arg);
+    int MenuItemCommnadSelectPrepare(CGameDataUsed *item, int place, int chara);
 
     /**
      *
@@ -494,7 +683,7 @@ public:
      * @address 0x2396D0
      * @size 0x22C
      */
-    int MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, int mes_no, CMenuPosDataForm *form, int chara);
+    int MenuItemMoveItemCommand(CGameDataUsed *item, int place, int mes_no, CMenuPosDataForm *form, int chara);
 
     /**
      *
@@ -554,7 +743,7 @@ public:
      * @address 0x23B850
      * @size 0x2C4
      */
-    int IsSpectolFusion(int select_key, int command);
+    int IsSpectolFusion(int select_key, int push_button);
 
     /**
      *
@@ -564,7 +753,7 @@ public:
      * @address 0x23BC10
      * @size 0x1F8
      */
-    int IsTrush(int select_key, int command);
+    int IsTrush(int select_key, int push_button);
 
     /**
      *
@@ -584,7 +773,7 @@ public:
      * @address 0x23BEC0
      * @size 0x1B0
      */
-    int SelectInGiftBox(int select_key, int command);
+    int SelectInGiftBox(int select_key, int push_button);
 
     /**
      *
@@ -624,7 +813,7 @@ public:
      * @address 0x23C390
      * @size 0x178
      */
-    int ExtendCommand(int select_key, int command);
+    int ExtendCommand(int select_key, int push_button);
 
     /**
      *
@@ -634,7 +823,7 @@ public:
      * @address 0x23C510
      * @size 0x118
      */
-    int SelectMakeObject(int keys);
+    int SelectMakeObject(int select_key);
 
     /**
      *
@@ -705,7 +894,7 @@ public:
     u32    select_key;    /**< Direction keys pressed this frame. @see MENU_SELECT_KEY */
     int    push_button;   /**< Buttons pressed this frame. @see MENU_PUSH_BUTTON */
     int    tex_block[16]; /**< Texture blocks the menu system may use. */
-    s32    unk_4C;
+    s32    tex_block_end; /**< Always -1, ending the list of texture blocks. */
     s16    open_type;      /**< What the menu was opened as. @see MenuOpenType */
     int    now_mode;       /**< Menu mode that is running. @see MenuModeID */
     int    next_mode;      /**< Menu mode waiting to start, or -1. @see MenuModeID */
@@ -1072,7 +1261,7 @@ public:
      * @address 0x2411A0
      * @size 0xF0
      */
-    int menu_inputkey_limmit_check_line(int keys);
+    int menu_inputkey_limmit_check_line(int select_key);
 
     /**
      *
@@ -1092,7 +1281,7 @@ public:
      * @address 0x241410
      * @size 0x5C
      */
-    int CheckMoveSelect(int arg);
+    int CheckMoveSelect(int select_key);
 
     /**
      *
@@ -1102,7 +1291,7 @@ public:
      * @address 0x241470
      * @size 0x68
      */
-    void FadeOutMenuBGMVol(int arg, int value);
+    void FadeOutMenuBGMVol(int step, int volume);
 
     /**
      *
@@ -1153,7 +1342,7 @@ enum MENU_ITEM_VIEW {
 class CMenuItemInfo : public CBaseMenuClass {
 public:
     s16                 view_mode; /**< Page that is shown. @see MENU_ITEM_VIEW */
-    s16                 active_chara_view_mode;
+    s16                 active_chara_view_mode; /**< Page of the active character, which the menu turns back to. @see MENU_ITEM_VIEW */
     s16                 sub_view;     /**< Sub-page that is shown within the page. */
     s16                 view_chara;   /**< Character whose model is shown. */
     s16                 load_item_no; /**< Item list the menu loads models for. */
@@ -1174,8 +1363,8 @@ public:
     u8                  item_consumed;      /**< Non-zero after the current item has been consumed. */
     s16                 equipped_model_no;  /**< Model number of the equipped item shown by the menu. */
     s16                 chara_reload;       /**< Non-zero when the displayed character must be reloaded. */
-    s16                 sub_menu;           /**< Screen opened from the item menu that is running, or -1 for the item menu itself. */
-    s16                 next_sub_menu;      /**< Screen to open from the item menu, or -1 for none. */
+    s16                 sub_menu;           /**< Screen opened from the item menu that is running, or -1 for the item menu itself. @see MENU_ITEM_SUB_MENU */
+    s16                 next_sub_menu;      /**< Screen to open from the item menu, or -1 for none. @see MENU_ITEM_SUB_MENU */
     CGameDataUsed      *view_weapon;        /**< Weapon whose status is shown. */
     CMenuPosDataForm   *view_form[6];       /**< Forms of the pages. */
     s16                 status_check_ready; /**< Non-zero when the special status check can be accepted. */
@@ -1534,14 +1723,23 @@ STATIC_ASSERT(sizeof(CMenuItemInfo) == 0x370);
 
 /**
  *
+ * Shape of the grid of the item choice.
+ *
+ */
+enum ITEM_SELECT_GRID {
+    ITEM_SELECT_COLUMNS = 5, /**< Items in each row of the item choice. */
+};
+
+/**
+ *
  * The item choice that an event asks for: a grid of the inventory to pick one item from.
  *
  */
 class CItemSelect : public CBaseMenuClass {
 public:
     int            item_num;        /**< Number of items in the list. */
-    CGameDataUsed *item_list[150];  /**< Items that can be chosen. */
-    s8             limit_disp[150]; /**< Non-zero for each listed item that is shown as unavailable. */
+    CGameDataUsed *item_list[MENU_BAG_PLACE_MAX];  /**< Items that can be chosen. */
+    s8             limit_disp[MENU_BAG_PLACE_MAX]; /**< Non-zero for each listed item that is shown as unavailable. */
     s16            alpha_step;      /**< Amount the alpha changes each frame. */
     int            alpha;           /**< Alpha the list is drawn with. */
     int            bg_alpha;        /**< Alpha the background is drawn with. */
@@ -1728,13 +1926,13 @@ void SetSpectolInfo(CGameDataUsed *item, CGameDataUsed *part);
 
 /**
  *
- * Gives the colour of the fusion effect.
+ * Steps the colour of the fusion effect and copies it into a colour when asked.
  *
  * @mangled FusionColor__FiiPf
  * @address 0x23CF40
  * @size 0x20C
  */
-void FusionColor(int type, int step, float *color);
+void FusionColor(int fusing, int apply, float *color);
 
 /**
  *
@@ -1864,7 +2062,7 @@ void CheckEnableHaveItemNum();
  * @address 0x244F30
  * @size 0x1CC
  */
-void MenuMoveItemPos(int *item, int *pos, int phase);
+void MenuMoveItemPos(int *row, int *pos, int phase);
 
 /**
  *
@@ -1904,7 +2102,7 @@ int CheckBuildUp(CGameDataUsed *weapon, int *result0, int *result1, int *result2
  * @address 0x24D1F0
  * @size 0x370
  */
-int BuildUpWeaponTrans(CGameDataUsed *weapon, int no);
+int BuildUpWeaponTrans(CGameDataUsed *item, int item_no);
 
 /**
  *
@@ -1986,135 +2184,464 @@ int MenuItemSelectKey();
  */
 void MenuItemSelectDraw();
 
-/** Sound effect played after a swap, for each way a swap can go. */
+/**
+ *
+ * Checks whether fishing is available on the current map and battle state.
+ *
+ * @mangled CheckFishCondition__Fv
+ * @address 0x23C960
+ * @size 0x88
+ */
+int CheckFishCondition();
+
+/**
+ *
+ * Initializes the second spectol information panel when present.
+ *
+ * @mangled InitSpectol__Fv
+ * @address 0x23CC50
+ * @size 0x28
+ */
+void InitSpectol();
+
+/**
+ *
+ * Applies an attachment's spectol values to a weapon and counts raised stats.
+ *
+ * @mangled AfterSpectolFusion__FP13CGameDataUsedP13CGameDataUsed
+ * @address 0x23CC80
+ * @size 0x2B4
+ */
+int AfterSpectolFusion(CGameDataUsed *item, CGameDataUsed *part);
+
+/**
+ *
+ * Saves the source item state and consumes the amount converted to spectol.
+ *
+ * @mangled TransSpectolDataSave__FP13CGameDataUsedi
+ * @address 0x23D3E0
+ * @size 0x7C
+ */
+void TransSpectolDataSave(CGameDataUsed *item, int count);
+
+/**
+ *
+ * Fills an item's available command messages in an ask-mode parameter record.
+ *
+ * @mangled GetItemCommandMsg__FP13CGameDataUsedP17MENU_ASKMODE_PARAii
+ * @address 0x23EF40
+ * @size 0x20
+ */
+int GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int place, int chara);
+
+/**
+ *
+ * Builds the commands, colors, values, and markers available for an item.
+ *
+ * @mangled GetItemCommandMsg__FP13CGameDataUsedPiPUiPsPsii
+ * @address 0x23EF60
+ * @size 0x1644
+ */
+int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values, short *marks, int place,
+                       int chara);
+
+/**
+ *
+ * Updates an attachment or weapon form with current and changed status values.
+ *
+ * @mangled MenuFormUpdataAttachInfo__FP16CMenuPosDataFormP13CGameDataUsediiPs
+ * @address 0x241D80
+ * @size 0x334
+ */
+void MenuFormUpdataAttachInfo(CMenuPosDataForm *form, CGameDataUsed *item, int item_no, int reset,
+                              s16 *before);
+
+/**
+ *
+ * Assigns an item's number to a visible information form part.
+ *
+ * @mangled local_item_infoview_set__FP18MENUFORMPARTS_TYPEP13CGameDataUsed
+ * @address 0x24C430
+ * @size 0x24
+ */
+void local_item_infoview_set(MENUFORMPARTS_TYPE *part, CGameDataUsed *item);
+
+/**
+ *
+ * Updates a character's equipped weapon indicators and warning colors.
+ *
+ * @mangled MenuItemCharaActWepInfoDraw__FP16CMenuPosDataFormP13CGameDataUsedii
+ * @address 0x24C460
+ * @size 0x45C
+ */
+void MenuItemCharaActWepInfoDraw(CMenuPosDataForm *form, CGameDataUsed *equip, int chara_no, int flag);
+
+/**
+ *
+ * Updates a character's visible health and equipment preview forms.
+ *
+ * @mangled MenuItemCharaViewCheck__FP10CHARA_DATAii
+ * @address 0x24C8C0
+ * @size 0x258
+ */
+void MenuItemCharaViewCheck(CHARA_DATA *chara, int chara_no, int flag);
+
+/**
+ *
+ * Updates monster transformation status and health on its menu form.
+ *
+ * @mangled MenuPosFormValueSetMonster__FP16MOS_CHANGE_PARAMP10CHARA_DATA
+ * @address 0x24CFC0
+ * @size 0x200
+ */
+void MenuPosFormValueSetMonster(MOS_CHANGE_PARAM *monster, CHARA_DATA *chara);
+
+/**
+ *
+ * Updates the weapon upgrade status form for a selected weapon.
+ *
+ * @mangled MenuWeaponStatusInfoFormSet__FP13CGameDataUsedP11CDataWeapon
+ * @address 0x24E500
+ * @size 0x290
+ */
+void MenuWeaponStatusInfoFormSet(CGameDataUsed *item, CDataWeapon *data);
+
+/**
+ *
+ * Looks up the destination cursor layout and row for a preview page selection.
+ *
+ * @mangled MenuItemSelectDiffer__Fi
+ * @address 0x24E790
+ * @size 0x268
+ */
+int MenuItemSelectDiffer(int select);
+
+/**
+ *
+ * Sets the item information cursor indicators for the active menu mode.
+ *
+ * @mangled MenuItemInfoCursorSet__Fi
+ * @address 0x24FEC0
+ * @size 0x128
+ */
+void MenuItemInfoCursorSet(int mode);
+
+/**
+ *
+ * Sound effect played after a swap, for each way a swap can go.
+ *
+ * @mangled menu_item_swap_sndtbl
+ * @address 0x355A60
+ * @size 0x10
+ */
 extern s16 menu_item_swap_sndtbl[8];
 
-/** Inventory place of the item being spectrumised, or -1. */
+/**
+ *
+ * Inventory place of the item being spectrumised, or -1.
+ *
+ * @mangled trans_spectol_pos
+ * @address 0x37CA64
+ * @size 0x4
+ */
 extern int trans_spectol_pos;
 
-/** Weapon repair effect of the item menu. */
+/**
+ *
+ * Weapon repair effect of the item menu.
+ *
+ * @mangled MenuRepairMan
+ * @address 0x37DC1C
+ * @size 0x4
+ */
 extern CRepairManager *MenuRepairMan;
 
-/** Per-character flags for active items whose owned totals reach the item limit. */
-extern u8 menu_chara_activeItem_limmit_check[6];
+/**
+ *
+ * Flags, per character and active item slot, marking active items whose owned totals reach the item limit.
+ *
+ * @mangled menu_chara_activeItem_limmit_check
+ * @address 0x37DC28
+ * @size 0x6
+ */
+extern u8 menu_chara_activeItem_limmit_check[2][3];
 
-/** Non-zero while the character status texture is not drawn. */
+/**
+ *
+ * Non-zero while the character status texture is not drawn.
+ *
+ * @mangled MenuStatusMode
+ * @address 0x37DC44
+ * @size 0x1
+ */
 extern s8 MenuStatusMode;
 
-/** Texture of the character status. */
+/**
+ *
+ * Texture of the character status.
+ *
+ * @mangled MenuStatusTex
+ * @address 0x37DC48
+ * @size 0x4
+ */
 extern mgCTexture *MenuStatusTex;
 
-/** Target that an item command uses an item on. */
+/**
+ *
+ * Target that an item command uses an item on.
+ *
+ * @mangled MenuItemUseTarget
+ * @address 0x37DC50
+ * @size 0x8
+ */
 extern CItemUseTarget MenuItemUseTarget;
 
-/** Effects of a spectrumise or fusion in progress. */
+/**
+ *
+ * Effects of a spectrumise or fusion in progress.
+ *
+ * @mangled MenuEffect
+ * @address 0x37DC60
+ * @size 0x8
+ */
 extern CMenuEffect *MenuEffect[];
 
-/** Attachment and weapon of a fusion in progress. */
+/**
+ *
+ * Attachment and weapon of a fusion in progress.
+ *
+ * @mangled SpectolInfo
+ * @address 0x37DC70
+ * @size 0x8
+ */
 extern CGameDataUsed *SpectolInfo[2];
 
-/** Character model the fusion effect plays on. */
+/**
+ *
+ * Character model the fusion effect plays on.
+ *
+ * @mangled SpectolFusionTargetChara
+ * @address 0x37DC7C
+ * @size 0x4
+ */
 extern CCharacter2 *SpectolFusionTargetChara;
 
-/** Position of the item that the command list was opened for. */
+/**
+ *
+ * Kind of place of the item that the command list was opened for.
+ *
+ * @mangled MenuItemCmdArgPos
+ * @address 0x37DC84
+ * @size 0x2
+ */
 extern s16 MenuItemCmdArgPos;
 
-/** Side the command list window opens on, or -1. */
+/**
+ *
+ * Side the command list window opens on, or -1.
+ *
+ * @mangled MenuItemCommandDir
+ * @address 0x37DC94
+ * @size 0x4
+ */
 extern int MenuItemCommandDir;
 
-/** Frame counter of the spectrumise effect. */
+/**
+ *
+ * Frame counter of the spectrumise effect.
+ *
+ * @mangled trans_spectol_cnt
+ * @address 0x37DCB4
+ * @size 0x4
+ */
 extern float trans_spectol_cnt;
 
-/** Non-zero while the shown character model turns. */
+/**
+ *
+ * Non-zero while the shown character model turns.
+ *
+ * @mangled itemmenu_chr_rotflag
+ * @address 0x37DCC4
+ * @size 0x1
+ */
 extern s8 itemmenu_chr_rotflag;
 
-/** Texture of the weapon build-up board. */
+/**
+ *
+ * Texture of the weapon build-up board.
+ *
+ * @mangled Tex_BuildUpBoard
+ * @address 0x37DD50
+ * @size 0x4
+ */
 extern mgCTexture *Tex_BuildUpBoard;
 
-/** Pointers into the player's data that the item menu reads. */
+/**
+ *
+ * Pointers into the player's data that the item menu reads.
+ *
+ * @mangled MenuUserParam
+ * @address 0x1EFC8F0
+ * @size 0x18
+ */
 extern CMENU_USERPARAM MenuUserParam;
 
-/** Arrows and marks drawn around the cursor of the item menu. */
+/**
+ *
+ * Arrows and marks drawn around the cursor of the item menu.
+ *
+ * @mangled MenuItemCursorInfo
+ * @address 0x1EFCAE0
+ * @size 0xC
+ */
 extern MENU_ITEM_CURSOR_INFO MenuItemCursorInfo;
 
-/** Memory that character data shown by the item menu is loaded into. */
+/**
+ *
+ * Memory that character data shown by the item menu is loaded into.
+ *
+ * @mangled MenuCharaLoadStack
+ * @address 0x1EFCC20
+ * @size 0x30
+ */
 extern mgCMemory MenuCharaLoadStack;
 
-/** State of the weapon build-up view. */
+/**
+ *
+ * State of the weapon build-up view.
+ *
+ * @mangled BuildUpWeaponInfo
+ * @address 0x1EFCC50
+ * @size 0x44
+ */
 extern BUILDUP_WEAPON_INFO BuildUpWeaponInfo;
 
-/** Copy of a weapon before a fusion, to compare with afterwards. */
+/**
+ *
+ * Copy of a weapon before a fusion, to compare with afterwards.
+ *
+ * @mangled SepectolFusionBeforeAfterCheck
+ * @address 0x1EFCD10
+ * @size 0x6C
+ */
 extern CGameDataUsed SepectolFusionBeforeAfterCheck;
 
-/** Screen position of each build-up name in the weapon build-up view. */
+/**
+ *
+ * Screen position of each build-up name in the weapon build-up view.
+ *
+ * @mangled BuildUpNameXY
+ * @address 0x1EFCF58
+ * @size 0xC
+ */
 extern s16 BuildUpNameXY[3][2];
 
 /**
  *
- * Copy of an item taken before it is turned into spectrum.
+ * Question contents handed to the menus that open a question.
  *
+ * @mangled MenuAskParam
+ * @address 0x1EFC850
+ * @size 0x94
  */
-extern CGameDataUsed SpectolTransBefore;
+extern MENU_ASKMODE_PARA MenuAskParam;
 
 /**
  *
- * Item kept aside while a spectrum fusion is confirmed.
+ * Memory the active character's model, skin and outline are read into when the menu closes.
  *
- */
-extern CGameDataUsed SpectolInfoStay;
-
-/**
- *
- * Item menu that CMenuItemInfoPt points at.
- *
- */
-extern CMenuItemInfo class_menu_item_info;
-
-/**
- *
- * Stack the main characters are read into for the item menu.
- *
+ * @mangled MainCharaReadStack
+ * @address 0x1EFC910
+ * @size 0x30
  */
 extern mgCMemory MainCharaReadStack;
 
 /**
  *
- * Stack of the item menu's loaded characters.
+ * Work memory of the item menu.
  *
- */
-extern mgCMemory MenuItemMemory;
-
-/**
- *
- * Stack of the item menu's action characters and background read data.
- *
- */
-extern mgCMemory MenuItemMemory2;
-
-/**
- *
- * Stack the item menu's current mode allocates from.
- *
+ * @mangled MenuItemMainMemory
+ * @address 0x1EFCB60
+ * @size 0x30
  */
 extern mgCMemory MenuItemMainMemory;
 
 /**
  *
- * Stack holding the item menu's background data.
+ * Memory holding the item menu's pack file.
  *
+ * @mangled MenuItemBGDataMemory
+ * @address 0x1EFCB90
+ * @size 0x30
  */
 extern mgCMemory MenuItemBGDataMemory;
 
 /**
  *
- * Item being moved between inventories by the item menu.
+ * Memory of the screens opened from the item menu.
  *
+ * @mangled MenuItemMemory
+ * @address 0x1EFCBC0
+ * @size 0x30
+ */
+extern mgCMemory MenuItemMemory;
+
+/**
+ *
+ * Memory of the item menu's models, effects and move animations.
+ *
+ * @mangled MenuItemMemory2
+ * @address 0x1EFCBF0
+ * @size 0x30
+ */
+extern mgCMemory MenuItemMemory2;
+
+/**
+ *
+ * Copy of the attachment of a fusion, or of the fishing rod before its points are spent.
+ *
+ * @mangled SpectolInfoStay
+ * @address 0x1EFCCA0
+ * @size 0x6C
+ */
+extern CGameDataUsed SpectolInfoStay;
+
+/**
+ *
+ * Copy of an item before it was spectrumised.
+ *
+ * @mangled SpectolTransBefore
+ * @address 0x1EFCDA0
+ * @size 0x6C
+ */
+extern CGameDataUsed SpectolTransBefore;
+
+/**
+ *
+ * Split-off part of a stack that is being moved.
+ *
+ * @mangled MenuMoveTempGameDataUsed
+ * @address 0x1EFCE90
+ * @size 0x6C
  */
 extern CGameDataUsed MenuMoveTempGameDataUsed;
 
 /**
  *
- * Stack of the item menu's debug camera and characters.
+ * The item menu.
  *
+ * @mangled class_menu_item_info
+ * @address 0x1EFCFA0
+ * @size 0x370
+ */
+extern CMenuItemInfo class_menu_item_info;
+
+/**
+ *
+ * Memory of the item menu's debug model viewer.
+ *
+ * @mangled MenuDebugStack
+ * @address 0x1EFD310
+ * @size 0x30
  */
 extern mgCMemory MenuDebugStack;

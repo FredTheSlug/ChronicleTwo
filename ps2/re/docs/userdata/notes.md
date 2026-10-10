@@ -355,3 +355,44 @@ requires coordinated producer and consumer work.
 GetActiveChrNo and GetMonsterID are inline accessors with no retail
 out-of-line copy, so their purpose comments carry no mangled/address/size
 tags.
+
+## Enums and typed views (cleanliness pass)
+
+- `CBattleCharaInfo::chara_data` is a union of `CHARA_DATA *human`, `ROBO_DATA *robo`, `MOS_CHANGE_PARAM *monster`
+  (selected by `chara_type`) and `void *any`. `Initialize` stores it twice (two `sw zero, 0x8`), kept as two
+  `chara_data.any = NULL` statements.
+- `CHARA_STATUS_ATTR_MODE`: third argument of `SetCharaStatusAttirbute` / second of `CBattleCharaInfo::SetAttr`;
+  1 clears, anything else adds (a power boost then strips and blocks poison and slow).
+- `HP_RATE_KIND`: `CBattleCharaInfo::AddHp_Rate` kind 0 of max, 1 of current, 2/3 the same keeping at least 1.
+- `CHARA_CHANGE_REASON`: `CheckEnableCharaChange` out bits 0x1 alive, 0x2 floor bars Max/Monica, 0x4 no blocking status
+  (bits 0x8 and 0x20 of the status attribute block a change).
+- `QUICK_CHANGE_STATE`: `CheckQuickChange` bits 0x1 in party, 0x2 changeable.
+- `ITEM_BOARD`: `GetNowBagMax` / `GetItemBoardMaxNum` board 0 = item board (0x8A, or 0x90 once
+  SAVE_FLAG_ITEM_BOARD_EXPANDED), 1 = all 150 places; `SearchItemOnItemBrd`'s second argument picks the same.
+- `ITEM_NAME_TYPE`: `CGameDataUsed::GetName` 0 plain, 1 with level, 2 quoted with level.
+- `PARTY_CHARA_STATUS`: `PARTY_CHARA_INFO::status` 0x1 in party, 0x2 joined, 0x4 moved into a house
+  (editmenu REMOVAL_ACTION_MOVE_IN), 0x80 join request to `SetPartyCharaStatus` (becomes 0x2 via `JoinPartyChara`).
+- `FISH_RECORD_UPDATE`: `CheckRecordFish` 0x1 size record, 0x2 weight record.
+- `FISH_STORE_RESULT`: `GetFishInAquarium` 0 kept (inventory or aquarium), 1 overflow place, 2 no room.
+- `USER_DATA_ENV`: `SetEnvUserDataMan` 0 town (editloop), 1 dungeon (dng_main).
+- `RANDOM_CIRCLE`: ids from `GetRandomCircleTrapID` and handled by `SetRandamCircleStatus`: 1 absorption bonus
+  (a tenth of both weapons' capacity reported through amount_out), 2 heal and cure, 3 repair, 5 poison, 6 halve health,
+  7 weapon damage resolved to 8/9 (Max second/first weapon) or 10/11 (Monica), -1 none for a monster form (it only keeps
+  4 and 12), -2 none for the ridepod. 4 and 12 have no handler here; kind 0 draws from {1,2,3} (`roll % 3` never reaches 4).
+- `BREEDFISH_STAT` replaces the BREEDFISH_STAT_* defines.
+
+### Fields left unknown
+Write-only fields whose purpose nothing reveals: `WEAPON_USED::unk_2e`/`unk_30` (cleared on creation),
+`BREEDFISH_USED::unk_1c` (random 0..3 on creation, 1..3 for a caught fish), `BREEDFISH_USED::unk_3c` (random 0..255),
+`ROBOPART_USED::unk_26` (copied from `CDataRoboPart::unk_4`), `CFishAquarium::unk_2` (cleared), the u64s
+`CFishAquarium::unk_518`, `CUserDataManager::unk_44dc8` and `unk_451d0` (cleared, then only reduced modulo 0x534),
+`USER_PICTURE_INFO::unk_8` (set to -1 / copied in inventmn), `INVENT_CREATED_ITEM::unk_2` (copied from old saves).
+
+### Kept forms
+- `CGameDataUsed::CopyDataRoboPart` matched with `ROBOPART_USED *part = &this->data.robopart;` and
+  `strcpy(part->name, message)`; the `char *base` offset form it replaced is gone.
+- The `GetNowAccessWHp` / `GetNowAccessAbs` gauge offsets stay as `(COMMON_GAGE *) (... offsetof(CGameDataUsed, data)) + 1`.
+  Retail adds the `data` offset (0x10) and the gauge offset (8) in two instructions; `&equip->data.robopart.whp`,
+  `&equip[0].data.robopart.whp`, `&table[slot].data.weapon.abs`, `&equip[slot].data.weapon.abs` and a
+  `COMMON_GAGE gage[2]` union view with `&equip->data.gage[1]` fold into one and fail.
+- `CBattleCharaInfo::RefreshParamater` clears 0x40 bytes of the 0x38-byte `weapon_param`, reaching into `defence`.

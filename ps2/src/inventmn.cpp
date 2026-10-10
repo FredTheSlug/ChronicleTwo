@@ -2928,7 +2928,7 @@ void CMenuInvent::EnterDataMenu(u8 *pack) {
 
 int CMenuInvent::ItemCmdAfter(int command, ITEMCMD_RET_PARA *para) {
     if (para->menu_cmd >= -1) {
-        MenuSePlay(para->cmd);
+        MenuSePlay(para->se_no);
         signed char result = para->menu_cmd;
 
         switch (result) {
@@ -3011,8 +3011,6 @@ static short sndtimetbl_2868[2] = {
  *
  */
 static float eff_light_2927[4] = {255.0f, 255.0f, 255.0f, 128.0f};
-
-#pragma inline_depth(5)
 
 int CMenuInvent::IsCreateObject(int mode, int keys) {
     CActionChara      *action_chara = MenuActionChara[0];
@@ -3616,8 +3614,6 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
     return 1;
 }
-
-#pragma inline_depth reset
 
 void CMenuInvent::CalcMakeBrd(int message_index) {
     if (makebrd_form != NULL && makebrd_form->draw_flag) {
@@ -7415,13 +7411,13 @@ int MenuInventKey() {
                 CMenuInventPt->InitEnd();
                 CMenuInventPt->mode = MENU_ASK_MODE_NONE;
                 CMenuInventPt->opened = 1;
-                CMenuInventPt->unk_10 = 0x80;
+                CMenuInventPt->fade_alpha = 0x80;
             }
 
             break;
         case MENU_ASK_MODE_CLOSE:
             if ((CMenuInventPt->photo_only == 0 && GetMenuMainFrameEndFlag() != 0) ||
-                (CMenuInventPt->photo_only == 1 && CalcMenuAdd(&CMenuInventPt->unk_10, -8, 0) != 0)) {
+                (CMenuInventPt->photo_only == 1 && CalcMenuAdd(&CMenuInventPt->fade_alpha, -8, 0) != 0)) {
                 CMenuInventPt->ExitEnd();
                 result = 1;
 

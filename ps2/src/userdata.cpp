@@ -27,18 +27,18 @@
  *
  */
 struct PackedFish {
-    u16 item_no : 9; /**< Inventory item number of the fish. */
-    u8  sex : 1;     /**< Sex of the fish. */
-    u8  color : 5;
-    u8  battle : 7;
-    u16 stamina : 7;
-    u16 length : 15; /**< Fish length. */
-    u16 weight : 15; /**< Fish weight. */
-    u8  boost : 7;
-    u16 endurance : 7;
-    u8  kind : 2;
-    u8  tenacity : 7;
-    u16 flags : 8; /**< Fish state flags. */
+    u16 item_no : 9;   /**< Inventory item number of the fish. */
+    u8  sex : 1;       /**< Sex of the fish, a BREEDFISH_SEX. */
+    u8  color : 5;     /**< Colour variant of the fish. */
+    u8  battle : 7;    /**< Battle parameter. */
+    u16 stamina : 7;   /**< Stamina parameter. */
+    u16 length : 15;   /**< Fish length. */
+    u16 weight : 15;   /**< Fish weight. */
+    u8  boost : 7;     /**< Boost parameter. */
+    u16 endurance : 7; /**< Endurance parameter. */
+    u8  kind : 2;      /**< Fish variety used to select its displayed name. */
+    u8  tenacity : 7;  /**< Tenacity parameter. */
+    u16 flags : 8;     /**< Fish state flags. */
 };
 
 /**
@@ -273,10 +273,10 @@ CFishAquarium *GetAquariumData() {
 int COMMON_GAGE::CheckFill() {
     int full;
 
-    full = 1;
+    full = true;
 
     if (this->max != this->now) {
-        full = 0;
+        full = false;
     }
 
     return full;
@@ -343,7 +343,7 @@ int CalcBreedFishParam(BREEDFISH_USED *fish) {
     int  total = 0;
     int  i;
 
-    for (i = 0; i < 5; i++) {
+    for (i = 0; i < BREEDFISH_STAT_COUNT; i++) {
         total += param[i];
     }
 
@@ -357,7 +357,7 @@ void SetFishingGamePreEquip(CGameDataUsed *data) {
 void ReEquipFishingGameWeapon() {
     if (FishGamePreEquip != NULL) {
         CUserDataManager *manager = GetUserDataMan();
-        manager->SetChrEquip(0, FishGamePreEquip);
+        manager->SetChrEquip(USER_CHARA_MAX, FishGamePreEquip);
         FishGamePreEquip = NULL;
     }
 }
@@ -383,7 +383,7 @@ void GameDataSwap(CGameDataUsed *first, CGameDataUsed *second, int mode) {
         second->CopyGameData(&spare);
 
         if (mode == 1) {
-            equipped = &GetUserDataMan()->chara_data[(int) USER_CHARA_MAX].equip[0];
+            equipped = &GetUserDataMan()->chara_data[USER_CHARA_MAX].equip[0];
 
             if (equipped == first || equipped == second) {
                 first_is_rod = first->IsFishingRod();
@@ -448,18 +448,18 @@ void CGameDataUsed::Init() {
 
 int CGameDataUsed::CheckTypeEnableStack() {
     if (used_type == USED_ITEM_TYPE_ITEM) {
-        return 1;
+        return true;
     }
 
     if (used_type == USED_ITEM_TYPE_ATTACH) {
-        if (item_no == (int) ITEM_ID_SPECTOL) {
-            return 0;
+        if (item_no == ITEM_ID_SPECTOL) {
+            return false;
         }
 
         return (item_no == 0x17F) ^ 1;
     }
 
-    return 0;
+    return false;
 }
 
 char *CGameDataUsed::GetDataPath() {
@@ -473,18 +473,18 @@ int CGameDataUsed::IsWhoEquip() {
         item_type = this->item_type;
 
         if (item_type == ITEM_DATA_MAX_MELEE || item_type == ITEM_DATA_MAX_GUN || item_type == 5 || item_type == 6 || item_type == 7) {
-            return 0;
+            return USER_CHARA_MAX;
         }
 
         if (item_type == ITEM_DATA_MONICA_MELEE || item_type == ITEM_DATA_MONICA_MAGIC || item_type == 8 || item_type == 9 || item_type == 0xA) {
-            return 1;
+            return USER_CHARA_MONICA;
         }
 
         return -1;
     }
 
     if (this->used_type == USED_ITEM_TYPE_ROBO_PART) {
-        return 2;
+        return USER_CHARA_ROBO;
     }
 
     return -1;
@@ -520,7 +520,7 @@ int CGameDataUsed::GetPalletColor() {
 }
 
 int CGameDataUsed::GetSpectolNo() {
-    if (item_no == (int) ITEM_ID_SPECTOL) {
+    if (item_no == ITEM_ID_SPECTOL) {
         return this->data.attach.spectol_item_no;
     }
 
@@ -553,11 +553,11 @@ int CGameDataUsed::GetNum() {
         case USED_ITEM_TYPE_COSTUME:
             return this->data.item.num;
         case USED_ITEM_TYPE_ATTACH:
-            if (item_type == 0x11) {
+            if (item_type == ITEM_DATA_UNK_11) {
                 return 1;
             }
 
-            if (item_type == 0x22) {
+            if (item_type == ITEM_DATA_UNK_22) {
                 return 1;
             }
 
@@ -671,7 +671,7 @@ int CGameDataUsed::Boiled() {
     char           text[0x40];
     int            value;
 
-    sprintf(text, basefish[LanguageCode], this->GetName(0));
+    sprintf(text, basefish[LanguageCode], this->GetName(ITEM_NAME_TYPE_PLAIN));
     ConvertFontCode(text, converted);
     value = fish->data.fish.size / 100 + (fish->data.fish.param[BREEDFISH_STAT_BOOST] + fish->data.fish.param[BREEDFISH_STAT_ENDURANCE] + fish->data.fish.param[BREEDFISH_STAT_TENACITY]) / 3;
     strcpy(fish->data.boiled.name, converted);
@@ -680,7 +680,7 @@ int CGameDataUsed::Boiled() {
     fish->item_type = ITEM_DATA_BOILED;
     fish->used_type = USED_ITEM_TYPE_BOILED;
     fish->item_no = 0x1AA;
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::IsActiveSet() {
@@ -690,7 +690,7 @@ int CGameDataUsed::IsActiveSet() {
         return item->active_set;
     }
 
-    return 0U;
+    return false;
 }
 
 void CGameDataUsed::SetName(char *name) {
@@ -718,7 +718,7 @@ void CGameDataUsed::SetName(char *name) {
         char *default_name = GetItemMessage(item_no);
         rename_flag = 0;
 
-        if ((default_name != 0) && (strcmp(default_name, buffer) != 0)) {
+        if ((default_name != NULL) && (strcmp(default_name, buffer) != 0)) {
             rename_flag = 1;
         }
     }
@@ -758,7 +758,7 @@ char *CGameDataUsed::GetName(int name_type) {
             name = &data.fish.name[0];
             break;
         case USED_ITEM_TYPE_ATTACH:
-            if (item_no == (int) ITEM_ID_SPECTOL) {
+            if (item_no == ITEM_ID_SPECTOL) {
                 name = data.attach.name;
             } else {
                 name = GetItemMessage(item_no);
@@ -774,17 +774,17 @@ char *CGameDataUsed::GetName(int name_type) {
     }
 
     if (name != NULL) {
-        if (name_type == 2) {
+        if (name_type == ITEM_NAME_TYPE_QUOTED) {
             strcpy(word, symbol_tbl[LanguageCode][rename_flag][0]);
             strcat(word, name);
         }
 
-        if (name_type == 0 || name_type == 1) {
+        if (name_type == ITEM_NAME_TYPE_PLAIN || name_type == ITEM_NAME_TYPE_LEVEL) {
             strcpy(word, name);
         }
     }
 
-    if (name_type > 0 && (used_type == USED_ITEM_TYPE_WEAPON || used_type == USED_ITEM_TYPE_ATTACH)) {
+    if (name_type > ITEM_NAME_TYPE_PLAIN && (used_type == USED_ITEM_TYPE_WEAPON || used_type == USED_ITEM_TYPE_ATTACH)) {
         weapon_level = GetLevel();
 
         if (weapon_level > 0) {
@@ -813,7 +813,7 @@ char *CGameDataUsed::GetName(int name_type) {
         }
     }
 
-    if (name != NULL && name_type == 2) {
+    if (name != NULL && name_type == ITEM_NAME_TYPE_QUOTED) {
         strcat(word, symbol_tbl[LanguageCode][rename_flag][1]);
     }
 
@@ -833,7 +833,7 @@ void CGameDataUsed::TransToPassword(char *data, int length) {
         switch (used_type) {
             case USED_ITEM_TYPE_FISH: {
                 body = &item->data.fish;
-                memset(&buffer, 0, 14);
+                memset(&buffer, 0, sizeof(buffer.bytes));
                 buffer.fish.item_no = item->item_no;
                 buffer.fish.sex = body->sex;
                 buffer.fish.color = body->color;
@@ -971,7 +971,7 @@ int CGameDataUsed::GetEffectReadType(char **effect, char **sound, int *power) {
         int weapon_type = item_type;
         GetWeaponInfoData(item_no);
 
-        if (weapon_type == 4) {
+        if (weapon_type == ITEM_DATA_MONICA_MAGIC) {
             elem = this->GetActiveElem();
 
             if (effect != NULL) {
@@ -1023,7 +1023,7 @@ void CGameDataUsed::GetMsgAddInfo(char **message, char **extra_message, int *val
         *extra_message = NULL;
     }
 
-    *message = GetName(2);
+    *message = GetName(ITEM_NAME_TYPE_QUOTED);
 
     switch (used_type) {
         case USED_ITEM_TYPE_ITEM:
@@ -1064,7 +1064,7 @@ void CGameDataUsed::GetMsgAddInfo(char **message, char **extra_message, int *val
                 *message = temp;
             }
 
-            *extra_message = GetName(1);
+            *extra_message = GetName(ITEM_NAME_TYPE_LEVEL);
             break;
     }
 }
@@ -1113,25 +1113,25 @@ int CGameDataUsed::IsRepair() {
     switch (this->used_type) {
         case USED_ITEM_TYPE_WEAPON:
             if ((float) GetDispVolumeForFloat(this->data.weapon.whp.now) < this->data.weapon.whp.max) {
-                return 1;
+                return true;
             }
 
             break;
         case USED_ITEM_TYPE_ROBO_PART:
             if (this->item_type == ITEM_DATA_ROBO_ARM &&
                 (float) GetDispVolumeForFloat(this->data.robopart.whp.now) < this->data.robopart.whp.max) {
-                return 1;
+                return true;
             }
 
             if (this->item_type == ITEM_DATA_ROBO_ENERGY_PACK &&
                 (float) GetDispVolumeForFloat(this->data.robopart.energy.now) < this->data.robopart.energy.max) {
-                return 1;
+                return true;
             }
 
             break;
     }
 
-    return 0;
+    return false;
 }
 
 int CGameDataUsed::Repair(int points) {
@@ -1159,24 +1159,24 @@ int CGameDataUsed::Repair(int points) {
         gauge->AddPoint((float) points);
     }
 
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::GetEnableRepairItemNo() {
     if (item_type == ITEM_DATA_MAX_MELEE || item_type == ITEM_DATA_MONICA_MELEE || item_type == ITEM_DATA_ROBO_ARM) {
-        return (int) ITEM_ID_MELEE_REPAIR;
+        return ITEM_ID_MELEE_REPAIR;
     }
 
     if (item_type == ITEM_DATA_MAX_GUN) {
-        return (int) ITEM_ID_GUN_REPAIR;
+        return ITEM_ID_GUN_REPAIR;
     }
 
     if (item_type == ITEM_DATA_MONICA_MAGIC) {
-        return (int) ITEM_ID_MAGIC_REPAIR;
+        return ITEM_ID_MAGIC_REPAIR;
     }
 
     if (item_type == ITEM_DATA_ROBO_ENERGY_PACK) {
-        return (int) ITEM_ID_RIDEPOD_FUEL;
+        return ITEM_ID_RIDEPOD_FUEL;
     }
 
     return 0;
@@ -1245,11 +1245,11 @@ int CGameDataUsed::IsBroken() {
         GetWHp(hp);
 
         if (hp[0] <= 0) {
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 int CGameDataUsed::IsLevelUp() {
@@ -1258,14 +1258,14 @@ int CGameDataUsed::IsLevelUp() {
         case USED_ITEM_TYPE_WEAPON:
             if (this->data.weapon.level < 99) {
                 if (this->data.weapon.abs.max <= (float) GetDispVolumeForFloat(this->data.weapon.abs.now)) {
-                    return 1;
+                    return true;
                 }
             }
 
             break;
     }
 
-    return 0;
+    return false;
 }
 
 void CGameDataUsed::LevelUp() {
@@ -1319,43 +1319,43 @@ void CGameDataUsed::LevelUp() {
         block->abs.max =
             (float) (info->levelup_exp + info->levelup_exp / 2 * block->level);
         AddFusionPoint(info->fusion_point);
-        favoured = 0;
+        favoured = false;
 
         if (party_chara == 1) {
             if (item_type == ITEM_DATA_MAX_MELEE) {
-                favoured = 1;
+                favoured = true;
             }
         }
 
         if (party_chara == 0xF) {
             if (item_type == ITEM_DATA_MONICA_MELEE) {
-                favoured = 1;
+                favoured = true;
             }
         }
 
         if (party_chara == 0x10) {
             if (item_type == ITEM_DATA_MAX_GUN) {
-                favoured = 1;
+                favoured = true;
             }
         }
 
         if (party_chara == 0x1A) {
             if (item_type == ITEM_DATA_MONICA_MAGIC) {
-                favoured = 1;
+                favoured = true;
             }
         }
 
         if (favoured == 1) {
             AddFusionPoint(1);
             CheckParamLimmit();
-            found = 0;
+            found = false;
             tries = 0;
 
             do {
                 slot = GetRandI(0x11) % 8;
 
                 if (block->attribute[slot] < info->attribute_max[slot]) {
-                    found = 1;
+                    found = true;
                     block->attribute[slot] = block->attribute[slot] + 1;
                 }
 
@@ -1383,16 +1383,16 @@ void CGameDataUsed::LevelUp() {
 }
 
 int CGameDataUsed::IsTrush() {
-    int          is_rubbish = 0;
+    int          is_rubbish = false;
     CDataCommon *item = GetCommonItemData(item_no);
 
     if (item != NULL && (item->attribute & ITEM_ATTRIBUTE_TRUSH)) {
-        is_rubbish = 1;
+        is_rubbish = true;
     }
 
     if (used_type == USED_ITEM_TYPE_FISH) {
         if (data.fish.flags & BREEDFISH_FLAG_ELECTRIC) {
-            is_rubbish = 0;
+            is_rubbish = false;
         }
     }
 
@@ -1402,11 +1402,11 @@ int CGameDataUsed::IsTrush() {
 int CGameDataUsed::IsSpectolTrans() {
     CDataCommon *record = GetCommonItemData(item_no);
 
-    if (record != NULL && (record->attribute & (int) ITEM_ATTRIBUTE_SPECTOL_TRANS)) {
-        return 1;
+    if (record != NULL && (record->attribute & ITEM_ATTRIBUTE_SPECTOL_TRANS)) {
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CGameDataUsed::ToSpectolTrans(CGameDataUsed *attach, int num) {
@@ -1425,7 +1425,7 @@ void CGameDataUsed::ToSpectolTrans(CGameDataUsed *attach, int num) {
 
         ATTACH_USED *spectol = &attach->data.attach;
         spectol->spectol_item_no = item_no;
-        name = GetName(0);
+        name = GetName(ITEM_NAME_TYPE_PLAIN);
         level = GetLevel();
 
         switch (used_type) {
@@ -1447,7 +1447,7 @@ void CGameDataUsed::ToSpectolTrans(CGameDataUsed *attach, int num) {
                     spectol->special = 0;
                 } else {
                     spectol->spectol_type = SPECTOL_TYPE_WEAPON;
-                    spectol->spectol_value = (u8) (s8) weapon->level;
+                    spectol->spectol_value = weapon->level;
 
                     if (spectol->spectol_value > 20) {
                         spectol->spectol_value = 20;
@@ -1456,15 +1456,15 @@ void CGameDataUsed::ToSpectolTrans(CGameDataUsed *attach, int num) {
                     spectol->special = weapon->special;
                     spectol->level = weapon->level;
                     spectol->status[WEAPON_STAT_ATTACK] = weapon->status[WEAPON_STAT_ATTACK];
-                    spectol->status[WEAPON_STAT_DURABILITY] = fptosi(0.6f * (float) weapon->status[WEAPON_STAT_DURABILITY]);
-                    spectol->attribute[0] = fptosi(0.6f * (float) weapon->attribute[0]);
-                    spectol->attribute[1] = fptosi(0.6f * (float) weapon->attribute[1]);
-                    spectol->attribute[2] = fptosi(0.6f * (float) weapon->attribute[2]);
-                    spectol->attribute[3] = fptosi(0.6f * (float) weapon->attribute[3]);
-                    spectol->attribute[4] = fptosi(0.6f * (float) weapon->attribute[4]);
-                    spectol->attribute[5] = fptosi(0.6f * (float) weapon->attribute[5]);
-                    spectol->attribute[6] = fptosi(0.6f * (float) weapon->attribute[6]);
-                    spectol->attribute[7] = fptosi(0.6f * (float) weapon->attribute[7]);
+                    spectol->status[WEAPON_STAT_DURABILITY] = fptosi(0.6f * weapon->status[WEAPON_STAT_DURABILITY]);
+                    spectol->attribute[0] = fptosi(0.6f * weapon->attribute[0]);
+                    spectol->attribute[1] = fptosi(0.6f * weapon->attribute[1]);
+                    spectol->attribute[2] = fptosi(0.6f * weapon->attribute[2]);
+                    spectol->attribute[3] = fptosi(0.6f * weapon->attribute[3]);
+                    spectol->attribute[4] = fptosi(0.6f * weapon->attribute[4]);
+                    spectol->attribute[5] = fptosi(0.6f * weapon->attribute[5]);
+                    spectol->attribute[6] = fptosi(0.6f * weapon->attribute[6]);
+                    spectol->attribute[7] = fptosi(0.6f * weapon->attribute[7]);
                 }
 
                 break;
@@ -1508,9 +1508,9 @@ void CGameDataUsed::ToSpectolTrans(CGameDataUsed *attach, int num) {
         }
 
         spectol->level = level;
-        attach->item_type = GameItemDataManage.GetDataType((int) ITEM_ID_SPECTOL);
+        attach->item_type = GameItemDataManage.GetDataType(ITEM_ID_SPECTOL);
         attach->used_type = USED_ITEM_TYPE_ATTACH;
-        attach->item_no = (int) ITEM_ID_SPECTOL;
+        attach->item_no = ITEM_ID_SPECTOL;
         spectol->num = 1;
         attach->SetName(name);
         attach->CheckParamLimmit();
@@ -1590,7 +1590,7 @@ int CGameDataUsed::IsBuildUp(int *count, int *item_nos, int *flags) {
         info = GetWeaponInfoData(this->item_no);
 
         if (info == NULL) {
-            return 0;
+            return false;
         }
 
         mine[0] = weapon->status[WEAPON_STAT_ATTACK];
@@ -1616,13 +1616,13 @@ int CGameDataUsed::IsBuildUp(int *count, int *item_nos, int *flags) {
                 other[6] = target->attribute[5];
                 other[7] = target->attribute[6];
                 other[8] = target->attribute[7];
-                ok = 1;
+                ok = true;
 
                 for (k = 0; k < 9; k++) {
                     other[k] *= 0.9f;
 
                     if (mine[k] < other[k]) {
-                        ok = 0;
+                        ok = false;
                         break;
                     }
                 }
@@ -1652,11 +1652,11 @@ int CGameDataUsed::IsBuildUp(int *count, int *item_nos, int *flags) {
 }
 
 int CGameDataUsed::IsFishingRod() {
-    if (this->item_no == (int) ITEM_ID_FISHING_ROD || this->item_no == (int) ITEM_ID_LURE_ROD) {
-        return 1;
+    if (this->item_no == ITEM_ID_FISHING_ROD || this->item_no == ITEM_ID_LURE_ROD) {
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int CGameDataUsed::GetActiveElem() {
@@ -1717,13 +1717,13 @@ int GetMainCharaModelName(int character_index, char *model_name, int alternate) 
     CUserDataManager *user_data = GetUserDataMan();
 
     if (user_data == NULL || model_name == NULL) {
-        return 0;
+        return false;
     }
 
     CHARA_DATA *character_data = user_data->GetCharaDataPtr(character_index);
 
     if (character_data == NULL) {
-        return 0;
+        return false;
     }
 
     int model_number = character_data->equip[0].GetModelNo();
@@ -1742,10 +1742,10 @@ int GetMainCharaModelName(int character_index, char *model_name, int alternate) 
 
     if (alternate != 0) {
         sprintf(model_name, "%s.chr", f[character_index]);
-        return 1;
+        return true;
     } else {
         sprintf(model_name, "%s%d.chr", f[character_index], model_number);
-        return 1;
+        return true;
     }
 }
 
@@ -1958,7 +1958,7 @@ void CGameDataUsed::CopyGameData(CGameDataUsed *other) {
         memcpy(this, other, sizeof(CGameDataUsed));
         robo = &GetUserDataMan()->robo_data;
 
-        if (robo != NULL && &(&robo->parts[0])[2] == this) {
+        if (robo != NULL && &robo->parts[2] == this) {
             old_max = fptosi(robo->hp.max);
             robo->hp.max = this->data.robopart.energy.max;
 
@@ -1982,7 +1982,7 @@ int CGameDataUsed::CopyDataWeapon(int item_no) {
     record = GameItemDataManage.GetWeaponData(item_no);
 
     if (record == NULL) {
-        return 0;
+        return false;
     }
 
     this->used_type = USED_ITEM_TYPE_WEAPON;
@@ -2016,7 +2016,7 @@ int CGameDataUsed::CopyDataWeapon(int item_no) {
     }
 
     this->rename_flag = 0;
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::CopyDataAttach(int new_item_no) {
@@ -2024,13 +2024,13 @@ int CGameDataUsed::CopyDataAttach(int new_item_no) {
     CGameDataUsed *attachment = this;
 
     if (data == NULL) {
-        return 0;
+        return false;
     }
 
     if (new_item_no == item_no) {
         if (CheckTypeEnableStack() != 0) {
             AddNum(1, 1);
-            return 1;
+            return true;
         }
     }
 
@@ -2051,7 +2051,7 @@ int CGameDataUsed::CopyDataAttach(int new_item_no) {
     attachment->data.attach.special = 0;
     attachment->data.attach.special |= data->special;
     attachment->data.attach.num = 1;
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::CopyDataItem(int item_no) {
@@ -2061,7 +2061,7 @@ int CGameDataUsed::CopyDataItem(int item_no) {
     record = GetCommonItemData(item_no);
 
     if (record == NULL) {
-        return 0;
+        return false;
     }
 
     stack = &this->data.item.num;
@@ -2071,7 +2071,7 @@ int CGameDataUsed::CopyDataItem(int item_no) {
             stack[0] = stack[0] + 1;
         }
 
-        return 1;
+        return true;
     }
 
     this->item_type = record->type;
@@ -2079,7 +2079,7 @@ int CGameDataUsed::CopyDataItem(int item_no) {
     this->item_no = item_no;
     stack[0] = 1;
     stack[1] = 0;
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::CopyDataFish(int item_no) {
@@ -2091,7 +2091,7 @@ int CGameDataUsed::CopyDataFish(int item_no) {
     record = GetBreedFishInfoData(item_no);
 
     if (record == NULL) {
-        return 0;
+        return false;
     }
 
     this->used_type = USED_ITEM_TYPE_FISH;
@@ -2123,12 +2123,12 @@ int CGameDataUsed::CopyDataFish(int item_no) {
     fish->data.fish.flags = 0;
     fish->data.fish.unk_3c = GetRandI(0x100);
     fish->data.fish.race_placement_flags = 0;
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::CopyDataGiftBox(int item_no) {
     if (GetItemInfoData(item_no) == NULL) {
-        return 0;
+        return false;
     }
 
     used_type = USED_ITEM_TYPE_GIFT_BOX;
@@ -2137,7 +2137,7 @@ int CGameDataUsed::CopyDataGiftBox(int item_no) {
     data.giftbox.item_no[2] = 0;
     data.giftbox.item_no[1] = 0;
     data.giftbox.item_no[0] = 0;
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::CopyDataItem(CGameDataUsed *other) {
@@ -2145,7 +2145,7 @@ int CGameDataUsed::CopyDataItem(CGameDataUsed *other) {
     int          total;
 
     if (other == NULL) {
-        return 0;
+        return false;
     }
 
     if (0 < this->item_no && this->item_no == other->item_no) {
@@ -2154,36 +2154,36 @@ int CGameDataUsed::CopyDataItem(CGameDataUsed *other) {
             total = GetNum() + other->GetNum();
 
             if ((short) total > record->stack_num) {
-                return 0;
+                return false;
             }
 
             AddNum(other->GetNum(), 1);
             other->Init();
-            return 1;
+            return true;
         }
     }
 
     GameDataSwap(this, other, 0);
-    return 1;
+    return true;
 }
 
 int CGameDataUsed::CopyDataRoboPart(int item_no) {
     CDataRoboPart *record;
     char          *message;
-    char          *base;
+    ROBOPART_USED *part;
     float          durability;
     float          energy;
 
     record = GameItemDataManage.GetRoboData(item_no);
 
     if (record == NULL) {
-        return 0;
+        return false;
     }
 
     this->used_type = USED_ITEM_TYPE_ROBO_PART;
     this->item_no = item_no;
     this->item_type = GetItemDataType(item_no);
-    base = (char *) &this->data.robopart.energy;
+    part = &this->data.robopart;
     durability = record->durability;
     this->data.robopart.whp.max = durability;
     this->data.robopart.whp.now = durability;
@@ -2205,10 +2205,10 @@ int CGameDataUsed::CopyDataRoboPart(int item_no) {
     message = GetItemMessage(item_no);
 
     if (message != NULL) {
-        strcpy(base + offsetof(ROBOPART_USED, name), message);
+        strcpy(part->name, message);
     }
 
-    return 1;
+    return true;
 }
 
 void CFishAquarium::Initialize() {
@@ -2247,7 +2247,7 @@ CGameDataUsed *CFishAquarium::GetAquariumFishTop(int tank) {
         return breed_tank;
     }
 
-    return 0;
+    return NULL;
 }
 
 int CFishAquarium::SearchAqua1NotUsed(int tank) {
@@ -2273,7 +2273,7 @@ void CFishAquarium::FishIntoAquarium(int tank, int slot, CGameDataUsed *fish) {
         return;
     }
 
-    entry = 0;
+    entry = NULL;
 
     if (tank == AQUARIUM_TANK_FIRST) {
         if (slot >= 0 && slot < 6) {
@@ -2289,7 +2289,7 @@ void CFishAquarium::FishIntoAquarium(int tank, int slot, CGameDataUsed *fish) {
         }
     }
 
-    if (entry == 0) {
+    if (entry == NULL) {
         return;
     }
 
@@ -2329,18 +2329,18 @@ int CFishAquarium::GetAquariumFishNum(int tank) {
 int CFishAquarium::CheckHaigouTankSex(CGameDataUsed *fish) {
     int i = 0;
 
-    if (fish == 0) {
-        return 0;
+    if (fish == NULL) {
+        return false;
     }
 
     for (; i < 2; i++) {
         if (breed_tank[i].item_no > 0 &&
             breed_tank[i].data.fish.sex == fish->data.fish.sex) {
-            return 0;
+            return false;
         }
     }
 
-    return 1;
+    return true;
 }
 
 void CFishAquarium::RefreshParam() {
@@ -2348,7 +2348,6 @@ void CFishAquarium::RefreshParam() {
     bool  crowded;
     float hour;
     int   in_tank;
-    int   tired;
     int   now = GetSaveData()->play_time;
     s64   elapsed = now - last_time;
     last_time = now;
@@ -2366,11 +2365,11 @@ void CFishAquarium::RefreshParam() {
         }
     }
 
-    int fatigue_step = 0;
+    int fatigue_step = false;
     hours += 24.0f * (float) days;
 
     if (6.0f <= (float) fptosi(hours)) {
-        fatigue_step = 1;
+        fatigue_step = true;
     }
 
     for (i = 0; i < 6; i++) {
@@ -2400,7 +2399,7 @@ void CFishAquarium::RefreshParam() {
             }
 
             in_tank = fptosi(tank_hours + 24.0f * (float) tank_days);
-            int tired = 0;
+            int tired = false;
 
             while (crowded && in_tank - 6 >= 0) {
                 if ((u32) sub_tank[i].data.fish.hp > 15) {
@@ -2410,7 +2409,7 @@ void CFishAquarium::RefreshParam() {
                 }
 
                 in_tank -= 6;
-                tired = 1;
+                tired = true;
             }
 
             if (tired) {
@@ -2475,7 +2474,7 @@ MOS_HENGE_PARAM *GetMonsterHengeParam(int monster_no) {
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 int MOS_CHANGE_PARAM::GetAttackVol(int monster_no) {
@@ -2490,7 +2489,7 @@ int MOS_CHANGE_PARAM::GetAttackVol(int monster_no) {
     MOS_HENGE_PARAM *param = GetMonsterHengeParam(monster_no);
     value = 0;
 
-    if (param != 0) {
+    if (param != NULL) {
         value = fptosi((float) param->attack * scale);
     }
 
@@ -2511,7 +2510,7 @@ int MOS_CHANGE_PARAM::GetDefenceVol(int monster_no) {
     MOS_HENGE_PARAM *param = GetMonsterHengeParam(monster_no);
     value = 0;
 
-    if (param != 0) {
+    if (param != NULL) {
         value = fptosi((float) param->defence + (float) (GetDegreeLevel() * 2));
     }
 
@@ -2524,7 +2523,7 @@ int MOS_CHANGE_PARAM::GetDefenceVol(int monster_no) {
 
 int MOS_CHANGE_PARAM::CheckClassChange() {
     if (class_level >= 3) {
-        return 0;
+        return false;
     }
 
     return class_level < level / 25;
@@ -2552,11 +2551,11 @@ int MOS_CHANGE_PARAM::LevelUp() {
 
             abs.max = (float) (level * 100 + 100 + bonus);
             level = level + 1;
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 void CMonsterBox::Initialize() {
@@ -2572,7 +2571,7 @@ void CMonsterBox::Initialize() {
 
 MOS_CHANGE_PARAM *CMonsterBox::GetMonsterBajjiData(int monster_no) {
     if (monster_no <= 0 || monster_no >= 64) {
-        return 0;
+        return NULL;
     }
 
     return &monster[monster_no - 1];
@@ -2586,7 +2585,7 @@ void CMonsterBox::EnableChange(int monster_no) {
     int               level[8];
     MOS_CHANGE_PARAM *record = GetMonsterBajjiData(monster_no);
 
-    if (record != 0) {
+    if (record != NULL) {
         record->enable = 1;
         record->progress = get_default_monster_progresstbl(monster_no - 1);
         get_monster_tbl_bajjilevel(level, monster_no - 1, -1, 0);
@@ -2597,11 +2596,11 @@ void CMonsterBox::EnableChange(int monster_no) {
 int CMonsterBox::IsChange(int monster_no) {
     MOS_CHANGE_PARAM *record = GetMonsterBajjiData(monster_no);
 
-    if (record != 0) {
+    if (record != NULL) {
         return record->enable;
     }
 
-    return 0;
+    return false;
 }
 
 void CMonsterBox::AllCure() {
@@ -2633,7 +2632,7 @@ FISH_RECORD *CFishingRecord::GetFishRecord(int fish_no) {
     int index = GetConvertIndexFromFishNo(fish_no);
 
     if (index < 0) {
-        return 0;
+        return NULL;
     }
 
     return &record[index];
@@ -2643,7 +2642,7 @@ int CFishingRecord::CheckRecordFish(int fish_no, float size, float weight) {
     FISH_RECORD *record = GetFishRecord(fish_no);
     int          result;
 
-    if (record == 0) {
+    if (record == NULL) {
         return 0;
     }
 
@@ -2651,13 +2650,13 @@ int CFishingRecord::CheckRecordFish(int fish_no, float size, float weight) {
 
     if (record->size < size) {
         record->prev_size = record->size;
-        result |= 1;
+        result |= FISH_RECORD_UPDATE_SIZE;
         record->size = size;
     }
 
     if (record->weight < weight) {
         record->prev_weight = record->weight;
-        result |= 2;
+        result |= FISH_RECORD_UPDATE_WEIGHT;
         record->weight = weight;
     }
 
@@ -2709,7 +2708,7 @@ int CFishingTournament::EntryRemain() {
 
 FISH_TOURNAMENT_ENTRY *CFishingTournament::GetRecord(int index) {
     if (index < 0 || index >= 10) {
-        return 0;
+        return NULL;
     }
 
     return &entry[index];
@@ -2771,8 +2770,8 @@ void CUserDataManager::Initialize() {
     active_chr_no = USER_CHARA_MAX;
     party_member = 0;
     chara_change = 0;
-    JoinPartyMember(0);
-    EnableCharaChange(0);
+    JoinPartyMember(USER_CHARA_MAX);
+    EnableCharaChange(USER_CHARA_MAX);
     monster_id = -1;
     money = 0;
     yarikomi_medal = 0;
@@ -2791,7 +2790,7 @@ void CUserDataManager::Initialize() {
     unk_44dc8 = 0;
     LanguageEquipChange();
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < USER_CHARA_ROBO; i++) {
         CHARA_DATA *chara = &chara_data[i];
         float       life = lifetbl[i];
         chara->hp.max = life;
@@ -2801,8 +2800,8 @@ void CUserDataManager::Initialize() {
         chara->active_item[2].Init();
     }
 
-    chara_data[(int) USER_CHARA_MAX].defence = 4;
-    chara_data[(int) USER_CHARA_MONICA].defence = 8;
+    chara_data[USER_CHARA_MAX].defence = 4;
+    chara_data[USER_CHARA_MONICA].defence = 8;
     memset(&robo_data, 0, sizeof(ROBO_DATA));
     SetRoboName(GetRoboNameDefault());
     monster_box.Initialize();
@@ -2828,42 +2827,42 @@ void CUserDataManager::RefreshParam() {
 
 CGameDataUsed *CUserDataManager::GetUsedDataPtr(int index) {
     if (index < 0 || index >= 150) {
-        return 0;
+        return NULL;
     }
 
     return &used_data[index];
 }
 
 CHARA_DATA *CUserDataManager::GetCharaDataPtr(int chara_no) {
-    if (chara_no == 0 || chara_no == 1) {
+    if (chara_no == USER_CHARA_MAX || chara_no == USER_CHARA_MONICA) {
         return &chara_data[chara_no];
     }
 
-    return 0;
+    return NULL;
 }
 
 COMMON_GAGE *CUserDataManager::GetCharaHpGage(int chara_no) {
     unsigned int id = chara_no;
 
-    if (id <= 1 || id == 3) {
-        if (id == 3) {
-            id = 1;
+    if (id <= USER_CHARA_MONICA || id == USER_CHARA_MONSTER) {
+        if (id == USER_CHARA_MONSTER) {
+            id = USER_CHARA_MONICA;
         }
 
         return &chara_data[id].hp;
     }
 
-    if (id == 2) {
+    if (id == USER_CHARA_ROBO) {
         return &robo_data.hp;
     }
 
-    return 0;
+    return NULL;
 }
 
 int CUserDataManager::AddHp(int chara_no, int amount) {
     COMMON_GAGE *gage = GetCharaHpGage(chara_no);
 
-    if (gage != 0) {
+    if (gage != NULL) {
         gage->AddPoint((float) amount);
         return fptosi(gage->now);
     }
@@ -2874,7 +2873,7 @@ int CUserDataManager::AddHp(int chara_no, int amount) {
 float CUserDataManager::GetHp(int chara_no) {
     COMMON_GAGE *gage = GetCharaHpGage(chara_no);
 
-    if (gage != 0) {
+    if (gage != NULL) {
         return (float) fptosi(gage->now);
     }
 
@@ -2884,7 +2883,7 @@ float CUserDataManager::GetHp(int chara_no) {
 float CUserDataManager::AddHp_Rate(int chara_no, float rate) {
     COMMON_GAGE *gage = GetCharaHpGage(chara_no);
 
-    if (gage == 0) {
+    if (gage == NULL) {
         return 0.0f;
     }
 
@@ -2898,57 +2897,57 @@ float CUserDataManager::AddHp_Rate(int chara_no, float rate) {
 }
 
 COMMON_GAGE *CUserDataManager::GetWHpGage(int group, int member) {
-    if (group == 2) {
+    if (group == USER_CHARA_ROBO) {
         return &robo_data.parts[0].data.robopart.whp;
     }
 
-    if (group == 3) {
+    if (group == USER_CHARA_MONSTER) {
         MOS_CHANGE_PARAM *monster = monster_box.GetMonsterBajjiData(monster_id);
 
-        if (monster != 0) {
+        if (monster != NULL) {
             return &monster->hp;
         }
     }
 
-    if (group == 0 || group == 1) {
+    if (group == USER_CHARA_MAX || group == USER_CHARA_MONICA) {
         if (member < 0 || member >= 2) {
-            return 0;
+            return NULL;
         }
 
         return &chara_data[group].equip[member].data.weapon.whp;
     }
 
-    return 0;
+    return NULL;
 }
 
 COMMON_GAGE *CUserDataManager::GetAbsGage(int group, int member) {
-    if (group == 2) {
+    if (group == USER_CHARA_ROBO) {
         return &robo_data.abs;
     }
 
-    if (group == 3) {
+    if (group == USER_CHARA_MONSTER) {
         MOS_CHANGE_PARAM *monster = monster_box.GetMonsterBajjiData(monster_id);
 
-        if (monster != 0) {
+        if (monster != NULL) {
             return &monster->abs;
         }
     }
 
-    if (group == 0 || group == 1) {
+    if (group == USER_CHARA_MAX || group == USER_CHARA_MONICA) {
         if (member < 0 || member >= 2) {
-            return 0;
+            return NULL;
         }
 
         return &chara_data[group].equip[member].data.weapon.abs;
     }
 
-    return 0;
+    return NULL;
 }
 
 int CUserDataManager::AddWhp(int group, int member, int amount) {
     COMMON_GAGE *gage = GetWHpGage(group, member);
 
-    if (gage == 0) {
+    if (gage == NULL) {
         return 0;
     }
 
@@ -2959,11 +2958,11 @@ int CUserDataManager::AddWhp(int group, int member, int amount) {
 int CUserDataManager::GetWhp(int group, int member, int *max_out) {
     COMMON_GAGE *gage = GetWHpGage(group, member);
 
-    if (gage == 0) {
+    if (gage == NULL) {
         return 0;
     }
 
-    if (max_out != 0) {
+    if (max_out != NULL) {
         *max_out = fptosi(gage->max);
     }
 
@@ -2971,14 +2970,14 @@ int CUserDataManager::GetWhp(int group, int member, int *max_out) {
 }
 
 int CUserDataManager::AddAbs(int group, int member, int amount) {
-    if (group == 2) {
+    if (group == USER_CHARA_ROBO) {
         AddRoboAbs((float) amount);
         return fptosi(GetRoboAbs());
     }
 
     COMMON_GAGE *gage = GetAbsGage(group, member);
 
-    if (gage == 0) {
+    if (gage == NULL) {
         return 0;
     }
 
@@ -2987,8 +2986,8 @@ int CUserDataManager::AddAbs(int group, int member, int amount) {
 }
 
 int CUserDataManager::GetAbs(int group, int member, int *max_out) {
-    if (group == 2) {
-        if (max_out != 0) {
+    if (group == USER_CHARA_ROBO) {
+        if (max_out != NULL) {
             *max_out = 0;
         }
 
@@ -2997,11 +2996,11 @@ int CUserDataManager::GetAbs(int group, int member, int *max_out) {
 
     COMMON_GAGE *gage = GetAbsGage(group, member);
 
-    if (gage == 0) {
+    if (gage == NULL) {
         return 0;
     }
 
-    if (max_out != 0) {
+    if (max_out != NULL) {
         *max_out = fptosi(gage->max);
     }
 
@@ -3009,7 +3008,7 @@ int CUserDataManager::GetAbs(int group, int member, int *max_out) {
 }
 
 void CUserDataManager::JoinPartyMember(int chara_no) {
-    if (chara_no < 0 || chara_no > 3) {
+    if (chara_no < USER_CHARA_MAX || chara_no > USER_CHARA_MONSTER) {
         return;
     }
 
@@ -3017,7 +3016,7 @@ void CUserDataManager::JoinPartyMember(int chara_no) {
 }
 
 void CUserDataManager::LeavePartyMember(int chara_no) {
-    if (chara_no < 0 || chara_no > 3) {
+    if (chara_no < USER_CHARA_MAX || chara_no > USER_CHARA_MONSTER) {
         return;
     }
 
@@ -3028,15 +3027,15 @@ int CUserDataManager::GetNowPartyMember() {
     int mask = party_member;
     int result = mask;
 
-    if (SearchItemOnItemBrd(0x134, 0) != 0) {
-        result = mask | 8;
+    if (SearchItemOnItemBrd(0x134, ITEM_BOARD_MAIN) != NULL) {
+        result = mask | (1 << USER_CHARA_MONSTER);
     }
 
     return result;
 }
 
 void CUserDataManager::EnableCharaChange(int chara_no) {
-    if (chara_no < 0 || chara_no > 3) {
+    if (chara_no < USER_CHARA_MAX || chara_no > USER_CHARA_MONSTER) {
         return;
     }
 
@@ -3044,7 +3043,7 @@ void CUserDataManager::EnableCharaChange(int chara_no) {
 }
 
 void CUserDataManager::DisableCharaChange(int chara_no) {
-    if (chara_no < 0 || chara_no > 3) {
+    if (chara_no < USER_CHARA_MAX || chara_no > USER_CHARA_MONSTER) {
         return;
     }
 
@@ -3054,71 +3053,71 @@ void CUserDataManager::DisableCharaChange(int chara_no) {
 int CUserDataManager::CheckEnableCharaChange(int chara_no, int *out) {
     int allowed;
     int flag = GetEnableCharaChangeFlag();
-    allowed = 0;
+    allowed = false;
 
     if (flag & (1 << chara_no)) {
-        allowed = 1;
+        allowed = true;
     }
 
-    int alive = 1;
-    int able = 1;
+    int alive = true;
+    int able = true;
 
-    if (chara_no == 0 || chara_no == 1) {
+    if (chara_no == USER_CHARA_MAX || chara_no == USER_CHARA_MONICA) {
         if (chara_data[chara_no].hp.now <= 0.0f) {
-            alive = 0;
+            alive = false;
         }
 
         int status = GetCharaStatusAttirbute(chara_no);
 
-        if ((status & 8) != 0 || (status & 0x20) != 0) {
-            able = 0;
+        if ((status & CHARA_STATUS_UNK_8) != 0 || (status & CHARA_STATUS_UNK_20) != 0) {
+            able = false;
         }
     }
 
-    if (chara_no == 2) {
-        if (robo_data.hp.now <= 0.0f || chara_data[(int) USER_CHARA_MAX].hp.now <= 0.0f) {
-            alive = 0;
+    if (chara_no == USER_CHARA_ROBO) {
+        if (robo_data.hp.now <= 0.0f || chara_data[USER_CHARA_MAX].hp.now <= 0.0f) {
+            alive = false;
         }
     }
 
     int forbidden;
 
-    if (chara_no == 3) {
-        if (chara_data[(int) USER_CHARA_MONICA].hp.now <= 0.0f) {
-            alive = 0;
+    if (chara_no == USER_CHARA_MONSTER) {
+        if (chara_data[USER_CHARA_MONICA].hp.now <= 0.0f) {
+            alive = false;
         }
     }
 
-    forbidden = 0;
+    forbidden = false;
     DNG_BATTLE_AREA *scene = &GetMainScene()->battle_area;
 
-    if (scene != 0) {
+    if (scene != NULL) {
         u16 flags = scene->floor_status;
 
         if (flags & DNG_FLOOR_DISABLE_MAX) {
-            forbidden = 1;
+            forbidden = true;
         }
 
         if (flags & DNG_FLOOR_DISABLE_MONICA) {
-            forbidden = 1;
+            forbidden = true;
         }
     }
 
     int result;
 
-    if (out != 0) {
+    if (out != NULL) {
         *out = 0;
 
         if (alive != 0) {
-            *out |= 1;
+            *out |= CHARA_CHANGE_REASON_ALIVE;
         }
 
         if (forbidden != 0) {
-            *out |= 2;
+            *out |= CHARA_CHANGE_REASON_FLOOR_LIMITED;
         }
 
         if (able != 0) {
-            *out |= 4;
+            *out |= CHARA_CHANGE_REASON_STATUS_OK;
         }
     }
 
@@ -3140,19 +3139,19 @@ int CUserDataManager::CheckQuickChange(int chara_no, int *out) {
     int party_chara = GetNowPartyMember();
 
     if (party_chara & (1 << chara_no)) {
-        state |= 1;
+        state |= QUICK_CHANGE_STATE_IN_PARTY;
     }
 
     int enabled = CheckEnableCharaChange(chara_no, out);
     int can_change = 0;
 
     if (enabled != 0) {
-        state |= 2;
+        state |= QUICK_CHANGE_STATE_ENABLED;
         can_change = 1;
     }
 
-    if (chara_no == 3) {
-        CGameDataUsed *badge_item = SearchItemOnItemBrd(0x134, 0);
+    if (chara_no == USER_CHARA_MONSTER) {
+        CGameDataUsed *badge_item = SearchItemOnItemBrd(0x134, ITEM_BOARD_MAIN);
         state = 0;
         int          changeable;
         int          i;
@@ -3174,29 +3173,29 @@ int CUserDataManager::CheckQuickChange(int chara_no, int *out) {
             i++;
         } while (i < 10);
 
-        if (badge_item != 0 && 0 < changeable) {
-            state |= 1;
+        if (badge_item != NULL && 0 < changeable) {
+            state |= QUICK_CHANGE_STATE_IN_PARTY;
 
             if (enabled != 0) {
-                state |= 2;
+                state |= QUICK_CHANGE_STATE_ENABLED;
 
                 if (can_change == 0) {
-                    state &= ~2;
+                    state &= ~QUICK_CHANGE_STATE_ENABLED;
                 }
             }
 
             MOS_CHANGE_PARAM *badge = box->GetMonsterBajjiDataByMonsterID(former_monster);
 
-            if (badge != 0 && badge->hp.GetRate() <= 0.0f) {
-                state &= ~2;
+            if (badge != NULL && badge->hp.GetRate() <= 0.0f) {
+                state &= ~QUICK_CHANGE_STATE_ENABLED;
             }
         }
     }
 
     int status = GetCharaStatusAttirbute(active_chr_no);
 
-    if ((status & 8) != 0 || (status & 0x20) != 0) {
-        state &= ~2;
+    if ((status & CHARA_STATUS_UNK_8) != 0 || (status & CHARA_STATUS_UNK_20) != 0) {
+        state &= ~QUICK_CHANGE_STATE_ENABLED;
     }
 
     return state;
@@ -3211,7 +3210,7 @@ void CUserDataManager::DisableCharaChangeMask(int chara_no) {
 }
 
 void CUserDataManager::InitCharaChangeMask() {
-    chara_change_mask = 15;
+    chara_change_mask = (1 << USER_CHARA_NUM) - 1;
 }
 
 u32 CUserDataManager::GetEnableCharaChangeFlag() {
@@ -3222,7 +3221,7 @@ u32 CUserDataManager::GetEnableCharaChangeFlag() {
          1 << USER_CHARA_ROBO, 1 << USER_CHARA_MONICA}
     };
 
-    for (int chara_no = 0; chara_no < 4; chara_no++) {
+    for (int chara_no = 0; chara_no < USER_CHARA_NUM; chara_no++) {
         if ((party_chara & bits.bit[chara_no]) == 0) {
             mask &= ~(1 << chara_no);
         }
@@ -3230,15 +3229,15 @@ u32 CUserDataManager::GetEnableCharaChangeFlag() {
 
     DNG_BATTLE_AREA *scene = &GetMainScene()->battle_area;
 
-    if (scene != 0) {
+    if (scene != NULL) {
         u16 flags = scene->floor_status;
 
         if (flags & DNG_FLOOR_DISABLE_MAX) {
-            mask &= ~5;
+            mask &= ~((1 << USER_CHARA_MAX) | (1 << USER_CHARA_ROBO));
         }
 
         if (flags & DNG_FLOOR_DISABLE_MONICA) {
-            mask &= ~0xA;
+            mask &= ~((1 << USER_CHARA_MONICA) | (1 << USER_CHARA_MONSTER));
         }
     }
 
@@ -3248,22 +3247,22 @@ u32 CUserDataManager::GetEnableCharaChangeFlag() {
 u16 *CUserDataManager::GetCharaStatusAttirbutePtr(int chara_no) {
     u16 *attr;
 
-    if (chara_no < 0 || chara_no > 3) {
-        return 0;
+    if (chara_no < USER_CHARA_MAX || chara_no > USER_CHARA_MONSTER) {
+        return NULL;
     }
 
-    attr = 0;
+    attr = NULL;
 
-    if (chara_no < 2) {
+    if (chara_no < USER_CHARA_ROBO) {
         attr = &chara_data[chara_no].status_attr;
     }
 
-    if (chara_no == 2) {
-        attr = 0;
+    if (chara_no == USER_CHARA_ROBO) {
+        attr = NULL;
     }
 
-    if (chara_no == 3) {
-        attr = 0;
+    if (chara_no == USER_CHARA_MONSTER) {
+        attr = NULL;
     }
 
     return attr;
@@ -3272,25 +3271,25 @@ u16 *CUserDataManager::GetCharaStatusAttirbutePtr(int chara_no) {
 int CUserDataManager::SetCharaStatusAttirbute(int chara_no, unsigned int attr, int mode) {
     u16 *word = GetCharaStatusAttirbutePtr(chara_no);
 
-    if (word == 0) {
+    if (word == NULL) {
         return 0;
     }
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         return 0;
     }
 
-    if (mode == 1) {
+    if (mode == CHARA_STATUS_ATTR_MODE_CLEAR) {
         *word &= ~attr;
     } else {
-        if (*word & 0x10) {
-            attr &= ~3;
+        if (*word & CHARA_STATUS_POWER) {
+            attr &= ~(CHARA_STATUS_POISON | CHARA_STATUS_SLOW);
         }
 
-        if (attr & 0x10) {
-            attr &= ~3;
-            *word &= 0xFFFE;
-            *word &= 0xFFFD;
+        if (attr & CHARA_STATUS_POWER) {
+            attr &= ~(CHARA_STATUS_POISON | CHARA_STATUS_SLOW);
+            *word &= ~CHARA_STATUS_POISON;
+            *word &= ~CHARA_STATUS_SLOW;
         }
 
         *word = *word | attr;
@@ -3300,57 +3299,57 @@ int CUserDataManager::SetCharaStatusAttirbute(int chara_no, unsigned int attr, i
 }
 
 int CUserDataManager::SetCharaStatusAttirbuteVol(int chara_no, unsigned int attr, int value) {
-    int result = SetCharaStatusAttirbute(chara_no, attr, 0);
+    int result = SetCharaStatusAttirbute(chara_no, attr, CHARA_STATUS_ATTR_MODE_ADD);
 
-    if (chara_no == 0 || chara_no == 1) {
-        CHARA_DATA *chara = &chara_data[(int) USER_CHARA_MONICA];
+    if (chara_no == USER_CHARA_MAX || chara_no == USER_CHARA_MONICA) {
+        CHARA_DATA *chara = &chara_data[USER_CHARA_MONICA];
 
-        if (chara_no == 0) {
-            chara = &chara_data[(int) USER_CHARA_MAX];
+        if (chara_no == USER_CHARA_MAX) {
+            chara = &chara_data[USER_CHARA_MAX];
         }
 
-        if (attr & 0x10) {
+        if (attr & CHARA_STATUS_POWER) {
             chara->status_time[0] = value;
         }
 
-        if (attr & 0x2) {
+        if (attr & CHARA_STATUS_SLOW) {
             chara->status_time[1] = value;
         }
 
-        if (attr & 0x8) {
+        if (attr & CHARA_STATUS_UNK_8) {
             chara->status_time[2] = value;
         }
 
-        if (attr & 0x20) {
+        if (attr & CHARA_STATUS_UNK_20) {
             chara->status_time[3] = value;
         }
     }
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         ROBO_DATA *robot = &robo_data;
 
-        if (attr & 0x2) {
+        if (attr & CHARA_STATUS_SLOW) {
             robot->status_time[0] = value;
         }
 
-        if (attr & 0x8) {
+        if (attr & CHARA_STATUS_UNK_8) {
             robot->status_time[1] = value;
         }
 
-        if (attr & 0x20) {
+        if (attr & CHARA_STATUS_UNK_20) {
             robot->status_time[2] = value;
         }
     }
 
-    if (chara_no == 3) {
+    if (chara_no == USER_CHARA_MONSTER) {
         MOS_CHANGE_PARAM *badge = GetMonsterBajjiDataPtrMosId(monster_id);
 
-        if (badge != 0) {
-            if (attr & 0x10) {
+        if (badge != NULL) {
+            if (attr & CHARA_STATUS_POWER) {
                 badge->power_time = value;
             }
 
-            if (attr & 0x1) {
+            if (attr & CHARA_STATUS_POISON) {
                 badge->poison_time = value;
             }
         }
@@ -3362,7 +3361,7 @@ int CUserDataManager::SetCharaStatusAttirbuteVol(int chara_no, unsigned int attr
 int CUserDataManager::GetCharaStatusAttirbute(int chara_no) {
     u16 *attr = GetCharaStatusAttirbutePtr(chara_no);
 
-    if (attr != 0) {
+    if (attr != NULL) {
         return *attr;
     }
 
@@ -3378,7 +3377,7 @@ MOS_CHANGE_PARAM *CUserDataManager::GetMonsterBajjiDataPtrMosId(int monster_id) 
 }
 
 int CUserDataManager::GetItemBoardOverNum() {
-    if (GetSaveData()->GetBitFlag((int) SAVE_FLAG_ITEM_BOARD_EXPANDED) != 0) {
+    if (GetSaveData()->GetBitFlag(SAVE_FLAG_ITEM_BOARD_EXPANDED) != 0) {
         return 6;
     }
 
@@ -3388,19 +3387,19 @@ int CUserDataManager::GetItemBoardOverNum() {
 int CUserDataManager::GetItemBoardMaxNum(int board) {
     int size = 0;
 
-    if (board == 0) {
+    if (board == ITEM_BOARD_MAIN) {
         size = 0x8A;
     }
 
-    if (GetSaveData()->GetBitFlag((int) SAVE_FLAG_ITEM_BOARD_EXPANDED) == 1) {
-        if (board == 0) {
+    if (GetSaveData()->GetBitFlag(SAVE_FLAG_ITEM_BOARD_EXPANDED) == 1) {
+        if (board == ITEM_BOARD_MAIN) {
             size = 0x90;
         }
     }
 
     int result = size;
 
-    if (board == 1) {
+    if (board == ITEM_BOARD_ALL) {
         result = 150;
     }
 
@@ -3411,13 +3410,13 @@ void CUserDataManager::SetActiveChrNo(int chara_no) {
     active_chr_no = chara_no;
     CBattleCharaInfo *info = GetBattleCharaInfo();
 
-    if (info != 0) {
+    if (info != NULL) {
         info->SetChrNo(chara_no);
     }
 }
 
 void CUserDataManager::SetRoboName(char *name) {
-    if (name != 0) {
+    if (name != NULL) {
         strcpy(robo_data.name, name);
     }
 }
@@ -3497,7 +3496,7 @@ int CUserDataManager::CheckCapacity() {
         if (item->item_type == ITEM_DATA_ROBO_CORE) {
             CDataItem *info = GetItemInfoData(item->item_no);
 
-            if (info != 0) {
+            if (info != NULL) {
                 return info->value[0];
             }
         }
@@ -3517,24 +3516,24 @@ int CUserDataManager::CheckRobotCore() {
 }
 
 int CUserDataManager::GetDefenceVol(int chara_no) {
-    if (chara_no == 0 || chara_no == 1) {
+    if (chara_no == USER_CHARA_MAX || chara_no == USER_CHARA_MONICA) {
         CHARA_DATA *chara = &chara_data[chara_no];
 
-        if (chara == 0) {
+        if (chara == NULL) {
             return 0;
         }
 
         return chara->defence;
     }
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         return robo_data.GetDefenceVol();
     }
 
-    if (chara_no == 3) {
-        CHARA_DATA *monster = &chara_data[(int) USER_CHARA_MONICA];
+    if (chara_no == USER_CHARA_MONSTER) {
+        CHARA_DATA *monster = &chara_data[USER_CHARA_MONICA];
 
-        if (monster != 0) {
+        if (monster != NULL) {
             return monster->defence;
         }
     }
@@ -3552,7 +3551,7 @@ void CUserDataManager::JoinPartyChara(int chara_no, int status, int unused) {
     slot->chara_no = chara_no;
     NPC_BASE_DATA *npc = GetPartyNPCData(chara_no);
 
-    if (npc != 0) {
+    if (npc != NULL) {
         slot->point = npc->max_npc_point;
     }
 }
@@ -3564,8 +3563,8 @@ void CUserDataManager::SetPartyCharaStatus(int chara_no, int status) {
         return;
     }
 
-    if (status == 0x80) {
-        JoinPartyChara(chara_no, 2, index);
+    if (status == PARTY_CHARA_STATUS_JOIN) {
+        JoinPartyChara(chara_no, PARTY_CHARA_STATUS_JOINED, index);
         return;
     }
 
@@ -3574,22 +3573,22 @@ void CUserDataManager::SetPartyCharaStatus(int chara_no, int status) {
         return;
     }
 
-    if (status & 1) {
+    if (status & PARTY_CHARA_STATUS_IN_PARTY) {
         int previous_status = party_chara[index].status;
 
         for (int other = 0; other < 32; other++) {
             u16 other_status = party_chara[other].status;
 
-            if (other_status != 0 && other != index && (other_status & 1)) {
-                if (other_status & 4) {
-                    party_chara[other].status = 4;
+            if (other_status != 0 && other != index && (other_status & PARTY_CHARA_STATUS_IN_PARTY)) {
+                if (other_status & PARTY_CHARA_STATUS_IN_HOUSE) {
+                    party_chara[other].status = PARTY_CHARA_STATUS_IN_HOUSE;
                 } else {
-                    party_chara[other].status = 2;
+                    party_chara[other].status = PARTY_CHARA_STATUS_JOINED;
                 }
             }
         }
 
-        if (previous_status & 4) {
+        if (previous_status & PARTY_CHARA_STATUS_IN_HOUSE) {
             party_chara[index].status |= (u16) status;
         } else {
             party_chara[index].status = status;
@@ -3598,15 +3597,15 @@ void CUserDataManager::SetPartyCharaStatus(int chara_no, int status) {
         return;
     }
 
-    if ((status & 2) || (status & 4)) {
-        if (status & 2) {
+    if ((status & PARTY_CHARA_STATUS_JOINED) || (status & PARTY_CHARA_STATUS_IN_HOUSE)) {
+        if (status & PARTY_CHARA_STATUS_JOINED) {
             index = chara_no - 1;
             party_chara[index].status = status;
         }
 
-        if (status & 4) {
+        if (status & PARTY_CHARA_STATUS_IN_HOUSE) {
             index = chara_no - 1;
-            party_chara[index].status &= 0xFFFD;
+            party_chara[index].status &= ~PARTY_CHARA_STATUS_JOINED;
             party_chara[index].status |= (u16) status;
         }
     }
@@ -3624,7 +3623,7 @@ int CUserDataManager::GetPartyCharaStatus(int chara_no) {
 
 int CUserDataManager::NowPartyCharaID() {
     for (int i = 0; i < 32; i++) {
-        if (party_chara[i].status & 1) {
+        if (party_chara[i].status & PARTY_CHARA_STATUS_IN_PARTY) {
             return i + 1;
         }
     }
@@ -3633,43 +3632,43 @@ int CUserDataManager::NowPartyCharaID() {
 }
 
 void CUserDataManager::LeaveHouse(int chara_no) {
-    int was_in_party = GetPartyCharaStatus(chara_no) & 1;
+    int was_in_party = GetPartyCharaStatus(chara_no) & PARTY_CHARA_STATUS_IN_PARTY;
 
-    int flag = 0;
+    int flag = false;
 
     if (was_in_party) {
-        flag = 1;
+        flag = true;
     }
 
-    SetPartyCharaStatus(chara_no, 2);
+    SetPartyCharaStatus(chara_no, PARTY_CHARA_STATUS_JOINED);
 
     if (flag) {
-        SetPartyCharaStatus(chara_no, 1);
+        SetPartyCharaStatus(chara_no, PARTY_CHARA_STATUS_IN_PARTY);
     }
 }
 
 PARTY_CHARA_INFO *CUserDataManager::GetPartyCharaInfo(int chara_no) {
     if (chara_no <= 0 || chara_no > 32) {
-        return 0;
+        return NULL;
     }
 
     return &party_chara[chara_no - 1];
 }
 
 int CUserDataManager::UseNpcAbility(int npc_no, int ability_no, int consume) {
-    int               usable = 0;
+    int               usable = false;
     PARTY_CHARA_INFO *member = GetPartyCharaInfo(npc_no);
     NPC_BASE_DATA    *npc_data = GetPartyNPCData(npc_no);
 
-    if (member == 0 || npc_data == 0) {
-        return 0;
+    if (member == NULL || npc_data == NULL) {
+        return false;
     }
 
     short gauge = member->point;
     u8    cost = npc_data->ability_cost[ability_no];
 
     if (cost <= gauge) {
-        usable = 1;
+        usable = true;
 
         if (consume != 0) {
             member->point = gauge - (cost & 0xFF);
@@ -3704,7 +3703,7 @@ void CUserDataManager::RefreshNPCStatus(int mode) {
     int            uses;
     int            day = GetSaveData()->day;
     float          now = GetSaveData()->now_time;
-    int            refresh = 0;
+    int            refresh = false;
     int            days = day - npc_refresh_day;
     float          elapsed = now - npc_refresh_hour;
 
@@ -3720,7 +3719,7 @@ void CUserDataManager::RefreshNPCStatus(int mode) {
     elapsed += 24.0f * (float) days;
 
     if (1.0f <= elapsed) {
-        refresh = 1;
+        refresh = true;
     }
 
     if (refresh != 0) {
@@ -3757,7 +3756,7 @@ void CUserDataManager::RefreshNPCStatus(int mode) {
             PARTY_CHARA_INFO *info = GetPartyCharaInfo(chara);
             NPC_BASE_DATA    *npc = GetPartyNPCData(chara);
 
-            if (info != NULL && npc != NULL && !(info->status & 1)) {
+            if (info != NULL && npc != NULL && !(info->status & PARTY_CHARA_STATUS_IN_PARTY)) {
                 s8    max_point = npc->max_npc_point;
                 float gain = (float) max_point * elapsed / 24.0f;
 
@@ -3787,17 +3786,17 @@ void CUserDataManager::RefreshNPCStatus(int mode) {
 }
 
 int CUserDataManager::GetFishingRodNo() {
-    return chara_data[(int) USER_CHARA_MAX].equip[0].item_no;
+    return chara_data[USER_CHARA_MAX].equip[0].item_no;
 }
 
 int CUserDataManager::NowFishingStyle() {
-    CGameDataUsed *rod = &chara_data[(int) USER_CHARA_MAX].equip[0];
+    CGameDataUsed *rod = &chara_data[USER_CHARA_MAX].equip[0];
 
     if (rod != NULL) {
         return rod->IsFishingRod();
     }
 
-    return 0;
+    return false;
 }
 
 CGameDataUsed *CUserDataManager::GetActiveEsa() {
@@ -3805,25 +3804,25 @@ CGameDataUsed *CUserDataManager::GetActiveEsa() {
 }
 
 CGameDataUsed *CUserDataManager::GetActiveEsa(int rod_no) {
-    if (rod_no == (int) ITEM_ID_FISHING_ROD) {
+    if (rod_no == ITEM_ID_FISHING_ROD) {
         return &esa[0];
     }
 
-    if (rod_no == (int) ITEM_ID_LURE_ROD) {
+    if (rod_no == ITEM_ID_LURE_ROD) {
         return &esa[1];
     }
 
-    return 0;
+    return NULL;
 }
 
 int CUserDataManager::GetFishBait() {
     int rod = GetFishingRodNo();
 
-    if (rod == (int) ITEM_ID_FISHING_ROD) {
+    if (rod == ITEM_ID_FISHING_ROD) {
         return esa[0].item_no;
     }
 
-    if (rod == (int) ITEM_ID_LURE_ROD) {
+    if (rod == ITEM_ID_LURE_ROD) {
         return esa[1].item_no;
     }
 
@@ -3835,7 +3834,7 @@ void CUserDataManager::DeleteBait() {
 
     GetFishingRodNo();
 
-    if (bait != 0) {
+    if (bait != NULL) {
         bait->DeleteNum(1);
     }
 }
@@ -3858,14 +3857,14 @@ int CUserDataManager::GetFishInAquarium(int fish_no, float size, float weight) {
     fish.data.fish.breed_feeds_remaining = 0;
     CGameDataUsed *slot = SearchSpaceUsedDataPtr();
 
-    if (slot != 0) {
+    if (slot != NULL) {
         slot->CopyGameData(&fish);
-        return 0;
+        return FISH_STORE_KEPT;
     }
 
     if (GetNumSameItem(0x135) != 0) {
-        if (FishInAquarium(&fish, 0) != 0) {
-            return 0;
+        if (FishInAquarium(&fish, AQUARIUM_TANK_FIRST) != 0) {
+            return FISH_STORE_KEPT;
         }
     }
 
@@ -3873,24 +3872,24 @@ int CUserDataManager::GetFishInAquarium(int fish_no, float size, float weight) {
 
     if (0 < GetItemBoardOverNum()) {
         do {
-            CGameDataUsed *overflow = &used_data[i + GetItemBoardMaxNum(0)];
+            CGameDataUsed *overflow = &used_data[i + GetItemBoardMaxNum(ITEM_BOARD_MAIN)];
 
             if (overflow->item_no <= 0) {
                 overflow->CopyGameData(&fish);
-                return 1;
+                return FISH_STORE_OVERFLOW;
             }
 
             i++;
         } while (i < GetItemBoardOverNum());
     }
 
-    return 2;
+    return FISH_STORE_NO_ROOM;
 }
 
 int CUserDataManager::CheckFishRecordUpdate(int fish_no, float size, float weight) {
     CFishingRecord *log = &fish_record;
 
-    if (log != 0) {
+    if (log != NULL) {
         return log->CheckRecordFish(fish_no, size, weight);
     }
 
@@ -3900,15 +3899,15 @@ int CUserDataManager::CheckFishRecordUpdate(int fish_no, float size, float weigh
 void CUserDataManager::GetFishRecord(int fish_no, float *size_out, float *weight_out) {
     CFishingRecord *log = &fish_record;
 
-    if (log != 0) {
+    if (log != NULL) {
         FISH_RECORD *record = log->GetFishRecord(fish_no);
 
-        if (record != 0) {
-            if (size_out != 0) {
+        if (record != NULL) {
+            if (size_out != NULL) {
                 *size_out = record->size;
             }
 
-            if (weight_out != 0) {
+            if (weight_out != NULL) {
                 *weight_out = record->weight;
             }
         }
@@ -3916,12 +3915,12 @@ void CUserDataManager::GetFishRecord(int fish_no, float *size_out, float *weight
 }
 
 void CUserDataManager::GetRodStatus(int *out) {
-    if (out != 0 && GetFishingRodNo() > 0) {
-        out[0] = chara_data[(int) USER_CHARA_MAX].equip[0].data.weapon.attribute[0];
-        out[1] = chara_data[(int) USER_CHARA_MAX].equip[0].data.weapon.attribute[1];
-        out[2] = chara_data[(int) USER_CHARA_MAX].equip[0].data.weapon.attribute[2];
-        out[3] = chara_data[(int) USER_CHARA_MAX].equip[0].data.weapon.attribute[3];
-        out[4] = chara_data[(int) USER_CHARA_MAX].equip[0].data.weapon.attribute[4];
+    if (out != NULL && GetFishingRodNo() > 0) {
+        out[0] = chara_data[USER_CHARA_MAX].equip[0].data.weapon.attribute[0];
+        out[1] = chara_data[USER_CHARA_MAX].equip[0].data.weapon.attribute[1];
+        out[2] = chara_data[USER_CHARA_MAX].equip[0].data.weapon.attribute[2];
+        out[3] = chara_data[USER_CHARA_MAX].equip[0].data.weapon.attribute[3];
+        out[4] = chara_data[USER_CHARA_MAX].equip[0].data.weapon.attribute[4];
     }
 }
 
@@ -3930,14 +3929,14 @@ int CUserDataManager::AddFp(int points) {
         return 0;
     }
 
-    return chara_data[(int) USER_CHARA_MAX].equip[0].AddFusionPoint(points);
+    return chara_data[USER_CHARA_MAX].equip[0].AddFusionPoint(points);
 }
 
 int CUserDataManager::SetChrEquip(int chara_no, CGameDataUsed *item) {
     int slot;
 
-    if (item == 0) {
-        return 0;
+    if (item == NULL) {
+        return false;
     }
 
     CGameData        *game_data = GetGameDataPt();
@@ -3945,90 +3944,90 @@ int CUserDataManager::SetChrEquip(int chara_no, CGameDataUsed *item) {
     int               item_type = game_data->GetDataType(item_no);
     CBattleCharaInfo *battle = GetBattleCharaInfo();
 
-    if (chara_no == 0 || chara_no == 1) {
+    if (chara_no == USER_CHARA_MAX || chara_no == USER_CHARA_MONICA) {
         CHARA_DATA *chara = GetCharaDataPtr(chara_no);
         int         owner = IsItemtypeWhoisEquip(item_no, &slot);
 
         if (owner == chara_no && 0 <= slot) {
             GameDataSwap(item, &chara->equip[slot], 0);
 
-            if (battle != 0) {
+            if (battle != NULL) {
                 battle->RefreshParamater();
             }
 
-            return 1;
+            return true;
         }
     }
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         ROBO_DATA *ridepod = &robo_data;
 
         for (int part = 0; part < 4; part++) {
-            if (item_type == SearchEquipType(2, part)) {
+            if (item_type == SearchEquipType(USER_CHARA_ROBO, part)) {
                 GameDataSwap(&ridepod->parts[part], item, 0);
 
-                if (battle != 0) {
+                if (battle != NULL) {
                     battle->RefreshParamater();
                 }
 
-                return 1;
+                return true;
             }
         }
     }
 
-    return 0;
+    return false;
 }
 
 int CUserDataManager::SetChrEquip(int chara, int item_no) {
     CGameDataUsed *item;
 
     if (item_no <= 0) {
-        return 0;
+        return false;
     }
 
-    if ((chara < 0) || (chara > 2)) {
-        return 0;
+    if ((chara < USER_CHARA_MAX) || (chara > USER_CHARA_ROBO)) {
+        return false;
     }
 
-    if (this->SearchEquip(chara, item_no) != 0) {
-        return 0;
+    if (this->SearchEquip(chara, item_no) != NULL) {
+        return false;
     }
 
-    item = this->SearchItemOnItemBrd(item_no, 1);
+    item = this->SearchItemOnItemBrd(item_no, ITEM_BOARD_ALL);
 
     if (item == NULL) {
-        return 0;
+        return false;
     }
 
     this->SetChrEquip(chara, item);
-    return 1;
+    return true;
 }
 
 int CUserDataManager::SetChrEquipDirect(int chara_no, int item_no) {
 
     if (item_no <= 0) {
-        return 0;
+        return false;
     }
 
-    if (chara_no < 0 || chara_no > 2) {
-        return 0;
+    if (chara_no < USER_CHARA_MAX || chara_no > USER_CHARA_ROBO) {
+        return false;
     }
 
-    if (SearchEquip(chara_no, item_no) != 0) {
-        return 0;
+    if (SearchEquip(chara_no, item_no) != NULL) {
+        return false;
     }
 
     CGameDataUsed item;
     CopyGameData(&item, item_no);
     SetChrEquip(chara_no, &item);
-    return 1;
+    return true;
 }
 
 CGameDataUsed *CUserDataManager::SearchEquip(int chara_no, int item_no) {
-    CGameDataUsed *found = 0;
+    CGameDataUsed *found = NULL;
     int            i;
 
-    if (chara_no == 0 || chara_no == 1) {
+    if (chara_no == USER_CHARA_MAX || chara_no == USER_CHARA_MONICA) {
         CHARA_DATA *chara = GetCharaDataPtr(chara_no);
 
         for (i = 0; i < 3; i++) {
@@ -4044,7 +4043,7 @@ CGameDataUsed *CUserDataManager::SearchEquip(int chara_no, int item_no) {
         }
     }
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         ROBO_DATA *robot = &robo_data;
 
         for (i = 0; i < 3; i++) {
@@ -4058,27 +4057,27 @@ CGameDataUsed *CUserDataManager::SearchEquip(int chara_no, int item_no) {
 }
 
 char *CUserDataManager::GetCharaEquipDataPath(int chara_no, int slot) {
-    if (chara_no < 0 || chara_no > 2) {
-        return 0;
+    if (chara_no < USER_CHARA_MAX || chara_no > USER_CHARA_ROBO) {
+        return NULL;
     }
 
-    if (chara_no < 2) {
+    if (chara_no < USER_CHARA_ROBO) {
         if (slot < 0 || slot > 4) {
-            return 0;
+            return NULL;
         }
 
         return chara_data[chara_no].equip[slot].GetDataPath();
     }
 
     if (slot < 0 || slot > 3) {
-        return 0;
+        return NULL;
     }
 
     return robo_data.parts[slot].GetDataPath();
 }
 
 int CUserDataManager::AddFusionPoint(int group, int member, int points) {
-    if (group == 0 || group == 1) {
+    if (group == USER_CHARA_MAX || group == USER_CHARA_MONICA) {
         if (member == 0 || member == 1) {
             return chara_data[group].equip[member].AddFusionPoint(points);
         }
@@ -4088,7 +4087,7 @@ int CUserDataManager::AddFusionPoint(int group, int member, int points) {
 }
 
 int CUserDataManager::SearchSpaceUsedData() {
-    int bag_size = GetNowBagMax(0);
+    int bag_size = GetNowBagMax(ITEM_BOARD_MAIN);
 
     for (int i = 0; i < bag_size; i++) {
         if (used_data[i].item_no <= 0) {
@@ -4101,7 +4100,7 @@ int CUserDataManager::SearchSpaceUsedData() {
 
 int CUserDataManager::SearchSpaceUsedData(int item_no) {
     int found = -1;
-    int bag_size = GetNowBagMax(0);
+    int bag_size = GetNowBagMax(ITEM_BOARD_MAIN);
     int i = 0;
 
     while (i < bag_size) {
@@ -4124,7 +4123,7 @@ CGameDataUsed *CUserDataManager::SearchSpaceUsedDataPtr() {
     int index = SearchSpaceUsedData();
 
     if (index < 0) {
-        return 0;
+        return NULL;
     }
 
     return &used_data[index];
@@ -4134,7 +4133,7 @@ CGameDataUsed *CUserDataManager::SearchSpaceUsedDataPtr(int item_no) {
     int index = SearchSpaceUsedData(item_no);
 
     if (index < 0) {
-        return 0;
+        return NULL;
     }
 
     return &used_data[index];
@@ -4144,7 +4143,7 @@ int CUserDataManager::SearchActiveItemTableSpace(int chara_no, int item_no) {
     CHARA_DATA *chara = GetCharaDataPtr(chara_no);
     int         i = 0;
 
-    if (chara == 0) {
+    if (chara == NULL) {
         return -1;
     }
 
@@ -4167,12 +4166,12 @@ int CUserDataManager::SearchActiveItemTableSpace(int chara_no, int item_no) {
     return -1;
 }
 
-CGameDataUsed *CUserDataManager::SearchItemOnItemBrd(int item_no, int use_alt_bag) {
+CGameDataUsed *CUserDataManager::SearchItemOnItemBrd(int item_no, int board) {
     CGameDataUsed *item = GetUsedDataPtr(0);
-    int            limit = GetNowBagMax(0);
+    int            limit = GetNowBagMax(ITEM_BOARD_MAIN);
 
-    if (use_alt_bag != 0) {
-        limit = GetNowBagMax(1);
+    if (board != 0) {
+        limit = GetNowBagMax(ITEM_BOARD_ALL);
     }
 
     for (int i = 0; i < limit; i++, item++) {
@@ -4181,12 +4180,12 @@ CGameDataUsed *CUserDataManager::SearchItemOnItemBrd(int item_no, int use_alt_ba
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 int CUserDataManager::GetNumStackOverBoard() {
     int            count = 0;
-    CGameDataUsed *item = GetUsedDataPtr(GetNowBagMax(0));
+    CGameDataUsed *item = GetUsedDataPtr(GetNowBagMax(ITEM_BOARD_MAIN));
 
     for (int index = 0; index < GetItemBoardOverNum(); index++, item++) {
         if (item->item_no > 1) {
@@ -4198,10 +4197,10 @@ int CUserDataManager::GetNumStackOverBoard() {
 }
 
 CGameDataUsed *CUserDataManager::SearchAllHaveItem(int item_no) {
-    CGameDataUsed *found = SearchItemOnItemBrd(item_no, 1);
+    CGameDataUsed *found = SearchItemOnItemBrd(item_no, ITEM_BOARD_ALL);
 
-    if (found == 0) {
-        for (int chara_no = 0; chara_no < 2; chara_no++) {
+    if (found == NULL) {
+        for (int chara_no = 0; chara_no < USER_CHARA_ROBO; chara_no++) {
             CHARA_DATA *chara = &chara_data[chara_no];
 
             for (int slot = 0; slot < 3; slot++) {
@@ -4219,37 +4218,37 @@ CGameDataUsed *CUserDataManager::SearchAllHaveItem(int item_no) {
 int CUserDataManager::FishInAquarium(CGameDataUsed *fish, int tank) {
     CFishAquarium *aquarium = &this->aquarium;
 
-    if ((tank < 0) || (tank > 2)) {
-        return 0;
+    if ((tank < AQUARIUM_TANK_FIRST) || (tank > AQUARIUM_TANK_BREED)) {
+        return false;
     }
 
     int space = aquarium->SearchAqua1NotUsed(AQUARIUM_TANK_FIRST);
 
     if ((space < 0) || (fish == NULL)) {
-        return 0;
+        return false;
     }
 
     aquarium->FishIntoAquarium(tank, space, fish);
     fish->Init();
-    return 1;
+    return true;
 }
 
 int CUserDataManager::CheckElectricFish() {
     CFishAquarium *tanks = &aquarium;
 
-    if (tanks == 0) {
-        return 0;
+    if (tanks == NULL) {
+        return false;
     }
 
     CGameDataUsed *fish = tanks->GetAquariumFishTop(AQUARIUM_TANK_FIRST);
 
     for (int i = 0; i < 6; i++) {
         if (fish[i].item_no > 0 && (fish[i].data.fish.flags & BREEDFISH_FLAG_ELECTRIC)) {
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 int CUserDataManager::GetNumSameItem(int item_no) {
@@ -4260,7 +4259,7 @@ int CUserDataManager::GetNumSameItem(int item_no) {
     CHARA_DATA *data;
 
     total = 0;
-    bag_size = GetNowBagMax(1);
+    bag_size = GetNowBagMax(ITEM_BOARD_ALL);
 
     for (i = 0; i < bag_size; i++) {
         if (item_no == used_data[i].item_no) {
@@ -4270,7 +4269,7 @@ int CUserDataManager::GetNumSameItem(int item_no) {
         total += used_data[i].GetGiftBoxSameItemNum(item_no);
     }
 
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < USER_CHARA_ROBO; i++) {
         data = &chara_data[i];
 
         for (j = 0; j < 3; j++) {
@@ -4351,16 +4350,16 @@ int CUserDataManager::GetItemNotOver(int item_no, int num) {
         int robo_part_no[4] = {0x87, 0x91, 0x9B, 0xA5};
 
         for (int i = 0; i < 4; i++) {
-            CGameDataUsed *part = SearchItemOnItemBrd(robo_part_no[i], 1);
+            CGameDataUsed *part = SearchItemOnItemBrd(robo_part_no[i], ITEM_BOARD_ALL);
 
             if (part == NULL) {
-                part = SearchItemOnItemBrd(robo_part_no[i], 1);
+                part = SearchItemOnItemBrd(robo_part_no[i], ITEM_BOARD_ALL);
             }
 
-            SetChrEquip(2, part);
+            SetChrEquip(USER_CHARA_ROBO, part);
         }
 
-        JoinPartyMember(2);
+        JoinPartyMember(USER_CHARA_ROBO);
     }
 
     DNG_BATTLE_AREA *battle_area = &GetMainScene()->battle_area;
@@ -4385,7 +4384,7 @@ int CUserDataManager::GetItemNotOver(int item_no, int num) {
 
     GetCostume(item_no);
 
-    if (item_no == (int) ITEM_ID_LURE_ROD) {
+    if (item_no == ITEM_ID_LURE_ROD) {
         GetSaveData()->SetBitFlag(0x30, 1);
     }
 
@@ -4397,7 +4396,7 @@ int CUserDataManager::GetItemNotOver(int item_no, int num) {
             return 0;
         }
     } else {
-        int bag_size = GetNowBagMax(0);
+        int bag_size = GetNowBagMax(ITEM_BOARD_MAIN);
 
         for (int n = 0; n < num; n++) {
             int            found = -1;
@@ -4440,21 +4439,21 @@ int CUserDataManager::GetOverItem(int item_no, int count) {
 
     CDataCommon *common = GetCommonItemData(item_no);
 
-    if (common == 0) {
+    if (common == NULL) {
         return 0;
     }
 
     ConvertUsedItemType(common->type);
-    int            overflow_start = GetNowBagMax(0);
+    int            overflow_start = GetNowBagMax(ITEM_BOARD_MAIN);
     int            overflow_size = GetItemBoardOverNum();
     CGameDataUsed *target;
     int            placed = 0;
 
     if (0 < count) {
-        target = 0;
+        target = NULL;
 
         do {
-            for (int i = 0; i < overflow_size && target == 0; i++) {
+            for (int i = 0; i < overflow_size && target == NULL; i++) {
                 int            slot_item;
                 CGameDataUsed *slot;
                 slot = &used_data[overflow_start + i];
@@ -4465,16 +4464,16 @@ int CUserDataManager::GetOverItem(int item_no, int count) {
                     target = slot;
                 }
 
-                if (slot_item <= 0 && target == 0) {
+                if (slot_item <= 0 && target == NULL) {
                     target = slot;
                 }
             }
 
-            if (target != 0) {
+            if (target != NULL) {
                 CopyGameData(target, item_no);
                 GetCostume(item_no);
                 placed++;
-                target = 0;
+                target = NULL;
 
                 if (placed < count) {
                     continue;
@@ -4502,7 +4501,7 @@ int CUserDataManager::CheckItemLimmitOver() {
     memset(item_count, 0, sizeof(item_count));
     memset(item_count2, 0, sizeof(item_count2));
     inventory = GetUsedDataPtr(0);
-    bag_size = GetNowBagMax(1);
+    bag_size = GetNowBagMax(ITEM_BOARD_ALL);
 
     for (i = 0; i < bag_size; i++) {
         owned_no = inventory[i].item_no;
@@ -4524,7 +4523,7 @@ int CUserDataManager::CheckItemLimmitOver() {
 
     charas = GetCharaDataPtr(USER_CHARA_MAX);
 
-    for (int chara = 0; chara < 2; chara++) {
+    for (int chara = 0; chara < USER_CHARA_ROBO; chara++) {
         charas += chara;
 
         for (int slot = 0; slot < 3; slot++) {
@@ -4602,7 +4601,7 @@ int CUserDataManager::DeleteItem(int item_no, int count) {
         }
     }
 
-    for (int chara_no = 0; chara_no < 2; chara_no++) {
+    for (int chara_no = 0; chara_no < USER_CHARA_ROBO; chara_no++) {
         for (int slot = 0; slot < 3; slot++) {
             int removed = DeleteItem_Local(&chara_data[chara_no].active_item[slot], item_no, count);
 
@@ -4616,21 +4615,21 @@ int CUserDataManager::DeleteItem(int item_no, int count) {
         }
     }
 
-    return 1;
+    return true;
 }
 
 int CUserDataManager::CopyGameData(CGameDataUsed *item, int item_no) {
     unsigned int used_type;
     CDataCommon *common;
 
-    if (item == 0) {
-        return 0;
+    if (item == NULL) {
+        return false;
     }
 
     common = GetCommonItemData(item_no);
 
-    if (common == 0) {
-        return 0;
+    if (common == NULL) {
+        return false;
     }
 
     used_type = ConvertUsedItemType(common->type);
@@ -4657,7 +4656,7 @@ int CUserDataManager::CopyGameData(CGameDataUsed *item, int item_no) {
             break;
     }
 
-    return 1;
+    return true;
 }
 
 int CUserDataManager::AddMoney(int amount) {
@@ -4686,7 +4685,7 @@ unsigned long CUserDataManager::GetCostumeBit() {
 void CUserDataManager::GetCostume(int costume_no) {
     COSBIT_INFO *info = GetCosInfo(costume_no);
 
-    if (info != 0) {
+    if (info != NULL) {
         costume_bit |= (s64) 1 << info->bit_no;
     }
 }
@@ -4715,16 +4714,16 @@ int CUserDataManager::CountFish() {
 void SetEnvUserDataMan(int env) {
     CUserDataManager *manager = GetUserDataMan();
 
-    if (env == 0) {
+    if (env == USER_DATA_ENV_TOWN) {
         manager->InitCharaChangeMask();
-        manager->DisableCharaChange(2);
-        manager->DisableCharaChange(3);
+        manager->DisableCharaChange(USER_CHARA_ROBO);
+        manager->DisableCharaChange(USER_CHARA_MONSTER);
     }
 
-    if (env == 1) {
+    if (env == USER_DATA_ENV_DUNGEON) {
         manager->InitCharaChangeMask();
-        manager->EnableCharaChange(2);
-        manager->EnableCharaChange(3);
+        manager->EnableCharaChange(USER_CHARA_ROBO);
+        manager->EnableCharaChange(USER_CHARA_MONSTER);
     }
 }
 
@@ -4755,8 +4754,8 @@ void LanguageEquipChange() {
     CUserDataManager *manager = GetUserDataMan();
     int               weapons[6];
 
-    if (manager != 0) {
-        for (int chara_no = 0; chara_no < 2; chara_no++) {
+    if (manager != NULL) {
+        for (int chara_no = 0; chara_no < USER_CHARA_ROBO; chara_no++) {
             GetCharaDefaultWeapon(chara_no, weapons);
 
             for (int slot = 0; slot < 5; slot++) {
@@ -4771,17 +4770,17 @@ void LanguageEquipChange() {
 void CheckEquipChange(int chara_no) {
     int weapons[6];
 
-    if (chara_no == 1) {
+    if (chara_no == USER_CHARA_MONICA) {
         CHARA_DATA *chara = GetUserDataMan()->GetCharaDataPtr(USER_CHARA_MONICA);
 
-        if (chara != 0) {
-            GetCharaDefaultWeapon(1, weapons);
-            GetUserDataMan()->SetChrEquipDirect(1, weapons[0]);
+        if (chara != NULL) {
+            GetCharaDefaultWeapon(USER_CHARA_MONICA, weapons);
+            GetUserDataMan()->SetChrEquipDirect(USER_CHARA_MONICA, weapons[0]);
 
             if (static_cast<s8>(chara->keep_costume_on_equip_change) == 0) {
-                GetUserDataMan()->SetChrEquipDirect(1, weapons[2]);
-                GetUserDataMan()->SetChrEquipDirect(1, weapons[3]);
-                GetUserDataMan()->SetChrEquipDirect(1, weapons[4]);
+                GetUserDataMan()->SetChrEquipDirect(USER_CHARA_MONICA, weapons[2]);
+                GetUserDataMan()->SetChrEquipDirect(USER_CHARA_MONICA, weapons[3]);
+                GetUserDataMan()->SetChrEquipDirect(USER_CHARA_MONICA, weapons[4]);
             }
 
             chara->keep_costume_on_equip_change = 0;
@@ -4793,10 +4792,10 @@ void CBattleCharaInfo::Initialize() {
     memset(this, 0, sizeof(*this));
     chr_no = USER_CHARA_MAX;
     chara_type = -1;
-    chara_data = 0;
-    chara_data = 0;
-    hp = 0;
-    equip = 0;
+    chara_data.any = NULL;
+    chara_data.any = NULL;
+    hp = NULL;
+    equip = NULL;
     hp_change_step = 0;
     disp_hp_max = -1.0f;
     disp_hp = -1.0f;
@@ -4804,7 +4803,7 @@ void CBattleCharaInfo::Initialize() {
 
 CGameDataUsed *CBattleCharaInfo::GetEquipTablePtr(int slot) {
     if (slot < 0 || slot > 3) {
-        return 0;
+        return NULL;
     }
 
     return &equip[slot];
@@ -4820,22 +4819,22 @@ void CBattleCharaInfo::SetChrNo(int new_chara_no) {
     chr_no = new_chara_no;
     user_mons_id = 0;
 
-    if (0 <= chr_no && chr_no < 2) {
+    if (USER_CHARA_MAX <= chr_no && chr_no < USER_CHARA_ROBO) {
         chara_type = BATTLE_CHARA_HUMAN;
-        chara_data = manager->GetCharaDataPtr(chr_no);
-        active_item = ((CHARA_DATA *) chara_data)->active_item;
-        equip = ((CHARA_DATA *) chara_data)->equip;
-        hp = &((CHARA_DATA *) chara_data)->hp;
+        chara_data.human = manager->GetCharaDataPtr(chr_no);
+        active_item = chara_data.human->active_item;
+        equip = chara_data.human->equip;
+        hp = &chara_data.human->hp;
         disp_hp = hp->now;
         disp_hp_max = hp->max;
         prev_hp = hp->now;
         prev_hp_max = hp->max;
     } else if (chr_no == USER_CHARA_ROBO) {
         chara_type = BATTLE_CHARA_ROBO;
-        chara_data = &manager->robo_data;
-        active_item = 0;
-        equip = &((ROBO_DATA *) chara_data)->parts[0];
-        hp = &((ROBO_DATA *) chara_data)->hp;
+        chara_data.robo = &manager->robo_data;
+        active_item = NULL;
+        equip = &chara_data.robo->parts[0];
+        hp = &chara_data.robo->hp;
         disp_hp = hp->now;
         disp_hp_max = hp->max;
         prev_hp = hp->now;
@@ -4843,17 +4842,17 @@ void CBattleCharaInfo::SetChrNo(int new_chara_no) {
     } else if (chr_no == USER_CHARA_MONSTER) {
         chara_type = BATTLE_CHARA_MONSTER;
         int monster_id = GetMonsterID();
-        chara_data = manager->GetMonsterBajjiDataPtrMosId(monster_id);
+        chara_data.monster = manager->GetMonsterBajjiDataPtrMosId(monster_id);
         int               base = 0;
         BASE_MONSTER_TBL *info = GetMonsterBaseInfo(monster_id);
 
-        if (info != 0) {
+        if (info != NULL) {
             base = info->user_mons_id;
         }
 
         user_mons_id = base;
-        active_item = 0;
-        equip = 0;
+        active_item = NULL;
+        equip = NULL;
         hp = &manager->GetCharaDataPtr(USER_CHARA_MONICA)->hp;
         disp_hp = hp->now;
         disp_hp_max = hp->max;
@@ -4870,7 +4869,7 @@ void CBattleCharaInfo::SetChrNo(int new_chara_no) {
 int CBattleCharaInfo::GetMonsterID() {
     CUserDataManager *manager = GetUserDataMan();
 
-    if (manager != 0) {
+    if (manager != NULL) {
         return manager->monster_id;
     }
 
@@ -4885,40 +4884,40 @@ int CBattleCharaInfo::UseNPCPoint(int unused) {
     int npc_no = now_npc;
 
     if (npc_no <= 0) {
-        return 0;
+        return false;
     }
 
-    if (GetUserDataMan()->GetPartyCharaInfo(npc_no) == 0) {
-        return 0;
+    if (GetUserDataMan()->GetPartyCharaInfo(npc_no) == NULL) {
+        return false;
     }
 
-    if (GetPartyNPCData(now_npc) == 0) {
-        return 0;
+    if (GetPartyNPCData(now_npc) == NULL) {
+        return false;
     }
 
     if (now_npc == 10) {
         if (GetMainScene()->battle_area.floor_status & DNG_FLOOR_DISABLE_ITEMS) {
-            return 0;
+            return false;
         }
 
         if (1.0f <= hp->GetRate()) {
-            return 0;
+            return false;
         }
 
         if (GetUserDataMan()->UseNpcAbility(10, 3, 1) != 0) {
             hp->AddRate(0.05f);
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 CGameDataUsed *CBattleCharaInfo::GetActiveItemInfo(int index) {
     CGameDataUsed *table = active_item;
-    CGameDataUsed *item = 0;
+    CGameDataUsed *item = NULL;
 
-    if (table != 0) {
+    if (table != NULL) {
         item = &table[index];
     }
 
@@ -4929,20 +4928,20 @@ int CBattleCharaInfo::UseActiveItem(CGameDataUsed *item) {
 
     int item_no;
 
-    if (item == 0) {
-        return 0;
+    if (item == NULL) {
+        return false;
     }
 
     item_no = item->item_no;
     CItemUseTarget target;
-    target.SetPtr((int) ITEM_USE_TARGET_CHARA, chara_data);
+    target.SetPtr(ITEM_USE_TARGET_CHARA, chara_data.any);
 
-    if (item_no == (int) ITEM_ID_MELEE_REPAIR) {
-        target.SetPtr((int) ITEM_USE_TARGET_ITEM, GetEquipTablePtr(0));
+    if (item_no == ITEM_ID_MELEE_REPAIR) {
+        target.SetPtr(ITEM_USE_TARGET_ITEM, GetEquipTablePtr(0));
     }
 
-    if (item_no == (int) ITEM_ID_GUN_REPAIR || item_no == (int) ITEM_ID_MAGIC_REPAIR) {
-        target.SetPtr((int) ITEM_USE_TARGET_ITEM, GetEquipTablePtr(1));
+    if (item_no == ITEM_ID_GUN_REPAIR || item_no == ITEM_ID_MAGIC_REPAIR) {
+        target.SetPtr(ITEM_USE_TARGET_ITEM, GetEquipTablePtr(1));
     }
 
     return MenuUseItemCheckFunc(item, &target, 1);
@@ -4971,8 +4970,8 @@ int CBattleCharaInfo::GetPalletNo(int slot) {
 }
 
 void CBattleCharaInfo::RefreshParamater() {
-    if (chara_data != NULL) {
-    } else if (chara_data == NULL) {
+    if (chara_data.any != NULL) {
+    } else if (chara_data.any == NULL) {
         return;
     }
 
@@ -4992,12 +4991,12 @@ void CBattleCharaInfo::RefreshParamater() {
         float weapon_rate[2] = {1.0f, 1.0f};
         short status[10];
 
-        if (((CHARA_DATA *) chara_data)->status_attr & CHARA_STATUS_POWER) {
+        if (chara_data.human->status_attr & CHARA_STATUS_POWER) {
             weapon_rate[0] = 1.5f;
             weapon_rate[1] = 1.5f;
         }
 
-        defence = ((CHARA_DATA *) chara_data)->defence;
+        defence = chara_data.human->defence;
         int i = 0;
 
         while (i < 2) {
@@ -5023,9 +5022,9 @@ void CBattleCharaInfo::RefreshParamater() {
         }
     } else if (chara_type == BATTLE_CHARA_ROBO) {
         int capacity;
-        robo_hp_drain = 0.006f * ((float) CheckNowRoboUseCapacity((ROBO_DATA *) chara_data, &capacity) / (float) capacity);
+        robo_hp_drain = 0.006f * ((float) CheckNowRoboUseCapacity(chara_data.robo, &capacity) / (float) capacity);
         ROBOPART_USED *part = &equipment->data.robopart;
-        defence = ((ROBO_DATA *) chara_data)->GetDefenceVol();
+        defence = chara_data.robo->GetDefenceVol();
 
         for (int i = 0; i < 2; i++) {
             param->status[WEAPON_STAT_ATTACK] = part->status[WEAPON_STAT_ATTACK];
@@ -5053,9 +5052,9 @@ void CBattleCharaInfo::RefreshParamater() {
             monster_rate = 1.25f;
         }
 
-        param->status[WEAPON_STAT_ATTACK] = fptosi(monster_rate * (float) ((MOS_CHANGE_PARAM *) chara_data)->GetAttackVol(-1));
-        param->status[WEAPON_STAT_DURABILITY] = fptosi(monster_rate * (float) ((MOS_CHANGE_PARAM *) chara_data)->GetAttackVol(-1));
-        defence = fptosi(monster_rate * (float) ((MOS_CHANGE_PARAM *) chara_data)->GetDefenceVol(-1));
+        param->status[WEAPON_STAT_ATTACK] = fptosi(monster_rate * (float) chara_data.monster->GetAttackVol(-1));
+        param->status[WEAPON_STAT_DURABILITY] = fptosi(monster_rate * (float) chara_data.monster->GetAttackVol(-1));
+        defence = fptosi(monster_rate * (float) chara_data.monster->GetDefenceVol(-1));
         param->status[2] = 0;
         param->status[3] = 0;
         param->status[4] = 0;
@@ -5074,13 +5073,13 @@ void CBattleCharaInfo::RefreshParamater() {
 }
 
 COMMON_GAGE *CBattleCharaInfo::GetNowAccessWHp(int slot) {
-    COMMON_GAGE *gage = 0;
+    COMMON_GAGE *gage = NULL;
     short        current_mode = chara_type;
 
     if (current_mode == BATTLE_CHARA_HUMAN) {
         CGameDataUsed *table = equip;
 
-        if (table == 0) {
+        if (table == NULL) {
             return gage;
         }
 
@@ -5088,28 +5087,28 @@ COMMON_GAGE *CBattleCharaInfo::GetNowAccessWHp(int slot) {
     } else if (current_mode == BATTLE_CHARA_ROBO) {
         gage = (COMMON_GAGE *) ((u8 *) equip + offsetof(CGameDataUsed, data)) + 1;
     } else if (current_mode == BATTLE_CHARA_MONSTER) {
-        gage = &((MOS_CHANGE_PARAM *) chara_data)->hp;
+        gage = &chara_data.monster->hp;
     }
 
     return gage;
 }
 
 COMMON_GAGE *CBattleCharaInfo::GetNowAccessAbs(int slot) {
-    COMMON_GAGE *gage = 0;
+    COMMON_GAGE *gage = NULL;
     short        current_mode = chara_type;
 
     if (current_mode == BATTLE_CHARA_HUMAN) {
         u8 *table = (u8 *) equip;
 
-        if (table == 0) {
+        if (table == NULL) {
             return gage;
         }
 
         gage = (COMMON_GAGE *) (table + slot * sizeof(CGameDataUsed) + offsetof(CGameDataUsed, data)) + 1;
     } else if (current_mode == BATTLE_CHARA_ROBO) {
-        gage = &((ROBO_DATA *) chara_data)->abs;
+        gage = &chara_data.robo->abs;
     } else if (current_mode == BATTLE_CHARA_MONSTER) {
-        gage = &((MOS_CHANGE_PARAM *) chara_data)->abs;
+        gage = &chara_data.monster->abs;
     }
 
     return gage;
@@ -5118,7 +5117,7 @@ COMMON_GAGE *CBattleCharaInfo::GetNowAccessAbs(int slot) {
 float CBattleCharaInfo::AddWhp(int slot, float amount) {
     COMMON_GAGE *gage = GetNowAccessWHp(slot);
 
-    if (gage == 0) {
+    if (gage == NULL) {
         return 0.0f;
     }
 
@@ -5134,7 +5133,7 @@ float CBattleCharaInfo::AddWhp(int slot, float amount) {
 void CBattleCharaInfo::GetNowWhp(int slot, int *out) {
     COMMON_GAGE *gage = GetNowAccessWHp(slot);
 
-    if (gage != 0) {
+    if (gage != NULL) {
         out[0] = GetDispVolumeForFloat(gage->now);
         out[1] = fptosi(gage->max);
     }
@@ -5143,7 +5142,7 @@ void CBattleCharaInfo::GetNowWhp(int slot, int *out) {
 int CBattleCharaInfo::GetWhpNowVol(int slot) {
     COMMON_GAGE *gage = GetNowAccessWHp(slot);
 
-    if (gage != 0) {
+    if (gage != NULL) {
         return GetDispVolumeForFloat(gage->now);
     }
 
@@ -5248,7 +5247,7 @@ float CBattleCharaInfo::AddAbs(int slot, float amount, int *leveled_up) {
     float        rate;
     COMMON_GAGE *gage = GetNowAccessAbs(slot);
 
-    if (gage == 0) {
+    if (gage == NULL) {
         return 0.0f;
     }
 
@@ -5257,20 +5256,20 @@ float CBattleCharaInfo::AddAbs(int slot, float amount, int *leveled_up) {
         gage->now += amount;
         GetUserDataMan()->AddRoboAbs(amount);
     } else if (chara_type == BATTLE_CHARA_MONSTER) {
-        ((MOS_CHANGE_PARAM *) chara_data)->abs.AddPoint(amount);
-        MOS_CHANGE_PARAM *badge = (MOS_CHANGE_PARAM *) chara_data;
+        chara_data.monster->abs.AddPoint(amount);
+        MOS_CHANGE_PARAM *badge = chara_data.monster;
 
-        if (badge != 0) {
+        if (badge != NULL) {
             int leveled = badge->LevelUp();
 
-            if (leveled_up != 0 && leveled != 0) {
-                *leveled_up = 1;
+            if (leveled_up != NULL && leveled != 0) {
+                *leveled_up = true;
             }
         }
     } else {
-        CGameDataUsed *item = (CGameDataUsed *) equip;
+        CGameDataUsed *item = equip;
 
-        if (item == 0) {
+        if (item == NULL) {
             return 0.0f;
         }
 
@@ -5286,8 +5285,8 @@ float CBattleCharaInfo::AddAbs(int slot, float amount, int *leveled_up) {
             int leveled =
                 LevelUpWeapon(&equip[slot]);
 
-            if (leveled_up != 0 && leveled != 0) {
-                *leveled_up = 1;
+            if (leveled_up != NULL && leveled != 0) {
+                *leveled_up = true;
             }
         }
     }
@@ -5296,14 +5295,14 @@ float CBattleCharaInfo::AddAbs(int slot, float amount, int *leveled_up) {
 }
 
 int CBattleCharaInfo::AddAbsRate(int slot, float rate, int *leveled_up) {
-    if (equip == 0) {
-        return 0;
+    if (equip == NULL) {
+        return false;
     }
 
     COMMON_GAGE *gage = GetNowAccessAbs(slot);
 
-    if (gage == 0 || chara_type == BATTLE_CHARA_ROBO) {
-        return 0;
+    if (gage == NULL || chara_type == BATTLE_CHARA_ROBO) {
+        return false;
     }
 
     gage->now += gage->max * rate;
@@ -5318,8 +5317,8 @@ int CBattleCharaInfo::AddAbsRate(int slot, float rate, int *leveled_up) {
 
     int leveled = LevelUpWeapon(&equip[slot]);
 
-    if (leveled_up != 0 && leveled != 0) {
-        *leveled_up = 1;
+    if (leveled_up != NULL && leveled != 0) {
+        *leveled_up = true;
     }
 
     return leveled;
@@ -5328,7 +5327,7 @@ int CBattleCharaInfo::AddAbsRate(int slot, float rate, int *leveled_up) {
 void CBattleCharaInfo::GetNowAbs(int slot, int *out) {
     COMMON_GAGE *gage = GetNowAccessAbs(slot);
 
-    if (gage != 0) {
+    if (gage != NULL) {
         out[0] = GetDispVolumeForFloat(gage->now);
         out[1] = fptosi(gage->max);
     }
@@ -5337,15 +5336,15 @@ void CBattleCharaInfo::GetNowAbs(int slot, int *out) {
 int CBattleCharaInfo::LevelUpWeapon(CGameDataUsed *weapon) {
     if (chara_type == BATTLE_CHARA_HUMAN) {
         if (weapon->IsLevelUp() == 0) {
-            return 0;
+            return false;
         }
 
         weapon->LevelUp();
         RefreshParamater();
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 short CBattleCharaInfo::GetDefenceVol() {
@@ -5353,7 +5352,7 @@ short CBattleCharaInfo::GetDefenceVol() {
 }
 
 float CBattleCharaInfo::AddHp_Point(float point, float frames) {
-    if (hp == 0) {
+    if (hp == NULL) {
         return 0.0f;
     }
 
@@ -5386,7 +5385,7 @@ float CBattleCharaInfo::AddHp_Point(float point, float frames) {
 }
 
 float CBattleCharaInfo::AddHp_Rate(float rate, int kind, float frames) {
-    if (hp == 0) {
+    if (hp == NULL) {
         return 0.0f;
     }
 
@@ -5395,23 +5394,23 @@ float CBattleCharaInfo::AddHp_Rate(float rate, int kind, float frames) {
     disp_hp = hp->now;
 
     switch (kind) {
-        case 0:
-        case 2:
+        case HP_RATE_OF_MAX:
+        case HP_RATE_OF_MAX_KEEP_ONE:
             hp->now += hp->max * rate;
 
-            if (kind == 2) {
+            if (kind == HP_RATE_OF_MAX_KEEP_ONE) {
                 if (hp->now <= 1.0f) {
                     hp->now = 1.0f;
                 }
             }
 
             break;
-        case 1:
-        case 3: {
+        case HP_RATE_OF_NOW:
+        case HP_RATE_OF_NOW_KEEP_ONE: {
             float now = hp->now;
             hp->now = now + now * rate;
 
-            if (kind == 3) {
+            if (kind == HP_RATE_OF_NOW_KEEP_ONE) {
                 if (hp->now < 1.0f) {
                     hp->now = 1.0f;
                 }
@@ -5445,7 +5444,7 @@ float CBattleCharaInfo::AddHp_Rate(float rate, int kind, float frames) {
 void CBattleCharaInfo::SetHpRate(float rate) {
     COMMON_GAGE *gage = hp;
 
-    if (gage != 0) {
+    if (gage != NULL) {
         gage->SetFillRate(rate);
     }
 }
@@ -5453,7 +5452,7 @@ void CBattleCharaInfo::SetHpRate(float rate) {
 int CBattleCharaInfo::GetMaxHp_i() {
     COMMON_GAGE *gage = hp;
 
-    if (gage != 0) {
+    if (gage != NULL) {
         return fptosi(gage->max);
     }
 
@@ -5463,19 +5462,19 @@ int CBattleCharaInfo::GetMaxHp_i() {
 int CBattleCharaInfo::GetNowHp_i() {
     COMMON_GAGE *gage = hp;
 
-    if (gage != 0) {
+    if (gage != NULL) {
         return GetDispVolumeForFloat(gage->now);
     }
 
     return 0;
 }
 
-int CBattleCharaInfo::SetAttr(int attr, int value) {
+int CBattleCharaInfo::SetAttr(int attr, int mode) {
     CUserDataManager *manager = GetUserDataMan();
     int               result = 0;
 
-    if (manager != 0) {
-        manager->SetCharaStatusAttirbute(chr_no, attr, value);
+    if (manager != NULL) {
+        manager->SetCharaStatusAttirbute(chr_no, attr, mode);
         result = manager->GetCharaStatusAttirbute(chr_no);
     }
 
@@ -5486,7 +5485,7 @@ int CBattleCharaInfo::SetAttrVol(int attr, int value) {
     CUserDataManager *manager = GetUserDataMan();
     int               result = 0;
 
-    if (manager != 0) {
+    if (manager != NULL) {
         manager->SetCharaStatusAttirbuteVol(chr_no, attr, value);
         result = manager->GetCharaStatusAttirbute(chr_no);
     }
@@ -5497,7 +5496,7 @@ int CBattleCharaInfo::SetAttrVol(int attr, int value) {
 int CBattleCharaInfo::GetAttr() {
     CUserDataManager *manager = GetUserDataMan();
 
-    if (manager != 0) {
+    if (manager != NULL) {
         return manager->GetCharaStatusAttirbute(chr_no);
     }
 
@@ -5507,7 +5506,7 @@ int CBattleCharaInfo::GetAttr() {
 void CBattleCharaInfo::ForceSet() {
     COMMON_GAGE *gage = hp;
 
-    if (gage != 0) {
+    if (gage != NULL) {
         float point = gage->now;
 
         if (disp_hp != point) {
@@ -5520,16 +5519,16 @@ void CBattleCharaInfo::ForceSet() {
 
 int GetRandomCircleTrapID(int kind) {
     // Lists the trap choices for the first random-circle kind.
-    static signed char tbl1[4] = {1, 2, 3, 4};
+    static signed char tbl1[4] = {RANDOM_CIRCLE_ABS_BONUS, RANDOM_CIRCLE_HEAL, RANDOM_CIRCLE_REPAIR, RANDOM_CIRCLE_UNK_4};
     // Lists the trap choices for the second random-circle kind.
-    static signed char tbl2[2] = {6, 7};
+    static signed char tbl2[2] = {RANDOM_CIRCLE_HALVE_HP, RANDOM_CIRCLE_WEAPON_DAMAGE};
 
     int roll;
     int chara_no = GetBattleCharaInfo()->chr_no;
     roll = rand();
     int trap;
     srand(roll);
-    trap = 0;
+    trap = RANDOM_CIRCLE_NONE;
 
     if (kind == 0) {
         trap = tbl1[roll % 3];
@@ -5538,81 +5537,81 @@ int GetRandomCircleTrapID(int kind) {
     if (kind == 1) {
         trap = tbl2[roll % 2];
 
-        if (trap == 7) {
-            trap = (GetRandI(11) + GetRandI(21)) % 2 + 8;
+        if (trap == RANDOM_CIRCLE_WEAPON_DAMAGE) {
+            trap = (GetRandI(11) + GetRandI(21)) % 2 + RANDOM_CIRCLE_MAX_SUB_WHP;
 
-            if (chara_no == 1) {
+            if (chara_no == USER_CHARA_MONICA) {
                 trap += 2;
             }
         }
     }
 
-    if (chara_no == 2) {
-        trap = -2;
+    if (chara_no == USER_CHARA_ROBO) {
+        trap = RANDOM_CIRCLE_NONE_ROBO;
     }
 
-    if (chara_no == 3 && trap != 4 && trap != 12) {
-        trap = -1;
+    if (chara_no == USER_CHARA_MONSTER && trap != RANDOM_CIRCLE_UNK_4 && trap != RANDOM_CIRCLE_UNK_12) {
+        trap = RANDOM_CIRCLE_NONE_MONSTER;
     }
 
     return trap;
 }
 
-int SetRandamCircleStatus(int kind, float &amount_out) {
-    if (kind <= 0) {
-        return 0;
+int SetRandamCircleStatus(int trap, float &amount_out) {
+    if (trap <= RANDOM_CIRCLE_NONE) {
+        return false;
     }
 
     CBattleCharaInfo *battle = GetBattleCharaInfo();
     int               applied;
 
-    if (kind == 3) {
+    if (trap == RANDOM_CIRCLE_REPAIR) {
         CUserDataManager *manager = GetUserDataMan();
 
-        if (manager != 0) {
+        if (manager != NULL) {
             CHARA_DATA *max = manager->GetCharaDataPtr(USER_CHARA_MAX);
             max->equip[0].Repair(999);
             max->equip[1].Repair(999);
             CHARA_DATA *monica = manager->GetCharaDataPtr(USER_CHARA_MONICA);
             monica->equip[0].Repair(999);
             monica->equip[1].Repair(999);
-            return 1;
+            return true;
         }
     }
 
-    applied = 0;
+    applied = false;
 
-    if (kind == 1) {
+    if (trap == RANDOM_CIRCLE_ABS_BONUS) {
         amount_out = 0.1f * battle->GetNowAccessAbs(0)->max + 0.1f * battle->GetNowAccessAbs(1)->max;
     }
 
-    if (kind == 2) {
-        battle->AddHp_Rate(1.0f, 0, 0.0f);
-        battle->SetAttr(0x6F, 1);
-        applied = 1;
+    if (trap == RANDOM_CIRCLE_HEAL) {
+        battle->AddHp_Rate(1.0f, HP_RATE_OF_MAX, 0.0f);
+        battle->SetAttr(CHARA_STATUS_ALL & ~CHARA_STATUS_POWER, CHARA_STATUS_ATTR_MODE_CLEAR);
+        applied = true;
     }
 
-    if (kind == 5) {
-        battle->SetAttr(1, 0);
-        applied = 1;
+    if (trap == RANDOM_CIRCLE_POISON) {
+        battle->SetAttr(CHARA_STATUS_POISON, CHARA_STATUS_ATTR_MODE_ADD);
+        applied = true;
     }
 
-    if (kind == 6) {
+    if (trap == RANDOM_CIRCLE_HALVE_HP) {
         float rate = float(-0.5);
-        battle->AddHp_Rate(rate, 3, 0.0f);
-        applied = 1;
+        battle->AddHp_Rate(rate, HP_RATE_OF_NOW_KEEP_ONE, 0.0f);
+        applied = true;
     }
 
-    if (kind == 9 || kind == 0xB) {
+    if (trap == RANDOM_CIRCLE_MAX_MAIN_WHP || trap == RANDOM_CIRCLE_MONICA_MAIN_WHP) {
         COMMON_GAGE *gage = battle->GetNowAccessWHp(0);
-        applied = 1;
+        applied = true;
         gage->now *= 0.5f;
     }
 
-    if (kind == 8 || kind == 0xA) {
+    if (trap == RANDOM_CIRCLE_MAX_SUB_WHP || trap == RANDOM_CIRCLE_MONICA_SUB_WHP) {
         COMMON_GAGE *gage = battle->GetNowAccessWHp(1);
         gage->now *= 0.5f;
-        applied = 1;
+        applied = true;
     }
 
     return applied;
@@ -5676,20 +5675,20 @@ int CBattleCharaInfo::StatusParamStep(int *poison_damage) {
 
     if (attr & CHARA_STATUS_POWER) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[0]--;
+            chara_data.human->status_time[0]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[0] <= 0) {
-                SetAttr(CHARA_STATUS_POWER, 1);
-                ((CHARA_DATA *) chara_data)->status_time[0] = 0;
+            if (chara_data.human->status_time[0] <= 0) {
+                SetAttr(CHARA_STATUS_POWER, CHARA_STATUS_ATTR_MODE_CLEAR);
+                chara_data.human->status_time[0] = 0;
                 RefreshParamater();
             }
         } else if (chara_type == BATTLE_CHARA_MONSTER) {
-            if (chara_data != NULL) {
-                ((MOS_CHANGE_PARAM *) chara_data)->power_time--;
+            if (chara_data.monster != NULL) {
+                chara_data.monster->power_time--;
 
-                if (((MOS_CHANGE_PARAM *) chara_data)->power_time <= 0) {
-                    SetAttr(CHARA_STATUS_POWER, 1);
-                    ((MOS_CHANGE_PARAM *) chara_data)->power_time = 0;
+                if (chara_data.monster->power_time <= 0) {
+                    SetAttr(CHARA_STATUS_POWER, CHARA_STATUS_ATTR_MODE_CLEAR);
+                    chara_data.monster->power_time = 0;
                     RefreshParamater();
                 }
             }
@@ -5698,42 +5697,42 @@ int CBattleCharaInfo::StatusParamStep(int *poison_damage) {
 
     if (attr & CHARA_STATUS_SLOW) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[1]--;
+            chara_data.human->status_time[1]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[1] <= 0) {
-                SetAttr(CHARA_STATUS_SLOW, 1);
+            if (chara_data.human->status_time[1] <= 0) {
+                SetAttr(CHARA_STATUS_SLOW, CHARA_STATUS_ATTR_MODE_CLEAR);
             }
         } else if (chara_type == BATTLE_CHARA_ROBO) {
-            ((ROBO_DATA *) chara_data)->status_time[0]--;
+            chara_data.robo->status_time[0]--;
 
-            if (((ROBO_DATA *) chara_data)->status_time[0] <= 0) {
-                SetAttr(CHARA_STATUS_SLOW, 1);
+            if (chara_data.robo->status_time[0] <= 0) {
+                SetAttr(CHARA_STATUS_SLOW, CHARA_STATUS_ATTR_MODE_CLEAR);
             }
         }
     }
 
     if (attr & CHARA_STATUS_UNK_8) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[2]--;
+            chara_data.human->status_time[2]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[2] <= 0) {
-                SetAttr(CHARA_STATUS_UNK_8, 1);
+            if (chara_data.human->status_time[2] <= 0) {
+                SetAttr(CHARA_STATUS_UNK_8, CHARA_STATUS_ATTR_MODE_CLEAR);
             }
         } else if (chara_type == BATTLE_CHARA_ROBO) {
-            ((ROBO_DATA *) chara_data)->status_time[1]--;
+            chara_data.robo->status_time[1]--;
 
-            if (((ROBO_DATA *) chara_data)->status_time[1] <= 0) {
-                SetAttr(CHARA_STATUS_UNK_8, 1);
+            if (chara_data.robo->status_time[1] <= 0) {
+                SetAttr(CHARA_STATUS_UNK_8, CHARA_STATUS_ATTR_MODE_CLEAR);
             }
         }
     }
 
     if (attr & CHARA_STATUS_UNK_20) {
         if (chara_type == BATTLE_CHARA_HUMAN) {
-            ((CHARA_DATA *) chara_data)->status_time[3]--;
+            chara_data.human->status_time[3]--;
 
-            if (((CHARA_DATA *) chara_data)->status_time[3] <= 0) {
-                SetAttr(CHARA_STATUS_UNK_20, 1);
+            if (chara_data.human->status_time[3] <= 0) {
+                SetAttr(CHARA_STATUS_UNK_20, CHARA_STATUS_ATTR_MODE_CLEAR);
             }
         }
     }
@@ -5769,10 +5768,10 @@ void CBattleCharaInfo::Step() {
 
                 break;
             case USER_CHARA_MONSTER:
-                ((MOS_CHANGE_PARAM *) chara_data)->hp.now -= monster_hp_drain;
+                chara_data.monster->hp.now -= monster_hp_drain;
 
-                if (((MOS_CHANGE_PARAM *) chara_data)->hp.now <= 0.0f) {
-                    ((MOS_CHANGE_PARAM *) chara_data)->hp.now = 0.0f;
+                if (chara_data.monster->hp.now <= 0.0f) {
+                    chara_data.monster->hp.now = 0.0f;
                 }
 
                 break;
@@ -5804,7 +5803,7 @@ void CBattleCharaInfo::Step() {
         }
 
         if (hp->now <= 0.0f) {
-            SetAttr(CHARA_STATUS_ALL, 1);
+            SetAttr(CHARA_STATUS_ALL, CHARA_STATUS_ATTR_MODE_CLEAR);
         }
     }
 }
@@ -5882,14 +5881,14 @@ int CheckBadStatus(int attr) {
     if ((attr & CHARA_STATUS_POISON) || (attr & CHARA_STATUS_SLOW) ||
         (attr & CHARA_STATUS_UNK_4) || (attr & CHARA_STATUS_UNK_8) ||
         (attr & CHARA_STATUS_UNK_20) || (attr & CHARA_STATUS_UNK_40)) {
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 unsigned int CheckWeaponAttribute(unsigned int mask_a, unsigned int mask_b) {
-    // Pairs weapon abilities that cancel one another when combined; the 0x38-byte object ends in two unused zero words.
+    // Pairs weapon abilities that cancel one another when combined.
     static unsigned int at_table[14] = {
         0x2,
         0x1,
@@ -5930,20 +5929,20 @@ int CheckBuildUpMonsterCondition(CDataWeapon *weapon) {
     int i;
 
     if (weapon == NULL) {
-        return 1;
+        return true;
     }
 
     if (GetSaveData() == NULL) {
-        return 1;
+        return true;
     }
 
-    ok = 1;
+    ok = true;
 
     for (i = 0; i < 3; i++) {
         short monster = weapon->buildup_monster[i];
 
         if (0 <= monster && KillMonsterCount(monster, 0) <= 0) {
-            ok = 0;
+            ok = false;
         }
     }
 
@@ -5967,8 +5966,6 @@ int KillMonsterCount(int monster, int amount) {
     return 0;
 }
 
-#pragma global_optimizer off
-
 int SearchEquipType(int category, int slot) {
     // Gives the item type accepted by each human or ridepod equipment slot.
     static signed char equip_type_tbl[3][5] = {
@@ -5977,18 +5974,16 @@ int SearchEquipType(int category, int slot) {
         {13, 12, 15, 14, 0},
     };
 
-    if (category < 0 || category > 2) {
+    if (category < USER_CHARA_MAX || category > USER_CHARA_ROBO) {
         return 0;
     }
 
-    if (category < 0 || category >= 3 || slot < 0 || slot >= 5) {
+    if (category < USER_CHARA_MAX || category >= USER_CHARA_MONSTER || slot < 0 || slot >= 5) {
         return 0;
     }
 
     return equip_type_tbl[category][slot];
 }
-
-#pragma global_optimizer reset
 
 int IsItemtypeWhoisEquip(int item_no, int *out_slot) {
     int type = GetItemDataType(item_no);
@@ -5997,7 +5992,7 @@ int IsItemtypeWhoisEquip(int item_no, int *out_slot) {
     int c;
     int s;
 
-    for (c = 0; c <= 2; c++) {
+    for (c = 0; c <= USER_CHARA_ROBO; c++) {
         for (s = 0; s < 5; s++) {
             if (type == SearchEquipType(c, s)) {
                 found_slot = s;
@@ -6023,18 +6018,18 @@ char *GetAquariumFish0(int slot) {
     CFishAquarium *aquarium = GetAquariumData();
 
     if (aquarium == NULL) {
-        return 0;
+        return NULL;
     }
 
     if (slot < 0 || slot >= 6) {
-        return 0;
+        return NULL;
     }
 
     if (0 < aquarium->fish_tank[slot].item_no) {
-        return aquarium->fish_tank[slot].GetName(1);
+        return aquarium->fish_tank[slot].GetName(ITEM_NAME_TYPE_LEVEL);
     }
 
-    return 0;
+    return NULL;
 }
 
 int GetUserItemHaveNum(int item_no) {
@@ -6060,8 +6055,8 @@ int CheckItemOver() {
     }
 
     count = 0;
-    slot = GetNowBagMax(0);
-    end = GetNowBagMax(1);
+    slot = GetNowBagMax(ITEM_BOARD_MAIN);
+    end = GetNowBagMax(ITEM_BOARD_ALL);
 
     for (; slot < end; slot++) {
         if (user_data->used_data[slot].item_no > 0) {
@@ -6116,8 +6111,8 @@ int CheckGetItemLimmitOver(int item_no, int count) {
 
     int type = ConvertUsedItemType(info->type);
 
-    if (type == 1 || (type == 2 && item_no != (int) ITEM_ID_SPECTOL && item_no != 0x17F)) {
-        bag_max = GetNowBagMax(0);
+    if (type == USED_ITEM_TYPE_ITEM || (type == USED_ITEM_TYPE_ATTACH && item_no != ITEM_ID_SPECTOL && item_no != 0x17F)) {
+        bag_max = GetNowBagMax(ITEM_BOARD_MAIN);
         bag_room = 0;
         i = 0;
 
@@ -6175,24 +6170,24 @@ void CheckItemDngKey() {
 
     if (user_data != NULL) {
         item = user_data->GetUsedDataPtr(0);
-        bag_max = GetNowBagMax(1);
+        bag_max = GetNowBagMax(ITEM_BOARD_ALL);
 
         for (i = 0; i < bag_max; i++, item++) {
-            if (item->item_type == 0x1A) {
+            if (item->item_type == ITEM_DATA_DUNGEON_KEY) {
                 item->Init();
             }
         }
 
-        if (user_data->GetHp(0) < 1.0f) {
-            user_data->chara_data[(int) USER_CHARA_MAX].hp.now = 1.0f;
+        if (user_data->GetHp(USER_CHARA_MAX) < 1.0f) {
+            user_data->chara_data[USER_CHARA_MAX].hp.now = 1.0f;
         }
 
-        if (user_data->GetHp(1) < 1.0f) {
-            user_data->chara_data[(int) USER_CHARA_MONICA].hp.now = 1.0f;
+        if (user_data->GetHp(USER_CHARA_MONICA) < 1.0f) {
+            user_data->chara_data[USER_CHARA_MONICA].hp.now = 1.0f;
         }
 
-        user_data->SetCharaStatusAttirbute(USER_CHARA_MAX, 1, 1);
-        user_data->SetCharaStatusAttirbute(USER_CHARA_MONICA, 1, 1);
+        user_data->SetCharaStatusAttirbute(USER_CHARA_MAX, CHARA_STATUS_POISON, CHARA_STATUS_ATTR_MODE_CLEAR);
+        user_data->SetCharaStatusAttirbute(USER_CHARA_MONICA, CHARA_STATUS_POISON, CHARA_STATUS_ATTR_MODE_CLEAR);
     }
 }
 
@@ -6201,10 +6196,10 @@ void PlayerPartyCure() {
     CMonsterBox      *monster_box;
 
     if (user_data != NULL) {
-        user_data->chara_data[(int) USER_CHARA_MAX].hp.SetFillRate(1.0f);
-        user_data->chara_data[(int) USER_CHARA_MONICA].hp.SetFillRate(1.0f);
-        user_data->SetCharaStatusAttirbute(USER_CHARA_MAX, 0x7F, 1);
-        user_data->SetCharaStatusAttirbute(USER_CHARA_MONICA, 0x7F, 1);
+        user_data->chara_data[USER_CHARA_MAX].hp.SetFillRate(1.0f);
+        user_data->chara_data[USER_CHARA_MONICA].hp.SetFillRate(1.0f);
+        user_data->SetCharaStatusAttirbute(USER_CHARA_MAX, CHARA_STATUS_ALL, CHARA_STATUS_ATTR_MODE_CLEAR);
+        user_data->SetCharaStatusAttirbute(USER_CHARA_MONICA, CHARA_STATUS_ALL, CHARA_STATUS_ATTR_MODE_CLEAR);
         monster_box = &user_data->monster_box;
 
         if (monster_box != NULL) {
@@ -6236,11 +6231,7 @@ void DeleteErekiFish() {
 
     fish = aquarium->GetAquariumFishTop(AQUARIUM_TANK_FIRST);
 
-    for (i = 0;
-         i < 6;
-
-         i++) {
-
+    for (i = 0; i < 6; i++) {
         if (fish[i].item_no > 0 && (fish[i].data.fish.flags & BREEDFISH_FLAG_ELECTRIC)) {
             fish[i].Init();
             return;
@@ -6267,13 +6258,13 @@ void LeaveMonicaItemCheck() {
     if (user_data != NULL) {
         monica = user_data->GetCharaDataPtr(USER_CHARA_MONICA);
 
-        if (monica != 0) {
+        if (monica != NULL) {
             for (i = 0; i < 3; i++) {
                 item_no = monica->active_item[i].item_no;
                 num = monica->active_item[i].GetNum();
 
                 if ((item_no > 0) && (num > 0)) {
-                    bag_item = user_data->SearchItemOnItemBrd(item_no, 0);
+                    bag_item = user_data->SearchItemOnItemBrd(item_no, ITEM_BOARD_MAIN);
                     free_slot = user_data->SearchSpaceUsedDataPtr();
 
                     if (bag_item != NULL) {
@@ -6705,13 +6696,13 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
     }
 
     manager->Initialize();
-    manager->SetActiveChrNo(0);
+    manager->SetActiveChrNo(USER_CHARA_MAX);
     extra_items = NULL;
     items = itemtbl;
 
     if (mode == 0) {
-        manager->JoinPartyMember(1);
-        manager->EnableCharaChange(1);
+        manager->JoinPartyMember(USER_CHARA_MONICA);
+        manager->EnableCharaChange(USER_CHARA_MONICA);
         int member = 0;
 
         do {
@@ -6721,15 +6712,15 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
                 break;
             }
 
-            manager->SetPartyCharaStatus(chara_no, 0x80);
+            manager->SetPartyCharaStatus(chara_no, PARTY_CHARA_STATUS_JOIN);
             member++;
         } while (member < 32);
 
-        manager->SetPartyCharaStatus(1, 1);
+        manager->SetPartyCharaStatus(1, PARTY_CHARA_STATUS_IN_PARTY);
     }
 
     if (mode == 1 || mode == 2) {
-        manager->LeavePartyMember(1);
+        manager->LeavePartyMember(USER_CHARA_MONICA);
         CHARA_DATA *chara = manager->GetCharaDataPtr(USER_CHARA_MAX);
 
         if (mode == 1) {
@@ -6741,7 +6732,7 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
     }
 
     if (mode == 6) {
-        manager->LeavePartyMember(1);
+        manager->LeavePartyMember(USER_CHARA_MONICA);
         items = NULL;
     }
 
@@ -6750,15 +6741,15 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
     }
 
     if (mode == 4) {
-        manager->JoinPartyMember(1);
-        manager->EnableCharaChange(1);
-        manager->EnableCharaChange(2);
-        manager->EnableCharaChange(3);
+        manager->JoinPartyMember(USER_CHARA_MONICA);
+        manager->EnableCharaChange(USER_CHARA_MONICA);
+        manager->EnableCharaChange(USER_CHARA_ROBO);
+        manager->EnableCharaChange(USER_CHARA_MONSTER);
         items = e3_dng;
     }
 
     if (mode == 5) {
-        manager->EnableCharaChange(2);
+        manager->EnableCharaChange(USER_CHARA_ROBO);
         items = e3_boss;
     }
 
@@ -6786,12 +6777,12 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
     }
 
     if (mode == 0x10 || mode == 0xF) {
-        manager->chara_data[(int) USER_CHARA_MAX].equip[0].Init();
-        manager->chara_data[(int) USER_CHARA_MAX].equip[1].Init();
+        manager->chara_data[USER_CHARA_MAX].equip[0].Init();
+        manager->chara_data[USER_CHARA_MAX].equip[1].Init();
 
         if (mode == 0xF) {
             items = subgame1;
-            manager->SetChrEquipDirect(0, 0xA);
+            manager->SetChrEquipDirect(USER_CHARA_MAX, 0xA);
         }
 
         if (mode == 0x10) {
@@ -6813,8 +6804,8 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
         }
 
         if (mode == 4) {
-            manager->SetChrEquip(0, 2);
-            manager->SetChrEquip(0, 0x17);
+            manager->SetChrEquip(USER_CHARA_MAX, 2);
+            manager->SetChrEquip(USER_CHARA_MAX, 0x17);
             manager->DeleteItem(0xF6, 1);
             manager->GetItem(0xF7, 1);
             manager->monster_box.EnableChange(1);
@@ -6822,13 +6813,13 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
         }
 
         if (mode == 5) {
-            attach = manager->SearchItemOnItemBrd(2, 0);
+            attach = manager->SearchItemOnItemBrd(2, ITEM_BOARD_MAIN);
 
             if (attach != NULL) {
                 attach->data.weapon.status[WEAPON_STAT_ATTACK] = 0x13;
             }
 
-            manager->SetChrEquip(0, attach);
+            manager->SetChrEquip(USER_CHARA_MAX, attach);
             manager->DeleteItem(0xF6, 1);
             manager->GetItem(0xF7, 1);
             manager->GetCharaDataPtr(USER_CHARA_MAX)->hp.now = 48.0f;
@@ -6840,28 +6831,28 @@ void DebugGetItem(CUserDataManager *user_data, int mode) {
 
         if (e0 > 1) {
             manager->GetItem(e0, 1);
-            manager->SetChrEquip(0, e0);
+            manager->SetChrEquip(USER_CHARA_MAX, e0);
         }
 
         int e1 = equip_no[1];
 
         if (e1 > 1) {
             manager->GetItem(e1, 1);
-            manager->SetChrEquip(0, e1);
+            manager->SetChrEquip(USER_CHARA_MAX, e1);
         }
 
         int e2 = equip_no[2];
 
         if (e2 > 1) {
             manager->GetItem(e2, 1);
-            manager->SetChrEquip(1, e2);
+            manager->SetChrEquip(USER_CHARA_MONICA, e2);
         }
 
         int e3 = equip_no[3];
 
         if (e3 > 1) {
             manager->GetItem(e3, 1);
-            manager->SetChrEquip(1, e3);
+            manager->SetChrEquip(USER_CHARA_MONICA, e3);
         }
 
         if (extra_items != NULL) {

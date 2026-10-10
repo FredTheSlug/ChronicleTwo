@@ -1298,8 +1298,6 @@ int GetSeSrcVolPan(
     return n;
 }
 
-#pragma divbyzerocheck on
-
 float GetLightAnimeWeight(CFuncPoint *point, int frame) {
     float depth = point->plight.flicker_depth;
     int   period = fptosi(point->plight.flicker_period);
@@ -1338,4 +1336,3 @@ float GetLightAnimeWeight(CFuncPoint *point, int frame) {
     return weight;
 }
 
-#pragma divbyzerocheck reset

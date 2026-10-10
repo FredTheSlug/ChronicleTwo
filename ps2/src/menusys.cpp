@@ -5586,7 +5586,7 @@ void CMenuItemInfo::CheckLoadInfo(int chara) {
 int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
     /**
      *
-     * Item-use status scripts for each character preview.
+     * Scripts naming the status that keeps a character from changing equipment, by ITEMCMD_RET_PARA::detail.
      *
      */
     static char *exename[4] = {NULL, "\x8E\xF4\x82\xA2", "\x92\xE2\x8E\x7E", "\x90\xCE\x89\xBB"};
@@ -5603,7 +5603,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
             int        cursor = MenuCommonInfo->cursor;
 
             switch (ret->menu_cmd) {
-                case 1:
+                case ITEM_MENU_COMMAND_THROW_AWAY:
                     SetPreCmdTrush(this, mes_no, ask_para.item, MenuMesForm[mes_no]);
 
                     if (MenuCommonInfo->cursor_form != NULL) {
@@ -5633,7 +5633,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                         ModelReadStart(view_mode, 1, 1);
                     }
 
-                    if ((view_mode == MENU_ITEM_VIEW_MAX && ret->chara == 0) || (view_mode == MENU_ITEM_VIEW_MONICA && ret->chara == 1)) {
+                    if ((view_mode == MENU_ITEM_VIEW_MAX && ret->chara == USER_CHARA_MAX) || (view_mode == MENU_ITEM_VIEW_MONICA && ret->chara == USER_CHARA_MONICA)) {
                         CheckLoadInfo(ret->chara);
                         MenuLoadInfo.request_phase = ConvertCharaLoadDataPhase(sub_view, ret->result);
                         MenuLoadInfo.load_phase = MenuLoadInfo.request_phase;
@@ -5641,8 +5641,8 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                         ModelReadStart(view_mode, 1, 1);
                         GameDataSwap(ret->item2, ask_para.item, 0);
                         int movement[2][4] = {
-                            {0, 0, 1, 0},
-                            {1, 0, 0, 0}
+                            {MENU_MOVE_PLACE_CHARA, 0, MENU_MOVE_LIST_EQUIP, 0},
+                            {MENU_MOVE_PLACE_BAG, 0, 0, 0}
                         };
                         movement[0][1] = ret->chara;
                         movement[0][3] = ret->result;
@@ -5651,7 +5651,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                         SetEquipListNo(GetActiveCharaNo());
                     }
 
-                    if (view_mode == MENU_ITEM_VIEW_ROBO && ret->chara == 0 &&
+                    if (view_mode == MENU_ITEM_VIEW_ROBO && ret->chara == USER_CHARA_MAX &&
                         (ask_para.item->item_type == 5 || ask_para.item->item_type == 6)) {
                         CheckLoadInfo(USER_CHARA_ROBO);
                         MenuLoadInfo.request_phase = 2;
@@ -5664,11 +5664,13 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                 case ITEM_MENU_COMMAND_EQUIP_RIDEPOD_PART:
                     if (ret->se_no == SYSTEM_SE_CANCEL || ret->se_no == 0x1C) {
                         if (MenuItemCommand_RoboPackBreakFlag == 1) {
+                            // Says that the ridepod lacks the capacity for the part.
                             ExeScript("\x83\x4C\x83\x83\x83\x70\x91\xAB\x82\xE8\x82\xC8\x82\xA2");
                             step = 1;
                         }
 
                         if (MenuItemCommand_RoboPackBreakFlag == 2) {
+                            // Says that the part is broken.
                             ExeScript("\x83\x70\x81\x5B\x83\x63\x89\xF3");
                             char *name[2] = {NULL};
                             name[0] = ask_para.item->GetName(1);
@@ -5687,8 +5689,8 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                         ModelReadStart(view_mode, 1, 1);
                         GameDataSwap(ret->item2, ask_para.item, 0);
                         int movement[2][4] = {
-                            {0, 0, 1, 0},
-                            {1, 0, 0, 0}
+                            {MENU_MOVE_PLACE_CHARA, 0, MENU_MOVE_LIST_EQUIP, 0},
+                            {MENU_MOVE_PLACE_BAG, 0, 0, 0}
                         };
                         movement[0][1] = ret->chara;
                         movement[0][3] = ret->result;
@@ -5704,12 +5706,12 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     }
 
                     break;
-                case 3:
-                case 8: {
+                case ITEM_MENU_COMMAND_STATUS:
+                case ITEM_MENU_COMMAND_INFO: {
                     int data_type = GetItemDataType(ask_para.item->item_no);
                     int read = true;
 
-                    if ((data_type > 0 && data_type <= 4) || data_type == 13) {
+                    if ((data_type > ITEM_DATA_NONE && data_type <= ITEM_DATA_MONICA_MAGIC) || data_type == ITEM_DATA_ROBO_ARM) {
                         view_weapon = ask_para.item;
                         view_chara = ask_para.item->item_no;
                         view_mode = MENU_ITEM_VIEW_WEAPON;
@@ -5729,7 +5731,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     } else {
                         MenuCommonInfo->cursor = 0;
                         view_mode = MENU_ITEM_VIEW_ROBO;
-                        key_arg_no = 6;
+                        key_arg_no = ITEM_MENU_PANEL_RIDEPOD;
                         MenuLoadInfo.request_phase = -1;
                         MenuLoadInfo.load_all = 0;
                         MenuLoadInfo.load_phase = 0;
@@ -5748,8 +5750,8 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                 case ITEM_MENU_COMMAND_REPAIR:
                 case ITEM_MENU_COMMAND_USE_ON_PRIMARY_WEAPON:
                 case ITEM_MENU_COMMAND_USE_ON_SECONDARY_WEAPON:
-                case 21:
-                case 22:
+                case ITEM_MENU_COMMAND_REPAIR_RIDEPOD:
+                case ITEM_MENU_COMMAND_RECHARGE_RIDEPOD:
                     if (MenuItemCmdRet.result == 1) {
                         CheckEnableHaveItemNum();
                         SetItemEffect();
@@ -5758,13 +5760,13 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     break;
                 case ITEM_MENU_COMMAND_SET_ACTIVE_ITEM:
                     if (0 <= ret->result && ((view_mode != MENU_ITEM_VIEW_MONSTER && view_mode != MENU_ITEM_VIEW_ROBO) || sub_view == 1)) {
-                        int move_type = 1;
+                        int move_type = MENU_MOVE_PLACE_BAG;
 
                         if (ret->detail == 10) {
                             memcpy(&MenuMoveTempGameDataUsed, ask_para.item, sizeof(CGameDataUsed));
                             ask_para.item->DeleteNum(ret->num);
                             MenuMoveTempGameDataUsed.DeleteNum(ask_para.item->GetNum());
-                            move_type = 3;
+                            move_type = MENU_MOVE_PLACE_TEMP;
                         }
 
                         int movement[2][4] = {{0}};
@@ -5776,11 +5778,11 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     }
 
                     break;
-                case 7:
+                case ITEM_MENU_COMMAND_REMOVE_ACTIVE_ITEM:
                     if (ret->result >= 0) {
                         int movement[2][4] = {
-                            {1, 0, 0, 0},
-                            {0, 0, 0, 0}
+                            {MENU_MOVE_PLACE_BAG, 0, 0, 0},
+                            {MENU_MOVE_PLACE_CHARA, 0, MENU_MOVE_LIST_ACTIVE_ITEM, 0}
                         };
                         movement[0][3] = ret->result;
                         movement[1][1] = sub_view;
@@ -5789,11 +5791,11 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     }
 
                     break;
-                case 6:
+                case ITEM_MENU_COMMAND_UNEQUIP:
                     if (ret->result >= 0) {
                         int movement[2][4] = {
-                            {1, 0, 0, 0},
-                            {0, 0, 1, 0}
+                            {MENU_MOVE_PLACE_BAG, 0, 0, 0},
+                            {MENU_MOVE_PLACE_CHARA, 0, MENU_MOVE_LIST_EQUIP, 0}
                         };
                         movement[0][3] = ret->result;
                         movement[1][1] = sub_view;
@@ -5851,16 +5853,16 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     }
 
                     break;
-                case 11:
+                case ITEM_MENU_COMMAND_OPEN_AQUARIUM:
                     if (ret->se_no == SYSTEM_SE_DECIDE) {
-                        next_sub_menu = 0;
+                        next_sub_menu = MENU_ITEM_SUB_MENU_AQUARIUM;
                         FadeOutMenu(40, 0.0f);
                     }
 
                     break;
-                case 12:
+                case ITEM_MENU_COMMAND_OPEN_MONSTER_BOX:
                     if (ret->se_no == SYSTEM_SE_DECIDE) {
-                        next_sub_menu = 1;
+                        next_sub_menu = MENU_ITEM_SUB_MENU_MONSTER_BOX;
 
                         if (chara_poly_form[0] != NULL) {
                             chara_poly_form[0]->draw_flag = false;
@@ -5885,20 +5887,20 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     }
 
                     break;
-                case 29:
-                case 38:
-                case 47:
+                case ITEM_MENU_COMMAND_VIEW_QUESTS:
+                case ITEM_MENU_COMMAND_VIEW_SCOOP_MEMO:
+                case ITEM_MENU_COMMAND_OPEN_MONSTER_BOOK:
                     if (ret->se_no == SYSTEM_SE_DECIDE) {
-                        if (ret->menu_cmd == 29) {
-                            next_sub_menu = 3;
+                        if (ret->menu_cmd == ITEM_MENU_COMMAND_VIEW_QUESTS) {
+                            next_sub_menu = MENU_ITEM_SUB_MENU_QUEST_LIST;
                         }
 
-                        if (ret->menu_cmd == 38) {
-                            next_sub_menu = 4;
+                        if (ret->menu_cmd == ITEM_MENU_COMMAND_VIEW_SCOOP_MEMO) {
+                            next_sub_menu = MENU_ITEM_SUB_MENU_SCOOP_MEMO;
                         }
 
-                        if (ret->menu_cmd == 47) {
-                            next_sub_menu = 5;
+                        if (ret->menu_cmd == ITEM_MENU_COMMAND_OPEN_MONSTER_BOOK) {
+                            next_sub_menu = MENU_ITEM_SUB_MENU_MONSTER_BOOK;
                         }
 
                         FadeOutMenu(40, 0.0f);
@@ -5929,6 +5931,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                                 msg = 0xB9;
                             }
 
+                            // Says that the defence went up.
                             ExeScript("\x96\x68\x8C\xE4\x82\x74\x82\x6F");
                             MenuDCMsg[7]->MakeMsg(msg);
                             mode = MENU_ASK_MODE_ITEM_COMMAND;
@@ -5936,6 +5939,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     }
 
                     if (MenuItemCmdRet.result == 10) {
+                        // Says that the character is too thirsty to use the item.
                         ExeScript("\x8A\x89\x82\xAB");
                         step = 1;
                     }
@@ -5948,6 +5952,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                             msg_no[0] = 11;
                         }
 
+                        // Says that the defence cannot go up any further.
                         ExeScript("\x96\x68\x8C\xE4\x4E\x4F\x54\x55\x50");
                         MenuDCMsg[7]->SetMsgItemNo(msg_no, 1);
                         mode = MENU_ASK_MODE_ITEM_COMMAND;
@@ -5964,35 +5969,35 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                             Nameregi_Target.item = NULL;
                         }
 
-                        next_sub_menu = 2;
+                        next_sub_menu = MENU_ITEM_SUB_MENU_NAME_REGIST;
                         FadeOutMenu(40, 0.0f);
                     }
 
                     break;
-                case 24:
-                case 25:
+                case ITEM_MENU_COMMAND_SET_BAIT:
+                case ITEM_MENU_COMMAND_SET_LURE:
                     if (ret->se_no == SYSTEM_SE_DECIDE && view_mode == MENU_ITEM_VIEW_MAX && ret->item2 != NULL) {
                         int esa_no = ret->item2->item_no;
                         ret->item2->Init();
                         ask_para.item->CopyDataItem(esa_no);
                         int movement[2][4] = {
-                            {5, 0, 0, 0},
-                            {1, 0, 0, 0}
+                            {MENU_MOVE_PLACE_BAIT, 0, 0, 0},
+                            {MENU_MOVE_PLACE_BAG, 0, 0, 0}
                         };
                         movement[1][3] = ret->result;
                         CommonSetMoveItemClass(movement);
                     }
 
                     break;
-                case 27:
-                case 28:
-                case 32:
-                case 33:
+                case ITEM_MENU_COMMAND_REMOVE_BAIT:
+                case ITEM_MENU_COMMAND_REMOVE_LURE:
+                case ITEM_MENU_COMMAND_TAKE_BAIT:
+                case ITEM_MENU_COMMAND_TAKE_LURE:
                     if (ret->se_no == SYSTEM_SE_DECIDE && view_mode == MENU_ITEM_VIEW_MAX && ret->no_equipped_rod == 0) {
                         GameDataSwap(ret->item2, GetUserDataMan()->GetActiveEsa(), 0);
                         int movement[2][4] = {
-                            {1, 0, 0, 0},
-                            {5, 0, 0, 0}
+                            {MENU_MOVE_PLACE_BAG, 0, 0, 0},
+                            {MENU_MOVE_PLACE_BAIT, 0, 0, 0}
                         };
                         movement[0][3] = ret->result;
                         CommonSetMoveItemClass(movement);
@@ -6011,37 +6016,40 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                         view_mode = MENU_ITEM_VIEW_FISHING_ROD;
                         ModelReadStart(view_mode, 1, 1);
                         ExeScript("FPMODEIN");
-                        mode = 15;
+                        mode = MENU_ASK_MODE_ROD_POINTS;
                         step = 0;
                     }
 
                     break;
-                case 30: {
+                case ITEM_MENU_COMMAND_TAKE_ONE: {
                     MENU_SWAPITEM_INFO swap;
-                    swap.Set(3, MenuCommonInfo->cursor, -1, 0);
+                    swap.Set(MENU_SWAP_TYPE_ITEM_BOARD, MenuCommonInfo->cursor, -1, 0);
                     MenuSePlay(menu_item_swap_sndtbl[MenuCommonInfo->MenuSwapItem(MenuItemCmdRet.item2, &swap, 1, true)]);
                     break;
                 }
-                case 37:
+                case ITEM_MENU_COMMAND_USE_ON_CORE:
                     if (ret->result == 0) {
+                        // Says that the core did not level up.
                         ExeScript("\x83\x52\x83\x41\x4E\x4F\x54\x55\x50");
                         mode = MENU_ASK_MODE_ITEM_COMMAND;
                         step = 1;
                     }
 
                     break;
-                case 43:
+                case ITEM_MENU_COMMAND_ESCAPE_DUNGEON:
                     if (ret->se_no == SYSTEM_SE_DECIDE) {
+                        // Asks whether to escape from the dungeon.
                         ExeScript("\x92\x45\x8F\x6F\x3F");
                         mode = MENU_ASK_MODE_ITEM_COMMAND;
                         step = 3;
                     }
 
                     break;
-                case 45:
+                case ITEM_MENU_COMMAND_SHOW_FISH_CODE:
                     if (ret->se_no == SYSTEM_SE_DECIDE) {
                         mode = MENU_ASK_MODE_ITEM_COMMAND;
                         step = 2;
+                        // Shows the password of the fish.
                         ExeScript("\x8B\x9B\x88\xC3\x8D\x86");
                         ask_para.item->CheckParamLimmit();
                         u8 code[0x40];
@@ -6061,7 +6069,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     }
 
                     break;
-                case 44:
+                case ITEM_MENU_COMMAND_BREAK_SEAL:
                     if (ret->result == 1) {
                         load_stack->stReset();
                         load_stack->Align64();
@@ -6169,6 +6177,7 @@ int CMenuItemInfo::ItemCmdAfter(int cmd_ret, ITEMCMD_RET_PARA *ret) {
                     MenuSePlay(0, (u32 *) file->buffer, &MenuSoundBuffer);
                 }
 
+                // Says that the seals of the floor are broken.
                 ExeScript("\x95\x95\x88\xF3\x89\xF0\x8F\x9C\x3F");
                 mode = MENU_ASK_MODE_ITEM_COMMAND;
                 step = 2;
@@ -6330,6 +6339,7 @@ int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
                         case MENU_PUSH_BUTTON_SQUARE:
                             if (info->enable[select] == true) {
                                 if (CheckBuildUpMonsterCondition(data)) {
+                                    // Asks whether to build the weapon up.
                                     ExeScript("\x83\x72\x83\x8B\x83\x68\x83\x41\x83\x62\x83\x76\x81\x48");
 
                                     if (name_message->name[select + 1] != NULL) {
@@ -6339,6 +6349,7 @@ int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
                                     message->StepMsg();
                                     step++;
                                 } else {
+                                    // Says that the build-up conditions are not met.
                                     ExeScript("\x83\x72\x83\x8b\x83\x68\x83\x41\x83\x62\x83\x76\x4e\x47");
                                     step = MENU_BUILD_UP_BLOCKED;
                                 }
@@ -6479,6 +6490,7 @@ int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
                     if (BuildEndFlag == true && build_up_chara->CheckMotionEnd(NULL)) {
                         build_loading = false;
                         build_up_chara = NULL;
+                        // Says that the build-up is finished.
                         ExeScript("\x83\x72\x83\x8B\x83\x68\x83\x41\x83\x62\x83\x76\x8F\x49\x97\xB9");
 
                         if (name_message->name[info->select_no + 1] != NULL) {
@@ -6550,8 +6562,8 @@ void MenuMoveItemPos(int *row, int *pos, int phase) {
     if (phase == 0) {
         int kind = row[0];
 
-        if (kind == 0) {
-            if (row[2] == 0 || row[2] == 1 || row[2] == 2) {
+        if (kind == MENU_MOVE_PLACE_CHARA) {
+            if (row[2] == MENU_MOVE_LIST_ACTIVE_ITEM || row[2] == MENU_MOVE_LIST_EQUIP || row[2] == MENU_MOVE_LIST_BAIT) {
                 sprintf(part_name, plist[row[2]], row[3]);
             } else {
                 strcpy(part_name, "chara");
@@ -6559,14 +6571,14 @@ void MenuMoveItemPos(int *row, int *pos, int phase) {
 
             (MenuPosData->GetFormInfo(tbl[row[1]]))
                 ->GetPutPosXY(part_name, pos[0], pos[1]);
-        } else if (kind == 1) {
+        } else if (kind == MENU_MOVE_PLACE_BAG) {
             MenuPosData->GetPosMenuItemOnItemBrd(pos, row[3], 0);
-        } else if (kind == 2) {
+        } else if (kind == MENU_MOVE_PLACE_CURSOR) {
             MenuCommonInfo->GetItemPos(pos);
-        } else if (kind == 4) {
+        } else if (kind == MENU_MOVE_PLACE_OVERFLOW) {
             (MenuPosData->GetFormInfo(OverFlowFormName))
                 ->GetPutPosXY(local_over_flow_baseposname[row[3]], pos[0], pos[1]);
-        } else if (kind == 5) {
+        } else if (kind == MENU_MOVE_PLACE_BAIT) {
             (MenuPosData->GetFormInfo(tbl[0]))
                 ->GetPutPosXY("esa0", pos[0], pos[1]);
         }
@@ -6575,9 +6587,9 @@ void MenuMoveItemPos(int *row, int *pos, int phase) {
     if (phase == 1) {
         int kind = row[0];
 
-        if (kind == 1) {
+        if (kind == MENU_MOVE_PLACE_BAG) {
             MenuPosData->GetPosMenuItemOnItemBrd(pos, row[3], 0);
-        } else if (kind == 2) {
+        } else if (kind == MENU_MOVE_PLACE_CURSOR) {
             MenuCommonInfo->GetItemPos(pos);
         }
     }
@@ -6592,7 +6604,7 @@ void CommonSetMoveItemClass(int (*table)[4]) {
 
     for (int i = 0; i < 2; i++) {
         MENU_ITEM_MOVE_INFO *move = &info[i];
-        move->active = 1;
+        move->active = true;
         move->mode = MENU_MOVE_ITEM_COPY;
 
         for (int j = 0; j < 4; j++) {
@@ -6601,29 +6613,29 @@ void CommonSetMoveItemClass(int (*table)[4]) {
 
         int *slot = table[i];
 
-        if (move->from[0] == 0) {
+        if (move->from[0] == MENU_MOVE_PLACE_CHARA) {
             if (move->from[1] < 2) {
-                if (move->from[2] == 0) {
+                if (move->from[2] == MENU_MOVE_LIST_ACTIVE_ITEM) {
                     items[i] = &MenuUserParam.chara[slot[1]]->active_item[slot[3]];
-                } else if (move->from[2] == 1) {
+                } else if (move->from[2] == MENU_MOVE_LIST_EQUIP) {
                     items[i] = &MenuUserParam.chara[move->from[1]]->equip[move->from[3]];
                 }
             } else {
-                move->from[2] = 1;
+                move->from[2] = MENU_MOVE_LIST_EQUIP;
                 items[i] = &MenuUserParam.robo->parts[slot[3]];
             }
-        } else if (move->from[0] == 1) {
+        } else if (move->from[0] == MENU_MOVE_PLACE_BAG) {
             items[i] = &MenuUserParam.used_data[slot[3]];
             clear_source = true;
-        } else if (move->from[0] == 2) {
+        } else if (move->from[0] == MENU_MOVE_PLACE_CURSOR) {
             clear_source = true;
             items[i] = &MenuCommonInfo->have_item;
-        } else if (move->from[0] == 3) {
+        } else if (move->from[0] == MENU_MOVE_PLACE_TEMP) {
             clear_source = false;
             items[i] = &MenuMoveTempGameDataUsed;
-            move->from[0] = 1;
-            slot[0] = 1;
-        } else if (move->from[0] == 5) {
+            move->from[0] = MENU_MOVE_PLACE_BAG;
+            slot[0] = MENU_MOVE_PLACE_BAG;
+        } else if (move->from[0] == MENU_MOVE_PLACE_BAIT) {
             items[i] = GetUserDataMan()->GetActiveEsa();
             clear_source = true;
         }
@@ -6636,7 +6648,7 @@ void CommonSetMoveItemClass(int (*table)[4]) {
     memcpy(&info[0].item, items[0], sizeof(CGameDataUsed));
     memcpy(&info[1].item, items[1], sizeof(CGameDataUsed));
 
-    if (info[0].from[0] == 5) {
+    if (info[0].from[0] == MENU_MOVE_PLACE_BAIT) {
         info[1].mode = MENU_MOVE_ITEM_ONE;
         MenuMoveItemPtr->SetMoveItemInfo(&info[1], goal, start);
 
@@ -6698,11 +6710,11 @@ int CMenuItemInfo::GetActiveCharaIDForItemCmd() {
     short current = view_mode;
 
     if (current == MENU_ITEM_VIEW_MAX) {
-        return 0;
+        return USER_CHARA_MAX;
     }
 
     if (current == MENU_ITEM_VIEW_MONICA) {
-        return 1;
+        return USER_CHARA_MONICA;
     }
 
     if (current == MENU_ITEM_VIEW_WEAPON || current == MENU_ITEM_VIEW_FISHING_ROD) {
@@ -6710,14 +6722,14 @@ int CMenuItemInfo::GetActiveCharaIDForItemCmd() {
     }
 
     if (current == MENU_ITEM_VIEW_ROBO) {
-        return 2;
+        return USER_CHARA_ROBO;
     }
 
     if (current == MENU_ITEM_VIEW_MONSTER) {
-        return 3;
+        return USER_CHARA_MONSTER;
     }
 
-    return 0;
+    return USER_CHARA_MAX;
 }
 
 int CMenuItemInfo::GetActiveCharaNo() {
@@ -6725,9 +6737,9 @@ int CMenuItemInfo::GetActiveCharaNo() {
 
     chara_no = MenuCommonInfo->GetActiveCharaNo();
 
-    if ((chara_no == 3) && (sub_view == 1)) {
+    if (chara_no == USER_CHARA_MONSTER && sub_view == 1) {
         sub_view = 0;
-        chara_no = 3;
+        chara_no = USER_CHARA_MONSTER;
     }
 
     return chara_no;

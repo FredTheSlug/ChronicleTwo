@@ -2562,7 +2562,7 @@ int _CLOTH_START(SPI_STACK *stack, int argc) {
         return false;
     }
 
-    u_long128 *block = now_stack->Alloc(DynAnimeAlign16Blocks((u32) count * 0x90) + 2);
+    u_long128 *block = now_stack->Alloc(DynAnimeAlign16Blocks(count * sizeof(CDynamicAnime)) + 2);
     nowChr->dynamic_anime = new (block) CDynamicAnime[count];
 
     if (nowChr->dynamic_anime == NULL) {

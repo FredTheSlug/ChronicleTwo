@@ -2598,8 +2598,6 @@ void CNameRegiMenu::DrawActiveFont() {
     }
 }
 
-#pragma divbyzerocheck on
-
 void CNameRegiMenu::StepMarkCursor() {
     float target_x = 0.0f;
     float target_y = 0.0f;
@@ -2673,8 +2671,6 @@ void CNameRegiMenu::StepMarkCursor() {
         cursor_cnt++;
     }
 }
-
-#pragma divbyzerocheck reset
 
 void CNameRegiMenu::DrawMarkCursor() {
     float pos[2];

@@ -1967,8 +1967,6 @@ void CAquaFish::NextRootNormal() {
     target_rot[1] = mgAngleLimit(atan2f(dir[0], dir[2]));
 }
 
-#pragma optimization_level 4
-
 void CAquaFish::MoveActionRound() {
     /**
      *
@@ -2037,8 +2035,6 @@ void CAquaFish::MoveActionRound() {
     sceVu0ScaleVectorXYZ(dir, dir, action.speed);
     *(aqua_quad *) move = *(aqua_quad *) dir;
 }
-
-#pragma optimization_level reset
 
 void CAquaFish::MoveActionBattle() {
     CAquaFish    *foe;
@@ -7158,8 +7154,6 @@ void InitFishPrize() {
     spi_fish_prize_info = 0;
 }
 
-#pragma optimization_level 4
-
 int LoadFishPrize(int goods_type) {
     u8        buffer[0x2800];
     mgCMemory memory;
@@ -7168,8 +7162,6 @@ int LoadFishPrize(int goods_type) {
     LoadFishPrize(goods_type, &memory);
     return 0;
 }
-
-#pragma optimization_level reset
 
 int LoadFishPrize(int goods_type, mgCMemory *pool) {
     /**

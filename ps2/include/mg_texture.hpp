@@ -97,8 +97,6 @@ struct TM2_PICTURE {
     int                mip_sizes[1];   /**< Byte size of each mipmap level. */
 };
 
-#pragma cpp_extensions on
-
 /**
  *
  * TIM2 file header followed by the first picture's metadata.
@@ -130,8 +128,6 @@ struct TM2_head {
         TM2_PICTURE picture; /**< First TIM2 picture's metadata. */
     };
 };
-
-#pragma cpp_extensions reset
 
 /**
  *

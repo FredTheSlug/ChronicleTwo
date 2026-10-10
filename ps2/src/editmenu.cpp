@@ -2362,8 +2362,6 @@ void DrawDownLoadAnaunce() {
     }
 }
 
-#pragma divbyzerocheck on
-
 int MakeDownLoadAnaunce(int town_no, mgCMemory *stack, int *out_num, int *out_sub_num, int *out_height) {
     int              *ok_table;
     int               valid;
@@ -2758,8 +2756,6 @@ int MakeDownLoadAnaunce(int town_no, mgCMemory *stack, int *out_num, int *out_su
 
     return 0;
 }
-
-#pragma divbyzerocheck reset
 
 void InitMenuDl3(mgCTexture *texture) {
     InitMenuDl(texture, MenuGeoStoneDownLoadTime);

@@ -144,7 +144,6 @@ static int texBugPatch;
 static mgCTexAnimeData nowTexData;
 
 // Code (.text)
-#pragma schedule off
 #pragma optimization_level 2
 
 mgCTexAnimeData::mgCTexAnimeData() {

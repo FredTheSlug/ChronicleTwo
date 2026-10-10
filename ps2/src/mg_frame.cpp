@@ -325,15 +325,11 @@ int mgInsideScreen(mgVu0FBOX *box, float (*matrix)[4]) {
     return mgInsideScreen(corners, matrix);
 }
 
-#pragma global_optimizer off
-
 int mgInsideScreen(mgVu0FBOX *box, float (*matrix)[4], float *out_max, float *out_min) {
     sceVu0FVECTOR corners[8];
     mgCreateBox8(corners, box->max, box->min);
     return mgInsideScreen(corners, matrix, out_max, out_min);
 }
-
-#pragma global_optimizer reset
 
 int mgInsideScreen(float (*corners)[4], float (*matrix)[4]) {
     sceVu0FVECTOR max;
@@ -709,8 +705,6 @@ int mgCFrame::GetWorldBBox(mgVu0FBOX *box) {
     return found;
 }
 
-#pragma global_optimizer reset
-
 int mgCFrame::GetFrameNum() {
     s32       count;
     mgCFrame *node;
@@ -832,9 +826,6 @@ void mgCFrame::ClearChildFlag() {
 }
 
 #pragma global_optimizer reset
-#pragma schedule reset
-
-#pragma global_optimizer off
 
 void mgCFrame::GetLocalMatrix(float (*matrix)[4]) {
     if (use_srt) {
@@ -888,8 +879,6 @@ void mgCFrame::GetLocalMatrix(float (*matrix)[4]) {
         sceVu0CopyMatrix(matrix, trans_matrix);
     }
 }
-
-#pragma global_optimizer reset
 
 #pragma global_optimizer off
 
@@ -964,7 +953,6 @@ void mgCFrame::GetBBoardMatrix(int mode, float (*matrix)[4], mgRENDER_INFO *info
 
 #pragma global_optimizer reset
 
-#pragma optimization_level 3
 #pragma global_optimizer off
 
 void mgCFrame::GetLWMatrix(float (*matrix)[4]) {
@@ -1055,11 +1043,7 @@ void mgCFrame::GetLWMatrix(float (*matrix)[4]) {
     }
 }
 
-#pragma optimization_level reset
-
 #pragma global_optimizer reset
-
-#pragma global_optimizer off
 
 void mgCFrame::GetLWMatrixTopBottom(float (*matrix)[4]) {
     float parent_matrix[4][4];
@@ -1137,8 +1121,6 @@ void mgCFrame::GetLWMatrixTopBottom(float (*matrix)[4]) {
 
     changed = 0;
 }
-
-#pragma global_optimizer reset
 
 void mgCFrame::GetInverseMatrix(float (*matrix)[4]) {
     sceVu0FMATRIX lw;

@@ -6357,8 +6357,6 @@ static inline u_int align16_blocks(u_int size) {
     return size >> 4;
 }
 
-#pragma inline_depth(8)
-
 int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
     mgCMemory         *load_stack = &MenuCharaLoadStack;
     mgCMemory          work;
@@ -6665,8 +6663,6 @@ int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
 
     return 0;
 }
-
-#pragma inline_depth reset
 
 void MenuMoveItemPos(int *item, int *pos, int phase) {
     /**
@@ -7020,8 +7016,6 @@ void CMenuItemInfo::AttachFormInfo() {
     GiftBoxViewForm = (CMenuPosDataForm *) MenuPosData->GetFormInfo("giftview");
 }
 
-#pragma inline_depth(8)
-
 void CMenuItemInfo::MenuModeMalloc(mgCMemory *stack) {
     /**
      *
@@ -7075,8 +7069,6 @@ void CMenuItemInfo::MenuModeMalloc(mgCMemory *stack) {
     MenuItemMemory.stSetBuffer(
         (MenuItemMemory2.stack + MenuItemMemory2.stack_used), free_blocks);
 }
-
-#pragma inline_depth reset
 
 void CMenuItemInfo::CalcTex() {
     /**
@@ -7855,7 +7847,6 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
 }
 
 extern mgCMemory MenuDebugStack;
-#pragma inline_depth(5)
 
 /**
  *
@@ -8551,8 +8542,6 @@ static void MenuItemDebugKey() {
             break;
     }
 }
-
-#pragma inline_depth reset
 
 /**
  *

@@ -283,8 +283,6 @@ void mgCDrawPrim::Vertex(float x, float y, float z) {
     Vertex(pos);
 }
 
-#pragma global_optimizer off
-
 void mgCDrawPrim::Vertex(float *pos) {
     int  converted[4] __attribute__((aligned(16)));
     int *result = converted;
@@ -296,8 +294,6 @@ void mgCDrawPrim::Vertex(float *pos) {
     }
     Vertex4(converted[0], converted[1], converted[2]);
 }
-
-#pragma global_optimizer reset
 
 void mgCDrawPrim::Vertex4(int x, int y, int z) {
     int offset_x = 0;
@@ -321,8 +317,6 @@ void mgCDrawPrim::Color(int r, int g, int b, int a) {
     command_write += 2;
 }
 
-#pragma global_optimizer off
-
 void mgCDrawPrim::Color(float *color) {
     int  converted[4] __attribute__((aligned(16)));
     int *result = converted;
@@ -333,8 +327,6 @@ void mgCDrawPrim::Color(float *color) {
     }
     Color(converted[0], converted[1], converted[2], converted[3]);
 }
-
-#pragma global_optimizer reset
 
 void mgCDrawPrim::TextureCrd4(int u, int v) {
     u_long *data = (u_long *) write;

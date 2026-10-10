@@ -56,7 +56,6 @@ struct ShadowGifRegs {
     u_long reg_s1 : 4;
 };
 
-#pragma schedule off
 #pragma optimization_level 2
 
 int mgCShadowMDT::CreateFacePacket(u_int *packet, mgCFace *face) {
@@ -164,7 +163,6 @@ int mgCShadowMDT::CreateFacePacket(u_int *packet, mgCFace *face) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 
 #pragma schedule off
 #pragma global_optimizer off

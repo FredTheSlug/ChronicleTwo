@@ -495,16 +495,11 @@ CMapLightingInfo *CMap::GetLightingInfo(int no) {
     return map_info.GetLightingInfo(no);
 }
 
-#pragma inline_depth(0)
-
 int CMap::GetActiveLightNo() {
     return map_info.GetActiveLightNo();
 }
 
-#pragma inline_depth reset
-
 // Defined in mapinfo.hpp.
-#pragma inline_depth(0)
 
 void CMap::GetLightInfo(CMapLightingInfo *out_info, float *ratio, int num) {
     sceVu0FMATRIX     light_dir;
@@ -610,8 +605,6 @@ void CMap::GetLightInfo(CMapLightingInfo *out_info, float *ratio, int num) {
     out_info->fog_enable = fog_num > 0;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Handles a map script tag that does nothing.
@@ -636,7 +629,6 @@ static int IsAddMode() {
  * Starts a map part of the name of the first argument, which the tags up to PARTS_END build.
  *
  */
-#pragma inline_depth(0)
 
 int mapPARTS(SPI_STACK *stack, int argument_count) {
     mapNowMapParts = new (mapStack->Alloc(algn16_size(sizeof(CList<CMapParts>)) + 2)) CList<CMapParts>;
@@ -648,8 +640,6 @@ int mapPARTS(SPI_STACK *stack, int argument_count) {
     mapPtsFunc = 1;
     return 1;
 }
-
-#pragma inline_depth reset
 
 // Defined in mg_tanime.hpp.
 // Defined in mg_tanime.hpp.
@@ -670,7 +660,6 @@ unsigned int algn16_size(unsigned int size) {
  * Gives the current map part its far clip distance and whether it fades out there.
  *
  */
-#pragma inline_depth(0)
 
 int mapFAR_CLIP(SPI_STACK *stack, int argc) {
     SPI_STACK *alpha_arg = stack + 1;
@@ -684,14 +673,11 @@ int mapFAR_CLIP(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Sets whether the current map part is drawn without the scene's lights and without point lights.
  *
  */
-#pragma inline_depth(0)
 
 int mapLIGHT_FLAG(SPI_STACK *stack, int argc) {
     SPI_STACK *second_arg = stack + 1;
@@ -705,14 +691,11 @@ int mapLIGHT_FLAG(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Sets the four move flags of the current map part, one per argument.
  *
  */
-#pragma inline_depth(0)
 
 int mapMOVE_FLAG(SPI_STACK *stack, int argc) {
     if (mapNowMapParts == NULL) {
@@ -741,14 +724,11 @@ int mapMOVE_FLAG(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Gives the current map part four levels of detail at the standard distances.
  *
  */
-#pragma inline_depth(0)
 
 int mapLOD_START(SPI_STACK *stack, int argc) {
     CMapParts *parts;
@@ -768,15 +748,12 @@ int mapLOD_START(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 // Defined in mapparts.hpp.
 /**
  *
  * Sets whether the current map part blends between its levels of detail.
  *
  */
-#pragma inline_depth(0)
 
 int mapLOD_BLEND(SPI_STACK *stack, int argc) {
     if (mapNowMapParts == NULL) {
@@ -788,15 +765,12 @@ int mapLOD_BLEND(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 // Defined in mapparts.hpp.
 /**
  *
  * Puts a piece of the current map part into a level of detail, hiding it until that level is reached.
  *
  */
-#pragma inline_depth(0)
 
 int mapLOD_PIECE(SPI_STACK *stack, int argc) {
     if (mapNowMapParts == NULL) {
@@ -821,8 +795,6 @@ int mapLOD_PIECE(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 // Defined in mapparts.hpp.
 /**
  *
@@ -839,7 +811,6 @@ int mapLOD_END(SPI_STACK *stack, int argument_count) {
  * Starts a piece of the current map part that uses the model data of the first argument, shown unless the second argument is zero.
  *
  */
-#pragma inline_depth(0)
 
 int mapPIECE(SPI_STACK *stack, int argument_count) {
     char      *name;
@@ -894,8 +865,6 @@ int mapPIECE(SPI_STACK *stack, int argument_count) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 // Defined in mdslist.hpp.
 // Defined in mg_tanime.hpp.
 // Defined in mg_tanime.hpp.
@@ -908,7 +877,6 @@ int mapPIECE(SPI_STACK *stack, int argument_count) {
  * Renames the model data that the current piece uses.
  *
  */
-#pragma inline_depth(0)
 
 int mapPIECE_NAME(SPI_STACK *stack, int argc) {
     CMapPiece *piece;
@@ -931,14 +899,11 @@ int mapPIECE_NAME(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Moves the current piece to the position of the three arguments.
  *
  */
-#pragma inline_depth(0)
 
 int mapPIECE_POS(SPI_STACK *stack, int argument_count) {
     if (mapNowMapPiece == NULL) {
@@ -957,14 +922,11 @@ int mapPIECE_POS(SPI_STACK *stack, int argument_count) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Turns the current piece to the angles of the three arguments.
  *
  */
-#pragma inline_depth(0)
 
 int mapPIECE_ROT(SPI_STACK *stack, int argument_count) {
     if (mapNowMapPiece == NULL) {
@@ -983,14 +945,11 @@ int mapPIECE_ROT(SPI_STACK *stack, int argument_count) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Scales the current piece by the three arguments.
  *
  */
-#pragma inline_depth(0)
 
 int mapPIECE_SCALE(SPI_STACK *stack, int argument_count) {
     if (mapNowMapPiece == NULL) {
@@ -1009,14 +968,11 @@ int mapPIECE_SCALE(SPI_STACK *stack, int argument_count) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Gives the current piece as many material colour entries as the first argument, filled in by the PIECE_MATERIAL tags that follow.
  *
  */
-#pragma inline_depth(0)
 
 int mapPIECE_MATERIAL_START(SPI_STACK *stack, int argument_count) {
     if (mapNowMapPiece == NULL) {
@@ -1039,14 +995,10 @@ int mapPIECE_MATERIAL_START(SPI_STACK *stack, int argument_count) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 // Defined in mdslist.hpp.
 PieceMaterial::PieceMaterial() { Initialize(); }
 
 void PieceMaterial::Initialize() { memset(this, 0, sizeof(PieceMaterial)); }
-
-#pragma inline_depth(0)
 
 /**
  *
@@ -1098,8 +1050,6 @@ int mapPIECE_MATERIAL(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Accepts the end marker of a map piece material list.
@@ -1108,8 +1058,6 @@ int mapPIECE_MATERIAL(SPI_STACK *stack, int argc) {
 s32 mapPIECE_MATERIAL_END(SPI_STACK *stack, int argc) {
     return 1;
 }
-
-#pragma inline_depth(0)
 
 /**
  *
@@ -1131,9 +1079,6 @@ int mapPIECE_COL_TYPE(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-#pragma inline_depth(0)
-
 /**
  *
  * Sets the time interval in which the current map piece is active.
@@ -1149,9 +1094,6 @@ int mapPIECE_TIME(SPI_STACK *stack, int argc) {
     piece->SetTimeBand(start, spiGetStackFloat(stack));
     return 1;
 }
-
-#pragma inline_depth reset
-#pragma inline_depth(0)
 
 /**
  *
@@ -1173,9 +1115,6 @@ int mapPIECE_END(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-#pragma inline_depth(0)
-
 /**
  *
  * Adds the completed map part definition and builds its bounding box.
@@ -1191,8 +1130,6 @@ int mapPARTS_END(SPI_STACK *stack, int argc) {
     mapNowMapParts->pGetData()->CreateBoundBox();
     return 1;
 }
-
-#pragma inline_depth reset
 
 /**
  *
@@ -1477,8 +1414,6 @@ int mapFIX_CAMERA_OFF_GROUP(SPI_STACK *stack, int argument_count) {
     return 1;
 }
 
-#pragma inline_depth(0)
-
 /**
  *
  * Adds a collision rectangle and optional transform to a fixed camera.
@@ -1550,8 +1485,6 @@ int mapFIX_CAMERA_RECT(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth reset
-
 /**
  *
  * Finishes the current fixed camera record.
@@ -1589,8 +1522,6 @@ int mapFUNC_POINT(SPI_STACK *stack, int argc) {
     mapFuncPointIdx = 0;
     return 1;
 }
-
-#pragma inline_depth(0)
 
 /**
  *
@@ -1649,8 +1580,6 @@ int mapFUNC_DATA(SPI_STACK *stack, int argc) {
     mapNowFuncPoint->enable = spiGetStackInt(stack);
     return 1;
 }
-
-#pragma inline_depth reset
 
 /**
  *
@@ -1962,8 +1891,6 @@ int mapFUNC_SOUND_DATA(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth(0)
-
 /**
  *
  * Resolves an effect name and assigns its bounds to the current function point.
@@ -2002,8 +1929,6 @@ int mapFUNC_EFFECT_NAME(SPI_STACK *stack, int argc) {
 
     return 1;
 }
-
-#pragma inline_depth reset
 
 /**
  *
@@ -2109,8 +2034,6 @@ int mapFUNC_DATA_END(SPI_STACK *stack, int argc) {
     return 1;
 }
 
-#pragma inline_depth(0)
-
 /**
  *
  * Updates status for function points parsed on the map or current part.
@@ -2133,8 +2056,6 @@ update:
     mngr->UpdateStatus();
     return 1;
 }
-
-#pragma inline_depth reset
 
 /**
  *

@@ -950,8 +950,6 @@ void mgLookAtMatrixZ(float (*matrix)[4], float *direction) {
     mgMulMatrix(matrix, yaw, pitch);
 }
 
-#pragma optimization_level 3
-
 void mgShadowMatrix(float (*matrix)[4], float *light_direction, float *on_plane, float *plane_normal) {
     float light_dir[4];
     float plane_point[4];
@@ -1010,9 +1008,6 @@ void mgShadowMatrix(float (*matrix)[4], float *light_direction, float *on_plane,
     matrix[3][3] = scale * -facing;
 }
 
-#pragma optimization_level reset
-#pragma schedule off
-#pragma global_optimizer off
 #ifdef NONMATCHING
 void mgApplyMatrixN(float (*out)[4], float (*matrix)[4], float (*in)[4], int count) {
     for (int i = 0; i < count; ++i) {
@@ -1048,9 +1043,6 @@ transform_vectors:
     nop
 }
 #endif
-#pragma global_optimizer reset
-#pragma schedule reset
-#pragma global_optimizer off
 #ifdef NONMATCHING
 void mgApplyMatrixN_MaxMin(float (*out)[4], float (*matrix)[4], float (*in)[4], int count,
                            float *max, float *min) {
@@ -1110,8 +1102,6 @@ transform_and_bound_vectors:
     sqc2 vf21, 0x0(t1)
 }
 #endif
-#pragma global_optimizer reset
-#pragma global_optimizer off
 #ifdef NONMATCHING
 void mgVectorMinMaxN(float *max, float *min, float (*vectors)[4], int count) {
     for (int axis = 0; axis < 4; ++axis) {
@@ -1157,7 +1147,6 @@ update_bounds:
     sqc2 vf11, 0x0(a1)
 }
 #endif
-#pragma global_optimizer reset
 
 void mgApplyMatrix(float *max, float *min, float (*matrix)[4], float *box_max, float *box_min) {
     sceVu0FVECTOR corners[8];

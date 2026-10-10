@@ -187,8 +187,6 @@ void CEditMap::ClearHouse() {
     } while (house_no < EDIT_MAP_HOUSE_MAX);
 }
 
-#pragma global_optimizer off
-
 void CEditMap::ClearAllParts() {
     int             i;
     int             log_offset;
@@ -258,8 +256,6 @@ void CEditMap::ClearAllParts() {
     focus_parts = -1;
     frame = 0;
 }
-
-#pragma global_optimizer reset
 
 void CEditMap::InitialPlaceParts(CEditData *data) {
     EP_PLACE_INFO   place_info;
@@ -425,8 +421,6 @@ CEditHouse *CEditMap::eNewHouseInfo() {
     return 0;
 }
 
-#pragma global_optimizer off
-
 CEditParts *CEditMap::GetePlaceParts(int index) {
     if (index < 0) {
         return 0;
@@ -438,8 +432,6 @@ CEditParts *CEditMap::GetePlaceParts(int index) {
 
     return &edit_parts[index];
 }
-
-#pragma global_optimizer reset
 
 CEditParts *CEditMap::GetePlaceParts(char *name) {
     int         i;
@@ -468,8 +460,6 @@ CEditParts *CEditMap::GetePlaceParts(char *name) {
     return 0;
 }
 
-#pragma global_optimizer off
-
 int CEditMap::GetePlaceIDList(int *out, int max) {
     int found = 0;
     int i = 0;
@@ -495,8 +485,6 @@ int CEditMap::GetePlaceIDList(int *out, int max) {
 
     return found;
 }
-
-#pragma global_optimizer reset
 
 void CEditMap::GetRotMatrix(float (*matrix)[4], int step) {
     step = step % 24;
@@ -949,8 +937,6 @@ int CEditMap::PlaceBurnParts() {
     return 0;
 }
 
-#pragma global_optimizer off
-
 int CEditMap::BurnEditParts(RemoveInfo *remove_info) {
     float           remove_pos[4] = {10000000.0f, 10000000.0f, 1000000000.0f, 1.0f};
     float           pos[4];
@@ -1028,8 +1014,6 @@ int CEditMap::BurnEditParts(RemoveInfo *remove_info) {
 
     return 1;
 }
-
-#pragma global_optimizer reset
 
 CEditParts *CEditMap::PlaceEditParts(char *name, float *pos, float *rot) {
     CEditParts *edit_parts = GetePlaceParts(BuildEditParts(name));

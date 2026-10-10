@@ -390,7 +390,6 @@ void mgCTexture::Initialize() {
 
 #pragma optimization_level reset
 #pragma schedule off
-#pragma global_optimizer off
 
 void mgCTexture::Bilinear(int mode) {
     if (tex1.MXL == 0) {
@@ -422,7 +421,6 @@ void mgCTexture::Bilinear(int mode) {
     }
 }
 
-#pragma global_optimizer reset
 #pragma schedule reset
 #pragma schedule off
 
@@ -595,7 +593,6 @@ void mgCTextureManager::Initialize(int start, int end) {
 
 #pragma global_optimizer reset
 #pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 2
 
 int mgCTextureManager::hash(char *name) {
@@ -609,9 +606,6 @@ int mgCTextureManager::hash(char *name) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
-#pragma schedule off
-#pragma global_optimizer off
 
 #pragma optimization_level 2
 
@@ -703,8 +697,6 @@ mgCTexture *mgCTextureManager::SearchHash(char *name, int mode) {
 }
 
 #pragma optimization_level reset
-#pragma global_optimizer reset
-#pragma schedule reset
 #pragma schedule off
 
 mgCTexture *mgCTextureManager::SearchTextureName(char *name, int block) {
@@ -739,7 +731,6 @@ mgCTexture *mgCTextureManager::SearchTexture(char *name) {
 }
 
 #pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 1
 
 mgCTexture *mgCTextureManager::GetTexture(char *name, int block) {
@@ -747,7 +738,6 @@ mgCTexture *mgCTextureManager::GetTexture(char *name, int block) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 #pragma schedule off
 
 mgCTextureBlock *mgCTextureManager::GetTextureBlock(int block) {
@@ -797,7 +787,6 @@ int mgCTextureManager::GetRemainVRAM(int block) {
 
 #pragma global_optimizer reset
 #pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 2
 
 mgCTexture *mgCTextureManager::EnterTexture(int block, char *name, u_long128 **image, int width,
@@ -1017,8 +1006,6 @@ mgCTexture *mgCTextureManager::EnterTexture(int block, char *name, u_long128 **i
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 2
 
 mgCTexture *mgCTextureManager::EnterTexture(int id, char *name, TM2_head *head, int reload,
@@ -1097,11 +1084,9 @@ mgCTexture *mgCTextureManager::EnterTexture(int id, char *name, TM2_head *head, 
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 
 static inline int FirstBlock(int block) { return block; }
 
-#pragma schedule off
 #pragma optimization_level 2
 
 int mgCTextureManager::EnterIMGFile(u_char *img, int block, mgCMemory *stack,
@@ -1263,7 +1248,6 @@ int mgCTextureManager::EnterIMGFile(u_char *img, int block, mgCMemory *stack,
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 #pragma schedule off
 
 /**
@@ -1324,7 +1308,6 @@ int mgGetIMGHeaderNum(char *img) {
 }
 
 #pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 2
 
 mgIMG_HEADER mgGetIMGHeader(char *img, int index) {
@@ -1395,7 +1378,6 @@ mgIMG_HEADER mgGetIMGHeader(char *img, int index) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 #pragma schedule off
 
 void mgCTextureManager::DeleteTexture(mgCTexture *texture) {
@@ -1452,7 +1434,6 @@ void mgCTextureManager::DeleteBlock(int block) {
 
 #pragma global_optimizer reset
 #pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 1
 
 void mgCTextureManager::EndEnterTexture(int block) {
@@ -1460,8 +1441,6 @@ void mgCTextureManager::EndEnterTexture(int block) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 2
 
 int mgLoadImage(u_int *packet, int base, int format, int width, u_long128 *image, int quadwords,
@@ -1536,9 +1515,7 @@ int mgLoadImage(u_int *packet, int base, int format, int width, u_long128 *image
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 #pragma schedule off
-#pragma global_optimizer off
 
 /**
  *
@@ -1558,7 +1535,6 @@ static int SetTexFlush_TagCnt(u_int *buffer) {
     return 3;
 }
 
-#pragma global_optimizer reset
 #pragma schedule reset
 #pragma schedule off
 #pragma global_optimizer off
@@ -1602,7 +1578,6 @@ void mgCTextureManager::ReloadTexture(int index, sceVif1Packet *packet) {
 
 #pragma global_optimizer reset
 #pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 2
 
 int mgCTextureManager::ReloadTexture(int block, u_int *packet) {
@@ -1715,7 +1690,6 @@ int mgCTextureManager::ReloadTexture(int block, u_int *packet) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
 #pragma schedule off
 
 sceGsTex0 &sceGsTex0::operator=(const sceGsTex0 &src) {
@@ -1725,7 +1699,6 @@ sceGsTex0 &sceGsTex0::operator=(const sceGsTex0 &src) {
 
 #pragma schedule reset
 #pragma schedule off
-#pragma global_optimizer off
 
 int mgCTextureManager::ReloadCLUT(mgCTexture *texture, u_int *buffer) {
     int     result;
@@ -1758,10 +1731,8 @@ int mgCTextureManager::ReloadCLUT(mgCTexture *texture, u_int *buffer) {
     return result;
 }
 
-#pragma global_optimizer reset
 #pragma schedule reset
 #pragma schedule off
-#pragma global_optimizer off
 
 void mgCTextureManager::ReloadCLUT(mgCTexture *texture, sceVif1Packet *packet) {
     u_int *cursor;
@@ -1779,7 +1750,6 @@ void mgCTextureManager::ReloadCLUT(mgCTexture *texture, sceVif1Packet *packet) {
     sceVif1PkReserve(packet, cursor - start);
 }
 
-#pragma global_optimizer reset
 #pragma schedule reset
 #pragma schedule off
 
@@ -1816,8 +1786,6 @@ void mgCTextureManager::TexAnimeAllOff(int block) {
     }
 }
 
-#pragma schedule off
-
 char **mgCTextureManager::GetGroupNameList(int block, int *num) {
     mgCTextureBlock *texture_block = GetTextureBlock(block);
     mgCTextureAnime *anime;
@@ -1848,8 +1816,6 @@ void mgCTextureManager::DeleteTexAnimeGroup(int block, int group) {
     }
 }
 
-#pragma schedule reset
-
 void mgCTextureManager::DeleteTexAnime(int block) {
     mgCTextureBlock *texture_block = GetTextureBlock(block);
 
@@ -1872,7 +1838,6 @@ mgCTextureAnime *mgCTextureManager::GetTexAnime(int index) {
 }
 
 #pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 1
 
 /**
@@ -1909,8 +1874,6 @@ static int BlockConv32to8(u_char *src, u_char *dst) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 2
 
 /**
@@ -1978,8 +1941,6 @@ static int PageConv32to8(int width, int height, u_char *src, u_char *dst) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset
-#pragma schedule off
 #pragma optimization_level 1
 
 /**
@@ -2060,4 +2021,3 @@ static int Conv32To8(int width, int height, u_char *image) {
 }
 
 #pragma optimization_level reset
-#pragma schedule reset

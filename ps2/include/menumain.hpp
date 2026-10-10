@@ -120,7 +120,7 @@ enum MenuOpenType {
     MENU_OPEN_TITLE_SUBGAME_SAVE      = 27, /**< Mini-game save menu from the title screen. */
     MENU_OPEN_SPHIDA_SCORE_VIEW       = 28, /**< Spheda score view. */
     MENU_OPEN_MAIN_CHARA_BG           = 29, /**< Main character display in a town. */
-    MENU_OPEN_NUM                     = 30, /**< Number of open requests. */
+    MENU_OPEN_GYORACE_LOAD            = 30, /**< Save menu loading a saved game's fish for the fish race, opened from the fish race menu. */
     MENU_OPEN_ITEM_OVER               = 16, /**< Added to a top-menu request when items overflow. */
 };
 

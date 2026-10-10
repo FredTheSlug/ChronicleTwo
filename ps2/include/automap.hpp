@@ -172,7 +172,7 @@ STATIC_ASSERT(sizeof(AUTOMAP_ROOM_INFO) == 0x18);
  *
  */
 struct AUTOMAP_ROOM {
-    s32 unk_0;
+    s32 no_door; /**< Non-zero keeps the floor's door out of the room. */
     s32 x; /**< First cell of the room along a row. */
     s32 y; /**< First row of the room. */
     s32 w; /**< Width of the room in cells. */
@@ -253,7 +253,7 @@ public:
      * @address 0x1D5D60
      * @size 0x1F0
      */
-    void SetMapInfo(CMap *map, CAutoMapParts *new_auto_map_parts, int width, int height, float cell_width, float cell_depth);
+    void SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int width, int height, float cell_width, float cell_depth);
 
     /**
      *

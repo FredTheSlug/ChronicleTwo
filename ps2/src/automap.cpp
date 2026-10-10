@@ -430,14 +430,14 @@ struct ROOM_LINK_POINT {
     int y; /**< Vertical grid position. */
 };
 
-void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_auto_map_parts, int width, int height,
+void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int width, int height,
                                 float cell_width, float cell_depth) {
     if (new_map == 0) {
         return;
     }
 
     map = new_map;
-    grid = new_auto_map_parts;
+    grid = new_grid;
     grid_w = width;
     grid_h = height;
     cell_w = cell_width;
@@ -542,11 +542,11 @@ void CMiniMapSymbol::DrawSymbol(float *pos, int symbol) {
         revealed = 1;
     }
 
-    for (MINIMAP_SYMBOL_INFO *info = symbol_table; info->symbol != MINIMAP_SYMBOL_END; info++) {
-        if (info->symbol == symbol) {
-            if ((info->need_visible == 0 || revealed != 0) && (info->blink == 0 || blink_cnt < 16)) {
-                prim.Color(info->r, info->g, info->b, 0x80);
-                prim.SetIStretch(screen_x - info->w / 2 + 8, screen_y - info->h / 2 + 8, info->w, info->w, 0xBA, 0xF6, 10, 10);
+    for (MINIMAP_SYMBOL_INFO *symbol_info = symbol_table; symbol_info->symbol != MINIMAP_SYMBOL_END; symbol_info++) {
+        if (symbol_info->symbol == symbol) {
+            if ((symbol_info->need_visible == 0 || revealed != 0) && (symbol_info->blink == 0 || blink_cnt < 16)) {
+                prim.Color(symbol_info->r, symbol_info->g, symbol_info->b, 0x80);
+                prim.SetIStretch(screen_x - symbol_info->w / 2 + 8, screen_y - symbol_info->h / 2 + 8, symbol_info->w, symbol_info->w, 0xBA, 0xF6, 10, 10);
             }
 
             break;
@@ -1026,7 +1026,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
     AUTOMAP_ROOM   *dst;
     int             dy;
     AUTOMAP_ROOM   *src;
-    int             joined;
+    int             joined_kind;
     int             depth;
     float           dist_y;
     int             pick;
@@ -1195,7 +1195,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
         steps = iRand((int) (d - (float) (src->h / 2))) + 1;
     }
 
-    joined = 0;
+    joined_kind = 0;
 
     do {
         if (steps > 0) {
@@ -1205,7 +1205,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
                 if (link != 0) {
                     steps = 0;
                     side = link;
-                    joined = 1;
+                    joined_kind = 1;
                 }
 
                 if (link == 0) {
@@ -1214,7 +1214,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
                     if (link > 0) {
                         side = link;
                         steps = 0;
-                        joined = 6;
+                        joined_kind = 6;
                     }
                 }
 
@@ -1233,7 +1233,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
                         break;
                 }
 
-                switch (joined) {
+                switch (joined_kind) {
                     case 6:
                         (grid + y * grid_w)[x].kind |= 8;
                         break;
@@ -1242,7 +1242,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
                         break;
                 }
 
-                if (joined == 0) {
+                if (joined_kind == 0) {
                     (grid + y * grid_w)[x].room_no = from;
                 }
 
@@ -1284,7 +1284,7 @@ void CAutoMapGen::RoomLink(int from, int to) {
             float d = (float) dy;
             steps = iRand((int) (d < 0.0f ? -d : d)) + 1;
         }
-    } while (joined == 0);
+    } while (joined_kind == 0);
 }
 
 void CAutoMapGen::CreatDummyRoot(int room_no) {
@@ -1354,7 +1354,7 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
         steps = 2;
     }
 
-    int joined = 0;
+    int joined_kind = 0;
     (grid + y * grid_w)[x].kind = 1;
     (grid + y * grid_w)[x].room_no = room_no;
 
@@ -1366,7 +1366,7 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
                 if (link != 0) {
                     steps = 0;
                     side = link;
-                    joined = 1;
+                    joined_kind = 1;
                 }
 
                 if (link == 0) {
@@ -1375,7 +1375,7 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
                     if (link > 0) {
                         side = link;
                         steps = 0;
-                        joined = 6;
+                        joined_kind = 6;
                     }
                 }
 
@@ -1394,7 +1394,7 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
                         break;
                 }
 
-                switch (joined) {
+                switch (joined_kind) {
                     case 6:
                         (grid + y * grid_w)[x].kind |= 8;
                         break;
@@ -1403,7 +1403,7 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
                         break;
                 }
 
-                if (joined == 0) {
+                if (joined_kind == 0) {
                     (grid + y * grid_w)[x].room_no = room_no;
                 }
 
@@ -1449,11 +1449,11 @@ void CAutoMapGen::CreatDummyRoot(int room_no) {
         if (steps >= 2) {
             steps = 2;
         }
-    } while (joined == 0);
+    } while (joined_kind == 0);
 }
 
 void CAutoMapGen::CreatTermParts() {
-    CAutoMapParts *grid;
+    CAutoMapParts *cells;
     int            open_dirs;
     int            x;
     int            y;
@@ -1472,19 +1472,19 @@ void CAutoMapGen::CreatTermParts() {
         x = iRand(grid_w - 4) + 2;
         y = iRand(grid_h - 4) + 2;
         row_width = grid_w;
-        grid = this->grid;
+        cells = this->grid;
         x_off = x * sizeof(CAutoMapParts);
         y_off = y * row_width;
         y_off *= sizeof(CAutoMapParts);
-        cell = (CAutoMapParts *) ((u8 *) grid + y_off + x_off);
+        cell = (CAutoMapParts *) ((u8 *) cells + y_off + x_off);
 
         if (cell->kind == 1) {
-            if (((CAutoMapParts *) ((u8 *) grid + (y - 1) * row_width * sizeof(CAutoMapParts) + x_off))
+            if (((CAutoMapParts *) ((u8 *) cells + (y - 1) * row_width * sizeof(CAutoMapParts) + x_off))
                     ->kind == 0) {
                 open_dirs |= kStepUp;
             }
 
-            if (((CAutoMapParts *) ((u8 *) grid + (y + 1) * row_width * sizeof(CAutoMapParts) + x_off))
+            if (((CAutoMapParts *) ((u8 *) cells + (y + 1) * row_width * sizeof(CAutoMapParts) + x_off))
                     ->kind == 0) {
                 open_dirs |= kStepDown;
             }
@@ -1499,7 +1499,7 @@ void CAutoMapGen::CreatTermParts() {
         }
     } while (open_dirs == 0);
 
-    room_no = ((CAutoMapParts *) (x_off + (y_off + (int) grid)))->room_no;
+    room_no = ((CAutoMapParts *) (x_off + (y_off + (int) cells)))->room_no;
 
     do {
         direction = 1 << iRand(4);
@@ -1520,26 +1520,26 @@ void CAutoMapGen::CreatTermParts() {
             break;
     }
 
-    (this->grid + y * grid_w + x)->kind |= 1;
-    (this->grid + y * grid_w + x)->room_no = room_no;
+    (grid + y * grid_w + x)->kind |= 1;
+    (grid + y * grid_w + x)->room_no = room_no;
     SetRoadLinkMark(x, y, direction);
     length = iRand(2);
     pending = 0;
 
     do {
-        if (y > 0 && (this->grid + (y - 1) * grid_w + x)->kind == 0) {
+        if (y > 0 && (grid + (y - 1) * grid_w + x)->kind == 0) {
             pending |= kStepUp;
         }
 
-        if (y <= grid_h - 2 && (this->grid + (y + 1) * grid_w + x)->kind == 0) {
+        if (y <= grid_h - 2 && (grid + (y + 1) * grid_w + x)->kind == 0) {
             pending |= kStepDown;
         }
 
-        if (x > 0 && (this->grid + y * grid_w + x - 1)->kind == 0) {
+        if (x > 0 && (grid + y * grid_w + x - 1)->kind == 0) {
             pending |= kStepLeft;
         }
 
-        if (x <= grid_w - 2 && (this->grid + y * grid_w + x + 1)->kind == 0) {
+        if (x <= grid_w - 2 && (grid + y * grid_w + x + 1)->kind == 0) {
             pending |= kStepRight;
         }
 
@@ -1590,8 +1590,8 @@ void CAutoMapGen::CreatTermParts() {
                     break;
             }
 
-            (this->grid + y * grid_w + x)->kind |= 1;
-            (this->grid + y * grid_w + x)->room_no = room_no;
+            (grid + y * grid_w + x)->kind |= 1;
+            (grid + y * grid_w + x)->room_no = room_no;
             SetRoadLinkMark(x, y, direction);
 
             if (steps <= 0) {
@@ -1600,25 +1600,25 @@ void CAutoMapGen::CreatTermParts() {
 
             switch (direction) {
                 case kStepUp:
-                    if ((this->grid + (y - 1) * grid_w + x)->kind != 0) {
+                    if ((grid + (y - 1) * grid_w + x)->kind != 0) {
                         steps = 0;
                     }
 
                     break;
                 case kStepDown:
-                    if ((this->grid + (y + 1) * grid_w + x)->kind != 0) {
+                    if ((grid + (y + 1) * grid_w + x)->kind != 0) {
                         steps = 0;
                     }
 
                     break;
                 case kStepLeft:
-                    if ((this->grid + y * grid_w + x - 1)->kind != 0) {
+                    if ((grid + y * grid_w + x - 1)->kind != 0) {
                         steps = 0;
                     }
 
                     break;
                 case kStepRight:
-                    if ((this->grid + y * grid_w + x + 1)->kind != 0) {
+                    if ((grid + y * grid_w + x + 1)->kind != 0) {
                         steps = 0;
                     }
 
@@ -1644,7 +1644,7 @@ void CAutoMapGen::CreatDoorRoom() {
     int candidate_num = 0;
 
     for (int i = 0; i < room_num; i++) {
-        if (room[i].unk_0 != 0) {
+        if (room[i].no_door != 0) {
             continue;
         }
 
@@ -1718,8 +1718,8 @@ CMapParts *CAutoMapGen::SearchDoorParts() {
 
     for (row = 0; grid_h != 0; row++) {
         for (col = 0; col < grid_w; col++) {
-            if ((this->grid + row * grid_w)[col].kind & 0x10) {
-                return (this->grid + row * grid_w)[col].parts;
+            if ((grid + row * grid_w)[col].kind & 0x10) {
+                return (grid + row * grid_w)[col].parts;
             }
         }
     }
@@ -1732,17 +1732,17 @@ void CAutoMapGen::SetPartsIndex() {
     int            x;
     int            i;
     int            j;
-    int            flags;
+    int            kind;
     CAutoMapParts *cell;
 
     for (y = 0; y < grid_h; y++) {
         for (x = 0; x < grid_w; x++) {
             cell = &(grid + y * grid_w)[x];
-            flags = cell->kind;
+            kind = cell->kind;
 
-            if (flags == 0) {
+            if (kind == 0) {
                 cell->parts_no = -1;
-            } else if (flags & 1) {
+            } else if (kind & 1) {
                 for (i = 0;; i++) {
                     if ((PartsInfoData[i].kind & 1) &&
                         PartsInfoData[i].link == (grid + y * grid_w)[x].road_link) {
@@ -1750,8 +1750,8 @@ void CAutoMapGen::SetPartsIndex() {
                         break;
                     }
                 }
-            } else if (flags & 8) {
-                printf("%d,%d [%d][%d]\n", x, y, flags, cell->road_link);
+            } else if (kind & 8) {
+                printf("%d,%d [%d][%d]\n", x, y, kind, cell->road_link);
 
                 for (j = 0; j < 0x118; j++) {
                     if (PartsInfoData[j].kind == (grid + y * grid_w)[x].kind &&
@@ -2118,7 +2118,7 @@ void CAutoMapGen::CreatFixedMap(int preset_no) {
     }
 
     for (i = 0; i < 8; i++) {
-        room[i].unk_0 = 0;
+        room[i].no_door = 0;
     }
 
     preset_height = preset->h;
@@ -2179,7 +2179,7 @@ void CAutoMapGen::RandomMapMainProc() {
     }
 
     for (n = 0; n < 8; n++) {
-        room[n].unk_0 = 0;
+        room[n].no_door = 0;
     }
 
     do {
@@ -2286,7 +2286,7 @@ void CAutoMapGen::RandomMapMainProc() {
 
 void CAutoMapGen::Build() {
     int        floor_no;
-    int        room;
+    int        preset_no;
     int        mode;
     CMap      *map;
     CMapParts *parts;
@@ -2308,34 +2308,34 @@ void CAutoMapGen::Build() {
     if (mode & 2) {
         floor_no = DngSaveDataDungeon->floor_id[DngSaveDataDungeon->stage_id];
         printf("%d\n", floor_no);
-        room = 0;
+        preset_no = 0;
 
         if (floor_no < 8) {
             if (floor_no == 5) {
-                room = 0;
+                preset_no = 0;
             } else {
-                room = iRand(19) + 1;
+                preset_no = iRand(19) + 1;
             }
         }
 
         if (floor_no < 19) {
             if (floor_no >= 8) {
                 if (floor_no == 11) {
-                    room = 0;
+                    preset_no = 0;
                 } else {
-                    room = iRand(19) + 1;
+                    preset_no = iRand(19) + 1;
                 }
             }
         }
 
         if (floor_no >= 19) {
-            room = iRand(10);
+            preset_no = iRand(10);
         }
 
-        int h = room_info[room].h;
-        grid_w = room_info[room].w;
+        int h = room_info[preset_no].h;
+        grid_w = room_info[preset_no].w;
         grid_h = h;
-        CreatFixedMap(room);
+        CreatFixedMap(preset_no);
         IndexToPartsPlace();
         return;
     }
@@ -2374,9 +2374,9 @@ void CAutoMapGen::MinimapVisTest(float *pos) {
     int            i;
     int            row;
     int            col;
-    CAutoMapParts *grid = this->grid;
+    CAutoMapParts *cells = this->grid;
 
-    if (grid != NULL && minimap_enable != 0) {
+    if (cells != NULL && minimap_enable != 0) {
         size_x = cell_w;
         x = (int) ((pos[0] + 0.5f * size_x) / size_x);
         size_z = cell_d;
@@ -2390,8 +2390,8 @@ void CAutoMapGen::MinimapVisTest(float *pos) {
             z = 0;
         }
 
-        (grid + z * grid_w)[x].visible = 1;
-        cell = &(this->grid + z * grid_w)[x];
+        (cells + z * grid_w)[x].visible = 1;
+        cell = &(grid + z * grid_w)[x];
 
         if (z > 0) {
             CAutoMapParts *up = cell - grid_w;
@@ -2421,7 +2421,7 @@ void CAutoMapGen::MinimapVisTest(float *pos) {
                     z < room[i].y + room[i].h) {
                     for (row = 0; row < room[i].h; row++) {
                         for (col = 0; col < room[i].w; col++) {
-                            (&(this->grid + (room[i].y + row) * grid_w)[col])[room[i].x].visible = 1;
+                            (&(grid + (room[i].y + row) * grid_w)[col])[room[i].x].visible = 1;
                         }
                     }
                 }
@@ -2434,7 +2434,7 @@ void CAutoMapGen::MinimapDoorOpen(float *pos) {
     int        x;
     int        z;
     CMapParts *door;
-    int        opened;
+    int        opened_wall;
 
     if (grid == NULL) {
         return;
@@ -2447,25 +2447,25 @@ void CAutoMapGen::MinimapDoorOpen(float *pos) {
     if (door != NULL) {
         door->minimap_tile -= 4;
         u8 link = (grid + z * grid_w)[x].road_link;
-        opened = 0;
+        opened_wall = 0;
 
         if (link == 1) {
-            opened = 2;
+            opened_wall = 2;
         }
 
         if (link == 2) {
-            opened = 8;
+            opened_wall = 8;
         }
 
         if (link == 4) {
-            opened = 4;
+            opened_wall = 4;
         }
 
         if (link == 8) {
-            opened = 1;
+            opened_wall = 1;
         }
 
-        (grid + z * grid_w)[x].wall &= ~opened;
+        (grid + z * grid_w)[x].wall &= ~opened_wall;
     }
 }
 
@@ -2501,13 +2501,13 @@ void CAutoMapGen::Step() {
 }
 
 int CAutoMapGen::GetAttrStatus(float *pos) {
-    CAutoMapParts *grid = this->grid;
+    CAutoMapParts *cells = this->grid;
     float          size_x;
     float          size_z;
     int            x;
     int            z;
 
-    if (grid == NULL) {
+    if (cells == NULL) {
         return 0;
     }
 
@@ -2524,7 +2524,7 @@ int CAutoMapGen::GetAttrStatus(float *pos) {
         return 1;
     }
 
-    return (grid + z * grid_w)[x].attr;
+    return (cells + z * grid_w)[x].attr;
 }
 
 void CAutoMapGen::MinimapAllVisible() {

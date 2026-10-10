@@ -675,7 +675,7 @@ void InitDungeonMain(INIT_LOOP_ARG arg) {
     AutoMapGen.pot_parts = NULL;
 
     for (int i = 0; i < 8; i++) {
-        AutoMapGen.room[i].unk_0 = 0;
+        AutoMapGen.room[i].no_door = 0;
     }
 
     AutoMapGen.room_info = NULL;

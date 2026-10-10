@@ -1509,7 +1509,7 @@ static aqua_food_info *GetEsaInfo(int item_no) {
 }
 
 void CBubble::Generate(int index) {
-    AQUA_BUBBLE *particle = bubble + index;
+    AQUA_BUBBLE *particle = &bubble[index];
 
     particle->drift_x = GetRandF(2.0f) - 1.0f;
     particle->drift_z = GetRandF(2.0f) - 1.0f;
@@ -1528,18 +1528,18 @@ void CBubble::Generate(int index) {
 int CBubble::Generate(float *start_pos) {
 
     if (active != 0 && bubble_num <= generated) {
-        return 0;
+        return false;
     }
 
     if (bubble_num <= generated) {
-        return 0;
+        return false;
     }
 
     *(u_long128 *) origin = *(u_long128 *) start_pos;
     Generate(generated);
     generated += 1;
     active = true;
-    return 1;
+    return true;
 }
 
 void CBubble::SetTexture(mgCTexture *image, int u, int v) {
@@ -1679,7 +1679,7 @@ void CBubble::Initialize(mgCMemory *memory, float *start_pos, int count, float t
     origin[0] = start_pos[0];
     origin[1] = start_pos[1];
     origin[2] = start_pos[2];
-    bytes = bubble_num * 0x30;
+    bytes = bubble_num * sizeof(AQUA_BUBBLE);
 
     if (bytes & 0xF) {
         blocks = (bytes >> 4) + 1;
@@ -2082,10 +2082,7 @@ void CAquaFish::MoveActionBattle() {
     float         foe_pos[4];
     float         pos[4];
 
-    struct {
-        float        v[3];
-        unsigned int w;
-    } offset;
+    float offset[4];
 
     float amount;
     float angle;
@@ -2136,11 +2133,11 @@ void CAquaFish::MoveActionBattle() {
 
                 amount = 0.5f * sinf(mgAngleLimit(HALF_PI + charge_angle));
                 GetPosition(pos);
-                sceVu0SubVector(offset.v, foe_pos, pos);
-                sceVu0Normalize(offset.v, offset.v);
-                sceVu0ScaleVectorXYZ(offset.v, offset.v, amount);
-                offset.w = 0x3F800000;
-                sceVu0AddVector(target_pos, foe_pos, offset.v);
+                sceVu0SubVector(offset, foe_pos, pos);
+                sceVu0Normalize(offset, offset);
+                sceVu0ScaleVectorXYZ(offset, offset, amount);
+                offset[3] = 1.0f;
+                sceVu0AddVector(target_pos, foe_pos, offset);
             } else if (col_flags & AQUA_FISH_COL_TARGET) {
                 charge_angle = 0.0f;
                 action.phase = AQUA_FISH_ACTION_APPROACH;
@@ -2783,7 +2780,14 @@ CAquaMes::CAquaMes() {
     Initialize(NULL);
 }
 
-static inline short *AquaMesBuffer(mgCMemory *m) { return (short *) m->stAllocTest(1); }
+/**
+ *
+ * Gives the free memory at the top of a stack as a message buffer.
+ *
+ */
+static inline short *AquaMesBuffer(mgCMemory *memory) {
+    return (short *) memory->stAllocTest(1);
+}
 
 void CAquaMes::Initialize(mgCMemory *stack) {
     short  *aqua_mes;
@@ -2983,10 +2987,10 @@ int CAquaMes::AddMenuCursor(int step, int count) {
     }
 
     if (before != menu_cursor) {
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CAquaMes::SetQuestionId(int id, int top, int num) {
@@ -3086,7 +3090,7 @@ int CAquaMes::AddQuestionCursor() {
     now = question_cursor;
 
     if (before != now) {
-        return 1;
+        return true;
     }
 
     window = question_mes;
@@ -3103,7 +3107,7 @@ int CAquaMes::AddQuestionCursor() {
     }
 
     window->select = now;
-    return 0;
+    return false;
 }
 
 void CAquaMes::SetCtrlHelpId(int id) {
@@ -3150,6 +3154,11 @@ void CAquaMes::EatMessage(int id, CAquaFish *fish) {
     AquaMesDispAdjustPos(fish_mes, pos);
 }
 
+/**
+ *
+ * Gives the save data of an aquarium fish.
+ *
+ */
 static inline CGameDataUsed *fish_data(CAquaFish *fish) {
     return fish->data;
 }
@@ -3302,7 +3311,7 @@ void CAquaMes::DrawTitleMes() {
     mgTexManager.ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) NULL);
     window = title_mes;
 
-    if ((window != NULL) && (title_draw != 0)) {
+    if (window != NULL && title_draw != 0) {
         window->DrawMesWin();
     }
 }
@@ -3317,43 +3326,43 @@ static int GetFishPath(int item_no, char *out) {
 
     file_name = GetItemFileName(item_no, 1);
 
-    if ((file_name == 0) || (out == NULL)) {
-        return 1;
+    if (file_name == NULL || out == NULL) {
+        return true;
     }
 
     sprintf(out, "menu/aqua/fish/%s", file_name);
-    return 0;
+    return false;
 }
 
 int GetFishImgPath(char *out, int item_no, BREEDFISH_USED *fish) {
     aqua_fish_info *info;
 
     if (item_no <= 0) {
-        return 0;
+        return false;
     }
 
     if (fish == NULL) {
-        return 0;
+        return false;
     }
 
     if (out == NULL) {
-        return 0;
+        return false;
     }
 
     for (info = aquafish_info; info->item_no > 0; info++) {
         if (info->item_no == item_no) {
             sprintf(out, "menu/aqua/fish/%s%d.img", info->img_path, fish->color);
-            return 1;
+            return true;
         }
     }
 
-    return 0;
+    return false;
 }
 
 int GetFishImageColor(int item_no, int sex) {
     aqua_fish_info *info = aquafish_info;
 
-    for (; info->img_path != 0; info++) {
+    for (; info->img_path != NULL; info++) {
         if (sex == BREEDFISH_SEX_MALE && info->item_no == item_no) {
             return info->color_male;
         }
@@ -3892,11 +3901,11 @@ int CAquarium::LoadFish(int no, CGameDataUsed *data) {
     float           center_z;
 
     if (data == NULL) {
-        return 0;
+        return false;
     }
 
     if (GetFishPath(data->item_no, path) != 0) {
-        return 0;
+        return false;
     }
 
     aqua_no = m_aquarium_para->active_tank;
@@ -3954,10 +3963,10 @@ int CAquarium::LoadFish(int no, CGameDataUsed *data) {
             effect->timer = -1;
         }
 
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CAquarium::SettingAqua() {

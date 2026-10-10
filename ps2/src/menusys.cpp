@@ -11888,19 +11888,19 @@ int MenuItemKey() {
     static int old_chrid = 0;
 
     switch (CMenuItemInfoPt->sub_menu) {
-        case -1: {
+        case MENU_ITEM_SUB_MENU_NONE: {
             int faded;
 
             ret = 0;
             faded = CMenuItemInfoPt->FadeCheckMenu();
 
             switch (CMenuItemInfoPt->next_sub_menu) {
-                case 0:
-                case 1:
-                case 2:
-                case 3:
-                case 4:
-                case 5: {
+                case MENU_ITEM_SUB_MENU_AQUARIUM:
+                case MENU_ITEM_SUB_MENU_MONSTER_BOX:
+                case MENU_ITEM_SUB_MENU_NAME_REGIST:
+                case MENU_ITEM_SUB_MENU_QUEST_LIST:
+                case MENU_ITEM_SUB_MENU_SCOOP_MEMO:
+                case MENU_ITEM_SUB_MENU_MONSTER_BOOK: {
                     int i;
 
                     if (!faded) {
@@ -11918,38 +11918,38 @@ int MenuItemKey() {
                     old_viewmode = CMenuItemInfoPt->view_mode;
                     old_chrid = CMenuItemInfoPt->sub_view;
 
-                    if (CMenuItemInfoPt->next_sub_menu == 1) {
+                    if (CMenuItemInfoPt->next_sub_menu == MENU_ITEM_SUB_MENU_MONSTER_BOX) {
                         MenuCommonInfo->SetWakuType(-1);
                         MenuMonsterBoxInit(&MenuItemMemory, CMenuItemInfoPt->tex_block, 0);
                     }
 
-                    if (CMenuItemInfoPt->next_sub_menu == 0) {
+                    if (CMenuItemInfoPt->next_sub_menu == MENU_ITEM_SUB_MENU_AQUARIUM) {
                         SetMenuFrameRate(2);
                         MenuAquaInit(&MenuItemMemory, CMenuItemInfoPt->tex_block, 0);
                     }
 
-                    if (CMenuItemInfoPt->next_sub_menu == 2) {
+                    if (CMenuItemInfoPt->next_sub_menu == MENU_ITEM_SUB_MENU_NAME_REGIST) {
                         NameRegistInit(&MenuItemMemory, CMenuItemInfoPt->tex_block, 0);
                     }
 
-                    if (CMenuItemInfoPt->next_sub_menu == 3) {
+                    if (CMenuItemInfoPt->next_sub_menu == MENU_ITEM_SUB_MENU_QUEST_LIST) {
                         MenuNPCQuestViewInit(&MenuItemMemory, CMenuItemInfoPt->tex_block,
                                              0);
                     }
 
-                    if (CMenuItemInfoPt->next_sub_menu == 4) {
+                    if (CMenuItemInfoPt->next_sub_menu == MENU_ITEM_SUB_MENU_SCOOP_MEMO) {
                         MenuNPCQuestViewInit(&MenuItemMemory, CMenuItemInfoPt->tex_block,
                                              1);
                     }
 
-                    if (CMenuItemInfoPt->next_sub_menu == 5) {
+                    if (CMenuItemInfoPt->next_sub_menu == MENU_ITEM_SUB_MENU_MONSTER_BOOK) {
                         MonsterBookInit(&MenuItemMemory, CMenuItemInfoPt->tex_block, 0);
                     }
 
                     CMenuItemInfoPt->sub_menu = CMenuItemInfoPt->next_sub_menu;
                     break;
                 }
-                case -1:
+                case MENU_ITEM_SUB_MENU_NONE:
                     if (faded) {
                         ret = CMenuItemInfoPt->KeyStep();
                     } else {
@@ -11965,31 +11965,31 @@ int MenuItemKey() {
 
             return ret;
         }
-        case 0:
-        case 1:
-        case 2:
-        case 3:
-        case 4:
-        case 5:
+        case MENU_ITEM_SUB_MENU_AQUARIUM:
+        case MENU_ITEM_SUB_MENU_MONSTER_BOX:
+        case MENU_ITEM_SUB_MENU_NAME_REGIST:
+        case MENU_ITEM_SUB_MENU_QUEST_LIST:
+        case MENU_ITEM_SUB_MENU_SCOOP_MEMO:
+        case MENU_ITEM_SUB_MENU_MONSTER_BOOK:
             ret = 0;
 
-            if (CMenuItemInfoPt->sub_menu == 0) {
+            if (CMenuItemInfoPt->sub_menu == MENU_ITEM_SUB_MENU_AQUARIUM) {
                 ret = MenuAquaKey();
             }
 
-            if (CMenuItemInfoPt->sub_menu == 1) {
+            if (CMenuItemInfoPt->sub_menu == MENU_ITEM_SUB_MENU_MONSTER_BOX) {
                 ret = MenuMonsterBoxKey();
             }
 
-            if (CMenuItemInfoPt->sub_menu == 2) {
+            if (CMenuItemInfoPt->sub_menu == MENU_ITEM_SUB_MENU_NAME_REGIST) {
                 ret = NameRegistKey();
             }
 
-            if (CMenuItemInfoPt->sub_menu == 3 || CMenuItemInfoPt->sub_menu == 4) {
+            if (CMenuItemInfoPt->sub_menu == MENU_ITEM_SUB_MENU_QUEST_LIST || CMenuItemInfoPt->sub_menu == MENU_ITEM_SUB_MENU_SCOOP_MEMO) {
                 ret = MenuNPCQuestViewKey();
             }
 
-            if (CMenuItemInfoPt->sub_menu == 5) {
+            if (CMenuItemInfoPt->sub_menu == MENU_ITEM_SUB_MENU_MONSTER_BOOK) {
                 ret = MonsterBookKey();
             }
 
@@ -12006,7 +12006,7 @@ int MenuItemKey() {
                     CMenuItemInfoPt->EnterDataMenu((unsigned int *) buffer);
                 }
 
-                if (CMenuItemInfoPt->sub_menu == 1) {
+                if (CMenuItemInfoPt->sub_menu == MENU_ITEM_SUB_MENU_MONSTER_BOX) {
                     MenuPosData->InitDrawList();
                     MenuPosData->FormReLink("main_form_dmy1", "poly_chr0");
                     MenuPosData->FormReLink("msg0", "msg5");
@@ -12067,8 +12067,8 @@ int MenuItemKey() {
                 CMenuItemInfoPt->ModelReadEndCheck();
                 BuildUpWeaponInfo.monster_mode = 0;
                 CMenuItemInfoPt->mode = MENU_ASK_MODE_NONE;
-                CMenuItemInfoPt->next_sub_menu = -1;
-                CMenuItemInfoPt->sub_menu = -1;
+                CMenuItemInfoPt->next_sub_menu = MENU_ITEM_SUB_MENU_NONE;
+                CMenuItemInfoPt->sub_menu = MENU_ITEM_SUB_MENU_NONE;
                 CMenuItemInfoPt->FadeInMenu(0x28, 0.0f);
                 CMenuItemInfoPt->reset_cursor_pos = true;
             }
@@ -12083,7 +12083,7 @@ void MenuItemDraw() {
     DrawMenuFillBox(0x80, 0, 0, 0);
 
     switch (CMenuItemInfoPt->sub_menu) {
-        case -1: {
+        case MENU_ITEM_SUB_MENU_NONE: {
             if (CMenuItemInfoPt->view_mode == MENU_ITEM_VIEW_WEAPON || CMenuItemInfoPt->view_mode == MENU_ITEM_VIEW_FISHING_ROD) {
                 MenuDrawEnv->camera.SetRef(CMenuItemInfoPt->camera_ref);
                 MenuDrawEnv->camera.SetPos(CMenuItemInfoPt->camera_pos);
@@ -12117,19 +12117,19 @@ void MenuItemDraw() {
             mgCTextureManager *tex_manager = &mgTexManager;
 
             if (CMenuItemInfoPt->build_up_chara != NULL) {
-                tex_manager->ReloadTexture(CMenuItemInfoPt->tex_block[2], NULL);
+                tex_manager->ReloadTexture(CMenuItemInfoPt->tex_block[2], (sceVif1Packet *) NULL);
                 CMenuItemInfoPt->build_up_chara->DrawDirect();
             }
 
             MenuRepairMan->Draw();
 
             if (MenuLevelUpMan.IsRun() && MenuLevelUpMan.label_tex != NULL) {
-                tex_manager->ReloadTexture(MenuLevelUpMan.label_tex->block, NULL);
+                tex_manager->ReloadTexture(MenuLevelUpMan.label_tex->block, (sceVif1Packet *) NULL);
                 MenuLevelUpMan.Draw();
             }
 
             if (StepFishBoiledEffect()) {
-                tex_manager->ReloadTexture(MenuLevelUpMan.label_tex->block, NULL);
+                tex_manager->ReloadTexture(MenuLevelUpMan.label_tex->block, (sceVif1Packet *) NULL);
                 DrawFishBoiledEffect();
             }
 
@@ -12143,20 +12143,20 @@ void MenuItemDraw() {
 
             break;
         }
-        case 0:
+        case MENU_ITEM_SUB_MENU_AQUARIUM:
             MenuAquaDraw();
             break;
-        case 1:
+        case MENU_ITEM_SUB_MENU_MONSTER_BOX:
             MenuMonsterBoxDraw();
             break;
-        case 2:
+        case MENU_ITEM_SUB_MENU_NAME_REGIST:
             NameRegistDraw();
             break;
-        case 3:
-        case 4:
+        case MENU_ITEM_SUB_MENU_QUEST_LIST:
+        case MENU_ITEM_SUB_MENU_SCOOP_MEMO:
             MenuNPCQuestViewDraw();
             break;
-        case 5:
+        case MENU_ITEM_SUB_MENU_MONSTER_BOOK:
             MonsterBookDraw();
             break;
     }
@@ -12187,7 +12187,7 @@ void CItemSelect::SetPtrList() {
         item_list[i] = NULL;
     }
 
-    line_num = (float) (item_num / 5 + 1);
+    line_num = (float) (item_num / ITEM_SELECT_COLUMNS + 1);
 }
 
 CGameDataUsed *CItemSelect::GetExistThisPosData(int pos) {
@@ -12274,15 +12274,15 @@ int CItemSelect::KeyStep() {
         default: {
             int select_key = MenuCommonInfo->CheckSelectKey();
             int push_button = MenuCommonInfo->CheckPushButton();
-            int max = (int) (5.0f * line_num);
+            int max = (int) (ITEM_SELECT_COLUMNS * line_num);
             int old_cursor = cursor;
 
             if (select_key & MENU_SELECT_KEY_UP) {
-                cursor = old_cursor - 5;
+                cursor = old_cursor - ITEM_SELECT_COLUMNS;
             } else if (select_key & MENU_SELECT_KEY_DOWN) {
-                cursor = old_cursor + 5;
+                cursor = old_cursor + ITEM_SELECT_COLUMNS;
             } else if (select_key & MENU_SELECT_KEY_RIGHT) {
-                if (old_cursor % 5 != 4) {
+                if (old_cursor % ITEM_SELECT_COLUMNS != ITEM_SELECT_COLUMNS - 1) {
                     cursor = old_cursor + 1;
 
                     if (max <= cursor) {
@@ -12290,7 +12290,7 @@ int CItemSelect::KeyStep() {
                     }
                 }
             } else if (select_key & MENU_SELECT_KEY_LEFT) {
-                if (old_cursor % 5 != 0) {
+                if (old_cursor % ITEM_SELECT_COLUMNS != 0) {
                     cursor = old_cursor - 1;
 
                     if (cursor < 0) {
@@ -12300,14 +12300,14 @@ int CItemSelect::KeyStep() {
             }
 
             while (cursor < 0) {
-                cursor += 5;
+                cursor += ITEM_SELECT_COLUMNS;
             }
 
             while (cursor >= max) {
-                cursor -= 5;
+                cursor -= ITEM_SELECT_COLUMNS;
             }
 
-            MenuCheckLine(&top_line, cursor / 5, 2);
+            MenuCheckLine(&top_line, cursor / ITEM_SELECT_COLUMNS, 2);
 
             if (old_cursor != cursor) {
                 MenuSePlay(SYSTEM_SE_CURSOR);
@@ -12396,7 +12396,7 @@ void CItemSelect::Draw() {
     }
 
     mgCTextureManager *tex_manager = &mgTexManager;
-    tex_manager->ReloadTexture(texture->block, NULL);
+    tex_manager->ReloadTexture(texture->block, (sceVif1Packet *) NULL);
     mgCDrawPrim *prim = GetMenuPrim();
     mgRect<int>  frame_rect;
     frame_rect.Set(1, 0, 0x110, 0xFE);
@@ -12425,14 +12425,14 @@ void CItemSelect::Draw() {
         if (!(y <= 90.0f)) {
             float x = item_rect.left;
 
-            for (column = 0; column < 5; column++) {
+            for (column = 0; column < ITEM_SELECT_COLUMNS; column++) {
                 PrimQuad(prim, x, y, cell_rect);
                 x += 44.0f;
             }
 
             drawn++;
 
-            if (drawn >= 5) {
+            if (drawn >= ITEM_SELECT_COLUMNS) {
                 break;
             }
         }
@@ -12452,7 +12452,7 @@ void CItemSelect::Draw() {
     for (line = 0; line < item_num && item_list[line] != NULL; line++) {
         icon_rect.left = 4.0f + item_rect.left;
 
-        for (column = 0; column < 5; column++, index++) {
+        for (column = 0; column < ITEM_SELECT_COLUMNS; column++, index++) {
             if (icon_rect.top <= 0.0f) {
                 continue;
             }
@@ -12538,8 +12538,8 @@ void CItemSelect::Draw() {
     prim->End();
     mgRect<float> cursor_rect;
     cursor_rect.Set(item_rect.left, 40.0f + list->top, item_rect.right, item_rect.bottom);
-    cursor_rect.left += (cursor % 5) * item_rect.right - 4.0f;
-    cursor_rect.top += item_rect.bottom * (cursor / 5 - top_line);
+    cursor_rect.left += (cursor % ITEM_SELECT_COLUMNS) * item_rect.right - 4.0f;
+    cursor_rect.top += item_rect.bottom * (cursor / ITEM_SELECT_COLUMNS - top_line);
 
     if (cursor_x == 0.0f) {
         cursor_x = cursor_rect.left;
@@ -12554,7 +12554,7 @@ void CItemSelect::Draw() {
 
     if (mode == MENU_ASK_MODE_NONE) {
         int mes_pos[2] = {(int) (16.0f + list->left), (int) (164.0f + list->top)};
-        tex_manager->ReloadTexture(MenuArg.mes_tex_block, NULL);
+        tex_manager->ReloadTexture(MenuArg.mes_tex_block, (sceVif1Packet *) NULL);
         MenuDCMsg[0]->SetPutPos(mes_pos);
         MenuDCMsg[0]->StepMsg();
         MenuDCMsg[0]->DrawMsg();

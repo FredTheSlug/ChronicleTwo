@@ -2085,7 +2085,7 @@ void CMenuInvent::LoadCharaCheck() {
 
             if (photo_only == 1) {
                 LoadFileBG("menu/chara4/camera.pac", load_stack->stGetTop(), &size);
-                load_stack->Alloc(((u_int) size & 0xF) ? ((u_int) size >> 4) + 1 : (u_int) size >> 4);
+                load_stack->Alloc(align16_blocks(size));
                 chara_read_info = GetReadBGInfo("menu/chara4/camera.pac");
             }
 
@@ -2590,15 +2590,14 @@ void CMenuInvent::GradationSet(int mode) {
                     j++;
                 } while (j < 4);
 
-                int offset = 0;
+                int grade = 0;
 
                 do {
-                    MENUFORMPARTS_TYPE *part =
-                        invent_okeff_form->GetPartInfo(*(char **) ((u8 *) invent_grade_fff + offset));
+                    MENUFORMPARTS_TYPE *part = invent_okeff_form->GetPartInfo(invent_grade_fff[grade]);
                     i++;
 
                     part->y = 224.0f;
-                    offset += 4;
+                    grade++;
                     part->h = 0.0f;
                 } while (i < 2);
             }
@@ -3345,8 +3344,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             }
 
             this->chara_stack.stSetBuffer(load_stack->stGetTop(), model_blocks);
-            unsigned int model_bytes = model_blocks * sizeof(u_long128);
-            load_stack->Alloc((model_bytes & 15) != 0 ? (model_bytes >> 4) + 1 : model_bytes >> 4);
+            load_stack->Alloc(align16_blocks(model_blocks * sizeof(u_long128)));
             this->create_model_file = (u8 *) load_stack->stGetTop();
             StartReadBG();
             LoadFileBG(path, (u_long128 *) this->create_model_file, &motion_size);
@@ -3467,7 +3465,7 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
             StartReadBG();
             this->create_sound_buffer = (u32 *) load_stack->stGetTop();
             LoadFileBG(sndfileName_2951[this->create_step], (u_long128 *) this->create_sound_buffer, &sound_size);
-            load_stack->Alloc((sound_size & 15) != 0 ? ((unsigned int) sound_size >> 4) + 1 : (unsigned int) sound_size >> 4);
+            load_stack->Alloc(align16_blocks(sound_size));
             this->create_load_state++;
             break;
         }

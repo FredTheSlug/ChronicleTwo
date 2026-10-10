@@ -1554,18 +1554,18 @@ static int CheckPhotoFlag() {
     do {
         USER_PICTURE_INFO *info = (USER_PICTURE_INFO *) ((u8 *) photos + offset);
 
-        if (*(signed char *) &*(signed char *) &info->used != 0) {
+        if (info->used != 0) {
             short *neta_id = &info->neta_id;
 
             if (0 < *neta_id && user->CheckNetaFlag(*neta_id) < 0) {
                 user->SetNetaFlag(*neta_id);
-                added = 1;
+                added = true;
             }
         }
 
         i++;
         offset += sizeof(USER_PICTURE_INFO);
-    } while (i < 30);
+    } while (i < INVENT_PHOTO_NUM);
 
     return added;
 }

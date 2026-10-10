@@ -16,7 +16,6 @@ struct CollisionRow {
     float value[4]; /**< Four words copied together. */
 };
 
-#pragma global_optimizer off
 #include <libvu0.h>
 
 int ClipBoxXZ(float *max_a, float *min_a, float *max_b, float *min_b) {
@@ -41,8 +40,6 @@ int ClipBoxXZ(float *max_a, float *min_a, float *max_b, float *min_b) {
     }
     return (flags & 0x80) == 0;
 }
-
-#pragma global_optimizer reset
 
 float OverlapPoly3AreaXZ(sceVu0FVECTOR *clipped, sceVu0FVECTOR *clipper, mgVu0FBOX *box) {
     int   count = 3;

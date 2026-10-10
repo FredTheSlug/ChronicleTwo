@@ -673,8 +673,6 @@ void TitleInit(INIT_LOOP_ARG arg) {
     TitleBootInit();
 }
 
-#pragma inline_depth(8)
-
 /**
  *
  * Loads the title scene, menu resources, sound, and boot-time memory card state.
@@ -832,8 +830,6 @@ static void TitleBootInit() {
         }
     }
 }
-
-#pragma inline_depth reset
 
 void TitleExit() {
     if (CheckOmakeFlag() != 0) {

@@ -3012,8 +3012,6 @@ static short sndtimetbl_2868[2] = {
  */
 static float eff_light_2927[4] = {255.0f, 255.0f, 255.0f, 128.0f};
 
-#pragma inline_depth(5)
-
 int CMenuInvent::IsCreateObject(int mode, int keys) {
     CActionChara      *action_chara = MenuActionChara[0];
     CDC2Mes           *message_window = MenuDCMsg[4];
@@ -3616,8 +3614,6 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
     return 1;
 }
-
-#pragma inline_depth reset
 
 void CMenuInvent::CalcMakeBrd(int message_index) {
     if (makebrd_form != NULL && makebrd_form->draw_flag) {

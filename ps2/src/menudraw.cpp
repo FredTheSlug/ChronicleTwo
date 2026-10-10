@@ -7228,8 +7228,6 @@ void CMenuEffect::PresetInfo(MENU_EFFECT_INFO *particle, int no, int mode) {
 
 static inline int EffectType(CMenuEffect *e) { return e->type; }
 
-#pragma divbyzerocheck on
-
 void CMenuEffect::Step() {
     end = 0;
 
@@ -7668,8 +7666,6 @@ void CMenuEffect::Step() {
         }
     }
 }
-
-#pragma divbyzerocheck reset
 
 void CMenuEffect::Draw() {
     if (run != 0 && info != NULL && tex != NULL) {

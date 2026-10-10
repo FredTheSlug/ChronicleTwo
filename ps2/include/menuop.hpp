@@ -9,6 +9,13 @@
 #include "scenesnd.hpp"
 
 /**
+ * @file
+ * Declares the manual menu, which plays the explanation movies and shows the
+ * picture pages of the game's manual, the option menu, the save and load
+ * menu with its memory card handling, and the mini-game save menu.
+ */
+
+/**
  *
  * Icon files stored with a memory card save.
  *
@@ -18,13 +25,6 @@ struct SaveIconSet {
 };
 
 STATIC_ASSERT(sizeof(SaveIconSet) == 0x78);
-
-/**
- * @file
- * Declares the manual menu, which plays the explanation movies and shows the
- * picture pages of the game's manual, the option menu, the save and load
- * menu with its memory card handling, and the mini-game save menu.
- */
 
 class CMenuPosDataForm;
 class mgCTexture;
@@ -44,23 +44,32 @@ struct MENUFORMPARTS_TYPE;
  */
 #define OPTION_BUTTON_NUM 3
 
+/**
+ *
+ * Lines of the option menu, as indexes into CMenuOption's per-line tables.
+ *
+ */
+// clang-format off
 enum OPTION_ITEM {
-    OPTION_ITEM_CURSOR_MEMORY = 0,
-    OPTION_ITEM_VIBRATION = 1,
-    OPTION_ITEM_MESSAGE_SPEED = 2,
-    OPTION_ITEM_SOUND_MODE = 3,
-    OPTION_ITEM_TIME_SPEED = 4,
-    OPTION_ITEM_MINIMAP = 5,
-    OPTION_ITEM_DAMAGE_NUMBERS = 6,
-    OPTION_ITEM_ENEMY_HP = 7,
-    OPTION_ITEM_ANGER_COUNTER = 8,
-    OPTION_ITEM_MONSTER_NAME = 10,
-    OPTION_ITEM_DEPTH_OF_FIELD = 11,
-    OPTION_ITEM_CAPTIONS = 12,
-    OPTION_ITEM_PAUSE_OVERLAY = 13,
-    OPTION_ITEM_CAMERA_VERTICAL = 14,
-    OPTION_ITEM_CAMERA_ROTATION = 15,
+    OPTION_ITEM_CURSOR_MEMORY   = 0,  /**< Whether menus remember their cursor position. */
+    OPTION_ITEM_VIBRATION       = 1,  /**< Controller vibration. */
+    OPTION_ITEM_MESSAGE_SPEED   = 2,  /**< Message display speed. */
+    OPTION_ITEM_SOUND_MODE      = 3,  /**< Stereo or mono sound. */
+    OPTION_ITEM_TIME_SPEED      = 4,  /**< Speed at which the time of day passes. */
+    OPTION_ITEM_MINIMAP         = 5,  /**< Size of the dungeon mini-map. */
+    OPTION_ITEM_DAMAGE_NUMBERS  = 6,  /**< Damage numbers in battle. */
+    OPTION_ITEM_ENEMY_HP        = 7,  /**< How the enemies' life gauges are shown. */
+    OPTION_ITEM_ANGER_COUNTER   = 8,  /**< How the enemies' anger counters are shown. */
+    OPTION_ITEM_UNK_9           = 9,
+    OPTION_ITEM_MONSTER_NAME    = 10, /**< How the enemies' names are shown. */
+    OPTION_ITEM_DEPTH_OF_FIELD  = 11, /**< Depth of field blur. */
+    OPTION_ITEM_CAPTIONS        = 12, /**< Event captions. */
+    OPTION_ITEM_PAUSE_OVERLAY   = 13, /**< Pause screen overlay. */
+    OPTION_ITEM_CAMERA_VERTICAL = 14, /**< Vertical axis of the first-person camera. */
+    OPTION_ITEM_CAMERA_ROTATION = 15, /**< Rotation direction of the camera. */
 };
+
+// clang-format on
 
 /**
  *
@@ -90,7 +99,7 @@ enum SaveListPhase {
     SAVE_LIST_PHASE_SAVING       = 2,  /**< The save is written. */
     SAVE_LIST_PHASE_SAVE_DONE    = 3,  /**< The save has finished. */
     SAVE_LIST_PHASE_NOTICE       = 6,  /**< A message is shown until a button is pushed. */
-    SAVE_LIST_PHASE_UNK_7        = 7,  /**< The file list waits without changing state. */
+    SAVE_LIST_PHASE_IDLE         = 7,  /**< The file list does nothing; no step leads here. */
     SAVE_LIST_PHASE_MAKING_DIR   = 10, /**< The directory for a new file is made. */
     SAVE_LIST_PHASE_CONFIRM_LOAD = 50, /**< The player is asked to load the chosen file. */
     SAVE_LIST_PHASE_LOADING      = 51, /**< The save is read. */
@@ -161,7 +170,7 @@ enum SaveMenuPage {
     SAVE_MENU_PAGE_CARD_INFO   = 2, /**< The card in the chosen slot is checked. */
     SAVE_MENU_PAGE_FILE_READ   = 3, /**< The files on the card are read. */
     SAVE_MENU_PAGE_FORMAT      = 4, /**< The player is asked to format an unformatted card. */
-    SAVE_MENU_PAGE_UNK_5       = 5,
+    SAVE_MENU_PAGE_UNFORMAT    = 5, /**< The card in the first slot is unformatted; no page leads here. */
     SAVE_MENU_PAGE_ERROR       = 6, /**< A card error or lack of space is reported. */
 };
 
@@ -174,11 +183,13 @@ enum SaveMenuPage {
  */
 // clang-format off
 enum SubGameSavePhase {
+    SUB_SAVE_CLOSING           = -1,    /**< The menu is fading out to close. */
     SUB_SAVE_SLOT_SELECT       = 0,     /**< The player picks a memory card slot. */
     SUB_SAVE_CARD_CHECK        = 1,     /**< The card in the chosen slot is read. */
     SUB_SAVE_CARD_READY        = 2,     /**< The bonus data file of the card is looked for. */
     SUB_SAVE_QUIT_ASK          = 10,    /**< The player is asked to leave the menu. */
     SUB_SAVE_QUIT_ASK_LOAD     = 11,    /**< The player is asked to leave the menu, with a note on loading. */
+    SUB_SAVE_UNUSED_50         = 50,    /**< Does nothing; no phase leads here. */
     SUB_SAVE_OVERWRITE_ASK     = 100,   /**< The player is asked to overwrite the file on the card. */
     SUB_SAVE_WRITING           = 101,   /**< The bonus data is written. */
     SUB_SAVE_WRITE_DONE        = 102,   /**< The write has finished. */
@@ -194,6 +205,33 @@ enum SubGameSavePhase {
     SUB_SAVE_LOAD_DONE         = 202,   /**< The read has finished. */
     SUB_SAVE_LOAD_MISSING      = 250,   /**< The player is told the file is missing and asked to go on. */
     SUB_SAVE_CARD_ERROR        = 1000,  /**< A card error is reported. */
+    SUB_SAVE_UNUSED_1001       = 1001,  /**< Does nothing; no phase leads here. */
+};
+
+// clang-format on
+
+/**
+ *
+ * What the mini-game save menu does, as SubGameSaveOrLoad holds it.
+ *
+ */
+enum SubGameSaveMode {
+    SUB_SAVE_MODE_SAVE = 0, /**< Save the mini-game data during play. */
+    SUB_SAVE_MODE_LOAD = 1, /**< Load the mini-game data from the title screen. */
+};
+
+/**
+ *
+ * Steps of the battle music volume while the manual menu plays a movie in a dungeon, as MovieBattleBGMPhase holds them.
+ *
+ */
+// clang-format off
+enum MovieBattleBGMStep {
+    MOVIE_BATTLE_BGM_IDLE     = 0, /**< The volume is left alone. */
+    MOVIE_BATTLE_BGM_MUTE     = 1, /**< The volume is saved and the music muted. */
+    MOVIE_BATTLE_BGM_FADE_OUT = 2, /**< The volume falls. */
+    MOVIE_BATTLE_BGM_FADE_IN  = 3, /**< The volume rises back to the saved level. */
+    MOVIE_BATTLE_BGM_RESTORE  = 4, /**< The volume is held at the saved level. */
 };
 
 // clang-format on
@@ -225,10 +263,10 @@ public:
         select = 0;
         top = 0;
         list_y = 400.0f;
-        cursor_jump = 0;
-        pict_mode = 0;
+        cursor_jump = false;
+        pict_mode = false;
         pict_num = 0;
-        key_arg_no = 0;
+        key_arg_no = MANUAL_STEP_SELECT;
         movie_stack.stSetBuffer(NULL, 0);
     }
 
@@ -374,10 +412,10 @@ public:
     s32                 top;            /**< First file shown in the list. */
     u8                  list_jump;      /**< Non-zero to put the list at its place at once rather than moving it. */
     s32                 slot;           /**< Memory card slot chosen, 0 or 1. */
-    s32                 mode;           /**< What the menu was opened to do, a SaveMenuMode. */
-    s32                 page;           /**< Page shown, a SaveMenuPage. */
+    s32                 mode;           /**< What the menu was opened to do. @see SaveMenuMode */
+    s32                 page;           /**< Page shown. @see SaveMenuPage */
     s32                 phase;          /**< Step within the page. */
-    s32                 save_kind;      /**< Kind of file write, a SaveFileKind, as EnvSetSave takes it. */
+    s32                 save_kind;      /**< Kind of file write, as EnvSetSave takes it. @see SaveFileKind */
     s32                 dl_base;        /**< Progress of the card access already shown on the progress bar. */
     s32                 need_kb;        /**< Space the save needs, in kilobytes, as shown to the player. */
     s32                 save_kb;        /**< Size of the save data, in kilobytes. */
@@ -403,14 +441,14 @@ public:
      *
      */
     CSaveMenuClass() {
-        first_step = 1;
+        first_step = true;
         slot = 0;
-        list_jump = 0;
+        list_jump = false;
         top = 0;
         select = 0;
-        mode = 0;
+        mode = SAVE_MENU_MODE_SAVE;
         dl_base = 0;
-        save_kind = 1;
+        save_kind = SAVE_FILE_NEW;
         need_kb = 0;
         save_kb = 0;
         check_kb = 0;
@@ -432,8 +470,8 @@ public:
         scrlbar_parts[2] = NULL;
         scrlbar_pos[0] = 0;
         scrlbar_pos[1] = 9;
-        card_ok = 0;
-        card_changed = 0;
+        card_ok = false;
+        card_changed = false;
     }
 
     /**
@@ -450,7 +488,7 @@ public:
     /**
      *
      * Starts saving to the chosen file: asks the memory card manager to make
-     * a new file (kind 1) or overwrite the file (kind 0), and shows the
+     * a new file or overwrite the file, as a SaveFileKind says, and shows the
      * progress bar.
      *
      * @mangled EnvSetSave__14CSaveMenuClassFi
@@ -642,7 +680,7 @@ void ResetMapInfo();
  * @address 0x2C9AE0
  * @size 0x6A0
  */
-void MenuSaveInit(mgCMemory *memory, int *tex_block, int mode);
+void MenuSaveInit(mgCMemory *memory, int *tex_block, int open_type);
 
 /**
  *
@@ -674,7 +712,7 @@ void MenuSaveDraw();
  * @address 0x2CA450
  * @size 0x3E0
  */
-void SubGameSaveInit(mgCMemory *memory, int *tex_block, int mode);
+void SubGameSaveInit(mgCMemory *memory, int *tex_block, int open_type);
 
 /**
  *

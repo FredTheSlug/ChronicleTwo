@@ -131,7 +131,7 @@ enum ITEM_MENU_COMMAND {
     ITEM_MENU_COMMAND_BOIL_FISH               = 42,   /**< Boils the fish. */
     ITEM_MENU_COMMAND_ESCAPE_DUNGEON          = 43,   /**< Uses the item up to leave the dungeon, after asking. */
     ITEM_MENU_COMMAND_BREAK_SEAL              = 44,   /**< Uses the item up to break the seals of the dungeon floor. */
-    ITEM_MENU_COMMAND_SHOW_FISH_CODE          = 45,   /**< Shows the password of the fish. */
+    ITEM_MENU_COMMAND_SHOW_FISH_CODE          = 45,   /**< Shows the fish's password for Finny Frenzy. */
     ITEM_MENU_COMMAND_VIEW_FISHING_ROD        = 46,   /**< Opens the page that spends the fishing rod's points. */
     ITEM_MENU_COMMAND_OPEN_MONSTER_BOOK       = 47,   /**< Opens the monster book. */
     ITEM_MENU_COMMAND_MSG_BASE                = 5000, /**< Message number of command 0; each command's message is this plus the command. */

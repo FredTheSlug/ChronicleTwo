@@ -1356,7 +1356,7 @@ int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
                         MenuItemCmdRet.se_no = SYSTEM_SE_CANCEL;
                     }
 
-                    if (MenuItemCmdRet.se_no != 5 && MenuItemCmdRet.se_no != 0x1C) {
+                    if (MenuItemCmdRet.se_no != SYSTEM_SE_CANCEL && MenuItemCmdRet.se_no != 0x1C) {
                         decided = true;
                         mes->MakeMsg(-100);
                     }
@@ -4014,14 +4014,14 @@ int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values
 
             if (IsCheckParty(chara_no)) {
                 if (chara_no < 2) {
-                    CHARA_DATA *chara = MenuUserParam.chara[chara_no];
+                    CHARA_DATA *chara_data = MenuUserParam.chara[chara_no];
 
-                    if (chara != NULL) {
-                        if (!MenuItemUse.CheckItemUseEnable(item, 0, chara)) {
+                    if (chara_data != NULL) {
+                        if (!MenuItemUse.CheckItemUseEnable(item, 0, chara_data)) {
                             colors[i] = 0x80202020;
                         }
 
-                        if (item_no == 0x11F && !(chara->status_attr & 8)) {
+                        if (item_no == 0x11F && !(chara_data->status_attr & 8)) {
                             colors[i] = 0x80202020;
                         }
                     }
@@ -4045,17 +4045,17 @@ int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values
             if (fishing_ng) {
                 colors[i] = 0x80202020;
             } else {
-                CHARA_DATA *chara = MenuUserParam.chara[who];
+                CHARA_DATA *chara_data = MenuUserParam.chara[who];
 
-                if (chara->status_attr & 4) {
+                if (chara_data->status_attr & 4) {
                     colors[i] = 0x80202020;
                 }
 
-                if (chara->status_attr & 8) {
+                if (chara_data->status_attr & 8) {
                     colors[i] = 0x80202020;
                 }
 
-                if (chara->status_attr & 0x20) {
+                if (chara_data->status_attr & 0x20) {
                     colors[i] = 0x80202020;
                 }
             }
@@ -4274,7 +4274,7 @@ int GetItemCommandMsg(CGameDataUsed *item, int *cmds, u32 *colors, short *values
             }
         }
 
-        if (cmds[i] == 0x13B5 && !finny_frenzy_unlocked) {
+        if (cmds[i] == ITEM_MENU_COMMAND_MSG_BASE + ITEM_MENU_COMMAND_SHOW_FISH_CODE && !finny_frenzy_unlocked) {
             local_sort1(i, &num, cmds);
             continue;
         }

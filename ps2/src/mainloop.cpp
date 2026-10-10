@@ -102,7 +102,6 @@ static void      MenuInit(INIT_LOOP_ARG arg);
 static void      MenuExit();
 static int       MenuLoop();
 static int       EventSelect();
-static int       gcALL_GEO_PARTS(SPI_STACK *stack, int argc);
 LOOP_INIT_FUNC   LoopInit[LOOP_MODE_NUM] = {
     MenuInit,
     EditInit,
@@ -268,27 +267,27 @@ static TM2_head *FontDataAdr[1];
  */
 static u8 font_buff[0xD000];
 
-static int gcMAP_NO(SPI_STACK *stack, int argument_count);
-static int gcPROGRESS(SPI_STACK *stack, int argument_count);
-static int gcBIT_FLAG_ON(SPI_STACK *stack, int argument_count);
-static int gcBIT_FLAG_OFF(SPI_STACK *stack, int argument_count);
-static int gcSTART_EVENT(SPI_STACK *stack, int argument_count);
-static int gcGEO_COMPLETE(SPI_STACK *stack, int argument_count);
-static int gcGEO_DEBUG(SPI_STACK *stack, int argument_count);
-static int gcITEM_SET(SPI_STACK *stack, int argument_count);
-static int gcGET_ITEM(SPI_STACK *stack, int argument_count);
-static int gcGET_N_ITEM(SPI_STACK *stack, int argument_count);
-static int gcEQUIP(SPI_STACK *stack, int argument_count);
-static int gcDEFENSE(SPI_STACK *stack, int argument_count);
-static int gcHP(SPI_STACK *stack, int argument_count);
-static int gcALL_GEO_PARTS(SPI_STACK *stack, int argument_count);
-static int gcPARAM_DRAW(SPI_STACK *stack, int argument_count);
-static int gcOPTION(SPI_STACK *stack, int argument_count);
-static int gcMONICA(SPI_STACK *stack, int argument_count);
-static int gcSTEVE(SPI_STACK *stack, int argument_count);
-static int gcMONSTER(SPI_STACK *stack, int argument_count);
-static int gcPARTY(SPI_STACK *stack, int argument_count);
-static int gcACTIVE_CHARA(SPI_STACK *stack, int argument_count);
+static int gcMAP_NO(SPI_STACK *stack, int arg_count);
+static int gcPROGRESS(SPI_STACK *stack, int arg_count);
+static int gcBIT_FLAG_ON(SPI_STACK *stack, int arg_count);
+static int gcBIT_FLAG_OFF(SPI_STACK *stack, int arg_count);
+static int gcSTART_EVENT(SPI_STACK *stack, int arg_count);
+static int gcGEO_COMPLETE(SPI_STACK *stack, int arg_count);
+static int gcGEO_DEBUG(SPI_STACK *stack, int arg_count);
+static int gcITEM_SET(SPI_STACK *stack, int arg_count);
+static int gcGET_ITEM(SPI_STACK *stack, int arg_count);
+static int gcGET_N_ITEM(SPI_STACK *stack, int arg_count);
+static int gcEQUIP(SPI_STACK *stack, int arg_count);
+static int gcDEFENSE(SPI_STACK *stack, int arg_count);
+static int gcHP(SPI_STACK *stack, int arg_count);
+static int gcALL_GEO_PARTS(SPI_STACK *stack, int arg_count);
+static int gcPARAM_DRAW(SPI_STACK *stack, int arg_count);
+static int gcOPTION(SPI_STACK *stack, int arg_count);
+static int gcMONICA(SPI_STACK *stack, int arg_count);
+static int gcSTEVE(SPI_STACK *stack, int arg_count);
+static int gcMONSTER(SPI_STACK *stack, int arg_count);
+static int gcPARTY(SPI_STACK *stack, int arg_count);
+static int gcACTIVE_CHARA(SPI_STACK *stack, int arg_count);
 
 /**
  * Tags accepted by the main game configuration parser.
@@ -327,7 +326,7 @@ int GetCaptureMode() {
     return CaptureMode;
 }
 
-s32 GetSystemSndID() {
+int GetSystemSndID() {
     return SystemSND_ID;
 }
 
@@ -438,8 +437,8 @@ static void VSyncCallBack(int unused) {
     }
 }
 
-void PlayTimeCount(int value) {
-    PlayTimeCountFlag = value;
+void PlayTimeCount(int enable) {
+    PlayTimeCountFlag = enable;
 }
 
 int GetPlayTimeCountFlag() {
@@ -1492,10 +1491,10 @@ void FadeOutForE3() {}
 
 int TimeLimitCheck() { return 0; }
 
-void InitPauseMenu(int value) {
+void InitPauseMenu(int texture_block) {
     PauseMes.Init();
     PauseMes.Preset(MES_PRESET_SMALL_FUKIDASHI);
-    PauseMes.texture_block = value;
+    PauseMes.texture_block = texture_block;
     PauseMes.SetWindowMode(MES_WIN_YESNO);
     BlackFade = 0.0f;
     PauseSel = 1;
@@ -1615,7 +1614,7 @@ void LoadGameConfig(char *path) {
     interpreter.Run();
 }
 
-int gcMAP_NO(SPI_STACK *stack, int arg) {
+int gcMAP_NO(SPI_STACK *stack, int arg_count) {
     int map_no;
 
     if (stack->type == 0) {
@@ -1628,18 +1627,18 @@ int gcMAP_NO(SPI_STACK *stack, int arg) {
     return 1;
 }
 
-int gcPROGRESS(SPI_STACK *stack, int arg) {
+int gcPROGRESS(SPI_STACK *stack, int arg_count) {
     int        value = spiGetStackInt(stack);
     CSaveData *save = GetSaveData();
     save->game_progress = value;
     return 0;
 }
 
-int gcBIT_FLAG_ON(SPI_STACK *stack, int count) {
+int gcBIT_FLAG_ON(SPI_STACK *stack, int arg_count) {
     CSaveData *save_data;
     int        i;
 
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < arg_count; i++) {
         save_data = GetSaveData();
         save_data->SetBitFlag(spiGetStackInt(stack++), 1);
     }
@@ -1647,11 +1646,11 @@ int gcBIT_FLAG_ON(SPI_STACK *stack, int count) {
     return 0;
 }
 
-int gcBIT_FLAG_OFF(SPI_STACK *stack, int count) {
+int gcBIT_FLAG_OFF(SPI_STACK *stack, int arg_count) {
     CSaveData *save_data;
     int        i;
 
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < arg_count; i++) {
         save_data = GetSaveData();
         save_data->SetBitFlag(spiGetStackInt(stack++), 0);
     }
@@ -1664,14 +1663,14 @@ int gcSTART_EVENT(SPI_STACK *stack, int arg_count) {
     return 0;
 }
 
-int gcGEO_COMPLETE(SPI_STACK *stack, int count) {
+int gcGEO_COMPLETE(SPI_STACK *stack, int arg_count) {
     int        i;
     int        index;
     CEditData *edit_data;
 
     DebugInfo.georama_debug = 1;
 
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < arg_count; i++) {
         index = spiGetStackInt(stack++);
         edit_data = GetSaveData()->GetEditData(index);
 
@@ -1696,11 +1695,11 @@ int gcITEM_SET(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
-int gcGET_ITEM(SPI_STACK *stack, int count) {
+int gcGET_ITEM(SPI_STACK *stack, int arg_count) {
     int               i;
     CUserDataManager *user_data;
 
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < arg_count; i++) {
         user_data = &GetSaveData()->user_data;
         user_data->GetItem(spiGetStackInt(stack++), 1);
     }
@@ -1708,12 +1707,12 @@ int gcGET_ITEM(SPI_STACK *stack, int count) {
     return 1;
 }
 
-int gcGET_N_ITEM(SPI_STACK *stack, int count) {
+int gcGET_N_ITEM(SPI_STACK *stack, int arg_count) {
     int               item_no;
     int               i;
     CUserDataManager *user_data;
 
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < arg_count; i++) {
         user_data = &GetSaveData()->user_data;
         item_no = spiGetStackInt(stack++);
         user_data->GetItem(item_no, spiGetStackInt(stack++));
@@ -1771,7 +1770,7 @@ int gcHP(SPI_STACK *stack, int arg_count) {
  * Unlocks Geostones and town conditions and grants Georama materials.
  *
  */
-static int gcALL_GEO_PARTS(SPI_STACK *stack, int argc) {
+static int gcALL_GEO_PARTS(SPI_STACK *stack, int arg_count) {
     CSaveDataDungeon *dungeon;
     DNG_FLOOR_SAVE   *floor;
     CEditData        *edit;
@@ -1783,7 +1782,7 @@ static int gcALL_GEO_PARTS(SPI_STACK *stack, int argc) {
 
     mode = 0;
 
-    if (argc > 0) {
+    if (arg_count > 0) {
         mode = spiGetStackInt(stack);
     }
 
@@ -1833,7 +1832,7 @@ int gcPARAM_DRAW(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
-int gcOPTION(SPI_STACK *stack, int arg) {
+int gcOPTION(SPI_STACK *stack, int arg_count) {
     char             *name;
     SV_CONFIG_OPTION *options;
     SPI_STACK        *value;
@@ -1872,7 +1871,7 @@ int gcMONICA(SPI_STACK *stack, int arg_count) {
     return 1;
 }
 
-int gcSTEVE(SPI_STACK *stack, int mode) {
+int gcSTEVE(SPI_STACK *stack, int arg_count) {
     CUserDataManager *manager;
 
     manager = GetUserDataMan();
@@ -1884,7 +1883,7 @@ int gcSTEVE(SPI_STACK *stack, int mode) {
     manager->JoinPartyMember(2);
     manager->GetItemNotOver(0xF6, 1);
 
-    if (mode == 2) {
+    if (arg_count == 2) {
         manager->DeleteItem(0xF6, 1);
         manager->GetItemNotOver(GetRidePodCore(spiGetStackInt(stack)), 1);
     }
@@ -1893,7 +1892,7 @@ int gcSTEVE(SPI_STACK *stack, int mode) {
 }
 
 int gcMONSTER(SPI_STACK *stack, int arg_count) {
-    int               sp7_c;
+    int               class_level;
     CUserDataManager *manager;
     int               i;
     int               monster_id;
@@ -1911,14 +1910,14 @@ int gcMONSTER(SPI_STACK *stack, int arg_count) {
 
     for (i = 0; i < arg_count; i++) {
         monster_id = spiGetStackInt(stack++);
-        badge_no = get_gajji_id_from_monster_progress_table(monster_id, &sp7_c) + 1;
+        badge_no = get_gajji_id_from_monster_progress_table(monster_id, &class_level) + 1;
         manager->monster_box.EnableChange(badge_no);
         badge = manager->monster_box.GetMonsterBajjiData(badge_no);
 
         if (badge != NULL) {
-            badge->class_level = sp7_c;
+            badge->class_level = class_level;
             badge->monster_id = monster_id;
-            badge->progress = GetMonsterProgressTableNo(sp7_c, monster_id);
+            badge->progress = GetMonsterProgressTableNo(class_level, monster_id);
         }
 
         manager->monster_id = monster_id;

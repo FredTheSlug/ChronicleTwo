@@ -272,10 +272,10 @@ static int  _SKIN_IMG_END(SPI_STACK *stack, int argc);
 static int  _SKIN_MODEL(SPI_STACK *stack, int argc);
 static int  _LOD_MODEL_START(SPI_STACK *stack, int argc);
 static int  _LOD_MODEL_END(SPI_STACK *stack, int argc);
-static int _MODEL(SPI_STACK *stack, int argument_count);
-static int _SEQ_START(SPI_STACK *stack, int argument_count);
-static int _EFFECT(SPI_STACK *stack, int argument_count);
-static int _LOD_MODEL(SPI_STACK *stack, int argument_count);
+static int  _MODEL(SPI_STACK *stack, int argument_count);
+static int  _SEQ_START(SPI_STACK *stack, int argument_count);
+static int  _EFFECT(SPI_STACK *stack, int argument_count);
+static int  _LOD_MODEL(SPI_STACK *stack, int argument_count);
 
 /**
  *
@@ -3102,7 +3102,7 @@ void CCharacter2::CtrlEffect() {
         CHARA_EFFECT_MANAGER *manager = entry_effect[i].effect;
         CHRINFO_KEY_SET      *key = now_key;
         float                 progress = (frame - (float) key->start_frame) /
-                         ((float) key->end_frame - (float) key->start_frame);
+                                         ((float) key->end_frame - (float) key->start_frame);
 
         if (progress > manager->start_ratio) {
             manager->Run();
@@ -3260,7 +3260,7 @@ mgCFrame *CreateChangeFrame(mgLoadData *data, mgCFrame *target) {
     int        target_id;
     mgCVisual *visual;
     mgCFrame **frame_list;
-    float(*matrix)[4][4];
+    float (*matrix)[4][4];
     int                 i;
     mgCreateVisualType *list;
     mgCFrame           *found;
@@ -3401,7 +3401,7 @@ static int _SKIN_MOTION(SPI_STACK *stack, int count) {
         load.mds = (MDS_HEADER *) model_file;
         load.work_memory = &work_memory;
         load.weight = (unsigned int *) weight_file;
-        load.matrix = (float(*)[4][4]) matrix_file;
+        load.matrix = (float (*)[4][4]) matrix_file;
         load.visual_type = visual_type;
         load.memory = base_stack;
         root_skin_frame = CreateChangeFrame(&load, nowChr->CObjectFrame::frame);
@@ -3496,8 +3496,8 @@ static int _LOD_MODEL(SPI_STACK *stack, int count) {
     char              *model_name;
     MDS_HEADER        *model_file;
     unsigned int      *weight_file;
-    int(*link)[2];
-    float(*matrix_file)[4][4];
+    int (*link)[2];
+    float (*matrix_file)[4][4];
     int        frame_index;
     int        frame_count;
     int        visual_count;
@@ -3522,7 +3522,7 @@ static int _LOD_MODEL(SPI_STACK *stack, int count) {
     level->distance = spiGetStackFloat(stack++);
     model_file = (MDS_HEADER *) GetPackFile(pack_file, model_name, NULL);
     weight_file = GetPackFile(pack_file, weight_name, NULL);
-    matrix_file = (float(*)[4][4]) GetPackFile(pack_file, matrix_name, NULL);
+    matrix_file = (float (*)[4][4]) GetPackFile(pack_file, matrix_name, NULL);
 
     if (model_file == NULL) {
         return false;
@@ -3624,7 +3624,7 @@ mgCFrame *CCharacter2::ChangeLOD(int index) {
     mgCFrame  *root;
     mgCFrame  *lod_frame;
     mgCFrame **root_frames;
-    int(*pair)[2];
+    int (*pair)[2];
     int        i;
     mgCFrame  *target;
     mgCFrame  *source;

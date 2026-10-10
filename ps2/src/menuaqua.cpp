@@ -1888,33 +1888,31 @@ void CAquaFish::NormalGetNextRot() {
 }
 
 float CAquaFish::CalcMoveSpeed(float speed) {
-    u8   *stats;
-    float ceiling;
-    int   offset;
+    BREEDFISH_USED *breed;
+    float           ceiling;
 
     if (data == NULL) {
-        stats = NULL;
+        breed = NULL;
     } else {
-        stats = (u8 *) data + 0x10;
+        breed = &data->data.fish;
     }
 
     ceiling = 3.0f;
 
     switch (think_mode) {
-        case 1:
-            offset = GetRandI(3) * 2;
-            speed *= 0.55f + 0.02f * (float) *(u16 *) (offset + (int) stats + 0x26);
+        case AQUA_FISH_THINK_SWIM:
+            speed *= 0.55f + 0.02f * breed->param[GetRandI(3)];
             break;
-        case 5:
-            speed *= 0.65f + 0.024f * (float) *(u16 *) (stats + 0x26);
+        case AQUA_FISH_THINK_BATTLE:
+            speed *= 0.65f + 0.024f * breed->param[BREEDFISH_STAT_BOOST];
             ceiling = 4.4f;
             break;
-        case 6:
-            speed *= 0.65f + 0.024f * (float) *(u16 *) (stats + 0x26);
+        case AQUA_FISH_THINK_BATTLE_REST:
+            speed *= 0.65f + 0.024f * breed->param[BREEDFISH_STAT_BOOST];
             break;
-        case 7:
-        case 8:
-            speed *= 0.4f + 0.02f * (float) *(u16 *) (stats + 0x2C);
+        case AQUA_FISH_THINK_LOVE_SEARCH:
+        case AQUA_FISH_THINK_LOVE_CHASE:
+            speed *= 0.4f + 0.02f * breed->param[BREEDFISH_STAT_STAMINA];
             break;
     }
 

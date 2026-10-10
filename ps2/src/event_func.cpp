@@ -97,11 +97,20 @@ struct VpkEntry {
 
 /**
  *
+ * Extent of the voice pack table that event scripts search.
+ *
+ */
+enum VpkTableExtent {
+    VPK_ENTRY_NUM = 164, /**< Voice pack entries in the table. */
+};
+
+/**
+ *
  * VPK resource entries used by event scripts.
  *
  */
 struct VpkTable {
-    VpkEntry entry[164]; /**< Resource entries. */
+    VpkEntry entry[VPK_ENTRY_NUM]; /**< Resource entries. */
 };
 
 /**
@@ -122,43 +131,89 @@ struct TrainNpcTable {
     float row[12][4]; /**< Training value rows. */
 };
 
-typedef int (*EventFunc)(RS_STACKDATA *, int);
 /**
+ *
+ * Handler of one external event script command.
+ *
+ */
+typedef int (*EventFunc)(RS_STACKDATA *, int);
+
+/**
+ *
  * Argument script whose external commands are being executed.
+ *
  */
 static CEventScriptArg *nowScriptArg;
 
-extern CEventScriptArg EventScriptArg;
 /**
- * Dispatch slots for event script external commands.
+ *
+ * Argument lists that the running event loaded.
+ *
  */
-static EventFunc ext_func[0x5DC];
+extern CEventScriptArg EventScriptArg;
 
-extern CEventSprite2 EventSprite2[0x30];
-extern CSceneObjSeq  ObjectSeq[32];
-extern CSceneCmrSeq  CameraSeq;
-extern mgCMemory     BuffEventSnd;
-extern mgCMemory     BuffEventSnd2;
-extern CDngFreeMap   EventDngMap;
 /**
+ *
+ * Dispatch slots for event script external commands.
+ *
+ */
+static EventFunc ext_func[EVENT_EXT_FUNC_NUM];
+
+/**
+ *
+ * Sprites that event scripts place on the screen or in the world.
+ *
+ */
+extern CEventSprite2 EventSprite2[EVENT_SPRITE2_NUM];
+
+/**
+ *
+ * Object sequences that move event object handles over time.
+ *
+ */
+extern CSceneObjSeq ObjectSeq[EVENT_OBJECT_SEQ_NUM];
+
+/**
+ *
+ * Camera sequence that moves the event camera over time.
+ *
+ */
+extern CSceneCmrSeq CameraSeq;
+
+/**
+ *
+ * Memory that event sound banks are loaded into.
+ *
+ */
+extern mgCMemory BuffEventSnd;
+
+/**
+ *
+ * Memory that event sound banks for the menu port are loaded into.
+ *
+ */
+extern mgCMemory BuffEventSnd2;
+
+/**
+ *
+ * Dungeon map that events show.
+ *
+ */
+extern CDngFreeMap EventDngMap;
+
+/**
+ *
  * Effect script manager controlled by the event script.
+ *
  */
 static CEffectScriptMan *EventEffectScript;
 
 /**
+ *
  * Sword trail effect controlled by the event script.
+ *
  */
 static CSWordAfterImage *SwordEffect;
-
-/**
- * Initializes the effect script manager controlled by an event.
- */
-int _ESM_INITIALIZE(RS_STACKDATA *stack, int argc);
-
-/**
- * Copies a monster into a scene character slot for an event script.
- */
-int _COPY_MONS2SCNCHR(RS_STACKDATA *stack, int argc);
 
 static int   GetStackInt(RS_STACKDATA *stack);
 static float GetStackFloat(RS_STACKDATA *stack);
@@ -172,53 +227,28 @@ static CCharacter2    *GetChara(int id);
 static CSceneObjSeq   *GetObjSeq(int index);
 static CEventSprite2  *GetEventSprite(int index);
 static ClsMes         *GetMes(int id);
-const int              hit_effect_num = 5;
-const int              event_sprite2_num = 0x30;
-const int              sprite_type_world = 1;
-const float            sprite_ground_offset = 32.0f;
-const int              status_no_shadow = 8;
-const int              script_stack_slots = 0x20;
-const int              script_call_slots = script_stack_slots;
-const int              script_func_slots = 3;
-const int              script_run_id = 0x64;
-const float            raster_max = PI;
-const int              prim_sprite = 6;
-const int              half_color = 0x80;
-const int              hit_spark_num = 0x40;
-const int              event_snd_buffer_size = 0x801;
-const int              event_snd2_buffer_size = 0x141;
 
 /**
+ *
  * Storage for secondary event sound banks.
+ *
  */
-static u_long128 event_snd2_buff[event_snd2_buffer_size];
+static u_long128 event_snd2_buff[EVENT_SND2_BUFFER_SIZE];
 
 /**
+ *
  * Storage for event sound banks.
+ *
  */
-static u_long128 event_snd_buff[event_snd_buffer_size];
+static u_long128 event_snd_buff[EVENT_SND_BUFFER_SIZE];
 
-const int memory_name_max = 0x10;
-const int pack_file_max = 0x80;
-const int type_loaded = 2;
-const int event_func_slots = 0x5DC;
-const int object_seq_num = 32;
-const int exit_edit_mode = 17;
-const int event_stream = 1;
-const int stream_max_volume = 0x7FFF;
-const int vpk_entry_count = 164;
+/**
+ *
+
+ * Byte offset of CCharacter2::sword_effect, added after the slot offset by the sword effect commands.
+ *
+ */
 const int chara_sword_after_offset = 0x570;
-const int menu_dng_map = 3;
-const int menu_select_party = 4;
-const int menu_use_item = 9;
-const int menu_draw_chapter = 11;
-const int exit_start_loop = EVENT_REQUEST_GOTO;
-const int exit_enter_interior = EVENT_REQUEST_INTERIOR;
-const int exit_leave_interior = EVENT_REQUEST_OUTSIDE;
-const int exit_map_jump = EVENT_REQUEST_MAP_JUMP;
-const int request_menu = EVENT_COMMAND_SUB_MODE;
-const int request_door = EVENT_COMMAND_DOOR;
-const int event_sprite2_size = 0x80;
 
 CEoh::CEoh() {
     type = EOH_TYPE_NONE;
@@ -499,10 +529,10 @@ int CEohMother::SetPos(int slot, float x, float y, float z) {
                 return 0;
             }
 
-            if (sprite->GetType() == 0) {
-                *pos_y += sprite_ground_offset;
+            if (sprite->GetType() == EVENT_SPRITE2_TYPE_SCREEN) {
+                *pos_y += 32.0f;
                 sprite->SetPosition(pos);
-            } else if (sprite->GetType() == sprite_type_world) {
+            } else if (sprite->GetType() == EVENT_SPRITE2_TYPE_WORLD) {
                 CalcPosWorldCoord(pos);
                 sprite->SetPosition(pos);
             }
@@ -677,10 +707,10 @@ int CEohMother::GetPos(int slot, float *pos) {
 
             sprite->GetPosition(pos);
 
-            if (sprite->GetType() == sprite_type_world) {
+            if (sprite->GetType() == EVENT_SPRITE2_TYPE_WORLD) {
                 CalcPosWorldCoordGyaku(pos);
             } else {
-                pos[1] -= sprite_ground_offset;
+                pos[1] -= 32.0f;
             }
 
             return 1;
@@ -1298,9 +1328,9 @@ int CEohMother::SetShadow(int slot, int enable) {
     switch (handle->type) {
         case EOH_TYPE_CHARA:
             if (enable != 0) {
-                EventScene->ResetStatus(SCENE_DATA_CHARA, handle->scene_no, status_no_shadow);
+                EventScene->ResetStatus(SCENE_DATA_CHARA, handle->scene_no, 8);
             } else {
-                EventScene->SetStatus(SCENE_DATA_CHARA, handle->scene_no, status_no_shadow);
+                EventScene->SetStatus(SCENE_DATA_CHARA, handle->scene_no, 8);
             }
 
             return 1;
@@ -1935,17 +1965,23 @@ static void SetStack(RS_STACKDATA *stack, float value) {
 }
 
 /**
+ *
  * Records the argument entries supplied by an argument script.
+ *
  */
 static int _DATA(RS_STACKDATA *stack, int argc);
 
 /**
+ *
  * Sets the next argument-list identifier supplied by an argument script.
+ *
  */
 static int _ID_OFFSET(RS_STACKDATA *stack, int argc);
 
 /**
+ *
  * External handlers available to event argument scripts.
+ *
  */
 static RS_EXTFUNC_INFO esa_ext_func_info[3] = {
     {_DATA,      EVENT_ARG_DATA     },
@@ -1954,9 +1990,9 @@ static RS_EXTFUNC_INFO esa_ext_func_info[3] = {
 };
 
 void CEventScriptArg::BuildArgData(u32 *program) {
-    RS_STACKDATA stack[script_stack_slots];
-    RS_CALLDATA  calls[script_call_slots];
-    int (*func_table[script_func_slots])(RS_STACKDATA *, int);
+    RS_STACKDATA stack[EVENT_ARG_STACK_NUM];
+    RS_CALLDATA  calls[EVENT_ARG_CALL_NUM];
+    int (*func_table[EVENT_ARG_FUNC_NUM])(RS_STACKDATA *, int);
     int count;
     int i;
     int j;
@@ -1981,7 +2017,7 @@ void CEventScriptArg::BuildArgData(u32 *program) {
             }
         }
 
-        if (esa_ext_func_info[i].no < 0 || esa_ext_func_info[i].no >= script_func_slots) {
+        if (esa_ext_func_info[i].no < 0 || esa_ext_func_info[i].no >= EVENT_ARG_FUNC_NUM) {
             printf("EvectScriptArg ext func over!!\n");
         } else {
             func_table[esa_ext_func_info[i].no] = esa_ext_func_info[i].func;
@@ -1993,9 +2029,9 @@ void CEventScriptArg::BuildArgData(u32 *program) {
 
     nowScriptArg = this;
     CRunScript script;
-    script.load((RS_PROG_HEADER *) program, stack, script_stack_slots, calls, script_call_slots);
-    script.ext_func(func_table, script_func_slots);
-    script.run(script_run_id);
+    script.load((RS_PROG_HEADER *) program, stack, EVENT_ARG_STACK_NUM, calls, EVENT_ARG_CALL_NUM);
+    script.ext_func(func_table, EVENT_ARG_FUNC_NUM);
+    script.run(100);
     nowScriptArg = NULL;
 }
 
@@ -2333,8 +2369,8 @@ void CRaster::StepRaster() {
 
             speed += speed_step;
 
-            if (speed > raster_max) {
-                speed = raster_max;
+            if (speed > PI) {
+                speed = PI;
             }
 
             if (speed < 0.0f) {
@@ -2343,8 +2379,8 @@ void CRaster::StepRaster() {
 
             pitch += pitch_step;
 
-            if (pitch > raster_max) {
-                pitch = raster_max;
+            if (pitch > PI) {
+                pitch = PI;
             }
 
             if (pitch < 0.0f) {
@@ -2392,9 +2428,9 @@ void CRaster::DrawRaster() {
         slot.ZMask(MG_Z_MASK_MASKED);
         slot.TextureMapEnable(1);
         current_phase = phase;
-        slot.Begin(prim_sprite);
+        slot.Begin(MG_PRIM_SPRITE);
         slot.Texture(&screen);
-        slot.Color(half_color, half_color, half_color, half_color);
+        slot.Color(0x80, 0x80, 0x80, 0x80);
 
         for (y = 0; y < mgScreenHeight; y++) {
             shift = amplitude * sinf(current_phase);
@@ -2457,9 +2493,9 @@ void CScreenEffect::Draw() {
         sepia_prim.AlphaBlendEnable(0);
         sepia_prim.ZMask(MG_Z_MASK_MASKED);
         sepia_prim.TextureMapEnable(1);
-        sepia_prim.Begin(prim_sprite);
+        sepia_prim.Begin(MG_PRIM_SPRITE);
         sepia_prim.Texture(sepia_texture);
-        sepia_prim.Color(half_color, half_color, half_color, half_color);
+        sepia_prim.Color(0x80, 0x80, 0x80, 0x80);
         sepia_prim.TextureCrd(0, 0);
         sepia_prim.Vertex(-1, -1, 0);
         sepia_prim.TextureCrd(mgScreenWidth, mgScreenHeight);
@@ -2477,9 +2513,9 @@ void CScreenEffect::Draw() {
             flash.AlphaBlendEnable(0);
             flash.ZMask(MG_Z_MASK_MASKED);
             flash.TextureMapEnable(1);
-            flash.Begin(prim_sprite);
+            flash.Begin(MG_PRIM_SPRITE);
             flash.Texture(mono_flash_texture[mono_flash_no]);
-            flash.Color(half_color, half_color, half_color, half_color);
+            flash.Color(0x80, 0x80, 0x80, 0x80);
             flash.TextureCrd(0, 0);
             flash.Vertex(-1, -1, 0);
             flash.TextureCrd(mgScreenWidth, mgScreenHeight);
@@ -2779,13 +2815,13 @@ void EventSeqInit() {
     CameraSeq.Initialize(cmr_seq_tbl, SEQ_NODE_NUM);
     int j;
 
-    for (j = 0; j < object_seq_num; j++) {
+    for (j = 0; j < EVENT_OBJECT_SEQ_NUM; j++) {
         ObjectSeq[j].Initialize(obj_seq_tbl, SEQ_NODE_NUM);
     }
 
     int k;
 
-    for (k = 0; k < event_sprite2_num; k++) {
+    for (k = 0; k < EVENT_SPRITE2_NUM; k++) {
         EventSprite2[k].Initialize();
     }
 
@@ -2799,17 +2835,17 @@ void EventSeqInit() {
 void EdEventInit() {
     int i;
 
-    BuffEventSnd.stSetBuffer(event_snd_buff, event_snd_buffer_size);
+    BuffEventSnd.stSetBuffer(event_snd_buff, EVENT_SND_BUFFER_SIZE);
 
-    if (strlen("Event Snd Buffer") < memory_name_max) {
+    if (strlen("Event Snd Buffer") < sizeof(BuffEventSnd.name)) {
         strcpy(BuffEventSnd.name, "Event Snd Buffer");
     }
 
     BuffEventSnd.stack_used = 0;
     BuffEventSnd.lock = 0;
-    BuffEventSnd2.stSetBuffer(event_snd2_buff, event_snd2_buffer_size);
+    BuffEventSnd2.stSetBuffer(event_snd2_buff, EVENT_SND2_BUFFER_SIZE);
 
-    if (strlen("Event Snd2 Buffer") < memory_name_max) {
+    if (strlen("Event Snd2 Buffer") < sizeof(BuffEventSnd.name)) {
         strcpy(BuffEventSnd2.name, "Event Snd2 Buffer");
     }
 
@@ -2832,13 +2868,13 @@ void EdEventInit() {
     EdEventInfoCommandInitialize();
     EventSeqInit();
 
-    for (i = 0; i < event_sprite2_num; i++) {
+    for (i = 0; i < EVENT_SPRITE2_NUM; i++) {
         EventSprite2[i].Initialize();
     }
 
     HitEffect[0].live_num = 0;
     HitEffect[0].spark = Hit_para[0];
-    HitEffect[0].spark_max = hit_spark_num;
+    HitEffect[0].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[1].spark = Hit_para[1];
     SwordEffect = NULL;
     HitEffect[2].spark = Hit_para[2];
@@ -2847,16 +2883,16 @@ void EdEventInit() {
     HitEffect[4].spark = Hit_para[4];
     HitEffect[0].spark_num = 0;
     HitEffect[0].kind = 0;
-    HitEffect[1].spark_max = hit_spark_num;
+    HitEffect[1].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[1].live_num = 0;
     HitEffect[1].spark_num = 0;
     HitEffect[1].kind = 0;
-    HitEffect[2].spark_max = hit_spark_num;
+    HitEffect[2].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[2].live_num = 0;
     HitEffect[2].spark_num = 0;
     HitEffect[2].kind = 0;
-    HitEffect[3].spark_max = hit_spark_num;
-    HitEffect[4].spark_max = hit_spark_num;
+    HitEffect[3].spark_max = EVENT_HIT_PARTICLE_NUM;
+    HitEffect[4].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[3].live_num = 0;
     HitEffect[3].spark_num = 0;
     HitEffect[3].kind = 0;
@@ -3109,7 +3145,7 @@ void EdEventDraw() {
     EventRain.Step();
     EventRain.Draw();
 
-    for (hit_no = 0; hit_no < hit_effect_num; hit_no++) {
+    for (hit_no = 0; hit_no < EVENT_HIT_EFFECT_NUM; hit_no++) {
         HitEffect[hit_no].Draw();
     }
 
@@ -3126,7 +3162,7 @@ void EdEventDraw() {
     esMother.Step();
     esMother.Draw();
 
-    for (sprite_no = 0; sprite_no < event_sprite2_num; sprite_no++) {
+    for (sprite_no = 0; sprite_no < EVENT_SPRITE2_NUM; sprite_no++) {
         EventSprite2[sprite_no].NormalDraw();
     }
 
@@ -3138,7 +3174,7 @@ void EdEventDraw() {
 void EdEventFirstDraw() {
     int i;
 
-    for (i = 0; i < event_sprite2_num; i++) {
+    for (i = 0; i < EVENT_SPRITE2_NUM; i++) {
         EventSprite2[i].FirstDraw();
     }
 }
@@ -3151,17 +3187,17 @@ int EdEventFinish() {
 
     CameraSeq.Initialize(cmr_seq_tbl, SEQ_NODE_NUM);
 
-    for (i = 0; i < object_seq_num; i++) {
+    for (i = 0; i < EVENT_OBJECT_SEQ_NUM; i++) {
         ObjectSeq[i].Initialize(obj_seq_tbl, SEQ_NODE_NUM);
     }
 
-    for (j = 0; j < event_sprite2_num; j++) {
+    for (j = 0; j < EVENT_SPRITE2_NUM; j++) {
         EventSprite2[j].Initialize();
     }
 
     HitEffect[0].live_num = 0;
     HitEffect[0].spark = Hit_para[0];
-    HitEffect[0].spark_max = hit_spark_num;
+    HitEffect[0].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[1].spark = Hit_para[1];
     EventEffectScript = 0;
     HitEffect[2].spark = Hit_para[2];
@@ -3169,16 +3205,16 @@ int EdEventFinish() {
     HitEffect[4].spark = Hit_para[4];
     HitEffect[0].spark_num = 0;
     HitEffect[0].kind = 0;
-    HitEffect[1].spark_max = hit_spark_num;
+    HitEffect[1].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[1].live_num = 0;
     HitEffect[1].spark_num = 0;
     HitEffect[1].kind = 0;
-    HitEffect[2].spark_max = hit_spark_num;
+    HitEffect[2].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[2].live_num = 0;
     HitEffect[2].spark_num = 0;
     HitEffect[2].kind = 0;
-    HitEffect[3].spark_max = hit_spark_num;
-    HitEffect[4].spark_max = hit_spark_num;
+    HitEffect[3].spark_max = EVENT_HIT_PARTICLE_NUM;
+    HitEffect[4].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[3].live_num = 0;
     HitEffect[3].spark_num = 0;
     HitEffect[3].kind = 0;
@@ -3201,7 +3237,7 @@ int EdEventFinish() {
     p_use_item = 0;
     SetWorldCoordFlg = 0;
 
-    for (k = 0; k < event_sprite2_num; k++) {
+    for (k = 0; k < EVENT_SPRITE2_NUM; k++) {
         EventSprite2[k].Initialize();
     }
 
@@ -3230,7 +3266,7 @@ int EdEventStep() {
 
     mgSetProjection(EdEventInfo.projection);
 
-    for (seq_no = 0; seq_no < object_seq_num; seq_no++) {
+    for (seq_no = 0; seq_no < EVENT_OBJECT_SEQ_NUM; seq_no++) {
         ObjectSeq[seq_no].Play();
     }
 
@@ -3240,7 +3276,7 @@ int EdEventStep() {
         Sphida->Step();
     }
 
-    for (hit_no = 0; hit_no < hit_effect_num; hit_no++) {
+    for (hit_no = 0; hit_no < EVENT_HIT_EFFECT_NUM; hit_no++) {
         HitEffect[hit_no].Step();
     }
 
@@ -3372,7 +3408,7 @@ void EdEventMapInit() {
 
     HitEffect[0].live_num = 0;
     HitEffect[0].spark = Hit_para[0];
-    HitEffect[0].spark_max = hit_spark_num;
+    HitEffect[0].spark_max = EVENT_HIT_PARTICLE_NUM;
     SwordEffect = NULL;
     HitEffect[1].spark = Hit_para[1];
     EventEffectScript = 0;
@@ -3381,16 +3417,16 @@ void EdEventMapInit() {
     HitEffect[4].spark = Hit_para[4];
     HitEffect[0].spark_num = 0;
     HitEffect[0].kind = 0;
-    HitEffect[1].spark_max = hit_spark_num;
+    HitEffect[1].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[1].live_num = 0;
     HitEffect[1].spark_num = 0;
     HitEffect[1].kind = 0;
-    HitEffect[2].spark_max = hit_spark_num;
+    HitEffect[2].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[2].live_num = 0;
     HitEffect[2].spark_num = 0;
     HitEffect[2].kind = 0;
-    HitEffect[3].spark_max = hit_spark_num;
-    HitEffect[4].spark_max = hit_spark_num;
+    HitEffect[3].spark_max = EVENT_HIT_PARTICLE_NUM;
+    HitEffect[4].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[3].live_num = 0;
     HitEffect[3].spark_num = 0;
     HitEffect[3].kind = 0;
@@ -3422,7 +3458,7 @@ void EdEventEnd() {
 }
 
 static CSceneObjSeq *GetObjSeq(int index) {
-    if (index < 0 || index >= object_seq_num) {
+    if (index < 0 || index >= EVENT_OBJECT_SEQ_NUM) {
         return NULL;
     }
 
@@ -3601,8 +3637,8 @@ int _INITIALIZE(RS_STACKDATA *stack, int arg_count) {
 }
 
 int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, u32 *pack, int mode) {
-    u32               *files[pack_file_max];
-    int                sizes[pack_file_max];
+    u32               *files[0x80];
+    int                sizes[0x80];
     char               label[0x20];
     mgCMemory         *stack;
     int                tex_block;
@@ -3612,7 +3648,7 @@ int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, u32 *pack, int mode
     stack = EventScene->GetStack(stack_no);
 
     if (*name == NULL) {
-        if (GetPackFileExt(pack, "cfg", files, pack_file_max, sizes, name) <= 0) {
+        if (GetPackFileExt(pack, "cfg", files, 0x80, sizes, name) <= 0) {
             return 0;
         }
     }
@@ -3637,7 +3673,7 @@ int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, u32 *pack, int mode
         manager->name_suffix[0] = 0;
     }
 
-    EventScene->SetType(SCENE_DATA_CHARA, chara_no, type_loaded);
+    EventScene->SetType(SCENE_DATA_CHARA, chara_no, 2);
     return result;
 }
 
@@ -3978,7 +4014,7 @@ int _MAP_JUMP(RS_STACKDATA *stack, int argc) {
         EdEventInfo.event_no = 100;
     }
 
-    EdEventInfo.request = exit_map_jump;
+    EdEventInfo.request = EVENT_REQUEST_MAP_JUMP;
     return 1;
 }
 
@@ -4182,7 +4218,7 @@ int _GOTO_USE_ITEM(RS_STACKDATA *stack, int argc) {
 
     RS_STACKDATA *item_slot = stack->val.p;
     arg_no = 1;
-    MenuArg.open_type = menu_use_item;
+    MenuArg.open_type = MENU_OPEN_USE_ITEM;
     stack++;
     MenuArg.param[0] = arg_no;
     p_use_item = item_slot;
@@ -4195,7 +4231,7 @@ int _GOTO_USE_ITEM(RS_STACKDATA *stack, int argc) {
     }
 
     MenuArg.param[arg_no] = 0;
-    EdEventInfo.command_mode = request_menu;
+    EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return 1;
 }
 
@@ -4214,8 +4250,8 @@ int _GET_LOCAL_FLAG(RS_STACKDATA *stack, int argc) {
 }
 
 int _GOTO_SELECT_PARTY(RS_STACKDATA *stack, int argc) {
-    MenuArg.open_type = menu_select_party;
-    EdEventInfo.command_mode = request_menu;
+    MenuArg.open_type = MENU_OPEN_CHARA_CHANGE;
+    EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return 1;
 }
 
@@ -5045,9 +5081,9 @@ int _SET_BG_COLOR(RS_STACKDATA *stack, int argc) {
 }
 
 int _GOTO_DNG_MAP(RS_STACKDATA *stack, int argc) {
-    MenuArg.open_type = menu_dng_map;
+    MenuArg.open_type = MENU_OPEN_DNG_TREE_MAP;
     MenuArg.param[0] = GetStackInt(stack);
-    EdEventInfo.command_mode = request_menu;
+    EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return 1;
 }
 
@@ -5070,7 +5106,7 @@ int _GOTO_DNG(RS_STACKDATA *stack, int argc) {
     }
 
     NextLoop((int) LOOP_DUNGEON, loop_arg);
-    EdEventInfo.request = exit_start_loop;
+    EdEventInfo.request = EVENT_REQUEST_GOTO;
     return 1;
 }
 
@@ -5088,7 +5124,7 @@ int _GOTO_EDIT(RS_STACKDATA *stack, int argc) {
     }
 
     NextLoop((int) LOOP_EDIT, loop_arg);
-    EdEventInfo.request = exit_start_loop;
+    EdEventInfo.request = EVENT_REQUEST_GOTO;
     return 1;
 }
 
@@ -5379,9 +5415,9 @@ int _GET_TRAIN_NPC_POS(RS_STACKDATA *stack, int argc) {
 }
 
 int _GOTO_DRAW_CHAPTER(RS_STACKDATA *stack, int argc) {
-    MenuArg.open_type = menu_draw_chapter;
+    MenuArg.open_type = MENU_OPEN_CHAPTER;
     MenuArg.param[0] = GetStackInt(stack) - 1;
-    EdEventInfo.command_mode = request_menu;
+    EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return 1;
 }
 
@@ -5641,7 +5677,7 @@ int _MOVE_INTERIOR(RS_STACKDATA *stack, int argc) {
         EdEventInfo.event_no = 100;
     }
 
-    EdEventInfo.request = exit_enter_interior;
+    EdEventInfo.request = EVENT_REQUEST_INTERIOR;
     return 1;
 }
 
@@ -5823,7 +5859,7 @@ int _GOTO_MENU(RS_STACKDATA *stack, int argc) {
         MenuArg.param[arg_no] = GetStackInt(stack++);
     }
 
-    EdEventInfo.command_mode = request_menu;
+    EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return 1;
 }
 
@@ -6685,10 +6721,10 @@ int _FUNCTION_MAP_JUMP(RS_STACKDATA *stack, int argc) {
     EdEventInfo.event_no = 100;
 
     if (strcmp((char *) (request + 6), "exit") == 0) {
-        EdEventInfo.request = exit_leave_interior;
+        EdEventInfo.request = EVENT_REQUEST_OUTSIDE;
     } else {
         strcpy(EdEventInfo.jump_map_name, (char *) (request + 6));
-        EdEventInfo.request = exit_enter_interior;
+        EdEventInfo.request = EVENT_REQUEST_INTERIOR;
     }
 
     return 1;
@@ -6702,7 +6738,7 @@ int _FUNCTION_DOOR_MODE(RS_STACKDATA *stack, int argc) {
     EdEventInfo.func_fparam[1] = EventScene->door_vec[1];
     EdEventInfo.func_fparam[2] = EventScene->door_vec[2];
     EdEventInfo.func_fparam[3] = atan2f(EventScene->door_dir_x, EventScene->door_dir_z);
-    EdEventInfo.command_mode = request_door;
+    EdEventInfo.command_mode = EVENT_COMMAND_DOOR;
     return 1;
 }
 
@@ -7540,7 +7576,7 @@ int _GET_CHARA_ID(RS_STACKDATA *stack, int arg_count) {
 }
 
 int _GOTO_EDITMODE(RS_STACKDATA *stack, int argc) {
-    EdEventInfo.request = exit_edit_mode;
+    EdEventInfo.request = EVENT_REQUEST_EDIT_MODE;
     return 1;
 }
 
@@ -9857,7 +9893,7 @@ int _IMG_SET_COLOR(RS_STACKDATA *stack, int argc) {
 }
 
 static CEventSprite2 *GetEventSprite(int index) {
-    if (index < 0 || index >= event_sprite2_num) {
+    if (index < 0 || index >= EVENT_SPRITE2_NUM) {
         return 0;
     }
 
@@ -9935,8 +9971,8 @@ int _SPRITE_SET_POS(RS_STACKDATA *stack, int argc) {
         return 0;
     }
 
-    if (sprite->GetType() == 0) {
-        pos[1] += sprite_ground_offset;
+    if (sprite->GetType() == EVENT_SPRITE2_TYPE_SCREEN) {
+        pos[1] += 32.0f;
     }
 
     printf("_SPRITE_SET_POS:%f,%f\n", pos[0], pos[1]);
@@ -12013,7 +12049,7 @@ int VpkFileNameFromVoiceNo(char *name, int voice_no) {
          }
     };
 
-    for (int i = 0; i < vpk_entry_count; i++) {
+    for (int i = 0; i < VPK_ENTRY_NUM; i++) {
         if (group == table.entry[i].group && kind == table.entry[i].kind) {
             sprintf(name, "%03d_%03d", table.entry[i].id, table.entry[i].sub);
             return 1;
@@ -12073,9 +12109,9 @@ int _STREAM_PLAY(RS_STACKDATA *stack, int argc) {
 
     switch (argc) {
         case 1:
-            return CommandStreamPlay(event_stream, stream_max_volume);
+            return CommandStreamPlay(EVENT_STREAM_CHANNEL, 0x7FFF);
         case 2:
-            return CommandStreamPlay(event_stream, GetStackInt(stack));
+            return CommandStreamPlay(EVENT_STREAM_CHANNEL, GetStackInt(stack));
     }
 
     return 0;
@@ -12086,10 +12122,10 @@ int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
 
     if (EdEventInfo.stream_from_fpl == 1) {
-        CSnd.StreamEND(event_stream);
+        CSnd.StreamEND(EVENT_STREAM_CHANNEL);
     } else {
-        CSnd.StreamSetVol(event_stream, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
-        CSnd.StreamClose(event_stream);
+        CSnd.StreamSetVol(EVENT_STREAM_CHANNEL, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
+        CSnd.StreamClose(EVENT_STREAM_CHANNEL);
     }
 
     return 1;
@@ -12097,14 +12133,14 @@ int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
 
 int _STREAM_STANDBY(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
-    CSnd.StreamStandBy(event_stream);
+    CSnd.StreamStandBy(EVENT_STREAM_CHANNEL);
     return 1;
 }
 
 int _STREAM_GET_STATUS(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack++);
 
-    argc = CSnd.StreamGetState(event_stream);
+    argc = CSnd.StreamGetState(EVENT_STREAM_CHANNEL);
     SetStack(stack, argc);
     return 1;
 }
@@ -12298,7 +12334,7 @@ int _STREAM_SILENT_CHECK(RS_STACKDATA *stack, int argc) {
     int loud;
 
     GetStackInt(stack++);
-    level = CSnd.StreamGetLevel(event_stream);
+    level = CSnd.StreamGetLevel(EVENT_STREAM_CHANNEL);
     loud = 1;
 
     if ((s16) (u16) level < 11 && (s16) (u16) level >= -10 && (s16) (level >> 16) < 11 &&
@@ -12355,8 +12391,8 @@ int _LOAD_SOUND(RS_STACKDATA *stack, int argc) {
 int _STREAM_CLOSE(RS_STACKDATA *stack, int argc) {
     EdEventInfo.stream_playing = 0;
     GetStackInt(stack);
-    CSnd.StreamSetVol(event_stream, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
-    CSnd.StreamClose(event_stream);
+    CSnd.StreamSetVol(EVENT_STREAM_CHANNEL, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
+    CSnd.StreamClose(EVENT_STREAM_CHANNEL);
     EdEventInfo.stream_reading = 0;
     return 1;
 }
@@ -12373,7 +12409,7 @@ int _STREAM_OPEN2(RS_STACKDATA *stack, int argc) {
     int result;
     GetStackInt(stack++);
     EdEventInfo.stream_from_fpl = 0;
-    result = CommandStreamOpen2(event_stream, GetStackString(stack));
+    result = CommandStreamOpen2(EVENT_STREAM_CHANNEL, GetStackString(stack));
 
     if (result == 1) {
         EdEventInfo.stream_reading = 1;
@@ -12469,7 +12505,7 @@ int _STREAM_OPEN3(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack++);
     EdEventInfo.stream_from_fpl = 2;
     sprintf(name, "%07d.wav", GetStackInt(stack));
-    CSnd.StreamOpenFast(event_stream, name);
+    CSnd.StreamOpenFast(EVENT_STREAM_CHANNEL, name);
     EdEventInfo.stream_reading = 1;
     return 1;
 }
@@ -17627,7 +17663,9 @@ int _FORCE_BOOT_TOUR(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * External event script handlers in command-table order.
+ *
  */
 static RS_EXTFUNC_INFO ext_func_info[697] = {
     {_GET_PADON,                     EVENT_EXT_GET_PADON                    },
@@ -18333,7 +18371,7 @@ void SetEventFunc(CRunScript *script) {
     int i;
     int j;
 
-    for (i = 0; i < event_func_slots; i++) {
+    for (i = 0; i < EVENT_EXT_FUNC_NUM; i++) {
         ext_func[i] = NULL;
     }
 
@@ -18353,7 +18391,7 @@ void SetEventFunc(CRunScript *script) {
             }
         }
 
-        if (ext_func_info[i].no < 0 || ext_func_info[i].no >= event_func_slots) {
+        if (ext_func_info[i].no < 0 || ext_func_info[i].no >= EVENT_EXT_FUNC_NUM) {
             printf("ext func over!!");
         } else {
             ext_func[ext_func_info[i].no] = ext_func_info[i].func;
@@ -18362,7 +18400,7 @@ void SetEventFunc(CRunScript *script) {
         i++;
     }
 
-    script->ext_func(ext_func, event_func_slots);
+    script->ext_func(ext_func, EVENT_EXT_FUNC_NUM);
 }
 
 ED_EVENT_INFO EdEventInfo;
@@ -18408,7 +18446,7 @@ int PakuMotionType2;
 
 BattleEffectPrim Hit_para[EVENT_HIT_EFFECT_NUM][EVENT_HIT_PARTICLE_NUM];
 
-CHitEffectImage HitEffect[5];
+CHitEffectImage HitEffect[EVENT_HIT_EFFECT_NUM];
 
 char PakuAnimName[PAKU_NAME_SIZE];
 
@@ -18430,9 +18468,9 @@ CSceneCmrSeq CameraSeq;
 
 _SEN_OBJ_SEQ obj_seq_tbl[SEQ_NODE_NUM];
 
-CSceneObjSeq ObjectSeq[32];
+CSceneObjSeq ObjectSeq[EVENT_OBJECT_SEQ_NUM];
 
-CEventSprite2 EventSprite2[48];
+CEventSprite2 EventSprite2[EVENT_SPRITE2_NUM];
 
 CEventScriptArg EventScriptArg;
 

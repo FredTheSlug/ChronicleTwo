@@ -2090,7 +2090,7 @@ static inline char *ScriptArgNewString(CEventScriptArg *script, char *source) {
     return copy;
 }
 
-int _DATA(RS_STACKDATA *stack, int argc) {
+static int _DATA(RS_STACKDATA *stack, int argc) {
     char            *source;
     CEventScriptArg *script = nowScriptArg;
 
@@ -2137,7 +2137,7 @@ int _DATA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ID_OFFSET(RS_STACKDATA *stack, int arg_count) {
+static int _ID_OFFSET(RS_STACKDATA *stack, int arg_count) {
     if (nowScriptArg == 0) {
         return false;
     }
@@ -3492,7 +3492,7 @@ static int _GET_PADUP(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _GET_APAD(RS_STACKDATA *stack, int arg_count) {
+static int _GET_APAD(RS_STACKDATA *stack, int arg_count) {
     if (arg_count > 0) {
         SetStack(stack++, GamePad__2.GetLXf());
     }
@@ -3588,7 +3588,7 @@ u32 *GetLoadBGBuff(char *name, int *size) {
     return buffer;
 }
 
-int _GOTO_INTERIOR(RS_STACKDATA *stack, int arg_count) {
+static int _GOTO_INTERIOR(RS_STACKDATA *stack, int arg_count) {
     EdEventInfo.jump_point = GetStackInt(stack++);
     strcpy(EdEventInfo.jump_map_name, GetStackString(stack++));
 
@@ -3608,7 +3608,7 @@ int _GOTO_INTERIOR(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _GOTO_OUTSIDE(RS_STACKDATA *stack, int arg_count) {
+static int _GOTO_OUTSIDE(RS_STACKDATA *stack, int arg_count) {
     EdEventInfo.jump_point = GetStackInt(stack++);
     strcpy(EdEventInfo.jump_map_name, GetStackString(stack++));
 
@@ -3622,7 +3622,7 @@ int _GOTO_OUTSIDE(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _INITIALIZE(RS_STACKDATA *stack, int arg_count) {
+static int _INITIALIZE(RS_STACKDATA *stack, int arg_count) {
     mgCCameraFollow *camera;
 
     EdEventInit();
@@ -3681,7 +3681,7 @@ int _LOAD_CHARA_sub(int a, char **b, int c, u32 *d) {
     return _LOAD_CHARA_sub(a, b, c, d, 0);
 }
 
-int _LOAD_CHARA(RS_STACKDATA *stack, int argc) {
+static int _LOAD_CHARA(RS_STACKDATA *stack, int argc) {
     char *name[0x20];
     char  directory[0x40];
     char  file_name[0x20];
@@ -3750,7 +3750,7 @@ int _LOAD_CHARA(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
-int _CHARA_ACTIVE(RS_STACKDATA *stack, int arg_count) {
+static int _CHARA_ACTIVE(RS_STACKDATA *stack, int arg_count) {
     int enable;
     int chara_no;
 
@@ -3774,17 +3774,17 @@ int _CHARA_ACTIVE(RS_STACKDATA *stack, int arg_count) {
     return false;
 }
 
-int _CLEAR_STACK(RS_STACKDATA *stack, int arg_count) {
+static int _CLEAR_STACK(RS_STACKDATA *stack, int arg_count) {
     EventScene->ClearStack(GetStackInt(stack));
     return true;
 }
 
-int _ASSIGN_STACK(RS_STACKDATA *stack, int arg_count) {
+static int _ASSIGN_STACK(RS_STACKDATA *stack, int arg_count) {
     EventScene->AssignStack(GetStackInt(stack));
     return true;
 }
 
-int _SET_FLAG(RS_STACKDATA *stack, int arg_count) {
+static int _SET_FLAG(RS_STACKDATA *stack, int arg_count) {
     CSaveData *save_data;
     int        bit;
     int        value;
@@ -3801,7 +3801,7 @@ int _SET_FLAG(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _GET_FLAG(RS_STACKDATA *stack, int arg_count) {
+static int _GET_FLAG(RS_STACKDATA *stack, int arg_count) {
     int        bit = GetStackInt(stack++);
     CSaveData *save_data = GetSaveData();
 
@@ -3814,7 +3814,7 @@ int _GET_FLAG(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_CNT(RS_STACKDATA *stack, int arg_count) {
+static int _SET_CNT(RS_STACKDATA *stack, int arg_count) {
     CSaveData *save_data;
     int        index;
     int        value;
@@ -3831,7 +3831,7 @@ int _SET_CNT(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _GET_CNT(RS_STACKDATA *stack, int arg_count) {
+static int _GET_CNT(RS_STACKDATA *stack, int arg_count) {
     CSaveData *save_data;
     int        index;
 
@@ -3846,7 +3846,7 @@ int _GET_CNT(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_CURRENT_DIR(RS_STACKDATA *stack, int argc) {
+static int _SET_CURRENT_DIR(RS_STACKDATA *stack, int argc) {
     char *dir = NULL;
 
     if (argc > 0) {
@@ -3862,7 +3862,7 @@ int _SET_CURRENT_DIR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHANGE_DIR(RS_STACKDATA *stack, int argc) {
+static int _CHANGE_DIR(RS_STACKDATA *stack, int argc) {
     char *dir = NULL;
 
     if (argc > 0) {
@@ -3878,7 +3878,7 @@ int _CHANGE_DIR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DELETE_CHARA(RS_STACKDATA *stack, int argc) {
+static int _DELETE_CHARA(RS_STACKDATA *stack, int argc) {
     int chara_no;
     int delete_texture = 1;
     chara_no = GetStackInt(stack++);
@@ -3954,7 +3954,7 @@ int _LOAD_MOTION_sub(int stack_no, char *name, int chara_no, u32 *pack) {
     return true;
 }
 
-int _LOAD_MOTION(RS_STACKDATA *stack, int argc) {
+static int _LOAD_MOTION(RS_STACKDATA *stack, int argc) {
     int   stack_no;
     int   chara_no;
     char *pack_name;
@@ -3994,7 +3994,7 @@ int _LOAD_MOTION(RS_STACKDATA *stack, int argc) {
     return _LOAD_MOTION_sub(stack_no, motion_name, chara_no, pack);
 }
 
-int _MAP_JUMP(RS_STACKDATA *stack, int argc) {
+static int _MAP_JUMP(RS_STACKDATA *stack, int argc) {
     EdEventInfo.jump_point = GetStackInt(stack++);
 
     switch (stack->type) {
@@ -4018,7 +4018,7 @@ int _MAP_JUMP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_RAIN(RS_STACKDATA *stack, int argc) {
+static int _SET_RAIN(RS_STACKDATA *stack, int argc) {
     if (GetStackInt(stack) != 0) {
         EventRain.Start();
     } else {
@@ -4028,7 +4028,7 @@ int _SET_RAIN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DEL_EXT_MOTION(RS_STACKDATA *stack, int argc) {
+static int _DEL_EXT_MOTION(RS_STACKDATA *stack, int argc) {
     CCharacter2 *character = EventScene->GetCharacter(GetStackInt(stack));
 
     if (character == NULL) {
@@ -4039,11 +4039,11 @@ int _DEL_EXT_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MARKER(RS_STACKDATA *stack, int argc) {
+static int _SET_MARKER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_WORLD_COORD(RS_STACKDATA *stack, int argc) {
+static int _SET_WORLD_COORD(RS_STACKDATA *stack, int argc) {
     if (argc == 4) {
         EdEventInfo.world_coord_pos[0] = GetStackFloat(stack++);
         EdEventInfo.world_coord_pos[1] = GetStackFloat(stack++);
@@ -4066,11 +4066,11 @@ int _SET_WORLD_COORD(RS_STACKDATA *stack, int argc) {
 /**
  * Finishes the running event and returns its completion status.
  */
-int _FINISH(RS_STACKDATA *stack, int argc) {
+static int _FINISH(RS_STACKDATA *stack, int argc) {
     return EdEventFinish();
 }
 
-int _GET_DUN_WORLD_COORD(RS_STACKDATA *stack, int argc) {
+static int _GET_DUN_WORLD_COORD(RS_STACKDATA *stack, int argc) {
 
     float position[4];
     float indexed_position[6];
@@ -4104,7 +4104,7 @@ int _GET_DUN_WORLD_COORD(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _LOAD_IMG(RS_STACKDATA *stack, int argc) {
+static int _LOAD_IMG(RS_STACKDATA *stack, int argc) {
     int   size;
     int   stack_no = GetStackInt(stack++);
     char *file_name = GetStackString(stack++);
@@ -4146,18 +4146,18 @@ int _LOAD_IMG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DEL_IMG(RS_STACKDATA *stack, int argc) {
+static int _DEL_IMG(RS_STACKDATA *stack, int argc) {
     mgTexManager.DeleteBlock(EventScene->event_texb + GetStackInt(stack));
     return true;
 }
 
-int _SET_DNG_MAP(RS_STACKDATA *stack, int argc) {
+static int _SET_DNG_MAP(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack++);
     GetStackInt(stack);
     return true;
 }
 
-int _LOAD_ITEM(RS_STACKDATA *stack, int argc) {
+static int _LOAD_ITEM(RS_STACKDATA *stack, int argc) {
     char *name[32];
     int   stack_no;
     int   chara_no;
@@ -4209,7 +4209,7 @@ int _LOAD_ITEM(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GOTO_USE_ITEM(RS_STACKDATA *stack, int argc) {
+static int _GOTO_USE_ITEM(RS_STACKDATA *stack, int argc) {
     int arg_no;
 
     if (stack->type != RS_PTR) {
@@ -4235,13 +4235,13 @@ int _GOTO_USE_ITEM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_LOCAL_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SET_LOCAL_FLAG(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     SetLocalFlag(index, GetStackInt(stack));
     return true;
 }
 
-int _GET_LOCAL_FLAG(RS_STACKDATA *stack, int argc) {
+static int _GET_LOCAL_FLAG(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
 
     argc = GetLocalFlag(index);
@@ -4249,13 +4249,13 @@ int _GET_LOCAL_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GOTO_SELECT_PARTY(RS_STACKDATA *stack, int argc) {
+static int _GOTO_SELECT_PARTY(RS_STACKDATA *stack, int argc) {
     MenuArg.open_type = MENU_OPEN_CHARA_CHANGE;
     EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return true;
 }
 
-int _SET_LOADBG_FILE(RS_STACKDATA *stack, int argc) {
+static int _SET_LOADBG_FILE(RS_STACKDATA *stack, int argc) {
     char    path[0x4C];
     int     size;
     int     i;
@@ -4310,7 +4310,7 @@ int _SET_LOADBG_FILE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_LOADBG_FILE_MONS_TALK(RS_STACKDATA *stack, int argc) {
+static int _SET_LOADBG_FILE_MONS_TALK(RS_STACKDATA *stack, int argc) {
     char       path[0x8C];
     int        size;
     u_long128 *buffer = read_buffer;
@@ -4325,17 +4325,17 @@ int _SET_LOADBG_FILE_MONS_TALK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_LOADBG_FILE(RS_STACKDATA *stack, int argc) {
+static int _CHECK_LOADBG_FILE(RS_STACKDATA *stack, int argc) {
     argc = ReadBGSync();
     SetStack(stack, argc);
     return true;
 }
 
-int _GET_TB_ITEMNO(RS_STACKDATA *stack, int argc) {
+static int _GET_TB_ITEMNO(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SET_TB_STATUS(RS_STACKDATA *stack, int argc) {
+static int _SET_TB_STATUS(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *area = &EventScene->battle_area;
 
     if (area == NULL) {
@@ -4360,7 +4360,7 @@ int _SET_TB_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_TB_ANGLE(RS_STACKDATA *stack, int argc) {
+static int _SET_TB_ANGLE(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *area = &EventScene->battle_area;
 
     if (area == NULL) {
@@ -4385,7 +4385,7 @@ int _SET_TB_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_ITEM(RS_STACKDATA *stack, int argc) {
+static int _ADD_ITEM(RS_STACKDATA *stack, int argc) {
     int item_no = GetStackInt(stack++);
     int count = 1;
 
@@ -4407,7 +4407,7 @@ int _ADD_ITEM(RS_STACKDATA *stack, int argc) {
     return user_data->GetItem(item_no, count);
 }
 
-int _SUB_ITEM(RS_STACKDATA *stack, int argc) {
+static int _SUB_ITEM(RS_STACKDATA *stack, int argc) {
 
     int item_no;
     int count = 1;
@@ -4433,7 +4433,7 @@ int _SUB_ITEM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_ITEM_TYPE(RS_STACKDATA *stack, int argc) {
+static int _GET_ITEM_TYPE(RS_STACKDATA *stack, int argc) {
     int item_type = GetItemDataType(GetStackInt(stack++));
     int category;
 
@@ -4463,7 +4463,7 @@ int _GET_ITEM_TYPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_ITEM_SPACE(RS_STACKDATA *stack, int argc) {
+static int _GET_ITEM_SPACE(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data = NULL;
     CSaveData        *save = GetSaveData();
 
@@ -4654,7 +4654,7 @@ int LoadMovie(char *name, mgCMemory *memory, bool skip) {
     }
 }
 
-int _LOAD_MOVIE(RS_STACKDATA *stack, int argc) {
+static int _LOAD_MOVIE(RS_STACKDATA *stack, int argc) {
     int        stack_no = GetStackInt(stack++);
     char      *name = GetStackString(stack++);
     mgCMemory *memory = EventScene->GetStack(stack_no);
@@ -4667,12 +4667,12 @@ int _LOAD_MOVIE(RS_STACKDATA *stack, int argc) {
     return LoadMovie(name, memory, skip != 0);
 }
 
-int _INIT_LOCAL_CNT(RS_STACKDATA *stack, int argc) {
+static int _INIT_LOCAL_CNT(RS_STACKDATA *stack, int argc) {
     InitLocalCnt();
     return true;
 }
 
-int _SET_CROSSFADE(RS_STACKDATA *stack, int argc) {
+static int _SET_CROSSFADE(RS_STACKDATA *stack, int argc) {
     int frames;
     EventScene->fade.CaptureScreen();
 
@@ -4703,7 +4703,7 @@ int _SET_CROSSFADE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_ADJUST_POLYGON_SCALE(RS_STACKDATA *stack, int argc) {
+static int _GET_ADJUST_POLYGON_SCALE(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     float        size = GetStackFloat(stack++);
     CCharacter2 *chara = GetCharacter(chara_no);
@@ -4720,12 +4720,12 @@ int _GET_ADJUST_POLYGON_SCALE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_TIME(RS_STACKDATA *stack, int argc) {
+static int _SET_TIME(RS_STACKDATA *stack, int argc) {
     EventScene->SetTime(GetStackFloat(stack));
     return true;
 }
 
-int _SET_ACTIVE_LIGHT(RS_STACKDATA *stack, int argc) {
+static int _SET_ACTIVE_LIGHT(RS_STACKDATA *stack, int argc) {
 
     CMap *maps[8];
 
@@ -4744,7 +4744,7 @@ int _SET_ACTIVE_LIGHT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
+static int _SET_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
     char *name2;
     int   eoh_no = GetStackInt(stack++);
     char *name = GetStackString(stack++);
@@ -4766,14 +4766,14 @@ int _SET_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _RESET_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
+static int _RESET_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
     PakuAnimEohNo = -1;
     memset(PakuAnimName, 0, sizeof(PakuAnimName));
     memset(PakuAnimName2, 0, sizeof(PakuAnimName2));
     return true;
 }
 
-int _TRG_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
+static int _TRG_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
     if (GetStackInt(stack) != 0) {
         if (strcmp(PakuAnimName2, "") != 0) {
             EventObjHandleMother.SetTexAnim(PakuAnimEohNo, 0, PakuAnimName2);
@@ -4791,7 +4791,7 @@ int _TRG_PAKU_ANIM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _RESET_CAMERA(RS_STACKDATA *stack, int argc) {
+static int _RESET_CAMERA(RS_STACKDATA *stack, int argc) {
     int              mode;
     float            follow[4];
     float            follow_offset[4];
@@ -4923,7 +4923,7 @@ int _RESET_CAMERA(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GET_ACTIVE_CHR_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_ACTIVE_CHR_NO(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data = NULL;
     CSaveData        *save = GetSaveData();
 
@@ -4940,7 +4940,7 @@ int _GET_ACTIVE_CHR_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_ACTIVE_CHR_NO(RS_STACKDATA *stack, int argc) {
+static int _SET_ACTIVE_CHR_NO(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data = NULL;
     CSaveData        *save = GetSaveData();
 
@@ -4956,7 +4956,7 @@ int _SET_ACTIVE_CHR_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_SET_FLOOR_ID(RS_STACKDATA *stack, int argc) {
+static int _DNG_SET_FLOOR_ID(RS_STACKDATA *stack, int argc) {
     int        floor_id = GetStackInt(stack);
     CSaveData *save = GetSaveData();
 
@@ -4974,7 +4974,7 @@ int _DNG_SET_FLOOR_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_GET_FLOOR_ID(RS_STACKDATA *stack, int argc) {
+static int _DNG_GET_FLOOR_ID(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -4991,7 +4991,7 @@ int _DNG_GET_FLOOR_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
+static int _SET_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
     int   eoh_no = GetStackInt(stack++);
     char *name = GetStackString(stack++);
     int   type = GetStackInt(stack++);
@@ -5017,14 +5017,14 @@ int _SET_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _RESET_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
+static int _RESET_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
     PakuMotionEohNo = -1;
     memset(PakuMotionName, 0, sizeof(PakuMotionName));
     memset(PakuMotionName2, 0, sizeof(PakuMotionName2));
     return true;
 }
 
-int _TRG_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
+static int _TRG_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
     int mode = GetStackInt(stack);
 
     if (mode == 0) {
@@ -5064,7 +5064,7 @@ int _TRG_PAKU_MOTION(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SET_BG_COLOR(RS_STACKDATA *stack, int argc) {
+static int _SET_BG_COLOR(RS_STACKDATA *stack, int argc) {
     float color[4];
     color[0] = GetStackFloat(stack++);
     color[1] = GetStackFloat(stack++);
@@ -5080,14 +5080,14 @@ int _SET_BG_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GOTO_DNG_MAP(RS_STACKDATA *stack, int argc) {
+static int _GOTO_DNG_MAP(RS_STACKDATA *stack, int argc) {
     MenuArg.open_type = MENU_OPEN_DNG_TREE_MAP;
     MenuArg.param[0] = GetStackInt(stack);
     EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return true;
 }
 
-int _GOTO_DNG(RS_STACKDATA *stack, int argc) {
+static int _GOTO_DNG(RS_STACKDATA *stack, int argc) {
     if (EdEventFinish() == 0) {
         return false;
     }
@@ -5110,7 +5110,7 @@ int _GOTO_DNG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GOTO_EDIT(RS_STACKDATA *stack, int argc) {
+static int _GOTO_EDIT(RS_STACKDATA *stack, int argc) {
     if (EdEventFinish() == 0) {
         return false;
     }
@@ -5128,7 +5128,7 @@ int _GOTO_EDIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MENU_PARAM(RS_STACKDATA *stack, int argc) {
+static int _GET_MENU_PARAM(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 5:
             SetStack(stack + 4, MenuArg.result[4]);
@@ -5146,7 +5146,7 @@ int _GET_MENU_PARAM(RS_STACKDATA *stack, int argc) {
     }
 }
 
-int _LOAD_CHARA_NPC(RS_STACKDATA *stack, int argc) {
+static int _LOAD_CHARA_NPC(RS_STACKDATA *stack, int argc) {
     char  path[0x80];
     char *model_name[0x80];
     int   kind = GetStackInt(stack++);
@@ -5190,7 +5190,7 @@ int _LOAD_CHARA_NPC(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _AUTO_SET_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
+static int _AUTO_SET_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     if (argc < 2) {
@@ -5207,7 +5207,7 @@ int _AUTO_SET_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _AUTO_SET_MONSTER(RS_STACKDATA *stack, int argc) {
+static int _AUTO_SET_MONSTER(RS_STACKDATA *stack, int argc) {
     float position[4];
     float direction[4];
     int   monster_no;
@@ -5240,7 +5240,7 @@ int _AUTO_SET_MONSTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _LOAD_DUNGEON_MAP_FILE(RS_STACKDATA *stack, int argc) {
+static int _LOAD_DUNGEON_MAP_FILE(RS_STACKDATA *stack, int argc) {
     if (argc < 1 || argc > 3) {
         return false;
     }
@@ -5261,7 +5261,7 @@ int _LOAD_DUNGEON_MAP_FILE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _LOAD_MONSTER_FILE(RS_STACKDATA *stack, int argc) {
+static int _LOAD_MONSTER_FILE(RS_STACKDATA *stack, int argc) {
     if (GetNowLoopNo() != (int) LOOP_DUNGEON) {
         return false;
     }
@@ -5282,7 +5282,7 @@ int _LOAD_MONSTER_FILE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_NPC_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_NPC_STATUS(RS_STACKDATA *stack, int argc) {
     int npc_no = GetStackInt(stack++);
 
     if (npc_no <= 0) {
@@ -5309,7 +5309,7 @@ int _GET_NPC_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_NPC_STATUS(RS_STACKDATA *stack, int argc) {
+static int _SET_NPC_STATUS(RS_STACKDATA *stack, int argc) {
     int npc_no = GetStackInt(stack++);
     int status = GetStackInt(stack);
 
@@ -5337,7 +5337,7 @@ int _SET_NPC_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_NOW_PARTY_CHARA(RS_STACKDATA *stack, int argc) {
+static int _GET_NOW_PARTY_CHARA(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data = NULL;
     CSaveData        *save = GetSaveData();
 
@@ -5353,12 +5353,12 @@ int _GET_NOW_PARTY_CHARA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_LOCAL_CNT(RS_STACKDATA *stack, int argc) {
+static int _SET_LOCAL_CNT(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     return SetLocalCnt(index, GetStackInt(stack)) > 0;
 }
 
-int _GET_LOCAL_CNT(RS_STACKDATA *stack, int argc) {
+static int _GET_LOCAL_CNT(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     argc = GetLocalCnt(index);
 
@@ -5370,7 +5370,7 @@ int _GET_LOCAL_CNT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_LOCAL_CNT2(RS_STACKDATA *stack, int argc) {
+static int _GET_LOCAL_CNT2(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
 
     argc = GetLocalCnt2(index);
@@ -5378,7 +5378,7 @@ int _GET_LOCAL_CNT2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_TRAIN_NPC_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_TRAIN_NPC_POS(RS_STACKDATA *stack, int argc) {
     TrainNpcTable table = {
         {
          {-40.0f, 55.0f, 60.0f, 1.57f},
@@ -5414,24 +5414,24 @@ int _GET_TRAIN_NPC_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GOTO_DRAW_CHAPTER(RS_STACKDATA *stack, int argc) {
+static int _GOTO_DRAW_CHAPTER(RS_STACKDATA *stack, int argc) {
     MenuArg.open_type = MENU_OPEN_CHAPTER;
     MenuArg.param[0] = GetStackInt(stack) - 1;
     EdEventInfo.command_mode = EVENT_COMMAND_SUB_MODE;
     return true;
 }
 
-int _SET_PROJECTION(RS_STACKDATA *stack, int argc) {
+static int _SET_PROJECTION(RS_STACKDATA *stack, int argc) {
     EdEventInfo.projection = GetStackFloat(stack);
     return true;
 }
 
-int _GET_PROJECTION(RS_STACKDATA *stack, int argc) {
+static int _GET_PROJECTION(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EdEventInfo.projection);
     return true;
 }
 
-int _SET_FADE_IN(RS_STACKDATA *stack, int argc) {
+static int _SET_FADE_IN(RS_STACKDATA *stack, int argc) {
     float color[4];
     mgZeroVector(color);
     int frames = GetStackInt(stack++) * 50 / 60;
@@ -5450,7 +5450,7 @@ int _SET_FADE_IN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_FADE_OUT(RS_STACKDATA *stack, int argc) {
+static int _SET_FADE_OUT(RS_STACKDATA *stack, int argc) {
     float color[4];
     mgZeroVector(color);
     int frames = GetStackInt(stack++) * 50 / 60;
@@ -5467,12 +5467,12 @@ int _SET_FADE_OUT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_DEBUG_COMMAND(RS_STACKDATA *stack, int argc) {
+static int _DNG_DEBUG_COMMAND(RS_STACKDATA *stack, int argc) {
     ScriptDebugCommand(GetStackInt(stack));
     return true;
 }
 
-int _CD_SEEK(RS_STACKDATA *stack, int argc) {
+static int _CD_SEEK(RS_STACKDATA *stack, int argc) {
 
     sceCdlFILE *file_info;
 
@@ -5483,7 +5483,7 @@ int _CD_SEEK(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GET_ROT_LOOK_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_ROT_LOOK_POS(RS_STACKDATA *stack, int argc) {
     float y = GetStackFloat(stack++);
     float x = GetStackFloat(stack++);
     SetStack(stack, atan2f(y, x));
@@ -5495,7 +5495,7 @@ static int _SET_MOTION_BLUR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _LOAD_SCRIPT(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SCRIPT(RS_STACKDATA *stack, int argc) {
     char *name = GetStackString(stack++);
     int   event_no = GetStackInt(stack);
 
@@ -5516,7 +5516,7 @@ int _LOAD_SCRIPT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_TALK_CAMERA(RS_STACKDATA *stack, int argc) {
+static int _SET_TALK_CAMERA(RS_STACKDATA *stack, int argc) {
     /**
      * Camera offsets available to the scripted conversation camera.
      */
@@ -5561,7 +5561,7 @@ int _SET_TALK_CAMERA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _HIT_EFFECT(RS_STACKDATA *stack, int argc) {
+static int _HIT_EFFECT(RS_STACKDATA *stack, int argc) {
     float position[4];
     float spread;
     float speed;
@@ -5603,7 +5603,7 @@ int _HIT_EFFECT(RS_STACKDATA *stack, int argc) {
  * Copies a scene character into another slot using the requested event memory stack.
  *
  */
-int _COPY_CHARA(RS_STACKDATA *stack, int argc) {
+static int _COPY_CHARA(RS_STACKDATA *stack, int argc) {
     int stack_no;
     int src_no;
     int dst_no;
@@ -5662,12 +5662,12 @@ int _COPY_CHARA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_START_BUTTON(RS_STACKDATA *stack, int argc) {
+static int _GET_START_BUTTON(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EdEventInfo.start_button);
     return true;
 }
 
-int _MOVE_INTERIOR(RS_STACKDATA *stack, int argc) {
+static int _MOVE_INTERIOR(RS_STACKDATA *stack, int argc) {
     EdEventInfo.jump_point = GetStackInt(stack++);
     strcpy(EdEventInfo.jump_map_name, GetStackString(stack++));
 
@@ -5681,7 +5681,7 @@ int _MOVE_INTERIOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MONSTER_TALK_DATA(RS_STACKDATA *stack, int argc) {
+static int _GET_MONSTER_TALK_DATA(RS_STACKDATA *stack, int argc) {
     if (argc == 2) {
         SetStack(stack++, EdEventInfo.monster_talk[0]);
         SetStack(stack, EdEventInfo.monster_talk[2]);
@@ -5696,7 +5696,7 @@ int _GET_MONSTER_TALK_DATA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _FUNC_POINT_SHOW(RS_STACKDATA *stack, int argc) {
+static int _FUNC_POINT_SHOW(RS_STACKDATA *stack, int argc) {
     CFuncPoint *func_point;
     CMap       *map = EventScene->GetMap(EventScene->active_map);
 
@@ -5745,32 +5745,32 @@ int _FUNC_POINT_SHOW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_NOW_MAP_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_NOW_MAP_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->now_map_no);
     return true;
 }
 
-int _GET_NOW_SUBMAP_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_NOW_SUBMAP_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->now_sub_map_no);
     return true;
 }
 
-int _GET_OLD_MAP_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_OLD_MAP_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->old_map_no);
     return true;
 }
 
-int _GET_OLD_SUBMAP_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_OLD_SUBMAP_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->old_sub_map_no);
     return true;
 }
 
-int _SET_RAIN_CHARA_NO(RS_STACKDATA *stack, int argc) {
+static int _SET_RAIN_CHARA_NO(RS_STACKDATA *stack, int argc) {
     EventRain.SetCharNo(GetStackInt(stack));
     return true;
 }
 
-int _GET_EDIT_PARTS_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_EDIT_PARTS_POS(RS_STACKDATA *stack, int argc) {
     float     pos[4];
     float     rot[4];
     char     *name = GetStackString(stack++);
@@ -5795,11 +5795,11 @@ int _GET_EDIT_PARTS_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CONTENTS_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_CONTENTS_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BPOT_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_BPOT_POS(RS_STACKDATA *stack, int argc) {
     float position[4];
     sceVu0CopyVector(position, BTsubo.position);
     SetStack(stack++, position[0]);
@@ -5808,16 +5808,16 @@ int _GET_BPOT_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BPOT_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_BPOT_STATUS(RS_STACKDATA *stack, int argc) {
     SetStack(stack, BTsubo.state);
     return true;
 }
 
-int _GET_PERSON_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_PERSON_STATUS(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GET_CONTROL_CHRID(RS_STACKDATA *stack, int argc) {
+static int _GET_CONTROL_CHRID(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->player_chara);
     return true;
 }
@@ -5852,7 +5852,7 @@ static int _SET_CAMERA_NEXT_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GOTO_MENU(RS_STACKDATA *stack, int argc) {
+static int _GOTO_MENU(RS_STACKDATA *stack, int argc) {
     MenuArg.open_type = GetStackInt(stack++);
 
     for (int arg_no = 0; arg_no < argc - 1; arg_no++) {
@@ -5863,11 +5863,11 @@ int _GOTO_MENU(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MENU_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_MENU_STATUS(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _LOAD_EQUIP(RS_STACKDATA *stack, int argc) {
+static int _LOAD_EQUIP(RS_STACKDATA *stack, int argc) {
     char  label[0x20];
     char  bone_name[0x2C];
     char *name;
@@ -6032,7 +6032,7 @@ int _LOAD_EQUIP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_EQUIP_ITEMNO(RS_STACKDATA *stack, int argc) {
+static int _GET_EQUIP_ITEMNO(RS_STACKDATA *stack, int argc) {
     int chara_no = GetStackInt(stack++);
     int slot = GetStackInt(stack++);
 
@@ -6066,31 +6066,31 @@ int _GET_EQUIP_ITEMNO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_TIME_STEP_ENABLE(RS_STACKDATA *stack, int argc) {
+static int _SET_TIME_STEP_ENABLE(RS_STACKDATA *stack, int argc) {
     EventScene->time_step = GetStackInt(stack);
     return true;
 }
 
-int _SET_DOOR_MATERIAL(RS_STACKDATA *stack, int argc) {
+static int _SET_DOOR_MATERIAL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _INIT_DRAMA_SCENE(RS_STACKDATA *stack, int argc) {
+static int _INIT_DRAMA_SCENE(RS_STACKDATA *stack, int argc) {
     InitDramaScene();
     return true;
 }
 
-int _SET_ACTIVE_CMRID(RS_STACKDATA *stack, int argc) {
+static int _SET_ACTIVE_CMRID(RS_STACKDATA *stack, int argc) {
     EventScene->active_camera = GetStackInt(stack);
     return true;
 }
 
-int _SET_BEFORE_CMRID(RS_STACKDATA *stack, int argc) {
+static int _SET_BEFORE_CMRID(RS_STACKDATA *stack, int argc) {
     EventScene->before_camera = GetStackInt(stack);
     return true;
 }
 
-int _DNGMAP_LOAD(RS_STACKDATA *stack, int argc) {
+static int _DNGMAP_LOAD(RS_STACKDATA *stack, int argc) {
     int           tex_base;
     RS_STACKDATA *arg = stack + 1;
     mgCMemory    *memory = EventScene->GetStack(GetStackInt(stack));
@@ -6116,22 +6116,22 @@ int _DNGMAP_LOAD(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNGMAP_DELETE(RS_STACKDATA *stack, int argc) {
+static int _DNGMAP_DELETE(RS_STACKDATA *stack, int argc) {
     EventDngMap.DeleteTexBlock();
     return true;
 }
 
-int _DNGMAP_MOVE_PIECE(RS_STACKDATA *stack, int argc) {
+static int _DNGMAP_MOVE_PIECE(RS_STACKDATA *stack, int argc) {
     EventDngMap.SetKomaMove(GetStackInt(stack));
     return true;
 }
 
-int _DNGMAP_ONOFF(RS_STACKDATA *stack, int argc) {
+static int _DNGMAP_ONOFF(RS_STACKDATA *stack, int argc) {
     EventDngMap.active = (u8) (GetStackInt(stack) != 0);
     return true;
 }
 
-int _DNGMAP_SET_FADE(RS_STACKDATA *stack, int argc) {
+static int _DNGMAP_SET_FADE(RS_STACKDATA *stack, int argc) {
     int fade_in = GetStackInt(stack++);
     int duration = GetStackInt(stack);
     EventDngMap.active = 1;
@@ -6145,7 +6145,7 @@ int _DNGMAP_SET_FADE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BEFORE_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_BEFORE_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
     float      position[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
 
@@ -6160,7 +6160,7 @@ int _GET_BEFORE_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BEFORE_CAMERA_NEXT_REF(RS_STACKDATA *stack, int argc) {
+static int _GET_BEFORE_CAMERA_NEXT_REF(RS_STACKDATA *stack, int argc) {
     float      position[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
 
@@ -6205,7 +6205,7 @@ static int _SET_CAMERA_NEXT_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHK_INTERSECTION_POINT(RS_STACKDATA *stack, int argc) {
+static int _CHK_INTERSECTION_POINT(RS_STACKDATA *stack, int argc) {
     float                from[4];
     float                to[4];
     float                hit_pos[4];
@@ -6334,7 +6334,7 @@ int _CHK_INTERSECTION_POINT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHK_INTERSECTION_POINT_PIPE(RS_STACKDATA *stack, int argc) {
+static int _CHK_INTERSECTION_POINT_PIPE(RS_STACKDATA *stack, int argc) {
     float                from[4];
     float                to[4];
     float                reflection[4];
@@ -6469,7 +6469,7 @@ int _CHK_INTERSECTION_POINT_PIPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_FCAMERA_FOLLOW(RS_STACKDATA *stack, int arg_count) {
+static int _SET_FCAMERA_FOLLOW(RS_STACKDATA *stack, int arg_count) {
     float            position[4];
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6482,7 +6482,7 @@ int _SET_FCAMERA_FOLLOW(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_FCAMERA_FOLLOW_A(RS_STACKDATA *stack, int arg_count) {
+static int _SET_FCAMERA_FOLLOW_A(RS_STACKDATA *stack, int arg_count) {
     float            position[4];
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6495,7 +6495,7 @@ int _SET_FCAMERA_FOLLOW_A(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_FCAMERA_FOLLOW_OFS(RS_STACKDATA *stack, int arg_count) {
+static int _SET_FCAMERA_FOLLOW_OFS(RS_STACKDATA *stack, int arg_count) {
     float            offset[4];
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
@@ -6508,7 +6508,7 @@ int _SET_FCAMERA_FOLLOW_OFS(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_FCAMERA_FOLLOW_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SET_FCAMERA_FOLLOW_FLAG(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6524,7 +6524,7 @@ int _SET_FCAMERA_FOLLOW_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _FCAMERA_STEP(RS_STACKDATA *stack, int argc) {
+static int _FCAMERA_STEP(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6535,7 +6535,7 @@ int _FCAMERA_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_FCAMERA_ANGLE(RS_STACKDATA *stack, int arg_count) {
+static int _SET_FCAMERA_ANGLE(RS_STACKDATA *stack, int arg_count) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6546,7 +6546,7 @@ int _SET_FCAMERA_ANGLE(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int arg_count) {
+static int _SET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int arg_count) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6557,7 +6557,7 @@ int _SET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_FCAMERA_DIST(RS_STACKDATA *stack, int arg_count) {
+static int _SET_FCAMERA_DIST(RS_STACKDATA *stack, int arg_count) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6599,7 +6599,7 @@ static int _GET_REF_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_SET_STAGE_ID(RS_STACKDATA *stack, int argc) {
+static int _DNG_SET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -6616,7 +6616,7 @@ int _DNG_SET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_GET_STAGE_ID(RS_STACKDATA *stack, int argc) {
+static int _DNG_GET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -6633,7 +6633,7 @@ int _DNG_GET_STAGE_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CAMERA_CTRL(RS_STACKDATA *stack, int argc) {
+static int _SET_CAMERA_CTRL(RS_STACKDATA *stack, int argc) {
     CCameraControl *camera = (CCameraControl *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6651,7 +6651,7 @@ int _SET_CAMERA_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_FCAMERA_ANGLE(RS_STACKDATA *stack, int argc) {
+static int _GET_FCAMERA_ANGLE(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6662,7 +6662,7 @@ int _GET_FCAMERA_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int argc) {
+static int _GET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6673,7 +6673,7 @@ int _GET_FCAMERA_HEIGHT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_FCAMERA_DIST(RS_STACKDATA *stack, int argc) {
+static int _GET_FCAMERA_DIST(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = (mgCCameraFollow *) EventScene->GetCamera(EventScene->active_camera);
 
     if (camera == NULL) {
@@ -6684,7 +6684,7 @@ int _GET_FCAMERA_DIST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_INVENTION_ID(RS_STACKDATA *stack, int argc) {
+static int _GET_INVENTION_ID(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -6709,7 +6709,7 @@ int _GET_INVENTION_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _FUNCTION_MAP_JUMP(RS_STACKDATA *stack, int argc) {
+static int _FUNCTION_MAP_JUMP(RS_STACKDATA *stack, int argc) {
 
     u32 *request = &EventScene->map_jump_flags;
 
@@ -6730,7 +6730,7 @@ int _FUNCTION_MAP_JUMP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _FUNCTION_DOOR_MODE(RS_STACKDATA *stack, int argc) {
+static int _FUNCTION_DOOR_MODE(RS_STACKDATA *stack, int argc) {
     EdEventInfo.func_iparam[0] = 0;
     EdEventInfo.func_iparam[1] = EventScene->door_place_no[0];
     EdEventInfo.func_iparam[2] = EventScene->door_place_no[1];
@@ -6742,7 +6742,7 @@ int _FUNCTION_DOOR_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MONEY(RS_STACKDATA *stack, int argc) {
+static int _GET_MONEY(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -6759,7 +6759,7 @@ int _GET_MONEY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_MONEY(RS_STACKDATA *stack, int argc) {
+static int _ADD_MONEY(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -6776,7 +6776,7 @@ int _ADD_MONEY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_ITEM_NUM(RS_STACKDATA *stack, int argc) {
+static int _GET_ITEM_NUM(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -6796,7 +6796,7 @@ int _GET_ITEM_NUM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_BUTTON(RS_STACKDATA *stack, int argc) {
+static int _CHECK_BUTTON(RS_STACKDATA *stack, int argc) {
     int button = GetStackInt(stack++);
     int pressed = 0;
     int pad_down = GamePad__2.GetPadDown();
@@ -6842,7 +6842,7 @@ int _CHECK_BUTTON(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_LANGUAGE(RS_STACKDATA *stack, int argc) {
+static int _GET_LANGUAGE(RS_STACKDATA *stack, int argc) {
     SetStack(stack, LanguageCode);
     return true;
 }
@@ -6853,7 +6853,7 @@ static int _CHECK_INVENT_ITEM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_AI(RS_STACKDATA *stack, int argc) {
+static int _SET_AI(RS_STACKDATA *stack, int argc) {
     int enabled = GetStackInt(stack++);
     int chara_no = GetStackInt(stack);
 
@@ -6866,7 +6866,7 @@ int _SET_AI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_INVENT_PHOTO(RS_STACKDATA *stack, int argc) {
+static int _CHECK_INVENT_PHOTO(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 2: {
             int id = GetStackInt(stack++);
@@ -6888,7 +6888,7 @@ int _CHECK_INVENT_PHOTO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_PHOTO_NUM(RS_STACKDATA *stack, int argc) {
+static int _GET_PHOTO_NUM(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -6910,7 +6910,7 @@ int _GET_PHOTO_NUM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CONTENTS_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_CONTENTS_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
@@ -6933,7 +6933,7 @@ static int _SET_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GOTO_SUBGAME(RS_STACKDATA *stack, int argc) {
+static int _GOTO_SUBGAME(RS_STACKDATA *stack, int argc) {
     int         type = GetStackInt(stack);
     SubGameInfo info;
     info.scene = EventScene;
@@ -6942,7 +6942,7 @@ int _GOTO_SUBGAME(RS_STACKDATA *stack, int argc) {
     return sgInitSubGame(type, &info) != 0;
 }
 
-int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     int     digit[8];
     char    text[0x14];
     ClsMes *mes;
@@ -7116,7 +7116,7 @@ int _SET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
+static int _GET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     FISH_PRIZE_INFO info;
     int             race_no;
 
@@ -7160,7 +7160,7 @@ int _GET_GYORACE_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     CSaveData        *save;
     CUserDataManager *user;
     MOS_CHANGE_PARAM *bajji;
@@ -7230,7 +7230,7 @@ int _SET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
+static int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -7304,7 +7304,7 @@ int _GET_SAVEDATA_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DEL_MONSTER(RS_STACKDATA *stack, int argc) {
+static int _DEL_MONSTER(RS_STACKDATA *stack, int argc) {
     mgCMemory         *monster_stack;
     int                j;
     int                i;
@@ -7357,7 +7357,7 @@ int _DEL_MONSTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MENU_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
 
     if (command == 0) {
@@ -7420,7 +7420,7 @@ int _SET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
+static int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     float size;
     float weight;
     int   total;
@@ -7520,7 +7520,7 @@ int _GET_MENU_ETC(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GET_ANALYZE(RS_STACKDATA *stack, int argc) {
+static int _GET_ANALYZE(RS_STACKDATA *stack, int argc) {
     int        analyze_id = GetStackInt(stack++);
     int        map_no = analyze_id / 100 - 1;
     int        condition_no = analyze_id % 100;
@@ -7540,7 +7540,7 @@ int _GET_ANALYZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_DIORAMA_PERCENT(RS_STACKDATA *stack, int argc) {
+static int _GET_DIORAMA_PERCENT(RS_STACKDATA *stack, int argc) {
     int        map_no = GetStackInt(stack++);
     CSaveData *save = GetSaveData();
 
@@ -7561,26 +7561,26 @@ int _GET_DIORAMA_PERCENT(RS_STACKDATA *stack, int argc) {
 /**
  * Runs a georama script command and returns its status.
  */
-int _GEORAMA_FUNC(RS_STACKDATA *stack, int argc) {
+static int _GEORAMA_FUNC(RS_STACKDATA *stack, int argc) {
     GeoFuncParam param;
 
     param.scene = EventScene;
     return GeoramaFunc(&param, stack, argc);
 }
 
-int _GET_CHARA_ID(RS_STACKDATA *stack, int arg_count) {
+static int _GET_CHARA_ID(RS_STACKDATA *stack, int arg_count) {
     int id = GetStackInt(stack++);
     int chara_id = EventScene->SearchCharaID(id);
     SetStack(stack, chara_id);
     return true;
 }
 
-int _GOTO_EDITMODE(RS_STACKDATA *stack, int argc) {
+static int _GOTO_EDITMODE(RS_STACKDATA *stack, int argc) {
     EdEventInfo.request = EVENT_REQUEST_EDIT_MODE;
     return true;
 }
 
-int _GET_CHAPTER(RS_STACKDATA *stack, int argc) {
+static int _GET_CHAPTER(RS_STACKDATA *stack, int argc) {
     CSaveData *save;
 
     save = GetSaveData();
@@ -7593,7 +7593,7 @@ int _GET_CHAPTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_NPC_TRAIN_ETC(RS_STACKDATA *stack, int argc) {
+static int _GET_NPC_TRAIN_ETC(RS_STACKDATA *stack, int argc) {
     NpcTrainTable table = {
         {
          {1, 1, 39},
@@ -7629,7 +7629,7 @@ int _GET_NPC_TRAIN_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _REGISTER_VILLAGER(RS_STACKDATA *stack, int argc) {
+static int _REGISTER_VILLAGER(RS_STACKDATA *stack, int argc) {
     int no = GetStackInt(stack++);
     int chara_no = GetStackInt(stack++);
 
@@ -7650,12 +7650,12 @@ int _REGISTER_VILLAGER(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _EYE_VIEW_DRAW_ON_OFF(RS_STACKDATA *stack, int argc) {
+static int _EYE_VIEW_DRAW_ON_OFF(RS_STACKDATA *stack, int argc) {
     EventScene->EyeViewDrawOnOff(GetStackInt(stack));
     return true;
 }
 
-int _SET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
     int quest_no = GetStackInt(stack++);
     int flag = GetStackInt(stack);
@@ -7674,7 +7674,7 @@ int _SET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
+static int _GET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     int command = GetStackInt(stack++);
     int quest_no = GetStackInt(stack++);
 
@@ -7689,12 +7689,12 @@ int _GET_QUEST_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_OLD_INTERIOR_MAP_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_OLD_INTERIOR_MAP_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, GetOldInteriorMapNo());
     return true;
 }
 
-int _SET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
+static int _SET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     CSceneEventData *event_data;
     RS_STACKDATA    *value;
 
@@ -7744,7 +7744,7 @@ int _SET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _STOPWATCH(RS_STACKDATA *stack, int argc) {
+static int _STOPWATCH(RS_STACKDATA *stack, int argc) {
     CSaveData *save_data = GetSaveData();
 
     if (save_data == NULL) {
@@ -7795,7 +7795,7 @@ int _STOPWATCH(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SET_FUNC_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_FUNC_ETC(RS_STACKDATA *stack, int argc) {
     u32 *flags;
 
     flags = &EventScene->map_jump_flags;
@@ -7827,7 +7827,7 @@ static CCharacter2 *GetChara(int id) {
     return GetCharacter(id);
 }
 
-int _GET_CHARA_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     float         pos[4];
     RS_STACKDATA *out;
     CCharacter2  *chara;
@@ -7846,7 +7846,7 @@ int _GET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CHARA_TALK_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_TALK_POS(RS_STACKDATA *stack, int argc) {
     int           screen_pos[2];
     RS_STACKDATA *out;
     CCharacter2  *chara;
@@ -7864,7 +7864,7 @@ int _GET_CHARA_TALK_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _TURN_CHARA(RS_STACKDATA *stack, int argc) {
+static int _TURN_CHARA(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     float        target[4];
     float        pos[4];
@@ -7894,7 +7894,7 @@ int _TURN_CHARA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_POS(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     switch (argc) {
@@ -7933,7 +7933,7 @@ int _SET_CHARA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     float        rot[4];
     CCharacter2 *chara;
 
@@ -7970,7 +7970,7 @@ int _SET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     float         pos[4];
     RS_STACKDATA *out;
     CCharacter2  *chara;
@@ -7989,7 +7989,7 @@ int _GET_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MOTION(RS_STACKDATA *stack, int argc) {
+static int _SET_MOTION(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     char        *name;
     int          flags = 0;
@@ -8063,7 +8063,7 @@ int _SET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_STEP(RS_STACKDATA *stack, int argc) {
+static int _SET_STEP(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara = GetChara(GetStackInt(stack++));
 
     if (chara == NULL) {
@@ -8074,7 +8074,7 @@ int _SET_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
+static int _SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
     int                chara_id;
     int                enable;
     char              *name;
@@ -8142,7 +8142,7 @@ static int _SET_SCALE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_REFERENCE(RS_STACKDATA *stack, int argc) {
+static int _SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     int          chara_id;
     char        *frame_name;
     int          reference_id;
@@ -8188,7 +8188,7 @@ int _SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
+static int _DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     mgCFrame    *frame;
     CCharacter2 *chara;
 
@@ -8208,7 +8208,7 @@ int _DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SHADOW_CLIP_OFF(RS_STACKDATA *stack, int argc) {
+static int _SHADOW_CLIP_OFF(RS_STACKDATA *stack, int argc) {
     int          chara_id;
     CCharacter2 *chara;
     int          clip_off;
@@ -8236,7 +8236,7 @@ int _SHADOW_CLIP_OFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_COORDINATE_ANGLE(RS_STACKDATA *stack, int argc) {
+static int _GET_COORDINATE_ANGLE(RS_STACKDATA *stack, int argc) {
     float target[4];
     float pos[4];
     float direction[4];
@@ -8267,7 +8267,7 @@ int _GET_COORDINATE_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CHARA_WIDTH(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_WIDTH(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     CCharacter2  *chara;
 
@@ -8282,7 +8282,7 @@ int _GET_CHARA_WIDTH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CHARA_HEIGHT(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_HEIGHT(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     CCharacter2  *chara;
 
@@ -8297,7 +8297,7 @@ int _GET_CHARA_HEIGHT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CHARA_WEIGHT(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_WEIGHT(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     CCharacter2  *chara;
 
@@ -8312,7 +8312,7 @@ int _GET_CHARA_WEIGHT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     CCharacter2 *character;
     int          show;
     int          fade;
@@ -8347,7 +8347,7 @@ int _SET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     CCharacter2 *character;
 
     if ((character = GetChara(GetStackInt(stack++))) == NULL) {
@@ -8363,7 +8363,7 @@ int _GET_CHARA_SHOW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHARA_DA_ENABLE(RS_STACKDATA *stack, int argc) {
+static int _CHARA_DA_ENABLE(RS_STACKDATA *stack, int argc) {
     CCharacter2  *chara;
     RS_STACKDATA *next_slot;
 
@@ -8377,7 +8377,7 @@ int _CHARA_DA_ENABLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MOT_NOW_WAIT(RS_STACKDATA *stack, int argc) {
+static int _GET_MOT_NOW_WAIT(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;
     }
@@ -8392,7 +8392,7 @@ int _GET_MOT_NOW_WAIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_MOTION_END(RS_STACKDATA *stack, int argc) {
+static int _CHECK_MOTION_END(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;
     }
@@ -8407,7 +8407,7 @@ int _CHECK_MOTION_END(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ACTCHR_SET_MOTION(RS_STACKDATA *stack, int argc) {
+static int _ACTCHR_SET_MOTION(RS_STACKDATA *stack, int argc) {
     CActionChara *chara;
     char         *name;
     int           flags = 0;
@@ -8481,7 +8481,7 @@ int _ACTCHR_SET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_EX_SOUNDID(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_EX_SOUNDID(RS_STACKDATA *stack, int argc) {
     CActionChara *chara;
     RS_STACKDATA *next_slot;
 
@@ -8496,7 +8496,7 @@ int _SET_CHARA_EX_SOUNDID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ACTCHR_SOUND_INFO_COPY(RS_STACKDATA *stack, int argc) {
+static int _ACTCHR_SOUND_INFO_COPY(RS_STACKDATA *stack, int argc) {
     CActionChara *chara;
 
     chara = (CActionChara *) GetCharacter(GetStackInt(stack));
@@ -8517,7 +8517,7 @@ static ClsMes *GetMes(int id) {
     return GetEventMessage(id);
 }
 
-int _MES_MAKE(RS_STACKDATA *stack, int argc) {
+static int _MES_MAKE(RS_STACKDATA *stack, int argc) {
     int     id;
     ClsMes *mes;
     int     no;
@@ -8589,7 +8589,7 @@ int _MES_MAKE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _MES_CLOSE(RS_STACKDATA *stack, int argc) {
+static int _MES_CLOSE(RS_STACKDATA *stack, int argc) {
     ClsMes *mes;
 
     mes = GetMes(GetStackInt(stack));
@@ -8608,7 +8608,7 @@ int _MES_CLOSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _MES_NEXTPAGE(RS_STACKDATA *stack, int argc) {
+static int _MES_NEXTPAGE(RS_STACKDATA *stack, int argc) {
     ClsMes *mes;
 
     mes = GetMes(GetStackInt(stack));
@@ -8629,7 +8629,7 @@ int _MES_NEXTPAGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_AUTOSET(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_AUTOSET(RS_STACKDATA *stack, int argc) {
     int           values[4];
     int           chara_values[4];
     RS_STACKDATA *args;
@@ -8675,7 +8675,7 @@ int _SET_MES_AUTOSET(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_SHIPPO(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_SHIPPO(RS_STACKDATA *stack, int argc) {
     ClsMes *mes;
 
     mes = GetMes(GetStackInt(stack++));
@@ -8697,7 +8697,7 @@ int _SET_MES_SHIPPO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_POS(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_POS(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -8712,7 +8712,7 @@ int _SET_MES_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_DRAWSPEED(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_DRAWSPEED(RS_STACKDATA *stack, int argc) {
     ClsMes *mes = GetMes(GetStackInt(stack++));
 
     if (mes == NULL) {
@@ -8728,7 +8728,7 @@ int _SET_MES_DRAWSPEED(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_CURSOR(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_CURSOR(RS_STACKDATA *stack, int argc) {
     int           cursor;
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
@@ -8750,7 +8750,7 @@ int _SET_MES_CURSOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_OKURI(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -8765,7 +8765,7 @@ int _SET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_WIN_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_WIN_FLAG(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -8785,7 +8785,7 @@ int _SET_MES_WIN_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_MES_COMPLETE(RS_STACKDATA *stack, int argc) {
+static int _CHECK_MES_COMPLETE(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
 
@@ -8800,7 +8800,7 @@ int _CHECK_MES_COMPLETE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_MES_WAIT(RS_STACKDATA *stack, int argc) {
+static int _CHECK_MES_WAIT(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
 
@@ -8815,7 +8815,7 @@ int _CHECK_MES_WAIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_MES(RS_STACKDATA *stack, int argc) {
+static int _CHECK_MES(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
 
@@ -8830,7 +8830,7 @@ int _CHECK_MES(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_FUKIDASHI(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_FUKIDASHI(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -8846,7 +8846,7 @@ int _SET_MES_FUKIDASHI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -8861,7 +8861,7 @@ int _SET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_PRESET(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_PRESET(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -8876,7 +8876,7 @@ int _SET_MES_PRESET(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_ITEM_DIRECT(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_ITEM_DIRECT(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *args;
     int           slot;
@@ -8899,7 +8899,7 @@ int _SET_MES_ITEM_DIRECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_ITEM(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_ITEM(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *args;
     int           slot;
@@ -8922,7 +8922,7 @@ int _SET_MES_ITEM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_VALUE(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_VALUE(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *args;
     int           slot;
@@ -8948,7 +8948,7 @@ int _SET_MES_VALUE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MES_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_MES_STATUS(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
 
@@ -8963,7 +8963,7 @@ int _GET_MES_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_PARTY_CHARA_MES_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_PARTY_CHARA_MES_NO(RS_STACKDATA *stack, int argc) {
     int           npc_id;
     int           kind;
     RS_STACKDATA *out;
@@ -8980,7 +8980,7 @@ int _GET_PARTY_CHARA_MES_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _MES_SET_BUFF(RS_STACKDATA *stack, int argc) {
+static int _MES_SET_BUFF(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     int           kind;
     RS_STACKDATA *args;
@@ -9004,7 +9004,7 @@ int _MES_SET_BUFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
+static int _GET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
 
@@ -9020,12 +9020,12 @@ int _GET_MES_WINDOW_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MES_VOICE(RS_STACKDATA *stack, int argc) {
+static int _GET_MES_VOICE(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EdEventInfo.stream_playing);
     return true;
 }
 
-int _SET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -9040,7 +9040,7 @@ int _SET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
+static int _GET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
     ClsMes       *mes;
 
@@ -9056,7 +9056,7 @@ int _GET_MES_QUESTION_GYOU(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_CLOSE_CNT(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_CLOSE_CNT(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *next_slot;
 
@@ -9071,7 +9071,7 @@ int _SET_MES_CLOSE_CNT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
     char    text[0x100];
     int     i;
     ClsMes *mes = GetMes(GetStackInt(stack++));
@@ -9155,7 +9155,7 @@ int _SET_MES_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MES_ETC(RS_STACKDATA *stack, int argc) {
+static int _GET_MES_ETC(RS_STACKDATA *stack, int argc) {
     ClsMes       *mes;
     RS_STACKDATA *value = stack + 1;
     mes = GetMes(GetStackInt(stack));
@@ -9243,7 +9243,7 @@ int _LOAD_MES_sub(char *file_name, int stack_no, ClsMes *mes) {
     return true;
 }
 
-int _LOAD_MES(RS_STACKDATA *stack, int argc) {
+static int _LOAD_MES(RS_STACKDATA *stack, int argc) {
     ClsMes *mes = GetMes(GetStackInt(stack++));
 
     if (mes == NULL) {
@@ -9266,7 +9266,7 @@ int _LOAD_MES(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _LOAD_MES_MONS_TALK(RS_STACKDATA *stack, int argc) {
+static int _LOAD_MES_MONS_TALK(RS_STACKDATA *stack, int argc) {
     char    path[0x80];
     ClsMes *mes = GetMes(GetStackInt(stack++));
 
@@ -9279,7 +9279,7 @@ int _LOAD_MES_MONS_TALK(RS_STACKDATA *stack, int argc) {
     return _LOAD_MES_sub(path, stack_no, mes);
 }
 
-int _MES_SE_PLAY(RS_STACKDATA *stack, int argc) {
+static int _MES_SE_PLAY(RS_STACKDATA *stack, int argc) {
     switch (GetStackInt(stack)) {
         case 0:
             sndSePlay(SystemSND_ID, 0x19, 0);
@@ -9298,7 +9298,7 @@ int _MES_SE_PLAY(RS_STACKDATA *stack, int argc) {
     }
 }
 
-int _SET_MES_STR(RS_STACKDATA *stack, int argc) {
+static int _SET_MES_STR(RS_STACKDATA *stack, int argc) {
     ClsMes *mes = GetMes(GetStackInt(stack++));
 
     if (mes == NULL) {
@@ -9315,7 +9315,7 @@ int _SET_MES_STR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MES_OKURI(RS_STACKDATA *stack, int argc) {
+static int _GET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
     }
@@ -9330,7 +9330,7 @@ int _GET_MES_OKURI(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
+static int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     int                    shown;
     int                    i;
     int                    weight;
@@ -9474,7 +9474,7 @@ int _GET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_FAR_DIST(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_FAR_DIST(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara = GetChara(GetStackInt(stack++));
 
     if (chara == NULL) {
@@ -9565,12 +9565,12 @@ static int _SET_MODEL_LIGHT_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_OMAKE_FLAG(RS_STACKDATA *stack, int argc) {
+static int _GET_OMAKE_FLAG(RS_STACKDATA *stack, int argc) {
     SetStack(stack, OmakeFlag);
     return true;
 }
 
-int _SET_WIND(RS_STACKDATA *stack, int argc) {
+static int _SET_WIND(RS_STACKDATA *stack, int argc) {
     float dir[4];
     float power = GetStackFloat(stack++);
 
@@ -9587,7 +9587,7 @@ int _SET_WIND(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_OMAKE_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SET_OMAKE_FLAG(RS_STACKDATA *stack, int argc) {
     OmakeFlag = GetStackInt(stack);
     return true;
 }
@@ -9596,7 +9596,7 @@ static CCameraControl *GetCamera() {
     return (CCameraControl *) GetActiveCamera();
 }
 
-int _SET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
+static int _SET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera;
 
@@ -9626,7 +9626,7 @@ int _SET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     if (argc < 3) {
@@ -9646,7 +9646,7 @@ int _GET_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
+static int _SET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera;
 
@@ -9676,7 +9676,7 @@ int _SET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
+static int _GET_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     if (argc < 3) {
@@ -9707,7 +9707,7 @@ static int _SET_CAMERA_SPEED(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CAMERA_STEP(RS_STACKDATA *stack, int argc) {
+static int _CAMERA_STEP(RS_STACKDATA *stack, int argc) {
     mgCCameraFollow *camera = GetCamera();
 
     if (camera == NULL) {
@@ -9718,7 +9718,7 @@ int _CAMERA_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BEFORE_CAMERA_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_BEFORE_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
 
@@ -9733,7 +9733,7 @@ int _GET_BEFORE_CAMERA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BEFORE_CAMERA_REF(RS_STACKDATA *stack, int argc) {
+static int _GET_BEFORE_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     float      pos[4];
     mgCCamera *camera = EventScene->GetCamera(EventScene->before_camera);
 
@@ -9748,86 +9748,86 @@ int _GET_BEFORE_CAMERA_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_INIT(RS_STACKDATA *stack, int argc) {
+static int _ASQ_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
+static int _ASQ_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_SET_POS(RS_STACKDATA *stack, int argc) {
+static int _ASQ_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_MOVE(RS_STACKDATA *stack, int argc) {
+static int _ASQ_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_MOVE_STEP(RS_STACKDATA *stack, int argc) {
+static int _ASQ_MOVE_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_ROT_REF(RS_STACKDATA *stack, int argc) {
+static int _ASQ_ROT_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_ROT_ANGLE(RS_STACKDATA *stack, int argc) {
+static int _ASQ_ROT_ANGLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_CLEAR_ROT(RS_STACKDATA *stack, int argc) {
+static int _ASQ_CLEAR_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_WAIT_ROT(RS_STACKDATA *stack, int argc) {
+static int _ASQ_WAIT_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_ROT_MOVE(RS_STACKDATA *stack, int argc) {
+static int _ASQ_ROT_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_SET_ROT(RS_STACKDATA *stack, int argc) {
+static int _ASQ_SET_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_DELAY_ROT(RS_STACKDATA *stack, int argc) {
+static int _ASQ_DELAY_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_MOTION_TRG(RS_STACKDATA *stack, int argc) {
+static int _ASQ_MOTION_TRG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_MOTION_PLAY(RS_STACKDATA *stack, int argc) {
+static int _ASQ_MOTION_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_MOTION_STOP(RS_STACKDATA *stack, int argc) {
+static int _ASQ_MOTION_STOP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_MOTION_NEXT(RS_STACKDATA *stack, int argc) {
+static int _ASQ_MOTION_NEXT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_ANIME_TRG(RS_STACKDATA *stack, int argc) {
+static int _ASQ_ANIME_TRG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_ANIME(RS_STACKDATA *stack, int argc) {
+static int _ASQ_ANIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_SE_PLAY(RS_STACKDATA *stack, int argc) {
+static int _ASQ_SE_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
 /**
  * Sets an event text sprite visibility and returns the update status.
  */
-int _IMG_SET_DRAW(RS_STACKDATA *stack, int argc) {
+static int _IMG_SET_DRAW(RS_STACKDATA *stack, int argc) {
     int draw;
 
     draw = GetStackInt(stack++);
@@ -9837,7 +9837,7 @@ int _IMG_SET_DRAW(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event text sprite source rectangle and returns the update status.
  */
-int _IMG_SET_GET(RS_STACKDATA *stack, int argc) {
+static int _IMG_SET_GET(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     int a = GetStackInt(stack++);
     int b = GetStackInt(stack++);
@@ -9848,7 +9848,7 @@ int _IMG_SET_GET(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event text sprite destination rectangle and returns the update status.
  */
-int _IMG_SET_PUT(RS_STACKDATA *stack, int argc) {
+static int _IMG_SET_PUT(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     int a = GetStackInt(stack++);
     int b = GetStackInt(stack++);
@@ -9856,7 +9856,7 @@ int _IMG_SET_PUT(RS_STACKDATA *stack, int argc) {
     return esMother.SetPut(index, a, b, c, GetStackInt(stack));
 }
 
-int _IMG_SET_NAME(RS_STACKDATA *stack, int argc) {
+static int _IMG_SET_NAME(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     char *name = GetStackString(stack);
     return esMother.SetName(no, name);
@@ -9865,7 +9865,7 @@ int _IMG_SET_NAME(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event text sprite movement and returns the update status.
  */
-int _IMG_SET_MOVE(RS_STACKDATA *stack, int argc) {
+static int _IMG_SET_MOVE(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     int x = GetStackInt(stack++);
     int y = GetStackInt(stack++);
@@ -9875,7 +9875,7 @@ int _IMG_SET_MOVE(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event text sprite fade and returns the update status.
  */
-int _IMG_SET_FADE(RS_STACKDATA *stack, int argc) {
+static int _IMG_SET_FADE(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     int from = GetStackInt(stack++);
     return esMother.SetFade(index, from, GetStackInt(stack));
@@ -9884,7 +9884,7 @@ int _IMG_SET_FADE(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event text sprite color and returns the update status.
  */
-int _IMG_SET_COLOR(RS_STACKDATA *stack, int argc) {
+static int _IMG_SET_COLOR(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     int r = GetStackInt(stack++);
     int g = GetStackInt(stack++);
@@ -9900,7 +9900,7 @@ static CEventSprite2 *GetEventSprite(int index) {
     return &EventSprite2[index];
 }
 
-int _SPRITE_INIT(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_INIT(RS_STACKDATA *stack, int argc) {
     CEventSprite2 *sprite;
 
     sprite = GetEventSprite(GetStackInt(stack));
@@ -9913,7 +9913,7 @@ int _SPRITE_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_DRAW(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_DRAW(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            value = GetStackInt(stack);
     CEventSprite2 *sprite = GetEventSprite(index);
@@ -9926,7 +9926,7 @@ int _SPRITE_SET_DRAW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_TYPE(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_TYPE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            value = GetStackInt(stack);
     CEventSprite2 *sprite = GetEventSprite(index);
@@ -9939,7 +9939,7 @@ int _SPRITE_SET_TYPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     char          *name = GetStackString(stack++);
     int            tex_block = GetStackInt(stack);
@@ -9953,7 +9953,7 @@ int _SPRITE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_POS(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     mgZeroVector(pos);
     pos[3] = 1.0f;
@@ -9980,7 +9980,7 @@ int _SPRITE_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_PUTSIZE(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_PUTSIZE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            width = GetStackInt(stack++);
     int            height = GetStackInt(stack);
@@ -9999,7 +9999,7 @@ int _SPRITE_SET_PUTSIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_UVSIZE(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_UVSIZE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            x = GetStackInt(stack++);
     int            y = GetStackInt(stack++);
@@ -10015,7 +10015,7 @@ int _SPRITE_SET_UVSIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_COLOR(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_COLOR(RS_STACKDATA *stack, int argc) {
     float color[4];
     int   index = GetStackInt(stack++);
     color[0] = GetStackFloat(stack++);
@@ -10032,7 +10032,7 @@ int _SPRITE_SET_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_SCALE(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_SCALE(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     float          scale_x = GetStackFloat(stack++);
     float          scale_y = GetStackFloat(stack);
@@ -10046,7 +10046,7 @@ int _SPRITE_SET_SCALE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPRITE_SET_ALPHAB(RS_STACKDATA *stack, int argc) {
+static int _SPRITE_SET_ALPHAB(RS_STACKDATA *stack, int argc) {
     int            index = GetStackInt(stack++);
     int            value = GetStackInt(stack);
     CEventSprite2 *sprite = GetEventSprite(index);
@@ -10059,22 +10059,22 @@ int _SPRITE_SET_ALPHAB(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_CHECK(RS_STACKDATA *stack, int argc) {
+static int _CMRS_CHECK(RS_STACKDATA *stack, int argc) {
     SetStack(stack, (u8) ((CameraSeq.CheckEnd() != 0) ^ 1));
     return true;
 }
 
-int _CMRS_INIT(RS_STACKDATA *stack, int argc) {
+static int _CMRS_INIT(RS_STACKDATA *stack, int argc) {
     CameraSeq.Clear();
     return true;
 }
 
-int _CMRS_PRDELAY(RS_STACKDATA *stack, int argc) {
+static int _CMRS_PRDELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.PRDelay(GetStackInt(stack));
     return true;
 }
 
-int _CMRS_SET_POS(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SET_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     switch (argc) {
@@ -10099,7 +10099,7 @@ int _CMRS_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_SET_REF(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SET_REF(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     switch (argc) {
@@ -10124,27 +10124,27 @@ int _CMRS_SET_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_AHDDELAY(RS_STACKDATA *stack, int argc) {
+static int _CMRS_AHDDELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.AHDDelay(GetStackInt(stack));
     return true;
 }
 
-int _CMRS_SET_ANGLE(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SET_ANGLE(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetAngle(GetStackFloat(stack));
     return true;
 }
 
-int _CMRS_SET_HEIGHT(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SET_HEIGHT(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetHeight(GetStackFloat(stack));
     return true;
 }
 
-int _CMRS_SET_DIST(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SET_DIST(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetDist(GetStackFloat(stack));
     return true;
 }
 
-int _CMRS_SET_AHD(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SET_AHD(RS_STACKDATA *stack, int argc) {
     float angle = GetStackFloat(stack++);
     float height = GetStackFloat(stack++);
     float dist = GetStackFloat(stack);
@@ -10152,7 +10152,7 @@ int _CMRS_SET_AHD(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_MOVE(RS_STACKDATA *stack, int argc) {
+static int _CMRS_MOVE(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float ref[4];
     int   frames;
@@ -10183,7 +10183,7 @@ int _CMRS_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_MOVE2(RS_STACKDATA *stack, int argc) {
+static int _CMRS_MOVE2(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float ref[4];
     int   frames;
@@ -10222,7 +10222,7 @@ int _CMRS_MOVE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_MOVE_REF(RS_STACKDATA *stack, int argc) {
+static int _CMRS_MOVE_REF(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   frames;
 
@@ -10250,17 +10250,17 @@ int _CMRS_MOVE_REF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_INIT_PAS(RS_STACKDATA *stack, int argc) {
+static int _CMRS_INIT_PAS(RS_STACKDATA *stack, int argc) {
     CameraSeq.InitPas();
     return true;
 }
 
-int _CMRS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
     CameraSeq.SetPasFrm(GetStackInt(stack));
     return true;
 }
 
-int _CMRS_ADD_PAS(RS_STACKDATA *stack, int argc) {
+static int _CMRS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     float first[4];
     float second[4];
 
@@ -10288,29 +10288,29 @@ int _CMRS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_START_PAS(RS_STACKDATA *stack, int argc) {
+static int _CMRS_START_PAS(RS_STACKDATA *stack, int argc) {
     CameraSeq.StartPas();
     return true;
 }
 
-int _CMRS_PR_SLOWING(RS_STACKDATA *stack, int argc) {
+static int _CMRS_PR_SLOWING(RS_STACKDATA *stack, int argc) {
     float rate = GetStackFloat(stack++);
     int   frame = GetStackInt(stack);
     CameraSeq.PRSlowing(rate, frame);
     return true;
 }
 
-int _CMRS_PR_KEEP(RS_STACKDATA *stack, int argc) {
+static int _CMRS_PR_KEEP(RS_STACKDATA *stack, int argc) {
     CameraSeq.PRKeep();
     return true;
 }
 
-int _CMRS_PR_RETURN(RS_STACKDATA *stack, int argc) {
+static int _CMRS_PR_RETURN(RS_STACKDATA *stack, int argc) {
     CameraSeq.PRReturn();
     return true;
 }
 
-int _CMRS_MOVE_AHD(RS_STACKDATA *stack, int argc) {
+static int _CMRS_MOVE_AHD(RS_STACKDATA *stack, int argc) {
     float angle;
     float height;
     float distance;
@@ -10344,7 +10344,7 @@ int _CMRS_MOVE_AHD(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
+static int _CMRS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     float offset[4];
     float angle;
     float height;
@@ -10409,7 +10409,7 @@ int _CMRS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_MOVE_AHD2(RS_STACKDATA *stack, int argc) {
+static int _CMRS_MOVE_AHD2(RS_STACKDATA *stack, int argc) {
     float angle;
     float height;
     float distance;
@@ -10449,39 +10449,39 @@ int _CMRS_MOVE_AHD2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_RELEASE_OBJ(RS_STACKDATA *stack, int argc) {
+static int _CMRS_RELEASE_OBJ(RS_STACKDATA *stack, int argc) {
     CameraSeq.ReleaseSyncObj();
     return true;
 }
 
-int _CMRS_AHD_SLOWING(RS_STACKDATA *stack, int argc) {
+static int _CMRS_AHD_SLOWING(RS_STACKDATA *stack, int argc) {
     float rate = GetStackFloat(stack++);
     int   frame = GetStackInt(stack);
     CameraSeq.AHDSlowing(rate, frame);
     return true;
 }
 
-int _CMRS_AHD_KEEP(RS_STACKDATA *stack, int argc) {
+static int _CMRS_AHD_KEEP(RS_STACKDATA *stack, int argc) {
     CameraSeq.AHDKeep();
     return true;
 }
 
-int _CMRS_AHD_RETURN(RS_STACKDATA *stack, int argc) {
+static int _CMRS_AHD_RETURN(RS_STACKDATA *stack, int argc) {
     CameraSeq.AHDReturn();
     return true;
 }
 
-int _CMRS_FADE_DELAY(RS_STACKDATA *stack, int argc) {
+static int _CMRS_FADE_DELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.FadeDelay(GetStackInt(stack));
     return true;
 }
 
-int _CMRS_FADE_INIT(RS_STACKDATA *stack, int argc) {
+static int _CMRS_FADE_INIT(RS_STACKDATA *stack, int argc) {
     CameraSeq.FadeInit();
     return true;
 }
 
-int _CMRS_FADE_IN(RS_STACKDATA *stack, int argc) {
+static int _CMRS_FADE_IN(RS_STACKDATA *stack, int argc) {
     float r = 0.0f;
     float g = 0.0f;
     float b = 0.0f;
@@ -10497,7 +10497,7 @@ int _CMRS_FADE_IN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_FADE_OUT(RS_STACKDATA *stack, int argc) {
+static int _CMRS_FADE_OUT(RS_STACKDATA *stack, int argc) {
     float r = 0.0f;
     float g = 0.0f;
     float b = 0.0f;
@@ -10513,12 +10513,12 @@ int _CMRS_FADE_OUT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_QUAKE_DELAY(RS_STACKDATA *stack, int argc) {
+static int _CMRS_QUAKE_DELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.QuakeDelay(GetStackInt(stack));
     return true;
 }
 
-int _CMRS_QUAKE(RS_STACKDATA *stack, int argc) {
+static int _CMRS_QUAKE(RS_STACKDATA *stack, int argc) {
     float amplitude[4];
     amplitude[0] = GetStackFloat(stack++);
     amplitude[1] = GetStackFloat(stack++);
@@ -10528,7 +10528,7 @@ int _CMRS_QUAKE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_QUAKE2(RS_STACKDATA *stack, int argc) {
+static int _CMRS_QUAKE2(RS_STACKDATA *stack, int argc) {
     float amplitude[4];
     amplitude[0] = GetStackFloat(stack++);
     amplitude[1] = GetStackFloat(stack++);
@@ -10538,12 +10538,12 @@ int _CMRS_QUAKE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_CHARA_DELAY(RS_STACKDATA *stack, int argc) {
+static int _CMRS_CHARA_DELAY(RS_STACKDATA *stack, int argc) {
     CameraSeq.CharaDelay(GetStackInt(stack));
     return true;
 }
 
-int _CMRS_CHARA_ATTACH(RS_STACKDATA *stack, int argc) {
+static int _CMRS_CHARA_ATTACH(RS_STACKDATA *stack, int argc) {
     int   kind;
     float factor;
 
@@ -10553,7 +10553,7 @@ int _CMRS_CHARA_ATTACH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CMRS_MOVE_POS(RS_STACKDATA *stack, int argc) {
+static int _CMRS_MOVE_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   frames;
 
@@ -10581,7 +10581,7 @@ int _CMRS_MOVE_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_CHECK(RS_STACKDATA *stack, int argc) {
+static int _OBJS_CHECK(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack++));
@@ -10594,7 +10594,7 @@ int _OBJS_CHECK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_INIT(RS_STACKDATA *stack, int argc) {
+static int _OBJS_INIT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -10607,7 +10607,7 @@ int _OBJS_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -10622,7 +10622,7 @@ int _OBJS_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_POS_DELAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_POS_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -10637,7 +10637,7 @@ int _OBJS_POS_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_POS(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_POS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         pos[4];
     int           slot;
@@ -10672,7 +10672,7 @@ int _OBJS_SET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_MOVE(RS_STACKDATA *stack, int argc) {
+static int _OBJS_MOVE(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index;
     int   frame;
@@ -10723,7 +10723,7 @@ int _OBJS_MOVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_MOVE2(RS_STACKDATA *stack, int argc) {
+static int _OBJS_MOVE2(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index;
     int   frame;
@@ -10768,7 +10768,7 @@ int _OBJS_MOVE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_INIT_PAS(RS_STACKDATA *stack, int argc) {
+static int _OBJS_INIT_PAS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -10781,7 +10781,7 @@ int _OBJS_INIT_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -10796,7 +10796,7 @@ int _OBJS_SET_PAS_FRM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_ADD_PAS(RS_STACKDATA *stack, int argc) {
+static int _OBJS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         pos[4];
     int           slot;
@@ -10831,7 +10831,7 @@ int _OBJS_ADD_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_START_PAS(RS_STACKDATA *stack, int argc) {
+static int _OBJS_START_PAS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     int           seq_no;
     int           frame;
@@ -10853,7 +10853,7 @@ int _OBJS_START_PAS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_JUMP(RS_STACKDATA *stack, int argc) {
+static int _OBJS_JUMP(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float height;
     int   index;
@@ -10895,7 +10895,7 @@ int _OBJS_JUMP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_EOH_FRAME_POS(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_EOH_FRAME_POS(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         offset[4];
     int           slot;
@@ -10946,7 +10946,7 @@ int _OBJS_SET_EOH_FRAME_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_ADD_POS(RS_STACKDATA *stack, int argc) {
+static int _OBJS_ADD_POS(RS_STACKDATA *stack, int argc) {
     float add[4];
     int   index;
     int   frame = 1;
@@ -10989,7 +10989,7 @@ int _OBJS_ADD_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_ATTACH_CAMERA(RS_STACKDATA *stack, int argc) {
+static int _OBJS_ATTACH_CAMERA(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     int           slot;
     float         rate;
@@ -11007,7 +11007,7 @@ int _OBJS_ATTACH_CAMERA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_ROT_DELAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_ROT_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -11022,7 +11022,7 @@ int _OBJS_ROT_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_ROT(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_ROT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         rot[4];
     int           slot;
@@ -11057,7 +11057,7 @@ int _OBJS_SET_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_ROTATION(RS_STACKDATA *stack, int argc) {
+static int _OBJS_ROTATION(RS_STACKDATA *stack, int argc) {
     float rot[4];
     int   index;
     int   frame;
@@ -11094,7 +11094,7 @@ int _OBJS_ROTATION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_ROTATION2(RS_STACKDATA *stack, int argc) {
+static int _OBJS_ROTATION2(RS_STACKDATA *stack, int argc) {
     float rot[4];
     int   index;
     int   frame;
@@ -11139,7 +11139,7 @@ int _OBJS_ROTATION2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_REFERENCE(RS_STACKDATA *stack, int argc) {
+static int _OBJS_REFERENCE(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index;
     int   frame;
@@ -11176,7 +11176,7 @@ int _OBJS_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_MOTION_DELAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_MOTION_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -11191,7 +11191,7 @@ int _OBJS_MOTION_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_MOTION(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_MOTION(RS_STACKDATA *stack, int argc) {
     int   index;
     int   type = 0;
     float blend = -1.0f;
@@ -11263,7 +11263,7 @@ int _OBJS_SET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_NEXT_MOTION(RS_STACKDATA *stack, int argc) {
+static int _OBJS_NEXT_MOTION(RS_STACKDATA *stack, int argc) {
     int   index;
     int   type = 0;
     float blend = -1.0f;
@@ -11319,7 +11319,7 @@ int _OBJS_NEXT_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_MOTION_WAIT(RS_STACKDATA *stack, int argc) {
+static int _OBJS_MOTION_WAIT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -11332,7 +11332,7 @@ int _OBJS_MOTION_WAIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_STEP(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_STEP(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     float         step = GetStackFloat(stack);
     CSceneObjSeq *seq = GetObjSeq(index);
@@ -11345,7 +11345,7 @@ int _OBJS_SET_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_CHENGE_STEP(RS_STACKDATA *stack, int argc) {
+static int _OBJS_CHENGE_STEP(RS_STACKDATA *stack, int argc) {
     float step = 0.2f;
     int   index = GetStackInt(stack++);
 
@@ -11367,7 +11367,7 @@ int _OBJS_CHENGE_STEP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SEQ_MOT_TRG(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SEQ_MOT_TRG(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -11380,7 +11380,7 @@ int _OBJS_SEQ_MOT_TRG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SEQ_MOT_TRG_WAIT(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SEQ_MOT_TRG_WAIT(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -11393,7 +11393,7 @@ int _OBJS_SEQ_MOT_TRG_WAIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_RESET_MOTION(RS_STACKDATA *stack, int argc) {
+static int _OBJS_RESET_MOTION(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -11406,7 +11406,7 @@ int _OBJS_RESET_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_MOTION_NOW_TIME(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_MOTION_NOW_TIME(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     float         time = GetStackFloat(stack);
     CSceneObjSeq *seq = GetObjSeq(index);
@@ -11419,7 +11419,7 @@ int _OBJS_SET_MOTION_NOW_TIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_MOTION_WAIT_TIME(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_MOTION_WAIT_TIME(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     float         time = GetStackFloat(stack);
     CSceneObjSeq *seq = GetObjSeq(index);
@@ -11432,7 +11432,7 @@ int _OBJS_SET_MOTION_WAIT_TIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_TEXA_DELAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_TEXA_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -11447,7 +11447,7 @@ int _OBJS_TEXA_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_TEX_ANIME(RS_STACKDATA *stack, int argc) {
+static int _OBJS_TEX_ANIME(RS_STACKDATA *stack, int argc) {
     int   index = GetStackInt(stack++);
     int   on = GetStackInt(stack++);
     char *name = NULL;
@@ -11466,7 +11466,7 @@ int _OBJS_TEX_ANIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_COLOR_DELAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_COLOR_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -11481,7 +11481,7 @@ int _OBJS_COLOR_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_COLOR(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_COLOR(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
     float         color[4];
     int           slot;
@@ -11508,7 +11508,7 @@ int _OBJS_SET_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SCALE_DELAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SCALE_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -11523,7 +11523,7 @@ int _OBJS_SCALE_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SET_SCALE(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SET_SCALE(RS_STACKDATA *stack, int argc) {
     float scale[4];
     int   index;
     int   flag = 0;
@@ -11547,7 +11547,7 @@ int _OBJS_SET_SCALE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SE_DELAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SE_DELAY(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     int slot = GetStackInt(stack++);
@@ -11562,7 +11562,7 @@ int _OBJS_SE_DELAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_SE_PLAY(RS_STACKDATA *stack, int argc) {
+static int _OBJS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     int           index = GetStackInt(stack++);
     int           snd_id = GetStackInt(stack++);
     int           se_no = GetStackInt(stack);
@@ -11576,7 +11576,7 @@ int _OBJS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
+static int _OBJS_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -11589,7 +11589,7 @@ int _OBJS_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _OBJS_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
+static int _OBJS_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     CSceneObjSeq *seq;
 
     seq = GetObjSeq(GetStackInt(stack));
@@ -11602,16 +11602,16 @@ int _OBJS_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ASQ_CHECK(RS_STACKDATA *stack, int argc) {
+static int _ASQ_CHECK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_INIT_PORT(RS_STACKDATA *stack, int argc) {
+static int _SND_INIT_PORT(RS_STACKDATA *stack, int argc) {
     sndInitPort(GetStackInt(stack));
     return true;
 }
 
-int _SND_LOAD_SOUND(RS_STACKDATA *stack, int argc) {
+static int _SND_LOAD_SOUND(RS_STACKDATA *stack, int argc) {
     char       path[0x80];
     int        port;
     mgCMemory *memory;
@@ -11673,7 +11673,7 @@ int _SND_LOAD_SOUND(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_SND_ID(RS_STACKDATA *stack, int argc) {
+static int _GET_SND_ID(RS_STACKDATA *stack, int argc) {
     int snd_id;
     int src_no;
 
@@ -11708,7 +11708,7 @@ int _GET_SND_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_SE_PAUSE(RS_STACKDATA *stack, int argc) {
+static int _SND_SE_PAUSE(RS_STACKDATA *stack, int argc) {
     u32 se_id;
 
     se_id = GetStackInt(stack++);
@@ -11716,7 +11716,7 @@ int _SND_SE_PAUSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_SE_PLAY(RS_STACKDATA *stack, int argc) {
+static int _SND_SE_PLAY(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 2: {
             u32 se_id = GetStackInt(stack++);
@@ -11744,7 +11744,7 @@ int _SND_SE_PLAY(RS_STACKDATA *stack, int argc) {
     }
 }
 
-int _SND_SE_STOP(RS_STACKDATA *stack, int argc) {
+static int _SND_SE_STOP(RS_STACKDATA *stack, int argc) {
     u32 se_id;
 
     se_id = GetStackInt(stack++);
@@ -11752,7 +11752,7 @@ int _SND_SE_STOP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_SET_SE_VOL(RS_STACKDATA *stack, int argc) {
+static int _SND_SET_SE_VOL(RS_STACKDATA *stack, int argc) {
     u32 se_id;
     int voice;
 
@@ -11773,7 +11773,7 @@ int _SND_SET_SE_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_SET_SE_PAN(RS_STACKDATA *stack, int argc) {
+static int _SND_SET_SE_PAN(RS_STACKDATA *stack, int argc) {
     int se_id = GetStackInt(stack++);
     int pan = GetStackInt(stack++);
     int time = GetStackInt(stack);
@@ -11781,7 +11781,7 @@ int _SND_SET_SE_PAN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_SET_SE_PITCH(RS_STACKDATA *stack, int argc) {
+static int _SND_SET_SE_PITCH(RS_STACKDATA *stack, int argc) {
     int se_id = GetStackInt(stack++);
     int pitch = GetStackInt(stack++);
     int time = GetStackInt(stack);
@@ -11789,12 +11789,12 @@ int _SND_SET_SE_PITCH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_SE_ALL_STOP(RS_STACKDATA *stack, int argc) {
+static int _SND_SE_ALL_STOP(RS_STACKDATA *stack, int argc) {
     sndSeAllStop(GetStackInt(stack));
     return true;
 }
 
-int _LOAD_BGM(RS_STACKDATA *stack, int argc) {
+static int _LOAD_BGM(RS_STACKDATA *stack, int argc) {
     int bgm_no;
 
     bgm_no = GetStackInt(stack);
@@ -11806,7 +11806,7 @@ int _LOAD_BGM(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadBGM(bgm_no, read_buffer);
 }
 
-int _PLAY_BGM(RS_STACKDATA *stack, int argc) {
+static int _PLAY_BGM(RS_STACKDATA *stack, int argc) {
     int bgm_no;
 
     switch (argc) {
@@ -11822,7 +11822,7 @@ int _PLAY_BGM(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _STOP_BGM(RS_STACKDATA *stack, int argc) {
+static int _STOP_BGM(RS_STACKDATA *stack, int argc) {
     EventScene->StopBGM(GetStackInt(stack));
     return true;
 }
@@ -12059,7 +12059,7 @@ int VpkFileNameFromVoiceNo(char *name, int voice_no) {
     return false;
 }
 
-int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
+static int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
     char voice_pack[0x80];
     char voice_path[0x80];
     GetStackInt(stack++);
@@ -12103,7 +12103,7 @@ int CommandStreamPlay(int stream, int volume) {
     return true;
 }
 
-int _STREAM_PLAY(RS_STACKDATA *stack, int argc) {
+static int _STREAM_PLAY(RS_STACKDATA *stack, int argc) {
     EdEventInfo.stream_playing = 1;
     GetStackInt(stack++);
 
@@ -12117,7 +12117,7 @@ int _STREAM_PLAY(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
+static int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
     EdEventInfo.stream_playing = 0;
     GetStackInt(stack);
 
@@ -12131,13 +12131,13 @@ int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _STREAM_STANDBY(RS_STACKDATA *stack, int argc) {
+static int _STREAM_STANDBY(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
     CSnd.StreamStandBy(EVENT_STREAM_CHANNEL);
     return true;
 }
 
-int _STREAM_GET_STATUS(RS_STACKDATA *stack, int argc) {
+static int _STREAM_GET_STATUS(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack++);
 
     argc = CSnd.StreamGetState(EVENT_STREAM_CHANNEL);
@@ -12145,19 +12145,19 @@ int _STREAM_GET_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_SYS_SND_ID(RS_STACKDATA *stack, int argc) {
+static int _GET_SYS_SND_ID(RS_STACKDATA *stack, int argc) {
 
     argc = GetSystemSndID();
     SetStack(stack, argc);
     return true;
 }
 
-int _STREAM_OPEN_CHECK(RS_STACKDATA *stack, int argc) {
+static int _STREAM_OPEN_CHECK(RS_STACKDATA *stack, int argc) {
     SetStack(stack, CSnd.StreamOpenState());
     return true;
 }
 
-int _LOAD_SE_ENV(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SE_ENV(RS_STACKDATA *stack, int argc) {
     int bank_no;
 
     bank_no = GetStackInt(stack);
@@ -12170,7 +12170,7 @@ int _LOAD_SE_ENV(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _PLAY_ENV_BGM(RS_STACKDATA *stack, int argc) {
+static int _PLAY_ENV_BGM(RS_STACKDATA *stack, int argc) {
     int voice;
     int volume;
 
@@ -12203,7 +12203,7 @@ int _PLAY_ENV_BGM(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SYS_SE_PLAY(RS_STACKDATA *stack, int argc) {
+static int _SYS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     int se_id;
 
     se_id = GetStackInt(stack);
@@ -12216,22 +12216,22 @@ int _SYS_SE_PLAY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _INIT_SE_SRC(RS_STACKDATA *stack, int argc) {
+static int _INIT_SE_SRC(RS_STACKDATA *stack, int argc) {
     EventScene->InitSeSrc();
     return true;
 }
 
-int _INIT_SE_ENV(RS_STACKDATA *stack, int argc) {
+static int _INIT_SE_ENV(RS_STACKDATA *stack, int argc) {
     EventScene->InitSeEnv();
     return true;
 }
 
-int _INIT_SE_BAS(RS_STACKDATA *stack, int argc) {
+static int _INIT_SE_BAS(RS_STACKDATA *stack, int argc) {
     EventScene->InitSeBas();
     return true;
 }
 
-int _LOAD_SE_SRC(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SE_SRC(RS_STACKDATA *stack, int argc) {
     int src_no;
 
     src_no = GetStackInt(stack);
@@ -12243,19 +12243,19 @@ int _LOAD_SE_SRC(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadSeSrc(src_no, read_buffer);
 }
 
-int _LOAD_SE_FOOT(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SE_FOOT(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _LOAD_SE_DOOR(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SE_DOOR(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _LOAD_SE_BOX(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SE_BOX(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _LOAD_SE_BATTLE(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SE_BATTLE(RS_STACKDATA *stack, int argc) {
     int bank_no;
 
     bank_no = GetStackInt(stack);
@@ -12267,12 +12267,12 @@ int _LOAD_SE_BATTLE(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadSeBattle(bank_no, read_buffer);
 }
 
-int _SND_DELETE_PORT(RS_STACKDATA *stack, int argc) {
+static int _SND_DELETE_PORT(RS_STACKDATA *stack, int argc) {
     sndDeletePort(GetStackInt(stack));
     return true;
 }
 
-int _FADE_IN_BGM(RS_STACKDATA *stack, int argc) {
+static int _FADE_IN_BGM(RS_STACKDATA *stack, int argc) {
     int frames60;
     int frames;
 
@@ -12287,7 +12287,7 @@ int _FADE_IN_BGM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _FADE_OUT_BGM(RS_STACKDATA *stack, int argc) {
+static int _FADE_OUT_BGM(RS_STACKDATA *stack, int argc) {
     int frames60;
     int frames;
 
@@ -12302,12 +12302,12 @@ int _FADE_OUT_BGM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _STOP_ENV_BGM(RS_STACKDATA *stack, int argc) {
+static int _STOP_ENV_BGM(RS_STACKDATA *stack, int argc) {
     EventScene->StopEnvBGM();
     return true;
 }
 
-int _SET_BGM_VOL(RS_STACKDATA *stack, int argc) {
+static int _SET_BGM_VOL(RS_STACKDATA *stack, int argc) {
     if (stack->type == RS_INT) {
         EventScene->SetVolBGM(GetStackInt(stack));
     } else if (stack->type == RS_FLOAT) {
@@ -12320,16 +12320,16 @@ int _SET_BGM_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_SET_REVERB(RS_STACKDATA *stack, int argc) {
+static int _SND_SET_REVERB(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SND_SET_ENV_VOL(RS_STACKDATA *stack, int argc) {
+static int _SND_SET_ENV_VOL(RS_STACKDATA *stack, int argc) {
     EventScene->SetEnvBGMVol(GetStackFloat(stack));
     return true;
 }
 
-int _STREAM_SILENT_CHECK(RS_STACKDATA *stack, int argc) {
+static int _STREAM_SILENT_CHECK(RS_STACKDATA *stack, int argc) {
     int level;
     int loud;
 
@@ -12346,32 +12346,32 @@ int _STREAM_SILENT_CHECK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _AUTO_CHANGE_ENV(RS_STACKDATA *stack, int argc) {
+static int _AUTO_CHANGE_ENV(RS_STACKDATA *stack, int argc) {
     EventScene->AutoChangeEnvBGM(GetStackInt(stack));
     return true;
 }
 
-int _BGM_LOAD_CANCEL(RS_STACKDATA *stack, int argc) {
+static int _BGM_LOAD_CANCEL(RS_STACKDATA *stack, int argc) {
     EventScene->skip_load_bgm = 1;
     return true;
 }
 
-int _SOUND_LOAD_CANCEL(RS_STACKDATA *stack, int argc) {
+static int _SOUND_LOAD_CANCEL(RS_STACKDATA *stack, int argc) {
     EventScene->skip_load_sound = 1;
     return true;
 }
 
-int _BGM_LOAD_ENABLE(RS_STACKDATA *stack, int argc) {
+static int _BGM_LOAD_ENABLE(RS_STACKDATA *stack, int argc) {
     EventScene->skip_load_bgm = 0;
     return true;
 }
 
-int _SOUND_LOAD_ENABLE(RS_STACKDATA *stack, int argc) {
+static int _SOUND_LOAD_ENABLE(RS_STACKDATA *stack, int argc) {
     EventScene->skip_load_sound = 0;
     return true;
 }
 
-int _LOAD_SE_BASE(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SE_BASE(RS_STACKDATA *stack, int argc) {
     int bank_no;
 
     bank_no = GetStackInt(stack);
@@ -12383,12 +12383,12 @@ int _LOAD_SE_BASE(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadSeBase(bank_no, read_buffer);
 }
 
-int _LOAD_SOUND(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SOUND(RS_STACKDATA *stack, int argc) {
     EventScene->LoadSound(GetStackInt(stack), read_buffer);
     return true;
 }
 
-int _STREAM_CLOSE(RS_STACKDATA *stack, int argc) {
+static int _STREAM_CLOSE(RS_STACKDATA *stack, int argc) {
     EdEventInfo.stream_playing = 0;
     GetStackInt(stack);
     CSnd.StreamSetVol(EVENT_STREAM_CHANNEL, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
@@ -12405,7 +12405,7 @@ int CommandStreamOpen2(int stream, char *name) {
     return true;
 }
 
-int _STREAM_OPEN2(RS_STACKDATA *stack, int argc) {
+static int _STREAM_OPEN2(RS_STACKDATA *stack, int argc) {
     int result;
     GetStackInt(stack++);
     EdEventInfo.stream_from_fpl = 0;
@@ -12418,7 +12418,7 @@ int _STREAM_OPEN2(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
-int _LOAD_BGM_PACK(RS_STACKDATA *stack, int argc) {
+static int _LOAD_BGM_PACK(RS_STACKDATA *stack, int argc) {
     char file_name[64];
     int  bgm_no;
     u32 *pack;
@@ -12439,17 +12439,17 @@ int _LOAD_BGM_PACK(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GET_BGM_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_BGM_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->GetActiveBgmInfo()->load_no);
     return true;
 }
 
-int _GET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
+static int _GET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->GetActiveBgmInfo()->master_volf);
     return true;
 }
 
-int _SET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
+static int _SET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
     float   volume;
     CScene *scene;
 
@@ -12460,7 +12460,7 @@ int _SET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
+static int _GET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *battle_bgm;
 
     battle_bgm = &EventScene->battle_area;
@@ -12473,7 +12473,7 @@ int _GET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
+static int _SET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *battle_bgm = &EventScene->battle_area;
 
     if (battle_bgm == NULL) {
@@ -12484,22 +12484,22 @@ int _SET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SND_IN_REVERB(RS_STACKDATA *stack, int argc) {
+static int _SND_IN_REVERB(RS_STACKDATA *stack, int argc) {
     CSnd.SndInReverb(GetStackInt(stack) != 0);
     return true;
 }
 
-int _SND_STOP_SRC(RS_STACKDATA *stack, int argc) {
+static int _SND_STOP_SRC(RS_STACKDATA *stack, int argc) {
     EventScene->StopSeSrc();
     return true;
 }
 
-int _SND_PAUSE_BGM(RS_STACKDATA *stack, int argc) {
+static int _SND_PAUSE_BGM(RS_STACKDATA *stack, int argc) {
     EventScene->PauseBGM();
     return true;
 }
 
-int _STREAM_OPEN3(RS_STACKDATA *stack, int argc) {
+static int _STREAM_OPEN3(RS_STACKDATA *stack, int argc) {
     char name[64];
 
     GetStackInt(stack++);
@@ -12510,17 +12510,17 @@ int _STREAM_OPEN3(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_ACTIVE_BGM_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_ACTIVE_BGM_STATUS(RS_STACKDATA *stack, int argc) {
     EventScene->GetActiveBgmStatus(&EdEventInfo.bgm_status);
     return true;
 }
 
-int _SET_ACTIVE_BGM_STATUS(RS_STACKDATA *stack, int argc) {
+static int _SET_ACTIVE_BGM_STATUS(RS_STACKDATA *stack, int argc) {
     EventScene->SetActiveBgmStatus(&EdEventInfo.bgm_status);
     return true;
 }
 
-int _GET_BGM_STATUS_NOW_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_BGM_STATUS_NOW_NO(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
     }
@@ -12529,7 +12529,7 @@ int _GET_BGM_STATUS_NOW_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_SE_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_SE_STATUS(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
     }
@@ -12542,28 +12542,28 @@ int _GET_SE_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SE_ALL_STOP(RS_STACKDATA *stack, int argc) {
+static int _SE_ALL_STOP(RS_STACKDATA *stack, int argc) {
     EventScene->SeAllStop();
     return true;
 }
 
-int _SOUND_ALL_STOP(RS_STACKDATA *stack, int argc) {
+static int _SOUND_ALL_STOP(RS_STACKDATA *stack, int argc) {
     EventScene->SoundAllStop();
     return true;
 }
 
-int _BGM_PLAY_CANCEL(RS_STACKDATA *stack, int argc) {
+static int _BGM_PLAY_CANCEL(RS_STACKDATA *stack, int argc) {
 
     (&EventScene->skip_load_sound)[1] = 1;
     return true;
 }
 
-int _BGM_PLAY_ENABLE(RS_STACKDATA *stack, int argc) {
+static int _BGM_PLAY_ENABLE(RS_STACKDATA *stack, int argc) {
     (&EventScene->skip_load_sound)[1] = 0;
     return true;
 }
 
-int _GET_DEF_BGM_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_DEF_BGM_NO(RS_STACKDATA *stack, int argc) {
     int snd_id;
     int bgm_no;
 
@@ -12593,7 +12593,7 @@ int _GET_DEF_BGM_NO(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
+static int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
     int   i;
     int   no;
     int   start;
@@ -12641,7 +12641,7 @@ int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _REGISTER_VILLAGER2(RS_STACKDATA *stack, int argc) {
+static int _REGISTER_VILLAGER2(RS_STACKDATA *stack, int argc) {
     int        villager_no;
     int        mode;
     mgCMemory *memory;
@@ -12658,7 +12658,7 @@ int _REGISTER_VILLAGER2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
+static int _SET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     CFishingTournament *tournament;
     RS_STACKDATA       *next = stack + 1;
 
@@ -12695,7 +12695,7 @@ int _SET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _EOH_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     int          slot;
     int          chara_no;
@@ -12711,7 +12711,7 @@ int _EOH_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     CMap      *maps[8];
     int        map_count;
     int        i;
@@ -12803,7 +12803,7 @@ int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
     int         slot;
     CEditMap   *edit_map;
     CEditParts *parts;
@@ -12872,7 +12872,7 @@ int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _EOH_SYNC_SPRITE(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_SPRITE(RS_STACKDATA *stack, int argc) {
     CEventSprite2 *sprite;
     int            slot;
 
@@ -12886,7 +12886,7 @@ int _EOH_SYNC_SPRITE(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _EOH_SET_POS(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_POS(RS_STACKDATA *stack, int argc) {
     float     pos[4];
     int       slot;
     ARG_DATA *args;
@@ -12913,7 +12913,7 @@ int _EOH_SET_POS(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.SetPos(slot, pos[0], pos[1], pos[2]);
 }
 
-int _EOH_SET_ROT(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_ROT(RS_STACKDATA *stack, int argc) {
     float     rot[4];
     int       slot;
     ARG_DATA *args;
@@ -12946,7 +12946,7 @@ int _EOH_SET_ROT(RS_STACKDATA *stack, int argc) {
 /**
  * Writes an event object position to the script stack and returns the lookup status.
  */
-int _EOH_GET_POS(RS_STACKDATA *stack, int argc) {
+static int _EOH_GET_POS(RS_STACKDATA *stack, int argc) {
     float pos[3];
 
     int result = EventObjHandleMother.GetPos(GetStackInt(stack++), pos);
@@ -12963,7 +12963,7 @@ int _EOH_GET_POS(RS_STACKDATA *stack, int argc) {
 /**
  * Writes an event object rotation to the script stack and returns the lookup status.
  */
-int _EOH_GET_ROT(RS_STACKDATA *stack, int argc) {
+static int _EOH_GET_ROT(RS_STACKDATA *stack, int argc) {
     float rot[3];
 
     int result = EventObjHandleMother.GetRot(GetStackInt(stack++), rot);
@@ -12977,7 +12977,7 @@ int _EOH_GET_ROT(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
-int _EOH_SET_MOTION(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_MOTION(RS_STACKDATA *stack, int argc) {
     int   index;
     int   type = 0;
     float blend = -1.0f;
@@ -13029,12 +13029,12 @@ int _EOH_SET_MOTION(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object motion step and returns the update status.
  */
-int _EOH_SET_STEP(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_STEP(RS_STACKDATA *stack, int argc) {
     argc = GetStackInt(stack++);
     return EventObjHandleMother.SetStep(argc, GetStackFloat(stack));
 }
 
-int _EOH_SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
     int no = GetStackInt(stack);
 
     switch (stack[1].type) {
@@ -13063,7 +13063,7 @@ int _EOH_SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _EOH_SET_SCALE(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_SCALE(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     float x = GetStackFloat(stack++);
     float y = GetStackFloat(stack++);
@@ -13074,7 +13074,7 @@ int _EOH_SET_SCALE(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object visibility and returns the update status.
  */
-int _EOH_SET_SHOW(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_SHOW(RS_STACKDATA *stack, int argc) {
     int slot;
 
     slot = GetStackInt(stack++);
@@ -13084,7 +13084,7 @@ int _EOH_SET_SHOW(RS_STACKDATA *stack, int argc) {
 /**
  * Writes an event object visibility to the script stack and returns the lookup status.
  */
-int _EOH_GET_SHOW(RS_STACKDATA *stack, int argc) {
+static int _EOH_GET_SHOW(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
 
     next_slot = stack + 1;
@@ -13103,7 +13103,7 @@ int _EOH_GET_SHOW(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object frame visibility and returns the update status.
  */
-int _EOH_SET_FRAME_SHOW(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_FRAME_SHOW(RS_STACKDATA *stack, int argc) {
     int   slot;
     char *frame_name;
 
@@ -13115,14 +13115,14 @@ int _EOH_SET_FRAME_SHOW(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object shadow and returns the update status.
  */
-int _EOH_SET_SHADOW(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_SHADOW(RS_STACKDATA *stack, int argc) {
     int slot;
 
     slot = GetStackInt(stack++);
     return EventObjHandleMother.SetShadow(slot, GetStackInt(stack));
 }
 
-int _EOH_SET_TRANSLATE(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_TRANSLATE(RS_STACKDATA *stack, int argc) {
     float translate[4];
     int   no = GetStackInt(stack++);
     translate[0] = GetStackFloat(stack++);
@@ -13135,7 +13135,7 @@ int _EOH_SET_TRANSLATE(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object footstep sound identifier and returns the update status.
  */
-int _EOH_SET_FOOT_SOUND_ID(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_FOOT_SOUND_ID(RS_STACKDATA *stack, int argc) {
     int slot;
 
     slot = GetStackInt(stack++);
@@ -13145,7 +13145,7 @@ int _EOH_SET_FOOT_SOUND_ID(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object frame visibility and returns the update status.
  */
-int _EOH_SET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
     int   slot;
     char *frame_name;
 
@@ -13157,7 +13157,7 @@ int _EOH_SET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
 /**
  * Writes an event object frame position to the script stack and returns the lookup status.
  */
-int _EOH_GET_FRAME_POS(RS_STACKDATA *stack, int argc) {
+static int _EOH_GET_FRAME_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   no = GetStackInt(stack++);
     char *name = GetStackString(stack++);
@@ -13176,21 +13176,21 @@ int _EOH_GET_FRAME_POS(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object sound identifier and returns the update status.
  */
-int _EOH_SET_SOUND_ID(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_SOUND_ID(RS_STACKDATA *stack, int argc) {
     int slot;
 
     slot = GetStackInt(stack++);
     return EventObjHandleMother.SetSoundID(slot, GetStackInt(stack));
 }
 
-int _EOH_GET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
+static int _EOH_GET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     char *name = GetStackString(stack++);
     SetStack(stack, EventObjHandleMother.GetFrameShow(no, name));
     return true;
 }
 
-int _EOH_SYNC_CHROBJ(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_CHROBJ(RS_STACKDATA *stack, int argc) {
     int          slot = GetStackInt(stack++);
     int          chara_no = GetStackInt(stack++);
     char        *name = GetStackString(stack);
@@ -13217,7 +13217,7 @@ int _EOH_SYNC_CHROBJ(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object fade flag and returns the update status.
  */
-int _EOH_SET_FADE_FLAG(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_FADE_FLAG(RS_STACKDATA *stack, int argc) {
     int slot;
 
     slot = GetStackInt(stack++);
@@ -13227,14 +13227,14 @@ int _EOH_SET_FADE_FLAG(RS_STACKDATA *stack, int argc) {
 /**
  * Resets an event object animation position and returns the update status.
  */
-int _EOH_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
+static int _EOH_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.ResetDAPosition(GetStackInt(stack));
 }
 
 /**
  * Sets an event object shadow frame visibility and returns the update status.
  */
-int _EOH_SET_SHADOW_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_SHADOW_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
     int   slot;
     char *frame_name;
 
@@ -13246,11 +13246,11 @@ int _EOH_SET_SHADOW_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
 /**
  * Attaches an event handle to a geostone and returns the update status.
  */
-int _EOH_SYNC_GEOSTONE(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_GEOSTONE(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.Set(GetStackInt(stack), 0, -1, &GeoStone);
 }
 
-int _EOH_SYNC_SEARCH_CHARA(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_SEARCH_CHARA(RS_STACKDATA *stack, int argc) {
     int           slot;
     char         *name;
     CActionChara *player;
@@ -13270,18 +13270,18 @@ int _EOH_SYNC_SEARCH_CHARA(RS_STACKDATA *stack, int argc) {
 /**
  * Updates an event character and returns the update status.
  */
-int _EOH_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
+static int _EOH_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.NormalDrive(GetStackInt(stack));
 }
 
-int _EOH_SET_FRAME_ALPHA(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_FRAME_ALPHA(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     char *name = GetStackString(stack++);
     float alpha = GetStackFloat(stack);
     return EventObjHandleMother.SetFrameObjAlpha(no, name, alpha);
 }
 
-int _EOH_SYNC_FUNCP(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_FUNCP(RS_STACKDATA *stack, int argc) {
     int         slot;
     CFuncPoint *func_point;
     CMap       *map;
@@ -13336,14 +13336,14 @@ int _EOH_SYNC_FUNCP(RS_STACKDATA *stack, int argc) {
 /**
  * Sets an event object footstep effect identifier and returns the update status.
  */
-int _EOH_SET_FOOT_SE_ID(RS_STACKDATA *stack, int argc) {
+static int _EOH_SET_FOOT_SE_ID(RS_STACKDATA *stack, int argc) {
     int slot;
 
     slot = GetStackInt(stack++);
     return EventObjHandleMother.SetFootSeId(slot, GetStackInt(stack));
 }
 
-int _EOH_SYNC_DOOR_PARTS(RS_STACKDATA *stack, int argc) {
+static int _EOH_SYNC_DOOR_PARTS(RS_STACKDATA *stack, int argc) {
     int        slot;
     int        result;
     CMapParts *door;
@@ -13365,12 +13365,12 @@ int _EOH_SYNC_DOOR_PARTS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_INIT(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_INIT(RS_STACKDATA *stack, int argc) {
     InitSphida();
     return true;
 }
 
-int _SPHIDA_SET_UP(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_UP(RS_STACKDATA *stack, int argc) {
     CSphida      *sphida;
     mgCMemory    *memory;
     int           param;
@@ -13417,7 +13417,7 @@ int _SPHIDA_SET_UP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_PLAY_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_PLAY_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
     flag = GetStackInt(stack);
@@ -13430,7 +13430,7 @@ int _SPHIDA_SET_PLAY_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_MINIMAP_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_MINIMAP_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
     flag = GetStackInt(stack);
@@ -13443,7 +13443,7 @@ int _SPHIDA_SET_MINIMAP_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_MM_LINE_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_MM_LINE_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
     flag = GetStackInt(stack);
@@ -13456,7 +13456,7 @@ int _SPHIDA_SET_MM_LINE_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_MM_LINE_POS(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_MM_LINE_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     int   index = GetStackInt(stack++);
     GetStackVector(pos, stack);
@@ -13472,7 +13472,7 @@ int _SPHIDA_SET_MM_LINE_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_PIN_POS(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_PIN_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     pos[0] = GetStackFloat(stack++);
     pos[1] = GetStackFloat(stack++);
@@ -13487,7 +13487,7 @@ int _SPHIDA_SET_PIN_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_PIN_POS(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_PIN_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     if (Sphida == NULL) {
@@ -13501,7 +13501,7 @@ int _SPHIDA_GET_PIN_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_BALL_POS(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_BALL_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     pos[0] = GetStackFloat(stack++);
     pos[1] = GetStackFloat(stack++);
@@ -13516,7 +13516,7 @@ int _SPHIDA_SET_BALL_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_BALL_POS(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_BALL_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
 
     if (Sphida == NULL) {
@@ -13530,7 +13530,7 @@ int _SPHIDA_GET_BALL_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_PIN_COL(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_PIN_COL(RS_STACKDATA *stack, int argc) {
     int color;
 
     color = GetStackInt(stack);
@@ -13543,7 +13543,7 @@ int _SPHIDA_SET_PIN_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_PIN_COL(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_PIN_COL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13552,7 +13552,7 @@ int _SPHIDA_GET_PIN_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_BALL_COL(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_BALL_COL(RS_STACKDATA *stack, int argc) {
     int color;
 
     color = GetStackInt(stack);
@@ -13565,7 +13565,7 @@ int _SPHIDA_SET_BALL_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_BALL_COL(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_BALL_COL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13574,7 +13574,7 @@ int _SPHIDA_GET_BALL_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     int par_count;
 
     par_count = GetStackInt(stack);
@@ -13590,7 +13590,7 @@ int _SPHIDA_SET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13607,7 +13607,7 @@ int _SPHIDA_GET_PAR_COUNT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_MINI_LEVEL(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_MINI_LEVEL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13616,7 +13616,7 @@ int _SPHIDA_GET_MINI_LEVEL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_TEXB(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_TEXB(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13625,7 +13625,7 @@ int _SPHIDA_GET_TEXB(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_STATUS_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_STATUS_FLAG(RS_STACKDATA *stack, int argc) {
     int flag;
 
     flag = GetStackInt(stack);
@@ -13638,7 +13638,7 @@ int _SPHIDA_SET_STATUS_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_RESET_POWGAGE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_RESET_POWGAGE(RS_STACKDATA *stack, int argc) {
     if (Sphida == 0) {
         return false;
     }
@@ -13652,7 +13652,7 @@ int _SPHIDA_RESET_POWGAGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_START_POWGAGE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_START_POWGAGE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13661,7 +13661,7 @@ int _SPHIDA_START_POWGAGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_TRIGGER_POWGAGE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_TRIGGER_POWGAGE(RS_STACKDATA *stack, int argc) {
 
     CSphida *sphida = Sphida;
 
@@ -13681,7 +13681,7 @@ int _SPHIDA_TRIGGER_POWGAGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_SHOT_POW(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_SHOT_POW(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13690,7 +13690,7 @@ int _SPHIDA_GET_SHOT_POW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_POWGAGE_CODE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_POWGAGE_CODE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13699,7 +13699,7 @@ int _SPHIDA_GET_POWGAGE_CODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_POWGAGE_SAFE_LEVEL(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_POWGAGE_SAFE_LEVEL(RS_STACKDATA *stack, int argc) {
     int level;
 
     level = GetStackInt(stack);
@@ -13720,7 +13720,7 @@ int _SPHIDA_SET_POWGAGE_SAFE_LEVEL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_CULB_DEF(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_CULB_DEF(RS_STACKDATA *stack, int argc) {
     GOLF_CLUB_DEF *club = GetSphidaClubDef(GetStackInt(stack++));
 
     if (club == NULL) {
@@ -13733,7 +13733,7 @@ int _SPHIDA_GET_CULB_DEF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_SPIN_MARK_POS(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_SPIN_MARK_POS(RS_STACKDATA *stack, int argc) {
     float    x = GetStackFloat(stack++);
     float    y = GetStackFloat(stack);
     CSphida *sphida = Sphida;
@@ -13747,7 +13747,7 @@ int _SPHIDA_SET_SPIN_MARK_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_CULB_NO(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_CULB_NO(RS_STACKDATA *stack, int argc) {
     int club_no;
 
     club_no = GetStackInt(stack);
@@ -13760,7 +13760,7 @@ int _SPHIDA_SET_CULB_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_CALC_CARRY(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_CALC_CARRY(RS_STACKDATA *stack, int argc) {
     float carry = GetStackFloat(stack);
 
     if (Sphida == NULL) {
@@ -13771,7 +13771,7 @@ int _SPHIDA_CALC_CARRY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_PG_CURSOR_POS(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_PG_CURSOR_POS(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13783,7 +13783,7 @@ int _SPHIDA_GET_PG_CURSOR_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_COL_MODEL(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_COL_MODEL(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13805,7 +13805,7 @@ int _SPHIDA_SET_COL_MODEL(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SPHIDA_GET_PRIZE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_PRIZE(RS_STACKDATA *stack, int argc) {
     int               prize1;
     int               prize2;
     CDngFloorManager *floor_manager;
@@ -13831,7 +13831,7 @@ int _SPHIDA_GET_PRIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL) {
         return false;
     }
@@ -13840,7 +13840,7 @@ int _SPHIDA_SET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL || argc != 1) {
         return false;
     }
@@ -13850,7 +13850,7 @@ int _SPHIDA_GET_LAST_CHALLENGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_OMAKE_MODE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_OMAKE_MODE(RS_STACKDATA *stack, int argc) {
     if (Sphida == NULL || argc != 1) {
         return false;
     }
@@ -13860,7 +13860,7 @@ int _SPHIDA_GET_OMAKE_MODE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     CSubGameData *sub_game = GetSubGameSaveData();
 
     if (sub_game == NULL) {
@@ -13877,7 +13877,7 @@ int _SPHIDA_SET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     CSphidaData  *sphida_data;
     CSubGameData *sub_game;
 
@@ -13901,7 +13901,7 @@ int _SPHIDA_GET_NOW_HOLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_SET_SCORE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_SET_SCORE(RS_STACKDATA *stack, int argc) {
     CSubGameData *sub_game = GetSubGameSaveData();
 
     if (sub_game == NULL) {
@@ -13920,7 +13920,7 @@ int _SPHIDA_SET_SCORE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SPHIDA_GET_SCORE(RS_STACKDATA *stack, int argc) {
+static int _SPHIDA_GET_SCORE(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;
     }
@@ -13942,18 +13942,18 @@ int _SPHIDA_GET_SCORE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _TEST(RS_STACKDATA *stack, int argc) {
+static int _TEST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
 /**
  * Returns the intersection test routine's script command status.
  */
-int _MT_TEST(RS_STACKDATA *stack, int argc) {
+static int _MT_TEST(RS_STACKDATA *stack, int argc) {
     return mt_test(stack, argc);
 }
 
-int _ZERO_VECTOR(RS_STACKDATA *stack, int arg_count) {
+static int _ZERO_VECTOR(RS_STACKDATA *stack, int arg_count) {
     SetStack(stack++, 0.0f);
     SetStack(stack++, 0.0f);
     SetStack(stack, 0.0f);
@@ -14083,7 +14083,7 @@ static int _GET_RAND(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _LINE_POINT_DIST(RS_STACKDATA *stack, int argc) {
+static int _LINE_POINT_DIST(RS_STACKDATA *stack, int argc) {
     float segment_start[4];
     float segment_end[4];
     float point[4];
@@ -14112,7 +14112,7 @@ int _LINE_POINT_DIST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CREATE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
+static int _CREATE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
     int               stack_no = GetStackInt(stack++);
     int               init_param1 = GetStackInt(stack++);
     int               init_param2 = GetStackInt(stack);
@@ -14147,12 +14147,12 @@ int _CREATE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DELETE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
+static int _DELETE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
     SwordEffect = 0;
     return true;
 }
 
-int _SWORD_EFFECT_COLOR(RS_STACKDATA *stack, int argc) {
+static int _SWORD_EFFECT_COLOR(RS_STACKDATA *stack, int argc) {
     if (SwordEffect == 0) {
         return false;
     }
@@ -14177,7 +14177,7 @@ int _SWORD_EFFECT_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SWORD_EFFECT_ADD_POINT(RS_STACKDATA *stack, int argc) {
+static int _SWORD_EFFECT_ADD_POINT(RS_STACKDATA *stack, int argc) {
     float edge[4];
     float back[4];
     float life;
@@ -14200,7 +14200,7 @@ int _SWORD_EFFECT_ADD_POINT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_CHARA_POS(RS_STACKDATA *stack, int argc) {
+static int _ADD_CHARA_POS(RS_STACKDATA *stack, int argc) {
     float offset[4];
     float pos[4];
     int   chara_no = GetStackInt(stack++);
@@ -14217,7 +14217,7 @@ int _ADD_CHARA_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_CHARA_ROT(RS_STACKDATA *stack, int argc) {
+static int _ADD_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     float offset[4];
     float rot[4];
     int   chara_no = GetStackInt(stack++);
@@ -14238,7 +14238,7 @@ int _ADD_CHARA_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _POST_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
+static int _POST_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
     float                position[3];
     CTreasureBoxManager *chest_manager;
     float                angle;
@@ -14272,7 +14272,7 @@ int _POST_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_PARTS_ORIGIN(RS_STACKDATA *stack, int argc) {
+static int _GET_PARTS_ORIGIN(RS_STACKDATA *stack, int argc) {
     float      center[4];
     CMapParts *parts[8];
     mgVu0FBOX  box;
@@ -14328,25 +14328,25 @@ int _GET_PARTS_ORIGIN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CTRLC_STEP(RS_STACKDATA *stack, int argc) {
+static int _CTRLC_STEP(RS_STACKDATA *stack, int argc) {
     CCameraControl *p = GetCamera();
     p->Step(1);
     return true;
 }
 
-int _CTRLC_SET_ROTATE(RS_STACKDATA *stack, int argc) {
+static int _CTRLC_SET_ROTATE(RS_STACKDATA *stack, int argc) {
     float angle = GetStackFloat(stack);
     GetCamera()->SetRotate(angle);
     return true;
 }
 
-int _CTRLC_ROT_BACK(RS_STACKDATA *stack, int argc) {
+static int _CTRLC_ROT_BACK(RS_STACKDATA *stack, int argc) {
     float angle = GetStackFloat(stack);
     GetCamera()->RotBack(angle);
     return true;
 }
 
-int _CTRLC_MOVE_CAMERA(RS_STACKDATA *stack, int argc) {
+static int _CTRLC_MOVE_CAMERA(RS_STACKDATA *stack, int argc) {
     float           chara_pos[4];
     CCPoly          polys[256];
     mgVu0FBOX       box;
@@ -14390,7 +14390,7 @@ int _CTRLC_MOVE_CAMERA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CTRLC_SET_ROT_CANCEL(RS_STACKDATA *stack, int argc) {
+static int _CTRLC_SET_ROT_CANCEL(RS_STACKDATA *stack, int argc) {
     int mask;
 
     mask = GetStackInt(stack);
@@ -14398,7 +14398,7 @@ int _CTRLC_SET_ROT_CANCEL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CTRLC_MOVE_RANGE(RS_STACKDATA *stack, int argc) {
+static int _CTRLC_MOVE_RANGE(RS_STACKDATA *stack, int argc) {
     CameraCtrlParam *param = GetCamera()->GetActiveParam();
     param->near_height = GetStackFloat(stack++);
     param->far_height = GetStackFloat(stack++);
@@ -14407,7 +14407,7 @@ int _CTRLC_MOVE_RANGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_NEAR_TBOX_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_NEAR_TBOX_POS(RS_STACKDATA *stack, int argc) {
     float                target[4];
     float                box_pos[4];
     DNG_BATTLE_AREA     *dng_scene;
@@ -14467,11 +14467,11 @@ int _GET_NEAR_TBOX_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CONV_CHRNO_S2L(RS_STACKDATA *stack, int argc) {
+static int _CONV_CHRNO_S2L(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SWE_INIT(RS_STACKDATA *stack, int argc) {
+static int _SWE_INIT(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     int          slot = GetStackInt(stack++);
     int          stack_no = GetStackInt(stack++);
@@ -14499,7 +14499,7 @@ int _SWE_INIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
+static int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
     int                 a_r, a_g, a_b, a_a, b_r, b_g, b_b, b_a;
     int                 chara_no, slot;
     CCharacter2        *chara;
@@ -14540,7 +14540,7 @@ int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SWE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
+static int _SWE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     mgCTexture         *texture;
     int                 block_no;
     char               *name;
@@ -14583,7 +14583,7 @@ int _SWE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
+static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
     int                 chara_no;
     int                 slot;
     CCharacter2        *chara;
@@ -14637,7 +14637,7 @@ int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_TYPE(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_TYPE(RS_STACKDATA *stack, int argc) {
     int chara_no;
 
     chara_no = GetStackInt(stack++);
@@ -14645,7 +14645,7 @@ int _SET_CHARA_TYPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
+static int _GET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     CSceneEventData *event_data;
 
     event_data = &EventScene->event_data;
@@ -14729,7 +14729,7 @@ int _GET_EVENT_DATA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_SET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
+static int _DNG_SET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     int        floor = GetStackInt(stack);
     CSaveData *save = GetSaveData();
 
@@ -14747,7 +14747,7 @@ int _DNG_SET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_GET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
+static int _DNG_GET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     CSaveData *save = GetSaveData();
 
     if (save == NULL) {
@@ -14764,11 +14764,11 @@ int _DNG_GET_PREV_FLOOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_SET_FAST_FLOOR(RS_STACKDATA *stack, int argc) {
+static int _DNG_SET_FAST_FLOOR(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _SET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
+static int _SET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     int        dungeon_no = GetStackInt(stack++);
     int        floor_no = GetStackInt(stack++);
     int        field = GetStackInt(stack++);
@@ -14822,7 +14822,7 @@ int _SET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
+static int _GET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     int        dungeon_no = GetStackInt(stack++);
     int        floor_no = GetStackInt(stack++);
     int        field = GetStackInt(stack++);
@@ -14876,7 +14876,7 @@ int _GET_FLOOR_INFO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_NEXT_FLOOR(RS_STACKDATA *stack, int argc) {
+static int _GET_NEXT_FLOOR(RS_STACKDATA *stack, int argc) {
     int              floor = GetStackInt(stack++);
     int              route = GetStackInt(stack++);
     DNG_BATTLE_AREA *dng_scene = &EventScene->battle_area;
@@ -14896,12 +14896,12 @@ int _GET_NEXT_FLOOR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _PAD_AUTO_REPEAT_OFF(RS_STACKDATA *stack, int argc) {
+static int _PAD_AUTO_REPEAT_OFF(RS_STACKDATA *stack, int argc) {
     GamePad__2.AutoRepeatOff();
     return true;
 }
 
-int _PAD_SET_AUTO_REPEAT(RS_STACKDATA *stack, int argc) {
+static int _PAD_SET_AUTO_REPEAT(RS_STACKDATA *stack, int argc) {
     int mask = GetStackInt(stack++);
     int delay = GetStackInt(stack++);
     int interval = GetStackInt(stack);
@@ -14909,7 +14909,7 @@ int _PAD_SET_AUTO_REPEAT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_PAUSE(RS_STACKDATA *stack, int argc) {
+static int _DNG_PAUSE(RS_STACKDATA *stack, int argc) {
     int              mask = GetStackInt(stack++);
     int              enable = GetStackInt(stack);
     DNG_BATTLE_AREA *dng_scene = &EventScene->battle_area;
@@ -14927,7 +14927,7 @@ int _DNG_PAUSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_CHECK_PAUSE(RS_STACKDATA *stack, int argc) {
+static int _DNG_CHECK_PAUSE(RS_STACKDATA *stack, int argc) {
     int              mask = GetStackInt(stack++);
     DNG_BATTLE_AREA *dng_scene = &EventScene->battle_area;
 
@@ -14940,7 +14940,7 @@ int _DNG_CHECK_PAUSE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_RESET_TIMER(RS_STACKDATA *stack, int argc) {
+static int _DNG_RESET_TIMER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
 
     dng_scene = &EventScene->battle_area;
@@ -14953,7 +14953,7 @@ int _DNG_RESET_TIMER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_GET_TIMER(RS_STACKDATA *stack, int argc) {
+static int _DNG_GET_TIMER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
 
     dng_scene = &EventScene->battle_area;
@@ -14966,7 +14966,7 @@ int _DNG_GET_TIMER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _LOAD_SKIN(RS_STACKDATA *stack, int argc) {
+static int _LOAD_SKIN(RS_STACKDATA *stack, int argc) {
     int                stack_no;
     int                image_block;
     int                chara_no;
@@ -15022,7 +15022,7 @@ int _LOAD_SKIN(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHK_CAMERA_COL(RS_STACKDATA *stack, int argc) {
+static int _CHK_CAMERA_COL(RS_STACKDATA *stack, int argc) {
     float     from[4];
     float     to[4];
     float     hit_pos[4];
@@ -15073,7 +15073,7 @@ int _CHK_CAMERA_COL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_PARTS_FUNC_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_PARTS_FUNC_POS(RS_STACKDATA *stack, int argc) {
     float      center[4];
     CMapParts *parts[8];
     mgVu0FBOX  box;
@@ -15146,7 +15146,7 @@ int _GET_PARTS_FUNC_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _RANDOM_CIRCLE_GET_POS(RS_STACKDATA *stack, int argc) {
+static int _RANDOM_CIRCLE_GET_POS(RS_STACKDATA *stack, int argc) {
     float pos[3];
     int   circle_id = GetStackInt(stack++);
 
@@ -15160,7 +15160,7 @@ int _RANDOM_CIRCLE_GET_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _RANDOM_CIRCLE_OFF(RS_STACKDATA *stack, int argc) {
+static int _RANDOM_CIRCLE_OFF(RS_STACKDATA *stack, int argc) {
     int circle_id = GetStackInt(stack);
 
     if (circle_id == -1) {
@@ -15176,22 +15176,22 @@ int _RANDOM_CIRCLE_OFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_XCHG_MAP_LIGHT(RS_STACKDATA *stack, int argc) {
+static int _DNG_XCHG_MAP_LIGHT(RS_STACKDATA *stack, int argc) {
     XChgMapLighting();
     return true;
 }
 
-int _GEOSTONE_ANIME_OFF(RS_STACKDATA *stack, int argc) {
+static int _GEOSTONE_ANIME_OFF(RS_STACKDATA *stack, int argc) {
     GeoStone.anime = 0;
     return true;
 }
 
-int _GEOSTONE_SET_FLAG(RS_STACKDATA *stack, int argc) {
+static int _GEOSTONE_SET_FLAG(RS_STACKDATA *stack, int argc) {
     GeoStone.SetFlag(GetStackInt(stack));
     return true;
 }
 
-int _GEOSTONE_SET_REFERENCE(RS_STACKDATA *stack, int argc) {
+static int _GEOSTONE_SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     char        *name = GetStackString(stack);
     CCharacter2 *chara = GetChara(chara_no);
@@ -15218,7 +15218,7 @@ int _GEOSTONE_SET_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GEOSTONE_DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
+static int _GEOSTONE_DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     if (GeoStone.CObjectFrame::frame == NULL) {
         return false;
     }
@@ -15227,27 +15227,27 @@ int _GEOSTONE_DEL_REFERENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_ROBO_MOVE_TYPE(RS_STACKDATA *stack, int argc) {
+static int _GET_ROBO_MOVE_TYPE(RS_STACKDATA *stack, int argc) {
     SetStack(stack, ((CActionChara *) GetCharacter(0))->move_type);
     return true;
 }
 
-int _SET_EXIT_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SET_EXIT_FLAG(RS_STACKDATA *stack, int argc) {
     EventScene->exit_flag = GetStackInt(stack);
     return true;
 }
 
-int _GET_EXIT_FLAG(RS_STACKDATA *stack, int argc) {
+static int _GET_EXIT_FLAG(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->exit_flag);
     return true;
 }
 
-int _GET_E3_VERSION(RS_STACKDATA *stack, int argc) {
+static int _GET_E3_VERSION(RS_STACKDATA *stack, int argc) {
     SetStack(stack, 0);
     return true;
 }
 
-int _CHK_PAD_CTRL(RS_STACKDATA *stack, int argc) {
+static int _CHK_PAD_CTRL(RS_STACKDATA *stack, int argc) {
     if (argc != 2) {
         return false;
     }
@@ -15257,13 +15257,13 @@ int _CHK_PAD_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CTRLC_STAY(RS_STACKDATA *stack, int argc) {
+static int _CTRLC_STAY(RS_STACKDATA *stack, int argc) {
     CCameraControl *camera = GetCamera();
     camera->Stay();
     return true;
 }
 
-int _BSCN_SET_BLIGHT_RATE(RS_STACKDATA *stack, int argc) {
+static int _BSCN_SET_BLIGHT_RATE(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = &EventScene->battle_area;
 
     if (info == NULL) {
@@ -15274,13 +15274,13 @@ int _BSCN_SET_BLIGHT_RATE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_RND_CIRCLE_TRAPID(RS_STACKDATA *stack, int argc) {
+static int _GET_RND_CIRCLE_TRAPID(RS_STACKDATA *stack, int argc) {
     int circle_id = GetStackInt(stack++);
     SetStack(stack, GetRandomCircleTrapID(circle_id));
     return true;
 }
 
-int _SET_RND_CIRCLE_STATUS(RS_STACKDATA *stack, int argc) {
+static int _SET_RND_CIRCLE_STATUS(RS_STACKDATA *stack, int argc) {
     float result;
     int   circle_id = GetStackInt(stack++);
     SetRandamCircleStatus(circle_id, result);
@@ -15288,7 +15288,7 @@ int _SET_RND_CIRCLE_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_STATUSBAR_SHOW(RS_STACKDATA *stack, int argc) {
+static int _SET_STATUSBAR_SHOW(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *area = &EventScene->battle_area;
 
     if (area == NULL) {
@@ -15324,7 +15324,7 @@ int _SET_STATUSBAR_SHOW(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_PULL_ITEM(RS_STACKDATA *stack, int argc) {
+static int _SET_PULL_ITEM(RS_STACKDATA *stack, int argc) {
     float             pos[4];
     float             velocity[4];
     int               type;
@@ -15397,20 +15397,20 @@ int _SET_PULL_ITEM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _MENU_CHARA_CHENGE(RS_STACKDATA *stack, int argc) {
+static int _MENU_CHARA_CHENGE(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
     MenuArg.open_type = (int) MENU_OPEN_CHARA_CHANGE_DUNGEON;
     EdEventInfo.command_mode = 3;
     return true;
 }
 
-int _GET_EVENT_INFO_SNDID(RS_STACKDATA *stack, int argc) {
+static int _GET_EVENT_INFO_SNDID(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
     SetStack(stack, EdEventInfo.snd_id[index]);
     return true;
 }
 
-int _GET_PARTS_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_PARTS_POS(RS_STACKDATA *stack, int argc) {
     CMap      *maps[8];
     float      pos[4];
     CMapParts *parts;
@@ -15462,18 +15462,18 @@ int _GET_PARTS_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CANCEL_DRAMA_SCENE(RS_STACKDATA *stack, int argc) {
+static int _CANCEL_DRAMA_SCENE(RS_STACKDATA *stack, int argc) {
     CancelDramaScene();
     return true;
 }
 
-int _GET_RNDC_MOT_NOWT(RS_STACKDATA *stack, int argc) {
+static int _GET_RNDC_MOT_NOWT(RS_STACKDATA *stack, int argc) {
     float weight = RandomCircle.model.frame;
     SetStack(stack, weight);
     return true;
 }
 
-int _SET_CHARA_MOT_NOWT(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_MOT_NOWT(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     float        time = GetStackFloat(stack);
     CCharacter2 *chara = GetCharacter(chara_no);
@@ -15486,7 +15486,7 @@ int _SET_CHARA_MOT_NOWT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHARA_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
+static int _CHARA_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     chara = GetCharacter(GetStackInt(stack));
 
@@ -15498,7 +15498,7 @@ int _CHARA_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHARA_RESET_DA(RS_STACKDATA *stack, int argc) {
+static int _CHARA_RESET_DA(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
 
     if ((chara = GetCharacter(GetStackInt(stack))) == NULL) {
@@ -15510,7 +15510,7 @@ int _CHARA_RESET_DA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_SETUP_MAIN_UNIT(RS_STACKDATA *stack, int argc) {
+static int _DNG_SETUP_MAIN_UNIT(RS_STACKDATA *stack, int argc) {
     char               sound_path[0x28];
     mgCTexture        *icons[2];
     int                chara_no;
@@ -15583,7 +15583,7 @@ int _DNG_SETUP_MAIN_UNIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _JOIN_PARTY_MEMBER(RS_STACKDATA *stack, int argc) {
+static int _JOIN_PARTY_MEMBER(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
     CSaveData        *save = GetSaveData();
@@ -15621,7 +15621,7 @@ int _JOIN_PARTY_MEMBER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_CHANGE_FLAG(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_CHANGE_FLAG(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
     CSaveData        *save = GetSaveData();
@@ -15647,7 +15647,7 @@ int _SET_CHARA_CHANGE_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_CHANGE_MASK(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_CHANGE_MASK(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
     CSaveData        *save = GetSaveData();
@@ -15673,7 +15673,7 @@ int _SET_CHARA_CHANGE_MASK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_EQUIP(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_EQUIP(RS_STACKDATA *stack, int argc) {
     int        chara_no;
     int        item_no;
     CSaveData *save = GetSaveData();
@@ -15693,7 +15693,7 @@ int _SET_CHARA_EQUIP(RS_STACKDATA *stack, int argc) {
     return user_data->SetChrEquip(chara_no, item_no);
 }
 
-int _LOAD_PACK_FILE(RS_STACKDATA *stack, int argc) {
+static int _LOAD_PACK_FILE(RS_STACKDATA *stack, int argc) {
     if (GetLoadBGBuff(GetStackString(stack), 0) == 0) {
         return false;
     }
@@ -15702,7 +15702,7 @@ int _LOAD_PACK_FILE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
+static int _SET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     CSaveData *save;
     int        bit;
 
@@ -15721,7 +15721,7 @@ int _SET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
+static int _GET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     CSaveData *save;
     int        bit;
     int        ctrl;
@@ -15736,7 +15736,7 @@ int _GET_BIT_CTRL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _LOAD_ARG(RS_STACKDATA *stack, int argc) {
+static int _LOAD_ARG(RS_STACKDATA *stack, int argc) {
     int        stack_no = GetStackInt(stack++);
     char      *file_name = GetStackString(stack);
     mgCMemory *memory;
@@ -15759,14 +15759,14 @@ int _LOAD_ARG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_ITEM_HAVE_NUM(RS_STACKDATA *stack, int argc) {
+static int _GET_ITEM_HAVE_NUM(RS_STACKDATA *stack, int argc) {
     int item_id = GetStackInt(stack++);
     argc = GetUserItemHaveNum(item_id);
     SetStack(stack, argc);
     return true;
 }
 
-int _SET_SKIP_BOTTON(RS_STACKDATA *stack, int argc) {
+static int _SET_SKIP_BOTTON(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
     }
@@ -15775,7 +15775,7 @@ int _SET_SKIP_BOTTON(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_SKIP_FCOL(RS_STACKDATA *stack, int argc) {
+static int _SET_SKIP_FCOL(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
     }
@@ -15785,12 +15785,12 @@ int _SET_SKIP_FCOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_DEBUG_MODE(RS_STACKDATA *stack, int arg_count) {
+static int _GET_DEBUG_MODE(RS_STACKDATA *stack, int arg_count) {
     SetStack(stack, 1);
     return true;
 }
 
-int _GET_MAP_TYPE(RS_STACKDATA *stack, int argc) {
+static int _GET_MAP_TYPE(RS_STACKDATA *stack, int argc) {
     int           map_no;
     RS_STACKDATA *result;
 
@@ -15811,17 +15811,17 @@ int _GET_MAP_TYPE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_COLLISION_ALL_CLR(RS_STACKDATA *stack, int argc) {
+static int _DNG_COLLISION_ALL_CLR(RS_STACKDATA *stack, int argc) {
     ColPrimMan.Initialize(DngMainScene);
     return true;
 }
 
-int _SET_MAP_DRAW(RS_STACKDATA *stack, int argc) {
+static int _SET_MAP_DRAW(RS_STACKDATA *stack, int argc) {
     EdEventInfo.map_draw = GetStackInt(stack);
     return true;
 }
 
-int _CHECK_MC_LOAD(RS_STACKDATA *stack, int arg_count) {
+static int _CHECK_MC_LOAD(RS_STACKDATA *stack, int arg_count) {
     INIT_LOOP_ARG *arg = GetNowInitArg();
 
     if (arg == NULL) {
@@ -15833,12 +15833,12 @@ int _CHECK_MC_LOAD(RS_STACKDATA *stack, int arg_count) {
     return true;
 }
 
-int _SET_NOW_MAP_NO(RS_STACKDATA *stack, int argc) {
+static int _SET_NOW_MAP_NO(RS_STACKDATA *stack, int argc) {
     EventScene->SetNowMapNo(GetStackInt(stack));
     return true;
 }
 
-int _GET_TBOX_PARAM(RS_STACKDATA *stack, int argc) {
+static int _GET_TBOX_PARAM(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *area = &EventScene->battle_area;
 
     if (area == NULL) {
@@ -15867,14 +15867,14 @@ int _GET_TBOX_PARAM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CANCEL_LOAD_VILLAGER(RS_STACKDATA *stack, int argc) {
+static int _CANCEL_LOAD_VILLAGER(RS_STACKDATA *stack, int argc) {
     CScene *scene = EventScene;
     scene->skip_load_sub_villager = 1;
     scene->skip_load_villager = 1;
     return true;
 }
 
-int _CANCEL_NOW_LOADING(RS_STACKDATA *stack, int argc) {
+static int _CANCEL_NOW_LOADING(RS_STACKDATA *stack, int argc) {
     CancelNowLoading();
     return true;
 }
@@ -15892,7 +15892,7 @@ static inline u_int align16_blocks(u_int size) {
     return size >> 4;
 }
 
-int _ESM_INITIALIZE(RS_STACKDATA *stack, int argc) {
+static int _ESM_INITIALIZE(RS_STACKDATA *stack, int argc) {
     int        stack_no;
     int        texb_offset = 0;
     mgCMemory *memory;
@@ -15919,7 +15919,7 @@ int _ESM_INITIALIZE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ESM_INIT_FIX(RS_STACKDATA *stack, int argc) {
+static int _ESM_INIT_FIX(RS_STACKDATA *stack, int argc) {
     int        stack_no;
     int        heap_size;
     mgCMemory *scene_stack;
@@ -15955,7 +15955,7 @@ int _ESM_INIT_FIX(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ESM_CLEAR(RS_STACKDATA *stack, int argc) {
+static int _ESM_CLEAR(RS_STACKDATA *stack, int argc) {
     int                cleared_blocks[68];
     mgCMemory         *work_buffer;
     mgCTextureManager *tex_manager;
@@ -15991,7 +15991,7 @@ int _ESM_CLEAR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ESM_LOAD_BASE(RS_STACKDATA *stack, int argc) {
+static int _ESM_LOAD_BASE(RS_STACKDATA *stack, int argc) {
     int ret;
 
     if (EventEffectScript == NULL) {
@@ -16148,7 +16148,7 @@ static int _ESM_SET_TARGET_ID(RS_STACKDATA *stack, int argc) {
     return ret;
 }
 
-int _ESM_LOAD_BASE_PACK(RS_STACKDATA *stack, int argc) {
+static int _ESM_LOAD_BASE_PACK(RS_STACKDATA *stack, int argc) {
     if (EventEffectScript == NULL) {
         return false;
     }
@@ -16214,7 +16214,7 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
     return ret;
 }
 
-int _SET_CHARA_CONDITION(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_CONDITION(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 2: {
             CBattleCharaInfo *info;
@@ -16255,7 +16255,7 @@ int _SET_CHARA_CONDITION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_WHP(RS_STACKDATA *stack, int argc) {
+static int _ADD_WHP(RS_STACKDATA *stack, int argc) {
     CBattleCharaInfo *info;
 
     if ((info = GetBattleCharaInfo()) == 0) {
@@ -16268,7 +16268,7 @@ int _ADD_WHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_HP_RATE(RS_STACKDATA *stack, int argc) {
+static int _ADD_HP_RATE(RS_STACKDATA *stack, int argc) {
     float             rate;
     float             frames;
     CBattleCharaInfo *info;
@@ -16289,12 +16289,12 @@ int _ADD_HP_RATE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_TIME(RS_STACKDATA *stack, int argc) {
+static int _GET_TIME(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->time);
     return true;
 }
 
-int _CHECK_GET_ITEM_LIMIT(RS_STACKDATA *stack, int argc) {
+static int _CHECK_GET_ITEM_LIMIT(RS_STACKDATA *stack, int argc) {
     int item_id;
     int count;
 
@@ -16316,19 +16316,19 @@ int _CHECK_GET_ITEM_LIMIT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_ITEM_OVER(RS_STACKDATA *stack, int argc) {
+static int _CHECK_ITEM_OVER(RS_STACKDATA *stack, int argc) {
     argc = CheckItemOver();
     SetStack(stack, argc);
     return true;
 }
 
-int _GET_NOW_LOOP_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_NOW_LOOP_NO(RS_STACKDATA *stack, int argc) {
     argc = GetNowLoopNo();
     SetStack(stack, argc);
     return true;
 }
 
-int _IS_CLEAR_DESTROY(RS_STACKDATA *stack, int argc) {
+static int _IS_CLEAR_DESTROY(RS_STACKDATA *stack, int argc) {
     CDngFloorManager *floor_manager;
     DNG_BATTLE_AREA  *dng_scene;
 
@@ -16348,7 +16348,7 @@ int _IS_CLEAR_DESTROY(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _IS_CLEAR_PRACTICE(RS_STACKDATA *stack, int argc) {
+static int _IS_CLEAR_PRACTICE(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
     }
@@ -16405,7 +16405,7 @@ int _IS_CLEAR_PRACTICE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _IS_PLAY_SUB_GAME(RS_STACKDATA *stack, int argc) {
+static int _IS_PLAY_SUB_GAME(RS_STACKDATA *stack, int argc) {
     CDngFloorManager *floor_manager;
     DNG_BATTLE_AREA  *dng_scene;
 
@@ -16425,7 +16425,7 @@ int _IS_PLAY_SUB_GAME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _RESET_SUBJECT_COUNTER(RS_STACKDATA *stack, int argc) {
+static int _RESET_SUBJECT_COUNTER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
     CSaveData       *save;
 
@@ -16445,7 +16445,7 @@ int _RESET_SUBJECT_COUNTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SCR_EFF_INIT_RASTER(RS_STACKDATA *stack, int argc) {
+static int _SCR_EFF_INIT_RASTER(RS_STACKDATA *stack, int argc) {
     float amplitude = GetStackFloat(stack++);
     float speed = GetStackFloat(stack++);
     float pitch = GetStackFloat(stack);
@@ -16453,7 +16453,7 @@ int _SCR_EFF_INIT_RASTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SCR_EFF_START_RASTER(RS_STACKDATA *stack, int argc) {
+static int _SCR_EFF_START_RASTER(RS_STACKDATA *stack, int argc) {
     float amplitude = GetStackFloat(stack++);
     float speed = GetStackFloat(stack++);
     float pitch = GetStackFloat(stack++);
@@ -16462,7 +16462,7 @@ int _SCR_EFF_START_RASTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SCR_EFF_STOP_RASTER(RS_STACKDATA *stack, int argc) {
+static int _SCR_EFF_STOP_RASTER(RS_STACKDATA *stack, int argc) {
     float amplitude = GetStackFloat(stack++);
     float speed = GetStackFloat(stack++);
     float pitch = GetStackFloat(stack++);
@@ -16471,7 +16471,7 @@ int _SCR_EFF_STOP_RASTER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MPCHARA_MOTION(RS_STACKDATA *stack, int argc) {
+static int _SET_MPCHARA_MOTION(RS_STACKDATA *stack, int argc) {
     CMap      *maps[8];
     int        map_count;
     int        i;
@@ -16535,7 +16535,7 @@ int _SET_MPCHARA_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _FUNC_POINT_POS(RS_STACKDATA *stack, int argc) {
+static int _FUNC_POINT_POS(RS_STACKDATA *stack, int argc) {
     float       pos[4];
     CFuncPoint *func_point;
     CMap       *map = EventScene->GetMap(EventScene->active_map);
@@ -16587,7 +16587,7 @@ int _FUNC_POINT_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
+static int _PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
     }
@@ -16607,17 +16607,17 @@ int _PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GET_TRIAL_VERSION(RS_STACKDATA *stack, int argc) {
+static int _GET_TRIAL_VERSION(RS_STACKDATA *stack, int argc) {
     SetStack(stack, 0);
     return true;
 }
 
-int _SET_FLOOR_EPISODE(RS_STACKDATA *stack, int argc) {
+static int _SET_FLOOR_EPISODE(RS_STACKDATA *stack, int argc) {
     StartupEpisodeTitle.Switch(GetStackInt(stack));
     return true;
 }
 
-int _FUNC_POINT_GET_POS(RS_STACKDATA *stack, int argc) {
+static int _FUNC_POINT_GET_POS(RS_STACKDATA *stack, int argc) {
     float       pos[4];
     CFuncPoint *func_point;
     CMap       *map = EventScene->GetMap(EventScene->active_map);
@@ -16674,7 +16674,7 @@ static inline CMap *GetActiveEventMap() {
     return EventScene->GetMap(EventScene->active_map);
 }
 
-int _FUNC_POINT_GET_ROT(RS_STACKDATA *stack, int argc) {
+static int _FUNC_POINT_GET_ROT(RS_STACKDATA *stack, int argc) {
     float       rot[4];
     CMap       *map;
     CFuncPoint *func_point;
@@ -16739,7 +16739,7 @@ int _FUNC_POINT_GET_ROT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ACTCHR_SET_DEF_MOTION(RS_STACKDATA *stack, int argc) {
+static int _ACTCHR_SET_DEF_MOTION(RS_STACKDATA *stack, int argc) {
     int           chara_no;
     int           motion_arg = 0;
     CActionChara *chara;
@@ -16759,7 +16759,7 @@ int _ACTCHR_SET_DEF_MOTION(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_FUSION_POINT(RS_STACKDATA *stack, int argc) {
+static int _ADD_FUSION_POINT(RS_STACKDATA *stack, int argc) {
     int               group;
     int               member;
     int               points;
@@ -16792,7 +16792,7 @@ int _ADD_FUSION_POINT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_DEBUG_FLAG(RS_STACKDATA *stack, int argc) {
+static int _GET_DEBUG_FLAG(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
     }
@@ -16802,7 +16802,7 @@ int _GET_DEBUG_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _MINIMAP_DOOR_ENABLE(RS_STACKDATA *stack, int argc) {
+static int _MINIMAP_DOOR_ENABLE(RS_STACKDATA *stack, int argc) {
     float pos[3];
 
     if (argc != 3) {
@@ -16814,7 +16814,7 @@ int _MINIMAP_DOOR_ENABLE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_CHECK_BOSS_MAP(RS_STACKDATA *stack, int argc) {
+static int _DNG_CHECK_BOSS_MAP(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *dng_scene;
 
     if (argc != 1) {
@@ -16831,7 +16831,7 @@ int _DNG_CHECK_BOSS_MAP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_RUN_EVENT(RS_STACKDATA *stack, int argc) {
+static int _DNG_RUN_EVENT(RS_STACKDATA *stack, int argc) {
     int              event_no = GetStackInt(stack);
     DNG_BATTLE_AREA *scene = &EventScene->battle_area;
 
@@ -16849,7 +16849,7 @@ int _DNG_RUN_EVENT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_ENABLE_CHARA_CHANGE(RS_STACKDATA *stack, int argc) {
+static int _CHECK_ENABLE_CHARA_CHANGE(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data;
     int               chara_no;
     CSaveData        *save;
@@ -16877,7 +16877,7 @@ int _CHECK_ENABLE_CHARA_CHANGE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _INIT_SEPIA(RS_STACKDATA *stack, int argc) {
+static int _INIT_SEPIA(RS_STACKDATA *stack, int argc) {
     int        stack_no;
     int        block_offset;
     u_long128 *buffer;
@@ -16927,18 +16927,18 @@ int _INIT_SEPIA(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _START_SEPIA(RS_STACKDATA *stack, int argc) {
+static int _START_SEPIA(RS_STACKDATA *stack, int argc) {
     EventScreenEffect.CaptureSepiaScreen();
     EventScreenEffect.SetSepiaFlag(1);
     return true;
 }
 
-int _END_SEPIA(RS_STACKDATA *stack, int argc) {
+static int _END_SEPIA(RS_STACKDATA *stack, int argc) {
     EventScreenEffect.SetSepiaFlag(0);
     return true;
 }
 
-int _COPY_MONS2SCNCHR(RS_STACKDATA *stack, int argc) {
+static int _COPY_MONS2SCNCHR(RS_STACKDATA *stack, int argc) {
     if (ActiveMonster == NULL) {
         return false;
     }
@@ -16977,7 +16977,7 @@ CObject::CObject(const CObject &other)
     : mgCObject(other), far_dist(other.far_dist), fade(other.fade), fade_alpha(other.fade_alpha),
       fade_speed(other.fade_speed), near_dist(other.near_dist), show(other.show), draw_off(other.draw_off) {}
 
-int _UNLOCK_STACK(RS_STACKDATA *stack, int argc) {
+static int _UNLOCK_STACK(RS_STACKDATA *stack, int argc) {
     mgCMemory *scene_stack = EventScene->GetStack(GetStackInt(stack));
 
     if (scene_stack == NULL) {
@@ -16988,19 +16988,19 @@ int _UNLOCK_STACK(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _RESET_EVENT_TRG(RS_STACKDATA *stack, int argc) {
+static int _RESET_EVENT_TRG(RS_STACKDATA *stack, int argc) {
     EventScene->event_run = 0;
     return true;
 }
 
-int _SET_CHARA_NO(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_NO(RS_STACKDATA *stack, int argc) {
     int slot = GetStackInt(stack++);
 
     EventScene->SetCharaNo(slot, GetStackInt(stack));
     return true;
 }
 
-int _GET_CHARA_NO(RS_STACKDATA *stack, int argc) {
+static int _GET_CHARA_NO(RS_STACKDATA *stack, int argc) {
     int           id;
     RS_STACKDATA *args = stack;
 
@@ -17013,7 +17013,7 @@ int _GET_CHARA_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SEARCH_CHARA_NO(RS_STACKDATA *stack, int argc) {
+static int _SEARCH_CHARA_NO(RS_STACKDATA *stack, int argc) {
     int           id;
     RS_STACKDATA *args = stack;
 
@@ -17026,7 +17026,7 @@ int _SEARCH_CHARA_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_NEAR_RANDOM_STONE_POS(RS_STACKDATA *stack, int argc) {
+static int _GET_NEAR_RANDOM_STONE_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
     float stone_pos[4];
 
@@ -17055,7 +17055,7 @@ int _GET_NEAR_RANDOM_STONE_POS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _INIT_MONO_FLASH(RS_STACKDATA *stack, int argc) {
+static int _INIT_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     u_long128  *buffers[2];
     mgCTexture *textures[2];
     mgCMemory  *memory;
@@ -17102,7 +17102,7 @@ int _INIT_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _START_MONO_FLASH(RS_STACKDATA *stack, int argc) {
+static int _START_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     int param = GetStackInt(stack);
 
     EventScreenEffect.CaptureMonoFlashScreen();
@@ -17110,17 +17110,17 @@ int _START_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _END_MONO_FLASH(RS_STACKDATA *stack, int argc) {
+static int _END_MONO_FLASH(RS_STACKDATA *stack, int argc) {
     EventScreenEffect.SetMonoFlashFlag(0, 0);
     return true;
 }
 
-int _DELETE_VILLAGER(RS_STACKDATA *stack, int argc) {
+static int _DELETE_VILLAGER(RS_STACKDATA *stack, int argc) {
     EventScene->DeleteVillager(GetStackInt(stack));
     return true;
 }
 
-int _DNG_SET_WEATHER(RS_STACKDATA *stack, int argc) {
+static int _DNG_SET_WEATHER(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = (&EventScene->battle_area);
     int              weather;
 
@@ -17140,7 +17140,7 @@ int _DNG_SET_WEATHER(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_MAXHP(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_MAXHP(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
     int               max_hp;
@@ -17168,7 +17168,7 @@ int _SET_CHARA_MAXHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_CHARA_DEFENCE(RS_STACKDATA *stack, int argc) {
+static int _SET_CHARA_DEFENCE(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
     int               defence;
@@ -17193,7 +17193,7 @@ int _SET_CHARA_DEFENCE(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _PLACE_PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
+static int _PLACE_PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
     }
@@ -17213,7 +17213,7 @@ int _PLACE_PARTS_NAME_STRCMP(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _GOTO_USE_ITEM2(RS_STACKDATA *stack, int argc) {
+static int _GOTO_USE_ITEM2(RS_STACKDATA *stack, int argc) {
     int i;
 
     if (stack->type != RS_PTR) {
@@ -17234,7 +17234,7 @@ int _GOTO_USE_ITEM2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DBG_SET_ANALYZE_FLAG(RS_STACKDATA *stack, int argc) {
+static int _DBG_SET_ANALYZE_FLAG(RS_STACKDATA *stack, int argc) {
     int           area;
     RS_STACKDATA *args = stack;
     int           entry;
@@ -17261,7 +17261,7 @@ int _DBG_SET_ANALYZE_FLAG(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ATRAMIRIA_ON_OFF(RS_STACKDATA *stack, int argc) {
+static int _ATRAMIRIA_ON_OFF(RS_STACKDATA *stack, int argc) {
     int           mode;
     RS_STACKDATA *args = stack;
     int           chara_no;
@@ -17274,7 +17274,7 @@ int _ATRAMIRIA_ON_OFF(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _ADD_YARIKOMI_MEDAL(RS_STACKDATA *stack, int argc) {
+static int _ADD_YARIKOMI_MEDAL(RS_STACKDATA *stack, int argc) {
     CUserDataManager *user_data;
     CSaveData        *save = GetSaveData();
 
@@ -17292,7 +17292,7 @@ int _ADD_YARIKOMI_MEDAL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
+static int _SET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = (&EventScene->battle_area);
 
     if (info == NULL) {
@@ -17303,7 +17303,7 @@ int _SET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
+static int _GET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = &EventScene->battle_area;
 
     if (info == NULL) {
@@ -17319,22 +17319,22 @@ int _GET_MAP_EFFECT_ID(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
-int _DNG_FLOOR_INIT(RS_STACKDATA *stack, int argc) {
+static int _DNG_FLOOR_INIT(RS_STACKDATA *stack, int argc) {
     DungeonFloorInit();
     return true;
 }
 
-int _DNG_FLOOR_FINISH(RS_STACKDATA *stack, int argc) {
+static int _DNG_FLOOR_FINISH(RS_STACKDATA *stack, int argc) {
     DungeonFloorFinish();
     return true;
 }
 
-int _CLEAR_RND_STONE(RS_STACKDATA *stack, int argc) {
+static int _CLEAR_RND_STONE(RS_STACKDATA *stack, int argc) {
     AutoMapGen.ClearRandomStone();
     return true;
 }
 
-int _GET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
+static int _GET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
     }
@@ -17349,7 +17349,7 @@ int _GET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
+static int _SET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *info = (&EventScene->battle_area);
     RS_STACKDATA    *args = stack;
     int              mask;
@@ -17369,7 +17369,7 @@ int _SET_FLOOR_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _AMG_GET_ATTR_STATUS(RS_STACKDATA *stack, int argc) {
+static int _AMG_GET_ATTR_STATUS(RS_STACKDATA *stack, int argc) {
     float position[4];
 
     if (argc != 4) {
@@ -17383,7 +17383,7 @@ int _AMG_GET_ATTR_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_NEAR_DIST(RS_STACKDATA *stack, int argc) {
+static int _SET_NEAR_DIST(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     float        dist = GetStackFloat(stack);
     CCharacter2 *chara;
@@ -17397,12 +17397,12 @@ int _SET_NEAR_DIST(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _SET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
+static int _SET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
     EdEventInfo.keep_time = GetStackFloat(stack);
     return true;
 }
 
-int _GET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
+static int _GET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
     }
@@ -17412,7 +17412,7 @@ int _GET_KEEP_TIME(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _GET_DOOR_PARTS_ID(RS_STACKDATA *stack, int argc) {
+static int _GET_DOOR_PARTS_ID(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
     }
@@ -17431,13 +17431,13 @@ int _GET_DOOR_PARTS_ID(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _CHECK_EQUEP_CHANGE(RS_STACKDATA *stack, int argc) {
+static int _CHECK_EQUEP_CHANGE(RS_STACKDATA *stack, int argc) {
     GetStackInt(stack);
     CheckEquipChange(1);
     return true;
 }
 
-int _ADD_HP_RATE2(RS_STACKDATA *stack, int argc) {
+static int _ADD_HP_RATE2(RS_STACKDATA *stack, int argc) {
     CSaveData *save_data = GetSaveData();
 
     if (save_data == NULL) {
@@ -17456,7 +17456,7 @@ int _ADD_HP_RATE2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_EFFECT_ALL_CLEAR(RS_STACKDATA *stack, int argc) {
+static int _DNG_EFFECT_ALL_CLEAR(RS_STACKDATA *stack, int argc) {
     int i;
 
     RocketLauncher.Clear();
@@ -17472,12 +17472,12 @@ int _DNG_EFFECT_ALL_CLEAR(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _AUTO_CHENGE_BGM_VOL(RS_STACKDATA *stack, int argc) {
+static int _AUTO_CHENGE_BGM_VOL(RS_STACKDATA *stack, int argc) {
     EventScene->AutoChangeBGMVol(GetStackInt(stack));
     return true;
 }
 
-int _UDATA_GET_WHP(RS_STACKDATA *stack, int argc) {
+static int _UDATA_GET_WHP(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
     CSaveData        *save;
@@ -17516,7 +17516,7 @@ int _UDATA_GET_WHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _UDATA_ADD_WHP(RS_STACKDATA *stack, int argc) {
+static int _UDATA_ADD_WHP(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
     CUserDataManager *user_data;
@@ -17543,7 +17543,7 @@ int _UDATA_ADD_WHP(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _UDATA_GET_ABS(RS_STACKDATA *stack, int argc) {
+static int _UDATA_GET_ABS(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     CUserDataManager *user_data;
     CSaveData        *save;
@@ -17582,7 +17582,7 @@ int _UDATA_GET_ABS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _UDATA_ADD_ABS(RS_STACKDATA *stack, int argc) {
+static int _UDATA_ADD_ABS(RS_STACKDATA *stack, int argc) {
     int               chara_no;
     RS_STACKDATA     *args = stack;
     CUserDataManager *user_data;
@@ -17609,7 +17609,7 @@ int _UDATA_ADD_ABS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _DNG_CREATE_EFFECT(RS_STACKDATA *stack, int argc) {
+static int _DNG_CREATE_EFFECT(RS_STACKDATA *stack, int argc) {
     float first[4];
     float second[4];
     int   value;
@@ -17641,17 +17641,17 @@ int _DNG_CREATE_EFFECT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
-int _LEAVE_MONICA_ITEM_CHECK(RS_STACKDATA *stack, int argc) {
+static int _LEAVE_MONICA_ITEM_CHECK(RS_STACKDATA *stack, int argc) {
     LeaveMonicaItemCheck();
     return true;
 }
 
-int _PAUSE_ENABLE_FLAG(RS_STACKDATA *stack, int argc) {
+static int _PAUSE_ENABLE_FLAG(RS_STACKDATA *stack, int argc) {
     PauseEnable(GetStackInt(stack));
     return true;
 }
 
-int _FORCE_BOOT_TOUR(RS_STACKDATA *stack, int argc) {
+static int _FORCE_BOOT_TOUR(RS_STACKDATA *stack, int argc) {
     CSaveData *save_data = GetSaveData();
 
     if (save_data == NULL) {

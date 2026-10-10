@@ -328,27 +328,114 @@ STATIC_ASSERT(sizeof(MENUFORM_MAKEBRD_INFO) == 0x2C);
 
 /**
  *
- * State of one particle of a menu effect; the meaning of each value
- * depends on the effect kind.
+ * Kind of particle effect a CMenuEffect runs.
+ *
+ */
+// clang-format off
+enum MENU_EFFECT_TYPE {
+    MENU_EFFECT_TYPE_NONE           = -1, /**< No effect. */
+    MENU_EFFECT_TYPE_GATHER         = 0,  /**< Sparks spiralling in to a point, shown when an item is made. */
+    MENU_EFFECT_TYPE_FALL           = 1,  /**< Drops thrown up that fall under gravity. */
+    MENU_EFFECT_TYPE_BURST          = 2,  /**< Sparks bursting out and slowing as they fade. */
+    MENU_EFFECT_TYPE_FADE           = 3,  /**< Fades out the whole effect. */
+    MENU_EFFECT_TYPE_FLASH          = 4,  /**< Flash that grows and shrinks over a made item. */
+    MENU_EFFECT_TYPE_FUSION_SWIRL   = 10, /**< Swaying sparks spiralling in, shown while a spectrum is fused. */
+    MENU_EFFECT_TYPE_STILL          = 11, /**< Particles that do not move. */
+    MENU_EFFECT_TYPE_SWIRL          = 12, /**< Sparks spiralling in, drawn with one texture rectangle. */
+    MENU_EFFECT_TYPE_SQUARE         = 15, /**< Squares that shrink towards a point. */
+    MENU_EFFECT_TYPE_SCATTER        = 16, /**< Sparks flying apart as they fade. */
+    MENU_EFFECT_TYPE_SPECTOL_BREAK  = 18, /**< Pieces of a spectrum icon bouncing apart. */
+    MENU_EFFECT_TYPE_SPECTOL_FLASH  = 19, /**< Flash shown before a spectrum icon breaks. */
+    MENU_EFFECT_TYPE_SPECTOL_GATHER = 20, /**< Sparks gathering into a ring after a spectrum icon breaks. */
+    MENU_EFFECT_TYPE_FUSION_ITEM    = 21, /**< Shaking item icon shown while a spectrum is fused. */
+};
+
+// clang-format on
+
+/**
+ *
+ * State of one particle of a menu effect; members that share an offset
+ * belong to different effect kinds.
  *
  */
 struct MENU_EFFECT_INFO {
-    float unk_0;
-    float unk_4;
-    float unk_8;
+    float frame; /**< Frames the particle has run. */
+    union {
+        float life;     /**< Lifetime bounding the random start frame of a spiralling spark. */
+        float interval; /**< Frames between size steps of a shrinking square. */
+        float piece;    /**< Piece of the spectrum icon a spectrum effect particle stands for. */
+        float item_no;  /**< Item whose icon a fusion item effect shows. */
+    };
+    union {
+        float corner;  /**< Texture corner a fusion swirl spark shows. */
+        float damping; /**< Factor applied to a piece's horizontal speed every six frames. */
+    };
     float x; /**< Screen position. */
     float y; /**< Screen position. */
-    float unk_14;
-    float unk_18;
-    float unk_1c;
-    float unk_20;
-    float unk_24;
-    float unk_28;
-    float unk_2c;
-    float unk_30;
-    float unk_34;
-    float unk_38;
-    float unk_3c;
+    union {
+        float variant;       /**< Random value from 0 to 3 given to a spiralling spark; never read. */
+        float vx;            /**< Horizontal speed. */
+        float w;             /**< Width of a flash. */
+        float half_size;     /**< Half the size of a shrinking square. */
+        float vertex1_angle; /**< Angle of the second corner of a spectrum piece. */
+        float grow;          /**< Amount added to each side of a spectrum flash. */
+        float orbit;         /**< Radius of the orbit of a gathered spark. */
+        float shake;         /**< Amplitude of the shake of a fusion item. */
+    };
+    union {
+        float period;        /**< Frames a spiralling spark takes for half a turn. */
+        float vy;            /**< Vertical speed. */
+        float h;             /**< Height of a flash. */
+        float size_step;     /**< Amount added to half_size at each interval. */
+        float vertex2_angle; /**< Angle of the third corner of a spectrum piece. */
+        float offset_x;      /**< Horizontal offset of a spectrum flash; never read. */
+        float ring_size;     /**< Half the size of the ring the gathered sparks form. */
+        float shake_decay;   /**< Factor applied to the shake every other frame. */
+    };
+    union {
+        float radius;      /**< Distance of a spiralling spark from the centre. */
+        float gravity;     /**< Downward acceleration of a falling drop. */
+        float burst_alpha; /**< Alpha of a bursting spark. */
+        float half_w;      /**< Half the width of a flash. */
+        float bounce;      /**< Speed a spectrum piece bounces up with. */
+        float offset_y;    /**< Vertical offset of a spectrum flash; never read. */
+        float shrinking;   /**< 1 once the ring of gathered sparks has started to shrink. */
+        float red;         /**< Red of a fusion item. */
+    };
+    union {
+        float radius_speed; /**< Change of radius per frame. */
+        float fade_speed;   /**< Amount burst_alpha falls per frame. */
+        float half_h;       /**< Half the height of a flash. */
+        float star_color;   /**< Entry of star_color_table a gathered spark is drawn with. */
+        float green;        /**< Green and blue of a fusion item. */
+    };
+    union {
+        float cycles;   /**< Restarts left before the particle stops. */
+        float piece_vx; /**< Horizontal speed of a spectrum piece. */
+        float blue;     /**< Blue of a fusion item; never read. */
+    };
+    union {
+        float alpha;    /**< Alpha. */
+        float piece_vy; /**< Vertical speed of a spectrum piece. */
+    };
+    union {
+        float alpha_speed;   /**< Change of alpha per frame. */
+        float piece_gravity; /**< Change of a spectrum piece's vertical speed. */
+    };
+    union {
+        float sway_x;      /**< Horizontal amplitude of the sway of a fusion swirl spark. */
+        float piece_alpha; /**< Alpha of a spectrum piece or gathered spark. */
+        float peak_alpha;  /**< Highest alpha of a spectrum flash. */
+    };
+    union {
+        float sway_y;     /**< Vertical amplitude of the sway of a fusion swirl spark. */
+        float spark_flag; /**< 96 for the sparks of a spectrum break and 0 for its pieces; never read. */
+    };
+    union {
+        float sway_period; /**< Frames of half a sway of a fusion swirl spark. */
+        float floor_y;     /**< Height a spectrum piece bounces at. */
+    };
+    float pulse; /**< Amplitude of the size pulse of a fusion swirl spark. */
 };
 
 STATIC_ASSERT(sizeof(MENU_EFFECT_INFO) == 0x40);
@@ -359,12 +446,10 @@ STATIC_ASSERT(sizeof(MENU_EFFECT_INFO) == 0x40);
  *
  */
 struct REPAIR_EFFECT_PARTICLE {
-    float unk_0;
-    float unk_4;
-    float unk_8;
+    float color[3]; /**< Colour given to the spark; never read. */
     float alpha; /**< Alpha; the spark ends when it reaches 0. */
     float vx;    /**< Horizontal speed. */
-    float unk_14;
+    float vy;      /**< Vertical speed; set to 0 and never read. */
     float x;       /**< Screen position. */
     float y;       /**< Screen position. */
     int   counter; /**< Frames the spark has lived. */
@@ -947,9 +1032,7 @@ public:
     u_long128  *pallet[3][2];       /**< Item icon palettes: normal, grey and sepia, for each icon texture. */
     s16         trans_pallet_no[2]; /**< First transparent entry of each item icon palette. */
     mgCTexture *common_tex;         /**< Common menu texture. */
-    int         unk_40;
-    int         unk_44;
-    int         unk_48;
+    mgCTexture *unused_tex[3];         /**< Texture slots that are cleared and never loaded. */
     mgCTexture *icon_effect_tex;       /**< Texture of the item icon effects. */
     mgCTexture *effect_tex;            /**< Texture of the menu effects. */
     mgCTexture *item_icon_tex[4][2];   /**< Item icon textures: original, normal, grey and sepia, for each icon texture. */
@@ -1057,7 +1140,7 @@ public:
     int                     y;            /**< Screen position. */
     int                     alpha;        /**< Alpha of the flash. */
     REPAIR_EFFECT_PARTICLE *particle;     /**< Sparks. */
-    mgCTexture             *unk_1c;
+    mgCTexture             *sub_tex;      /**< Second texture, copied from CRepairManager::sub_tex; never drawn with. */
     mgCTexture             *tex; /**< Texture the effect is drawn with. */
 
     /**
@@ -1115,7 +1198,7 @@ public:
     s16            tex_block;       /**< Texture block of the repair textures. */
     CRepairEffect *effect[8];       /**< Running effects. */
     mgCMemory      effect_stack[8]; /**< Stack each effect is allocated from. */
-    mgCTexture    *unk_1a4;
+    mgCTexture    *sub_tex;         /**< Second texture handed to each effect; always NULL. */
     mgCTexture    *tex;           /**< Texture of the effects. */
     u32           *data;          /**< Pack file of the repair data. */
     CActionChara  *model;         /**< Repair model, or NULL. */
@@ -1278,7 +1361,7 @@ public:
      * @address 0x2304A0
      * @size 0x40
      */
-    void Generate(mgCTexture *spark_texture, int param, int x, int y);
+    void Generate(mgCTexture *spark_texture, int effect_kind, int x, int y);
 
     /**
      *
@@ -1288,7 +1371,7 @@ public:
      * @address 0x2304E0
      * @size 0x190
      */
-    void Generate(mgCTexture *spark_texture, int param, CCharacter2 *target);
+    void Generate(mgCTexture *spark_texture, int effect_kind, CCharacter2 *target);
 
     /**
      *
@@ -1362,7 +1445,7 @@ public:
      * @address 0x230BB0
      * @size 0xC0
      */
-    void Generate(int param, int x, int y);
+    void Generate(int effect_kind, int x, int y);
 
     /**
      *
@@ -1372,7 +1455,7 @@ public:
      * @address 0x230C70
      * @size 0xA0
      */
-    void Generate(int param, CCharacter2 *chara);
+    void Generate(int effect_kind, CCharacter2 *chara);
 
     /**
      *
@@ -1515,7 +1598,7 @@ public:
     s16               tex_block;     /**< Texture block of the texture. */
     mgCTexture       *tex;           /**< Texture the effect is drawn with. */
     u8                end;           /**< Non-zero once the effect has ended. */
-    s8                type;          /**< Kind of effect, or -1 for none. */
+    s8                type;          /**< Kind of effect, a MENU_EFFECT_TYPE. */
     u8                run;           /**< Non-zero while the effect runs. */
     s16               info_num;      /**< Number of entries in info. */
     MENU_EFFECT_INFO *info;          /**< Particles. */
@@ -1562,7 +1645,7 @@ public:
      * @address 0x232000
      * @size 0x20
      */
-    void SetTexInfo(mgCTexture *texture, int *params);
+    void SetTexInfo(mgCTexture *texture, int *block);
 
     /**
      *
@@ -1572,7 +1655,7 @@ public:
      * @address 0x232020
      * @size 0xE0
      */
-    void SetBaseInfo(int *values, int preset, int kind, int count);
+    void SetBaseInfo(int *values, int preset, int initial, int count);
 
     /**
      *
@@ -1592,7 +1675,7 @@ public:
      * @address 0x232110
      * @size 0x80
      */
-    void PresetInfoAll(int kind);
+    void PresetInfoAll(int initial);
 
     /**
      *
@@ -1602,7 +1685,7 @@ public:
      * @address 0x232190
      * @size 0xA40
      */
-    void PresetInfo(MENU_EFFECT_INFO *particle, int no, int mode);
+    void PresetInfo(MENU_EFFECT_INFO *particle, int no, int initial);
 
     /**
      *

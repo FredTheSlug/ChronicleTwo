@@ -1460,7 +1460,6 @@ void LoadFilePictureName() {
 
 char *GetPhotoName(USER_PICTURE_INFO *info) {
     int   i;
-    int   offset;
     short neta_id;
 
     if (info == NULL) {
@@ -1474,15 +1473,10 @@ char *GetPhotoName(USER_PICTURE_INFO *info) {
     neta_id = info->neta_id;
 
     if (neta_id > 0) {
-        i = 0;
-        offset = 0;
-
-        for (; i < pic_name_info_num; i++) {
+        for (i = 0; i < pic_name_info_num; i++) {
             if (neta_id == pic_name_info_top[i].neta_id) {
                 return pic_name_info_top[i].name;
             }
-
-            offset += 8;
         }
     }
 

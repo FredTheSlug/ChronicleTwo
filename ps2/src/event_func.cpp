@@ -344,12 +344,12 @@ int CEoh::Set(int new_kind, CFuncPoint *new_func_point) {
     return true;
 }
 
-void VectMatMul(float *out, float *vec, float (*mat)[4]) {
+void VectMatMul(float *out, float *vec, float (*matrix)[4]) {
     float result[4];
 
-    result[0] = vec[0] * mat[0][0] + vec[1] * mat[1][0] + vec[2] * mat[2][0];
-    result[1] = vec[0] * mat[0][1] + vec[1] * mat[1][1] + vec[2] * mat[2][1];
-    result[2] = vec[0] * mat[0][2] + vec[1] * mat[1][2] + vec[2] * mat[2][2];
+    result[0] = vec[0] * matrix[0][0] + vec[1] * matrix[1][0] + vec[2] * matrix[2][0];
+    result[1] = vec[0] * matrix[0][1] + vec[1] * matrix[1][1] + vec[2] * matrix[2][1];
+    result[2] = vec[0] * matrix[0][2] + vec[1] * matrix[1][2] + vec[2] * matrix[2][2];
     result[3] = 1.0f;
     sceVu0CopyVector(out, result);
 }
@@ -427,7 +427,7 @@ CEohMother::CEohMother() {
     }
 }
 
-int CEohMother::Set(int slot, int unused, CObject *object, int flag) {
+int CEohMother::Set(int slot, int kind, CObject *object, int flag) {
     if (slot < 0 || slot >= EOH_NUM) {
         return false;
     }
@@ -1869,7 +1869,7 @@ int CEohMother::SetFrameObjAlpha(int slot, char *name, float alpha) {
     return false;
 }
 
-int CEohMother::SetFootSeId(int slot, int stamp) {
+int CEohMother::SetFootSeId(int slot, int se_bank) {
     if (slot < 0 || slot >= EOH_NUM) {
         return false;
     }
@@ -1884,7 +1884,7 @@ int CEohMother::SetFootSeId(int slot, int stamp) {
                 return false;
             }
 
-            chara->sound_info.foot_se_bank = stamp;
+            chara->sound_info.foot_se_bank = se_bank;
             break;
         }
         default:
@@ -2420,37 +2420,37 @@ void CRaster::DrawRaster() {
         mgCTexture screen;
 
         mgGetFrameBuffer(&screen);
-        mgCDrawPrim slot;
-        slot.Initialize(NULL, NULL);
-        slot.DepthTestEnable(0);
-        slot.AlphaTestEnable(0);
-        slot.AlphaBlendEnable(0);
-        slot.ZMask(MG_Z_MASK_MASKED);
-        slot.TextureMapEnable(1);
+        mgCDrawPrim prim;
+        prim.Initialize(NULL, NULL);
+        prim.DepthTestEnable(0);
+        prim.AlphaTestEnable(0);
+        prim.AlphaBlendEnable(0);
+        prim.ZMask(MG_Z_MASK_MASKED);
+        prim.TextureMapEnable(1);
         current_phase = phase;
-        slot.Begin(MG_PRIM_SPRITE);
-        slot.Texture(&screen);
-        slot.Color(0x80, 0x80, 0x80, 0x80);
+        prim.Begin(MG_PRIM_SPRITE);
+        prim.Texture(&screen);
+        prim.Color(0x80, 0x80, 0x80, 0x80);
 
         for (y = 0; y < mgScreenHeight; y++) {
             shift = amplitude * sinf(current_phase);
-            slot.TextureCrd(0, y);
-            slot.Vertex(shift, (float) y, 0.0f);
-            slot.TextureCrd(mgScreenWidth, y + 1);
-            slot.Vertex(shift + (float) mgScreenWidth, next_y = 1.0f + (float) y, 0.0f);
+            prim.TextureCrd(0, y);
+            prim.Vertex(shift, (float) y, 0.0f);
+            prim.TextureCrd(mgScreenWidth, y + 1);
+            prim.Vertex(shift + (float) mgScreenWidth, next_y = 1.0f + (float) y, 0.0f);
 
             if (shift != 0.0f) {
                 if (!(shift <= 0.0f)) {
                     width = mgScreenWidth;
-                    slot.TextureCrd(width - fptosi(shift), y);
-                    slot.Vertex(0.0f, (float) y, 0.0f);
-                    slot.TextureCrd(mgScreenWidth, y + 1);
-                    slot.Vertex(shift, next_y, 0.0f);
+                    prim.TextureCrd(width - fptosi(shift), y);
+                    prim.Vertex(0.0f, (float) y, 0.0f);
+                    prim.TextureCrd(mgScreenWidth, y + 1);
+                    prim.Vertex(shift, next_y, 0.0f);
                 } else {
-                    slot.TextureCrd(0, y);
-                    slot.Vertex((float) mgScreenWidth + shift, (float) y, 0.0f);
-                    slot.TextureCrd(fptosi(-shift), y + 1);
-                    slot.Vertex((float) mgScreenWidth, next_y, 0.0f);
+                    prim.TextureCrd(0, y);
+                    prim.Vertex((float) mgScreenWidth + shift, (float) y, 0.0f);
+                    prim.TextureCrd(fptosi(-shift), y + 1);
+                    prim.Vertex((float) mgScreenWidth, next_y, 0.0f);
                 }
             }
 
@@ -2458,7 +2458,7 @@ void CRaster::DrawRaster() {
             current_phase = mgAngleLimit(current_phase);
         }
 
-        slot.End();
+        prim.End();
         phase += speed;
         phase = mgAngleLimit(phase);
     }
@@ -2782,7 +2782,7 @@ void EdEventInfoCommandInitialize() {
     EdEventInfo.unk_128 = 0;
     EdEventInfo.env_bgm_no = 0;
     EdEventInfo.stream_playing = 0;
-    EdEventInfo.stream_from_fpl = 0;
+    EdEventInfo.stream_source = 0;
 
     for (i = 0; i < 16; i++) {
         EdEventInfo.func_iparam[i] = 0;
@@ -2927,8 +2927,8 @@ void EventTimeDraw() {
             elapsed = 0x57E40;
         }
 
-        int hours = elapsed / 3600;
-        int minutes = elapsed % 3600 / 60;
+        int minutes = elapsed / 3600;
+        int seconds = elapsed % 3600 / 60;
         int hundredths = elapsed % 60 * 100 / 60;
         digit[0] = GetHalfFontNo('0');
         digit[1] = GetHalfFontNo('1');
@@ -2945,10 +2945,10 @@ void EventTimeDraw() {
             glyph[i] = -1;
         }
 
-        glyph[0] = digit[hours / 10];
-        glyph[1] = digit[hours % 10];
-        glyph[3] = digit[minutes / 10];
-        glyph[4] = digit[minutes % 10];
+        glyph[0] = digit[minutes / 10];
+        glyph[1] = digit[minutes % 10];
+        glyph[3] = digit[seconds / 10];
+        glyph[4] = digit[seconds % 10];
         glyph[6] = digit[hundredths / 10];
         glyph[7] = digit[hundredths % 10];
 
@@ -3443,7 +3443,7 @@ void EdEventMapInit() {
 void EdEventTermination() {
     EdEventInfo.stream_playing = 0;
 
-    if (EdEventInfo.stream_from_fpl == 1) {
+    if (EdEventInfo.stream_source == 1) {
         CSnd.StreamEND(1);
     }
 
@@ -3677,8 +3677,8 @@ int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, u32 *pack, int mode
     return result;
 }
 
-int _LOAD_CHARA_sub(int a, char **b, int c, u32 *d) {
-    return _LOAD_CHARA_sub(a, b, c, d, 0);
+int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, u32 *pack) {
+    return _LOAD_CHARA_sub(stack_no, name, chara_no, pack, 0);
 }
 
 static int _LOAD_CHARA(RS_STACKDATA *stack, int argc) {
@@ -6094,21 +6094,21 @@ static int _DNGMAP_LOAD(RS_STACKDATA *stack, int argc) {
     int           tex_base;
     RS_STACKDATA *arg = stack + 1;
     mgCMemory    *memory = EventScene->GetStack(GetStackInt(stack));
-    int           file_index = GetStackInt(arg++);
+    int           block_offset = GetStackInt(arg++);
     int           tex_count = EventScene->event_texb_num;
     tex_base = EventScene->event_texb;
 
-    if (tex_count <= 0 || tex_count < file_index) {
+    if (tex_count <= 0 || tex_count < block_offset) {
         return false;
     }
 
-    int param1 = GetStackInt(arg++);
-    int param2 = GetStackInt(arg++);
-    int param3 = GetStackInt(arg);
+    int dungeon = GetStackInt(arg++);
+    int room = GetStackInt(arg++);
+    int next_room = GetStackInt(arg);
     memory->Align64();
 
     if (memory->stAlloc64(EventDngMap.LoadDngInfo(
-            memory, tex_base + file_index, param1, param2, param3)) == 0) {
+            memory, tex_base + block_offset, dungeon, room, next_room)) == 0) {
         return false;
     }
 
@@ -9211,7 +9211,7 @@ int _LOAD_MES_sub(char *file_name, int stack_no, ClsMes *mes) {
     u32       *src;
     mgCMemory *mem;
     char      *dst;
-    int        t;
+    int        data_size;
 
     if (file_name == NULL) {
         return false;
@@ -9237,9 +9237,9 @@ int _LOAD_MES_sub(char *file_name, int stack_no, ClsMes *mes) {
 
     mem->stAlloc64(size / 16 + 1);
     memcpy(dst, src, size);
-    t = size;
+    data_size = size;
     mes->mes_data = dst;
-    mes->mes_data_size = t;
+    mes->mes_data_size = data_size;
     return true;
 }
 
@@ -9839,10 +9839,10 @@ static int _IMG_SET_DRAW(RS_STACKDATA *stack, int argc) {
  */
 static int _IMG_SET_GET(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
-    int a = GetStackInt(stack++);
-    int b = GetStackInt(stack++);
-    int c = GetStackInt(stack++);
-    return esMother.SetGet(index, a, b, c, GetStackInt(stack));
+    int x = GetStackInt(stack++);
+    int y = GetStackInt(stack++);
+    int width = GetStackInt(stack++);
+    return esMother.SetGet(index, x, y, width, GetStackInt(stack));
 }
 
 /**
@@ -9850,10 +9850,10 @@ static int _IMG_SET_GET(RS_STACKDATA *stack, int argc) {
  */
 static int _IMG_SET_PUT(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
-    int a = GetStackInt(stack++);
-    int b = GetStackInt(stack++);
-    int c = GetStackInt(stack++);
-    return esMother.SetPut(index, a, b, c, GetStackInt(stack));
+    int x = GetStackInt(stack++);
+    int y = GetStackInt(stack++);
+    int width = GetStackInt(stack++);
+    return esMother.SetPut(index, x, y, width, GetStackInt(stack));
 }
 
 static int _IMG_SET_NAME(RS_STACKDATA *stack, int argc) {
@@ -9877,8 +9877,8 @@ static int _IMG_SET_MOVE(RS_STACKDATA *stack, int argc) {
  */
 static int _IMG_SET_FADE(RS_STACKDATA *stack, int argc) {
     int index = GetStackInt(stack++);
-    int from = GetStackInt(stack++);
-    return esMother.SetFade(index, from, GetStackInt(stack));
+    int fade_in = GetStackInt(stack++);
+    return esMother.SetFade(index, fade_in, GetStackInt(stack));
 }
 
 /**
@@ -12068,7 +12068,7 @@ static int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
         case 2:
             switch (stack->type) {
                 case RS_INT: {
-                    EdEventInfo.stream_from_fpl = 1;
+                    EdEventInfo.stream_source = 1;
                     int voice_no = GetStackInt(stack++);
 
                     if (VpkFileNameFromVoiceNo(voice_pack, voice_no) == 0) {
@@ -12079,13 +12079,13 @@ static int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
                     CommandStreamOpenFromFPL(1, voice_pack, voice_path);
                 }
                 case RS_STR:
-                    EdEventInfo.stream_from_fpl = 0;
+                    EdEventInfo.stream_source = 0;
                     CommandStreamOpen(1, GetStackString(stack));
                 default:
                     return false;
             }
         case 3:
-            EdEventInfo.stream_from_fpl = 1;
+            EdEventInfo.stream_source = 1;
             CommandStreamOpenFromFPL(1, GetStackString(stack++), GetStackString(stack));
             return false;
     }
@@ -12121,7 +12121,7 @@ static int _STREAM_STOP(RS_STACKDATA *stack, int argc) {
     EdEventInfo.stream_playing = 0;
     GetStackInt(stack);
 
-    if (EdEventInfo.stream_from_fpl == 1) {
+    if (EdEventInfo.stream_source == 1) {
         CSnd.StreamEND(EVENT_STREAM_CHANNEL);
     } else {
         CSnd.StreamSetVol(EVENT_STREAM_CHANNEL, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
@@ -12408,7 +12408,7 @@ int CommandStreamOpen2(int stream, char *name) {
 static int _STREAM_OPEN2(RS_STACKDATA *stack, int argc) {
     int result;
     GetStackInt(stack++);
-    EdEventInfo.stream_from_fpl = 0;
+    EdEventInfo.stream_source = 0;
     result = CommandStreamOpen2(EVENT_STREAM_CHANNEL, GetStackString(stack));
 
     if (result == 1) {
@@ -12503,7 +12503,7 @@ static int _STREAM_OPEN3(RS_STACKDATA *stack, int argc) {
     char name[64];
 
     GetStackInt(stack++);
-    EdEventInfo.stream_from_fpl = 2;
+    EdEventInfo.stream_source = 2;
     sprintf(name, "%07d.wav", GetStackInt(stack));
     CSnd.StreamOpenFast(EVENT_STREAM_CHANNEL, name);
     EdEventInfo.stream_reading = 1;
@@ -14055,10 +14055,10 @@ static int _ATAN2F(RS_STACKDATA *stack, int argc) {
 }
 
 static int _ANGLE_CMP(RS_STACKDATA *stack, int argc) {
-    float a = GetStackFloat(stack++);
-    float b = GetStackFloat(stack++);
+    float first_angle = GetStackFloat(stack++);
+    float second_angle = GetStackFloat(stack++);
     float tolerance = GetStackFloat(stack++);
-    SetStack(stack, mgAngleCmp(a, b, tolerance));
+    SetStack(stack, mgAngleCmp(first_angle, second_angle, tolerance));
     return true;
 }
 
@@ -14114,8 +14114,8 @@ static int _LINE_POINT_DIST(RS_STACKDATA *stack, int argc) {
 
 static int _CREATE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
     int               stack_no = GetStackInt(stack++);
-    int               init_param1 = GetStackInt(stack++);
-    int               init_param2 = GetStackInt(stack);
+    int               capacity = GetStackInt(stack++);
+    int               subdivisions = GetStackInt(stack);
     mgCMemory        *scene_stack;
     CSWordAfterImage *effect;
     scene_stack = (mgCMemory *) EventScene->GetStack(stack_no);
@@ -14143,7 +14143,7 @@ static int _CREATE_SWORD_EFFECT(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    SwordEffect->Initialize(scene_stack, init_param1, init_param2);
+    SwordEffect->Initialize(scene_stack, capacity, subdivisions);
     return true;
 }
 
@@ -14157,23 +14157,23 @@ static int _SWORD_EFFECT_COLOR(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    int               a_r = GetStackInt(stack++);
-    int               a_g = GetStackInt(stack++);
-    int               a_b = GetStackInt(stack++);
-    int               a_a = GetStackInt(stack++);
-    int               b_r = GetStackInt(stack++);
-    int               b_g = GetStackInt(stack++);
-    int               b_b = GetStackInt(stack++);
-    int               b_a = GetStackInt(stack);
+    int               edge_r = GetStackInt(stack++);
+    int               edge_g = GetStackInt(stack++);
+    int               edge_b = GetStackInt(stack++);
+    int               edge_a = GetStackInt(stack++);
+    int               back_r = GetStackInt(stack++);
+    int               back_g = GetStackInt(stack++);
+    int               back_b = GetStackInt(stack++);
+    int               back_a = GetStackInt(stack);
     CSWordAfterImage *effect = SwordEffect;
-    effect->edge_color[0] = a_r;
-    effect->edge_color[1] = a_g;
-    effect->edge_color[2] = a_b;
-    effect->edge_color[3] = a_a;
-    effect->back_color[0] = b_r;
-    effect->back_color[1] = b_g;
-    effect->back_color[2] = b_b;
-    effect->back_color[3] = b_a;
+    effect->edge_color[0] = edge_r;
+    effect->edge_color[1] = edge_g;
+    effect->edge_color[2] = edge_b;
+    effect->edge_color[3] = edge_a;
+    effect->back_color[0] = back_r;
+    effect->back_color[1] = back_g;
+    effect->back_color[2] = back_b;
+    effect->back_color[3] = back_a;
     return true;
 }
 
@@ -14329,8 +14329,8 @@ static int _GET_PARTS_ORIGIN(RS_STACKDATA *stack, int argc) {
 }
 
 static int _CTRLC_STEP(RS_STACKDATA *stack, int argc) {
-    CCameraControl *p = GetCamera();
-    p->Step(1);
+    CCameraControl *camera = GetCamera();
+    camera->Step(1);
     return true;
 }
 
@@ -14475,8 +14475,8 @@ static int _SWE_INIT(RS_STACKDATA *stack, int argc) {
     int          chara_no = GetStackInt(stack++);
     int          slot = GetStackInt(stack++);
     int          stack_no = GetStackInt(stack++);
-    int          init_param1 = GetStackInt(stack++);
-    int          init_param2 = GetStackInt(stack);
+    int          capacity = GetStackInt(stack++);
+    int          subdivisions = GetStackInt(stack);
     CCharacter2 *chara;
 
     if ((chara = GetCharacter(chara_no)) == NULL) {
@@ -14495,12 +14495,12 @@ static int _SWE_INIT(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    chara->sword_effect[slot]->Initialize(scene_stack, init_param1, init_param2);
+    chara->sword_effect[slot]->Initialize(scene_stack, capacity, subdivisions);
     return true;
 }
 
 static int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
-    int                 a_r, a_g, a_b, a_a, b_r, b_g, b_b, b_a;
+    int                 color0_r, color0_g, color0_b, color0_a, color1_r, color1_g, color1_b, color1_a;
     int                 chara_no, slot;
     CCharacter2        *chara;
     CSWordAfterEffect **effect_slot;
@@ -14520,23 +14520,23 @@ static int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    a_r = GetStackInt(stack++);
-    a_g = GetStackInt(stack++);
-    a_b = GetStackInt(stack++);
-    a_a = GetStackInt(stack++);
-    b_r = GetStackInt(stack++);
-    b_g = GetStackInt(stack++);
-    b_b = GetStackInt(stack++);
-    b_a = GetStackInt(stack);
+    color0_r = GetStackInt(stack++);
+    color0_g = GetStackInt(stack++);
+    color0_b = GetStackInt(stack++);
+    color0_a = GetStackInt(stack++);
+    color1_r = GetStackInt(stack++);
+    color1_g = GetStackInt(stack++);
+    color1_b = GetStackInt(stack++);
+    color1_a = GetStackInt(stack);
     CSWordAfterEffect *effect = *effect_slot;
-    effect->color0[0] = a_r;
-    effect->color0[1] = a_g;
-    effect->color0[2] = a_b;
-    effect->color0[3] = a_a;
-    effect->color1[0] = b_r;
-    effect->color1[1] = b_g;
-    effect->color1[2] = b_b;
-    effect->color1[3] = b_a;
+    effect->color0[0] = color0_r;
+    effect->color0[1] = color0_g;
+    effect->color0[2] = color0_b;
+    effect->color0[3] = color0_a;
+    effect->color1[0] = color1_r;
+    effect->color1[1] = color1_g;
+    effect->color1[2] = color1_b;
+    effect->color1[3] = color1_a;
     return true;
 }
 
@@ -14589,9 +14589,9 @@ static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
     CCharacter2        *chara;
     char               *from_name;
     char               *to_name;
-    int                 param8_c;
+    int                 length;
     int                 frames;
-    int                 param90;
+    int                 hold_time;
     CSWordAfterEffect **effect_slot;
     mgCFrame           *from_frame;
     mgCFrame           *to_frame;
@@ -14613,9 +14613,9 @@ static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
 
     from_name = GetStackString(stack++);
     to_name = GetStackString(stack++);
-    param8_c = GetStackInt(stack++);
+    length = GetStackInt(stack++);
     frames = GetStackInt(stack++);
-    param90 = GetStackInt(stack);
+    hold_time = GetStackInt(stack);
 
     if (chara->CObjectFrame::frame == NULL) {
         return false;
@@ -14633,7 +14633,7 @@ static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    (*effect_slot)->StartEffect(from_frame, to_frame, param8_c, frames, param90);
+    (*effect_slot)->StartEffect(from_frame, to_frame, length, frames, hold_time);
     return true;
 }
 
@@ -15992,7 +15992,7 @@ static int _ESM_CLEAR(RS_STACKDATA *stack, int argc) {
 }
 
 static int _ESM_LOAD_BASE(RS_STACKDATA *stack, int argc) {
-    int ret;
+    int result;
 
     if (EventEffectScript == NULL) {
         return false;
@@ -16000,17 +16000,17 @@ static int _ESM_LOAD_BASE(RS_STACKDATA *stack, int argc) {
 
     switch (stack->type) {
         case 0:
-            ret = EventEffectScript->LoadBaseEffSpt(GetStackInt(stack), NULL, -1);
+            result = EventEffectScript->LoadBaseEffSpt(GetStackInt(stack), NULL, -1);
             break;
         case 2:
-            ret = EventEffectScript->LoadBaseEffSpt(GetStackString(stack), NULL, -1);
+            result = EventEffectScript->LoadBaseEffSpt(GetStackString(stack), NULL, -1);
             break;
         default:
-            ret = 0;
+            result = 0;
             break;
     }
 
-    return ret;
+    return result;
 }
 
 static int _ESM_CREATE(RS_STACKDATA *stack, int argc) {
@@ -16070,7 +16070,7 @@ static int _ESM_DELETE(RS_STACKDATA *stack, int argc) {
 
 static int _ESM_SET_VECT1(RS_STACKDATA *stack, int argc) {
     float vector[4];
-    int   ret;
+    int   result;
 
     if (EventEffectScript == NULL) {
         return false;
@@ -16079,25 +16079,25 @@ static int _ESM_SET_VECT1(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 3:
             GetStackVector(vector, stack);
-            ret = EventEffectScript->SetScriptVect1(vector, -1, -1);
+            result = EventEffectScript->SetScriptVect1(vector, -1, -1);
             break;
         case 5: {
-            int user_id = GetStackInt(stack++);
+            int group = GetStackInt(stack++);
             int slot = GetStackInt(stack++);
             GetStackVector(vector, stack);
-            ret = EventEffectScript->SetScriptVect1(vector, user_id, slot);
+            result = EventEffectScript->SetScriptVect1(vector, group, slot);
             break;
         }
         default:
             return false;
     }
 
-    return ret;
+    return result;
 }
 
 static int _ESM_SET_VECT2(RS_STACKDATA *stack, int argc) {
     float vector[4];
-    int   ret;
+    int   result;
 
     if (EventEffectScript == NULL) {
         return false;
@@ -16106,26 +16106,26 @@ static int _ESM_SET_VECT2(RS_STACKDATA *stack, int argc) {
     switch (argc) {
         case 3:
             GetStackVector(vector, stack);
-            ret = EventEffectScript->SetScriptVect2(vector, -1, -1);
+            result = EventEffectScript->SetScriptVect2(vector, -1, -1);
             break;
         case 5: {
-            int user_id = GetStackInt(stack++);
+            int group = GetStackInt(stack++);
             int slot = GetStackInt(stack++);
             GetStackVector(vector, stack);
-            ret = EventEffectScript->SetScriptVect2(vector, user_id, slot);
+            result = EventEffectScript->SetScriptVect2(vector, group, slot);
             break;
         }
         default:
             return false;
     }
 
-    return ret;
+    return result;
 }
 
 static int _ESM_SET_TARGET_ID(RS_STACKDATA *stack, int argc) {
-    int param1;
-    int param2;
-    int ret;
+    int group;
+    int slot;
+    int result;
 
     if (EventEffectScript == NULL) {
         return false;
@@ -16133,19 +16133,19 @@ static int _ESM_SET_TARGET_ID(RS_STACKDATA *stack, int argc) {
 
     switch (argc) {
         case 1:
-            ret = EventEffectScript->SetScriptTargetId(GetStackInt(stack), -1, -1);
+            result = EventEffectScript->SetScriptTargetId(GetStackInt(stack), -1, -1);
             break;
         case 3:
-            param1 = GetStackInt(stack++);
-            param2 = GetStackInt(stack++);
-            ret = EventEffectScript->SetScriptTargetId(GetStackInt(stack), param1, param2);
+            group = GetStackInt(stack++);
+            slot = GetStackInt(stack++);
+            result = EventEffectScript->SetScriptTargetId(GetStackInt(stack), group, slot);
             break;
         default:
-            ret = 0;
+            result = 0;
             break;
     }
 
-    return ret;
+    return result;
 }
 
 static int _ESM_LOAD_BASE_PACK(RS_STACKDATA *stack, int argc) {
@@ -16168,7 +16168,7 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
     int value_no;
     int group;
     int slot;
-    int ret;
+    int result;
 
     if (EventEffectScript == 0) {
         return false;
@@ -16180,10 +16180,10 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
 
             switch (stack->type) {
                 case 0:
-                    ret = EventEffectScript->SetValue(value_no, GetStackInt(stack), -1, -1);
+                    result = EventEffectScript->SetValue(value_no, GetStackInt(stack), -1, -1);
                     break;
                 case 1:
-                    ret = EventEffectScript->SetValue(value_no, GetStackFloat(stack), -1, -1);
+                    result = EventEffectScript->SetValue(value_no, GetStackFloat(stack), -1, -1);
                     break;
                 default:
                     return false;
@@ -16197,10 +16197,10 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
 
             switch (stack->type) {
                 case 0:
-                    ret = EventEffectScript->SetValue(value_no, GetStackInt(stack), group, slot);
+                    result = EventEffectScript->SetValue(value_no, GetStackInt(stack), group, slot);
                     break;
                 case 1:
-                    ret = EventEffectScript->SetValue(value_no, GetStackFloat(stack), group, slot);
+                    result = EventEffectScript->SetValue(value_no, GetStackFloat(stack), group, slot);
                     break;
                 default:
                     return false;
@@ -16211,7 +16211,7 @@ static int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
             return false;
     }
 
-    return ret;
+    return result;
 }
 
 static int _SET_CHARA_CONDITION(RS_STACKDATA *stack, int argc) {
@@ -17103,10 +17103,10 @@ static int _INIT_MONO_FLASH(RS_STACKDATA *stack, int argc) {
 }
 
 static int _START_MONO_FLASH(RS_STACKDATA *stack, int argc) {
-    int param = GetStackInt(stack);
+    int interval = GetStackInt(stack);
 
     EventScreenEffect.CaptureMonoFlashScreen();
-    EventScreenEffect.SetMonoFlashFlag(1, param);
+    EventScreenEffect.SetMonoFlashFlag(1, interval);
     return true;
 }
 

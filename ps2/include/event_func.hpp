@@ -1118,7 +1118,7 @@ struct ED_EVENT_INFO {
     float              env_bgm_volume;                        /**< Volume of the environment music the event started. */
     int                env_bgm_no;                            /**< Environment music the event started. */
     int                stream_playing;                        /**< Non-zero while a voice stream the event started is playing. */
-    int                stream_from_fpl;                       /**< Non-zero when the open voice stream was opened from a voice pack. */
+    int                stream_source;                       /**< How the open voice stream was opened. @see EventStreamSource. */
     int                func_iparam[16];                       /**< Integer parameters of the door mode: character number, entry point and sound effect. */
     float              func_fparam[16];                       /**< Float parameters of the door mode: position, facing, camera position and look-at offset. */
     int                monster_talk[3];                       /**< Talk data of the monster the player spoke to in the dungeon. */

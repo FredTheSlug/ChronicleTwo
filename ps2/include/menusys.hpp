@@ -2355,7 +2355,7 @@ extern CRepairManager *MenuRepairMan;
  * @address 0x37DC28
  * @size 0x6
  */
-extern u8 menu_chara_activeItem_limmit_check[6];
+extern u8 menu_chara_activeItem_limmit_check[2][3];
 
 /**
  *

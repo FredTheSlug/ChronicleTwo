@@ -175,7 +175,7 @@ static s16 MenuItem_ItemBoardTopSelect;
  * Owned-item limit flags for each character's three active slots.
  *
  */
-u8 menu_chara_activeItem_limmit_check[6];
+u8 menu_chara_activeItem_limmit_check[2][3];
 
 /**
  *
@@ -469,7 +469,7 @@ static CActionChara *MenuDebugItemModel;
  * Camera of the debug model preview.
  *
  */
-static mgCCamera *MenuDebugCamera;
+static mgCCameraFollow *MenuDebugCamera;
 
 /**
  *
@@ -902,6 +902,11 @@ int CBaseMenuClass::MenuItemMoveItemCommand(CGameDataUsed *item, int arg_pos, in
     return 0;
 }
 
+/**
+ *
+ * Returns its argument unchanged.
+ *
+ */
 template <typename T>
 static inline T Ident(T v) { return v; }
 
@@ -4806,10 +4811,10 @@ void CheckEnableHaveItemNum() {
         i = 0;
         i < 2; i++, chara++) {
         for (j = 0; j < 3; j++) {
-            menu_chara_activeItem_limmit_check[i * 3 + j] = 0;
+            menu_chara_activeItem_limmit_check[i][j] = 0;
 
             if (chara->active_item[j].item_no > 0 && full[chara->active_item[j].item_no] != 0) {
-                menu_chara_activeItem_limmit_check[i * 3 + j] = 1;
+                menu_chara_activeItem_limmit_check[i][j] = 1;
             }
         }
     }
@@ -6212,6 +6217,7 @@ static inline u_int align16_blocks(u_int size) {
 
     return size >> 4;
 }
+
 
 #pragma inline_depth(8)
 
@@ -7925,7 +7931,7 @@ static void MenuItemDebugKey() {
                     }
 
                     if (camera_control) {
-                        ((mgCCameraFollow *) MenuDebugCamera)->GetAngle();
+                        MenuDebugCamera->GetAngle();
                     } else {
                         rotation[1] += x;
                         rotation[0] += y;
@@ -9991,7 +9997,7 @@ void MenuItemCharaViewCheck(CHARA_DATA *chara, int chara_no, int flag) {
                 MENUFORMPARTS_TYPE *num = CMenuItemInfoPt->item_num[chara_no][i];
                 num->etc_info[1] = chara->active_item[i].GetNum();
 
-                if (menu_chara_activeItem_limmit_check[chara_no * 3 + i] != 0) {
+                if (menu_chara_activeItem_limmit_check[chara_no][i] != 0) {
                     num->rgba[0] = 0x52;
                     num->rgba[1] = 0x52;
                     num->rgba[2] = 0x94;

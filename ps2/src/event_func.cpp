@@ -4,6 +4,7 @@
 #include <libcdvd.h>
 
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -13772,8 +13773,8 @@ static int _SPHIDA_START_POWGAGE(RS_STACKDATA *stack, int argc) {
  *
  */
 static int _SPHIDA_TRIGGER_POWGAGE(RS_STACKDATA *stack, int argc) {
-
     CSphida *sphida = Sphida;
+
     if (sphida == NULL) {
         return false;
     }
@@ -14885,7 +14886,7 @@ static int _SWE_SET_COLOR(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + chara_sword_after_offset);
+    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + offsetof(CCharacter2, sword_effect));
 
     if (*effect_slot == NULL) {
         return false;
@@ -14935,7 +14936,7 @@ static int _SWE_SET_TEXTURE(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + chara_sword_after_offset);
+    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + offsetof(CCharacter2, sword_effect));
 
     if (*effect_slot == NULL) {
         return false;
@@ -14980,7 +14981,7 @@ static int _SWE_START_EFFECT(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + chara_sword_after_offset);
+    effect_slot = (CSWordAfterEffect **) ((slot << 2) + (int) chara + offsetof(CCharacter2, sword_effect));
 
     if (*effect_slot == NULL) {
         return false;

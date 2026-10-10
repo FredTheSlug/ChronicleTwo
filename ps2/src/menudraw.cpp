@@ -6761,10 +6761,9 @@ void InitBuildUpInfoEffect(mgCMemory *memory, mgCTexture *texture, int num, floa
     MenuVerticalLineChara = NULL;
 
     if (memory != NULL) {
-        size = num << 6;
+        size = num * sizeof(CEffVerticalLine);
         blocks = (size & 0xF) != 0 ? (size >> 4) + 1 : size >> 4;
-        MenuVerticalLine =
-            (CEffVerticalLine *) operator new[](size, memory->Alloc(blocks + 2));
+        MenuVerticalLine = new (memory->Alloc(blocks + 2)) CEffVerticalLine[num];
         InitInitBuildUpInfoEffectPos();
     }
 }

@@ -243,14 +243,6 @@ static u_long128 event_snd2_buff[EVENT_SND2_BUFFER_SIZE];
  */
 static u_long128 event_snd_buff[EVENT_SND_BUFFER_SIZE];
 
-/**
- *
-
- * Byte offset of CCharacter2::sword_effect, added after the slot offset by the sword effect commands.
- *
- */
-const int chara_sword_after_offset = 0x570;
-
 CEoh::CEoh() {
     type = EOH_TYPE_NONE;
     scene_no = -1;

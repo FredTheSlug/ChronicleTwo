@@ -419,7 +419,7 @@ struct ROOM_LINK_POINT {
 
 void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int width, int height,
                                 float cell_width, float cell_depth) {
-    if (new_map == 0) {
+    if (new_map == NULL) {
         return;
     }
 
@@ -445,7 +445,7 @@ void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int widt
         return;
     }
 
-    info = 0;
+    info = NULL;
     char buffer[0x40];
     strcpy(buffer, floor_name);
 
@@ -456,19 +456,19 @@ void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int widt
     for (int i = 0; i < MINIMAP_INFO_NUM; i++) {
         char *entry_name = MiniMapInfoData[i].name;
 
-        if (entry_name != 0 && strcmp(buffer, entry_name) == 0) {
+        if (entry_name != NULL && strcmp(buffer, entry_name) == 0) {
             info = &MiniMapInfoData[i];
             break;
         }
     }
 
-    if (info == 0) {
+    if (info == NULL) {
         return;
     }
 
     part = parts_table;
 
-    if (part == 0) {
+    if (part == NULL) {
         return;
     }
 
@@ -476,7 +476,7 @@ void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int widt
         char *parts_name = part->parts_name;
         part->minimap_tile = -1;
 
-        for (int j = 0; PartsInfoData[j].name != 0; j++) {
+        for (int j = 0; PartsInfoData[j].name != NULL; j++) {
             if (strcmp(PartsInfoData[j].name, parts_name) == 0) {
                 part->minimap_tile = info->tile[j];
             }
@@ -519,19 +519,19 @@ void CMiniMapSymbol::DrawSymbol(float *pos, int symbol) {
     int   screen_y = y + (int) (16.0f * (delta[2] / cell_d));
     int   cell_x = (int) ((pos[0] + 0.5f * size_x) / size_x);
     int   cell_z = (int) ((pos[2] + 0.5f * cell_d) / cell_d);
-    int   revealed = 0;
+    int   revealed = false;
 
-    if (grid != NULL && (grid + cell_z * grid_w)[cell_x].visible != 0) {
-        revealed = 1;
+    if (grid != NULL && (grid + cell_z * grid_w)[cell_x].visible) {
+        revealed = true;
     }
 
     if (BattleAreaScene->minimap_reveal & MINIMAP_REVEAL_SYMBOLS) {
-        revealed = 1;
+        revealed = true;
     }
 
     for (MINIMAP_SYMBOL_INFO *symbol_info = symbol_table; symbol_info->symbol != MINIMAP_SYMBOL_END; symbol_info++) {
         if (symbol_info->symbol == symbol) {
-            if ((symbol_info->need_visible == 0 || revealed != 0) && (symbol_info->blink == 0 || blink_cnt < 16)) {
+            if ((!symbol_info->need_visible || revealed) && (!symbol_info->blink || blink_cnt < 16)) {
                 prim.Color(symbol_info->r, symbol_info->g, symbol_info->b, 0x80);
                 prim.SetIStretch(screen_x - symbol_info->w / 2 + 8, screen_y - symbol_info->h / 2 + 8, symbol_info->w, symbol_info->w, 0xBA, 0xF6, 10, 10);
             }
@@ -602,10 +602,10 @@ void CMiniMapSymbol::Draw(float *pos) {
     }
 
     sceVu0CopyVector(center, pos);
-    int dimmed = 0;
+    int dimmed = false;
 
     if (BattleAreaScene->minimap_reveal & MINIMAP_REVEAL_ROOMS) {
-        dimmed = 1;
+        dimmed = true;
     }
 
     CPreSprite sprite;
@@ -648,9 +648,9 @@ void CMiniMapSymbol::Draw(float *pos) {
                     continue;
                 }
 
-                if (cell->visible != 0) {
+                if (cell->visible) {
                     sprite.Color(0x80, 0x80, 0x80, 0x80);
-                } else if (dimmed != 0) {
+                } else if (dimmed) {
                     sprite.Color(0x30, 0x30, 0x30, 0x80);
                 } else {
                     sprite.Color(0x30, 0x30, 0x30, 0);
@@ -669,23 +669,23 @@ void CMiniMapSymbol::Draw(float *pos) {
 }
 
 int CHealingPoint::CheckHealingTime() {
-    if (enable == 0) {
-        return 0;
+    if (!enable) {
+        return false;
     }
 
     if (timer > 0) {
-        return 0;
+        return false;
     }
 
     HealingEffectMan.SetMode(HEALING_EFFECT_SPENT);
     timer = HEALING_POINT_COOLDOWN;
-    return 1;
+    return true;
 }
 
 void CHealingPoint::Step() {
     int remaining;
 
-    if (enable != 0) {
+    if (enable) {
         remaining = timer;
 
         if (remaining > 0) {
@@ -705,7 +705,7 @@ void CHealingPoint::Step() {
  */
 static int _ROOM_FIXED(SPI_STACK *stack, int arg_count) {
     nowPriset->fixed = spiGetStackInt(stack);
-    return 1;
+    return true;
 }
 
 /**
@@ -719,7 +719,7 @@ static int _GRID_SIZE(SPI_STACK *stack, int unused) {
     CAutoMapGen *map = auto_map;
     map->cell_w = cell_size_x;
     map->cell_d = cell_size_z;
-    return 1;
+    return true;
 }
 
 /**
@@ -729,7 +729,7 @@ static int _GRID_SIZE(SPI_STACK *stack, int unused) {
  */
 static int _ROOM_ID(SPI_STACK *stack, int arg_count) {
     nowPriset->id = spiGetStackInt(stack);
-    return 1;
+    return true;
 }
 
 /**
@@ -739,7 +739,7 @@ static int _ROOM_ID(SPI_STACK *stack, int arg_count) {
  */
 static int _ROOM_SIZE(SPI_STACK *stack, int arg_count) {
     if (arg_count != 2) {
-        return 0;
+        return false;
     }
 
     int width = spiGetStackInt(stack++);
@@ -758,7 +758,7 @@ static int _ROOM_SIZE(SPI_STACK *stack, int arg_count) {
     nowPriset->table = (s16 *) operator new[](bytes, nowPrisetStack->Alloc(blocks + 2));
     nowPrisetTable = nowPriset->table;
     nowPrisetNum += 1;
-    return 1;
+    return true;
 }
 
 /**
@@ -768,7 +768,7 @@ static int _ROOM_SIZE(SPI_STACK *stack, int arg_count) {
  */
 static int _ROOM_RATE(SPI_STACK *stack, int arg_count) {
     nowPriset->rate = spiGetStackInt(stack);
-    return 1;
+    return true;
 }
 
 /**
@@ -778,7 +778,7 @@ static int _ROOM_RATE(SPI_STACK *stack, int arg_count) {
  */
 static int _RD(SPI_STACK *stack, int arg_count) {
     if (arg_count != nowPriset->w * 2) {
-        return 0;
+        return false;
     }
 
     for (int i = 0; i < arg_count / 2; i++) {
@@ -786,7 +786,7 @@ static int _RD(SPI_STACK *stack, int arg_count) {
         *nowPrisetTable++ = spiGetStackInt(stack++);
     }
 
-    return 1;
+    return true;
 }
 
 /**
@@ -796,7 +796,7 @@ static int _RD(SPI_STACK *stack, int arg_count) {
  */
 static int _ROOM_END(SPI_STACK *stack, int arg_count) {
     nowPriset = nowPriset + 1;
-    return 1;
+    return true;
 }
 
 /**
@@ -864,24 +864,24 @@ int CAutoMapGen::CreatRoom(int x, int y, int room_no, int info_no) {
     info = &room_info[info_no];
 
     if (info->table == NULL) {
-        return 0;
+        return false;
     }
 
     w = info->w;
     h = info->h;
 
     if (x < 0 || y < 0) {
-        return 0;
+        return false;
     }
 
     if (x + w > grid_w || y + h > grid_h) {
-        return 0;
+        return false;
     }
 
     for (int row = y - 1; row < y + h + 1; row++) {
         for (int col = x; col < x + w; col++) {
             if ((grid + row * grid_w)[col].kind != 0) {
-                return 0;
+                return false;
             }
         }
     }
@@ -889,7 +889,7 @@ int CAutoMapGen::CreatRoom(int x, int y, int room_no, int info_no) {
     for (int row = y; row < y + h; row++) {
         for (int col = x - 1; col < x + w + 1; col++) {
             if ((grid + row * grid_w)[col].kind != 0) {
-                return 0;
+                return false;
             }
         }
     }
@@ -917,7 +917,7 @@ int CAutoMapGen::CreatRoom(int x, int y, int room_no, int info_no) {
     room[room_no].y = y;
     room[room_no].w = w;
     room[room_no].h = h;
-    return 1;
+    return true;
 }
 
 int CAutoMapGen::LinkConnectCheck(int x, int y, int kind, int room_no, int exclude) {
@@ -1924,14 +1924,14 @@ void CAutoMapGen::SearchHealingPoint(CMap *map) {
         parts = map->GetPlaceParts(name);
 
         if (parts != NULL) {
-            (parts)->GetPosition(pos);
+            parts->GetPosition(pos);
             point = parts->func_point_mngr.Search("kaifuku");
 
             if (point != NULL) {
                 *(u_long128 *) offset = *(u_long128 *) point->position;
                 sceVu0AddVector(pos, pos, offset);
                 HealingEffectMan.Set(pos);
-                healing_point.enable = 1;
+                healing_point.enable = true;
             }
 
             break;
@@ -2084,7 +2084,7 @@ void CAutoMapGen::SetHealingPointIndex() {
 void CAutoMapGen::CreatFixedMap(int preset_no) {
     CAutoMapParts     *cell;
     int                i;
-    AUTOMAP_ROOM_INFO *preset = room_info + preset_no;
+    AUTOMAP_ROOM_INFO *preset = &room_info[preset_no];
     int                preset_width;
     int                preset_height;
     s16               *table;
@@ -2092,16 +2092,16 @@ void CAutoMapGen::CreatFixedMap(int preset_no) {
     int                x;
 
     for (i = 0; i < grid_w * grid_h; i++) {
-        cell = grid + i;
+        cell = &grid[i];
         cell->parts_no = -1;
         cell->attr = 0;
         cell->kind = 0;
         cell->room_no = -1;
         cell->road_link = 0;
         cell->link = 0;
-        cell->visible = 0;
+        cell->visible = false;
         cell->wall = -1;
-        cell->parts = 0;
+        cell->parts = NULL;
     }
 
     for (i = 0; i < AUTOMAP_ROOM_MAX; i++) {
@@ -2150,10 +2150,10 @@ void CAutoMapGen::RandomMapMainProc() {
     int               result;
     int               n;
     CDngFloorManager *manager;
-    random_map = 1;
+    random_map = true;
     seed = iRand(0xFFFF);
 
-    if (DebugFlag != 0) {
+    if (DebugFlag) {
         printf("rand = %d\n", seed);
     }
 
@@ -2172,13 +2172,13 @@ void CAutoMapGen::RandomMapMainProc() {
     do {
         if (gen_flag & AUTOMAP_GEN_FIXED_START) {
             CreatFixedMap(0);
-            n = 1;
+            n = true;
         } else {
             n = CreatRoom(iRand(grid_w - 2) + 1, iRand(grid_h - 2) + 1, 0, -1);
         }
-    } while (n == 0);
+    } while (!n);
 
-    while (CreatRoom(iRand(grid_w - 2) + 1, iRand(grid_h - 2) + 1, 1, -1) == 0) {
+    while (!CreatRoom(iRand(grid_w - 2) + 1, iRand(grid_h - 2) + 1, 1, -1)) {
     }
 
     RoomLink(0, 1);
@@ -2198,7 +2198,7 @@ void CAutoMapGen::RandomMapMainProc() {
                 link++;
             }
 
-            if (result != 0) {
+            if (result) {
                 RoomLink(rooms, link);
                 rooms++;
                 round = 0;
@@ -2278,8 +2278,8 @@ void CAutoMapGen::Build() {
     CMap      *map;
     CMapParts *parts;
 
-    minimap_enable = 1;
-    navi_enable = 1;
+    minimap_enable = true;
+    navi_enable = true;
     mode = gen_flag;
 
     if (mode & AUTOMAP_GEN_FIXED_FLOOR) {
@@ -2363,7 +2363,7 @@ void CAutoMapGen::MinimapVisTest(float *pos) {
     int            col;
     CAutoMapParts *cells = this->grid;
 
-    if (cells != NULL && minimap_enable != 0) {
+    if (cells != NULL && minimap_enable) {
         size_x = cell_w;
         x = (int) ((pos[0] + 0.5f * size_x) / size_x);
         size_z = cell_d;
@@ -2377,29 +2377,29 @@ void CAutoMapGen::MinimapVisTest(float *pos) {
             z = 0;
         }
 
-        (cells + z * grid_w)[x].visible = 1;
+        (cells + z * grid_w)[x].visible = true;
         cell = &(grid + z * grid_w)[x];
 
         if (z > 0) {
             CAutoMapParts *up = cell - grid_w;
 
             if (!(up->wall & AUTOMAP_WALL_POS_Z)) {
-                up->visible = 1;
+                up->visible = true;
             }
         }
 
         if (z < grid_h - 1) {
             if (!(cell[grid_w].wall & AUTOMAP_WALL_NEG_Z)) {
-                cell[grid_w].visible = 1;
+                cell[grid_w].visible = true;
             }
         }
 
         if (x > 0 && !(cell[-1].wall & AUTOMAP_WALL_POS_X)) {
-            cell[-1].visible = 1;
+            cell[-1].visible = true;
         }
 
         if (x < grid_w - 1 && !(cell[1].wall & AUTOMAP_WALL_NEG_X)) {
-            cell[1].visible = 1;
+            cell[1].visible = true;
         }
 
         if (!(gen_flag & AUTOMAP_GEN_PRESET_FLOOR)) {
@@ -2408,7 +2408,7 @@ void CAutoMapGen::MinimapVisTest(float *pos) {
                     z < room[i].y + room[i].h) {
                     for (row = 0; row < room[i].h; row++) {
                         for (col = 0; col < room[i].w; col++) {
-                            (&(grid + (room[i].y + row) * grid_w)[col])[room[i].x].visible = 1;
+                            (&(grid + (room[i].y + row) * grid_w)[col])[room[i].x].visible = true;
                         }
                     }
                 }
@@ -2518,7 +2518,7 @@ void CAutoMapGen::MinimapAllVisible() {
     int i;
 
     for (i = 0; i < grid_w * grid_h; i++) {
-        grid[i].visible = 1;
+        grid[i].visible = true;
     }
 }
 
@@ -2529,7 +2529,7 @@ float CAutoMapGen::GetNaviDistance(float *pos) {
     int   z;
     s8    step;
 
-    if (navi_valid == 0 || navi_enable == 0) {
+    if (!navi_valid || !navi_enable) {
         return 0.0f;
     }
 
@@ -2569,7 +2569,7 @@ void CAutoMapGen::UpdateNaviMap(float *pos, int depth) {
     float          size_x;
     int            col;
 
-    if (grid == NULL || navi_enable == 0) {
+    if (grid == NULL || !navi_enable) {
         return;
     }
 
@@ -2610,7 +2610,7 @@ void CAutoMapGen::UpdateNaviMap(float *pos, int depth) {
 
     do {
         cell = grid;
-        changed = 0;
+        changed = false;
 
         for (row = 0; row < grid_h; row++) {
             for (col = 0; col < grid_w; col++) {
@@ -2623,7 +2623,7 @@ void CAutoMapGen::UpdateNaviMap(float *pos, int depth) {
 
                         if ((cell - grid_w)->navi < next && !((cell - grid_w)->wall & AUTOMAP_WALL_POS_Z)) {
                             (cell - grid_w)->navi = next;
-                            changed = 1;
+                            changed = true;
                         }
                     }
 
@@ -2632,7 +2632,7 @@ void CAutoMapGen::UpdateNaviMap(float *pos, int depth) {
 
                         if ((cell + grid_w)->navi < next && !((cell + grid_w)->wall & AUTOMAP_WALL_NEG_Z)) {
                             (cell + grid_w)->navi = next;
-                            changed = 1;
+                            changed = true;
                         }
                     }
 
@@ -2641,7 +2641,7 @@ void CAutoMapGen::UpdateNaviMap(float *pos, int depth) {
 
                         if (cell[-1].navi < next && !(cell[-1].wall & AUTOMAP_WALL_POS_X)) {
                             cell[-1].navi = next;
-                            changed = 1;
+                            changed = true;
                         }
                     }
 
@@ -2650,7 +2650,7 @@ void CAutoMapGen::UpdateNaviMap(float *pos, int depth) {
 
                         if (cell[1].navi < next && !(cell[1].wall & AUTOMAP_WALL_NEG_X)) {
                             cell[1].navi = next;
-                            changed = 1;
+                            changed = true;
                         }
                     }
                 }
@@ -2658,7 +2658,7 @@ void CAutoMapGen::UpdateNaviMap(float *pos, int depth) {
                 cell++;
             }
         }
-    } while (changed != 0);
+    } while (changed);
 
-    navi_valid = 1;
+    navi_valid = true;
 }

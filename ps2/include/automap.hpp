@@ -225,6 +225,11 @@ public:
     u32        wall;      /**< Sides a wall closes, an AUTOMAP_WALL combination. */
     s8         navi;      /**< Steps left to the navigation target, 0 if unreached, or -1 for an empty cell. */
 
+    /**
+     *
+     * Empties the cell.
+     *
+     */
     void Initialize() {
         parts_no = -1;
         attr = 0;
@@ -232,7 +237,7 @@ public:
         room_no = -1;
         road_link = 0;
         link = 0;
-        visible = 0;
+        visible = false;
         wall = -1;
         parts = NULL;
     }

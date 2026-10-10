@@ -2093,7 +2093,7 @@ int CheckBuildUp(CGameDataUsed *weapon, int *result0, int *result1, int *result2
  * @address 0x24D1F0
  * @size 0x370
  */
-int BuildUpWeaponTrans(CGameDataUsed *weapon, int no);
+int BuildUpWeaponTrans(CGameDataUsed *item, int item_no);
 
 /**
  *

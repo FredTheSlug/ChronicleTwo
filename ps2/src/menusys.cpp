@@ -6999,10 +6999,11 @@ void CMenuItemInfo::MenuModeMalloc(mgCMemory *stack) {
 void CMenuItemInfo::CalcTex() {
     /**
      *
-     * View-page number associated with each preview form.
+     * Page that each page form shows.
      *
      */
-    static u8 itemmenu_calcmode_tbl[6] = {0, 1, 2, 3, 4, 5};
+    static u8 itemmenu_calcmode_tbl[6] = {MENU_ITEM_VIEW_MAX, MENU_ITEM_VIEW_MONICA, MENU_ITEM_VIEW_WEAPON,
+                                           MENU_ITEM_VIEW_ROBO, MENU_ITEM_VIEW_MONSTER, MENU_ITEM_VIEW_FISHING_ROD};
 
     int slot;
     Func_MenuItemBrdPosStep(MenuItem_ItemBoardTopLine);
@@ -7017,13 +7018,14 @@ void CMenuItemInfo::CalcTex() {
     int       check_move = MenuMoveItemPtr->CheckMove();
     int       view_flag[6];
 
+    // Every page form but the shown page's slides out; the shown page's slides in.
     for (i = 0; i < 6; i++) {
         if (itemmenu_calcmode_tbl[i] != view_mode) {
             view_form[i]->SetAction("\x8A\x4F\x82\xD6");
         } else {
             view_form[i]->SetAction("\x92\x86\x82\xD6");
 
-            if (mode == MENU_ASK_MODE_CLOSE && CheckTrushMenu() == 0 && item_consumed == 0) {
+            if (mode == MENU_ASK_MODE_CLOSE && CheckTrushMenu() == 0 && item_consumed == false) {
                 view_form[i]->SetAction("\x8A\x4F\x82\xD6");
             }
         }
@@ -7034,55 +7036,55 @@ void CMenuItemInfo::CalcTex() {
     MenuItemInfoCursorSet(CMenuItemInfoPt->mode);
 
     if (view_form[0]->x < -180.0f) {
-        view_form[0]->draw_flag = 0;
+        view_form[0]->draw_flag = false;
     } else {
-        view_form[0]->draw_flag = 1;
+        view_form[0]->draw_flag = true;
 
         if (view_form[0]->rgba[3] <= 0) {
-            view_form[0]->draw_flag = 0;
+            view_form[0]->draw_flag = false;
         }
 
         MenuItemCharaViewCheck(MenuUserParam.chara[0], 0, view_flag[0]);
     }
 
     if (view_form[1]->x < -180.0f) {
-        view_form[1]->draw_flag = 0;
+        view_form[1]->draw_flag = false;
     } else {
-        view_form[1]->draw_flag = 1;
+        view_form[1]->draw_flag = true;
 
         if (view_form[1]->rgba[3] <= 0) {
-            view_form[1]->draw_flag = 0;
+            view_form[1]->draw_flag = false;
         }
 
         MenuItemCharaViewCheck(MenuUserParam.chara[1], 1, view_flag[0]);
     }
 
     if (view_form[2]->x < -172.0f) {
-        view_form[2]->draw_flag = 0;
+        view_form[2]->draw_flag = false;
     } else {
-        view_form[2]->draw_flag = 1;
+        view_form[2]->draw_flag = true;
         MenuPosFormValueSetWeapon(view_weapon);
     }
 
     if (view_form[3]->x < -172.0f) {
-        view_form[3]->draw_flag = 0;
+        view_form[3]->draw_flag = false;
     } else {
-        view_form[3]->draw_flag = 1;
+        view_form[3]->draw_flag = true;
         MenuPosFormValueSetCharaRobo(MenuUserParam.robo, view_flag[3]);
     }
 
     if (view_form[4]->x < -172.0f) {
-        view_form[4]->draw_flag = 0;
+        view_form[4]->draw_flag = false;
     } else {
-        view_form[4]->draw_flag = 1;
+        view_form[4]->draw_flag = true;
         MenuPosFormValueSetMonster(MenuUserParam.monster1, MenuUserParam.chara[1]);
     }
 
     if (view_form[5] != NULL) {
         if (view_form[5]->x < -172.0f) {
-            view_form[5]->draw_flag = 0;
+            view_form[5]->draw_flag = false;
         } else {
-            view_form[5]->draw_flag = 1;
+            view_form[5]->draw_flag = true;
             MenuPosFormValueSetFishingRod(view_weapon);
         }
     }
@@ -7104,7 +7106,7 @@ void CMenuItemInfo::CalcTex() {
         reference_id = 4;
         reference_no = 0;
     } else if (held_item_no <= 0) {
-        if (key_arg_no == (int) ITEM_MENU_PANEL_EQUIPMENT || key_arg_no == (int) ITEM_MENU_PANEL_RIDEPOD_PARTS) {
+        if (key_arg_no == ITEM_MENU_PANEL_EQUIPMENT || key_arg_no == ITEM_MENU_PANEL_RIDEPOD_PARTS) {
             reference_no = cursor;
         }
     } else {
@@ -7168,28 +7170,28 @@ void CMenuItemInfo::CalcTex() {
         }
     }
 
-    int fusing = 0;
-    int spectol_view = 0;
-    int chara_view = 0;
+    int fusing = false;
+    int spectol_view = false;
+    int chara_view = false;
 
     if ((view_mode == MENU_ITEM_VIEW_WEAPON || view_mode == MENU_ITEM_VIEW_FISHING_ROD) && SpectolInfo[0] != NULL && view_weapon == SpectolInfo[0]) {
-        spectol_view = 1;
+        spectol_view = true;
     }
 
     if (view_mode == MENU_ITEM_VIEW_MAX || view_mode == MENU_ITEM_VIEW_MONICA) {
-        chara_view = 1;
+        chara_view = true;
     }
 
     int effect_pos[2];
 
     if (mode == MENU_ASK_MODE_FUSION && step > 0) {
         if (step == 1) {
-            fusing = 1;
+            fusing = true;
         }
 
         MenuPosData->GetPosMenuItemOnItemBrd(effect_pos, trans_spectol_pos, 0);
 
-        if (key_arg_no == (int) ITEM_MENU_PANEL_BAG) {
+        if (key_arg_no == ITEM_MENU_PANEL_BAG) {
             MenuEffect[0]->base_info[0] = effect_pos[0];
             MenuEffect[0]->base_info[1] = effect_pos[1];
         } else if ((spectol_view != 0 || chara_view != 0) && SpectolFusionTargetChara != NULL &&
@@ -7300,7 +7302,7 @@ void CMenuItemInfo::CalcTex() {
     switch (view_mode) {
         case MENU_ITEM_VIEW_MAX:
         case MENU_ITEM_VIEW_MONICA:
-            if (key_no == 3) {
+            if (key_no == ITEM_MENU_PANEL_CHARA) {
                 mes_no = 0x6A;
                 insert_mes[0] = sub_view + 10;
                 info_mes->SetMsgItemNo(insert_mes, 20);
@@ -7310,9 +7312,9 @@ void CMenuItemInfo::CalcTex() {
         case MENU_ITEM_VIEW_WEAPON: {
             s16 slot_mes[2] = {10000, 22};
 
-            if (key_no == 4) {
+            if (key_no == ITEM_MENU_PANEL_WEAPON) {
                 mes_no = GetItemMessageNo(view_chara, 1);
-            } else if (key_no != 2) {
+            } else if (key_no != ITEM_MENU_PANEL_BAG) {
                 mes_no = cursor + (slot_mes[key_no - 4U] + 100);
                 info_mes->SetMsgItemNo(insert_mes, 4);
             }
@@ -7320,7 +7322,7 @@ void CMenuItemInfo::CalcTex() {
             break;
         }
         case MENU_ITEM_VIEW_ROBO:
-            if (key_no == 6) {
+            if (key_no == ITEM_MENU_PANEL_RIDEPOD) {
                 insert_mes[0] = 12;
                 mes_no = 0x6A;
                 info_mes->SetMsgItemNo(insert_mes, 20);
@@ -7337,7 +7339,7 @@ void CMenuItemInfo::CalcTex() {
         case MENU_ITEM_VIEW_FISHING_ROD:
             mes_no = cursor + 0x85;
 
-            if (key_no == 9) {
+            if (key_no == ITEM_MENU_PANEL_FISHING_ROD) {
                 mes_no = GetItemMessageNo(view_chara, 1);
             }
 
@@ -7350,7 +7352,7 @@ void CMenuItemInfo::CalcTex() {
         info_mes->MakeMsg(item);
         CGameDataUsed *held = &MenuCommonInfo->have_item;
 
-        if (held->item_no == (int) ITEM_ID_SPECTOL && item != NULL) {
+        if (held->item_no == ITEM_ID_SPECTOL && item != NULL) {
             info_mes->MakeMsg(held, item);
         }
     } else {
@@ -7370,9 +7372,9 @@ void CMenuItemInfo::CalcTex() {
     if (GiftBoxViewForm != NULL) {
         int gift_pos[2];
 
-        if (key_arg_no == (int) ITEM_MENU_PANEL_BAG) {
+        if (key_arg_no == ITEM_MENU_PANEL_BAG) {
             MenuPosData->GetPosMenuItemOnItemBrd(gift_pos, cursor, 0);
-        } else if (key_arg_no == (int) ITEM_MENU_PANEL_ACTIVE_ITEMS) {
+        } else if (key_arg_no == ITEM_MENU_PANEL_ACTIVE_ITEMS) {
             char part_name[32];
             sprintf(part_name, "c_i%d", MenuCommonInfo->cursor);
             view_form[sub_view]->GetPutPosXY(part_name, gift_pos[0], gift_pos[1]);
@@ -7407,14 +7409,14 @@ void CMenuItemInfo::CalcCursorPosition() {
      * Cursor frame type for each key layout.
      *
      */
-    static s8 wakutypeTbl[12] = {1, 1, 0, -1, -1, -1, -1, 1, -1, -1, -1, 1};
+    static s8 wakutypeTbl[ITEM_MENU_PANEL_NUM] = {1, 1, 0, -1, -1, -1, -1, 1, -1, -1, -1, 1};
 
     /**
      *
      * Cursor frame width and height for each key layout.
      *
      */
-    static s8 waku_infotbl[12][2] = {
+    static s8 waku_infotbl[ITEM_MENU_PANEL_NUM][2] = {
         {72, 72},
         {82, 82},
         {36, 42},
@@ -7442,16 +7444,16 @@ void CMenuItemInfo::CalcCursorPosition() {
     cursor = MenuCommonInfo->cursor;
     int waku_no = arg_no;
 
-    if (arg_no != 12) {
+    if (arg_no != ITEM_MENU_PANEL_NUM) {
         if (arg_no < 0) {
-            key_arg_no = (int) ITEM_MENU_PANEL_ACTIVE_ITEMS;
+            key_arg_no = ITEM_MENU_PANEL_ACTIVE_ITEMS;
         }
 
-        CMenuPosDataForm *forms[12] = {view_form[sub_view], view_form[sub_view], item_board_form, view_form[sub_view], view_form[2], view_form[2],
+        CMenuPosDataForm *forms[ITEM_MENU_PANEL_NUM] = {view_form[sub_view], view_form[sub_view], item_board_form, view_form[sub_view], view_form[2], view_form[2],
                                        view_form[3], view_form[3], view_form[4], view_form[5], view_form[5], view_form[sub_view]};
         form = view_form[sub_view];
 
-        if (key_arg_no == (int) ITEM_MENU_PANEL_ACTIVE_ITEMS || key_arg_no == (int) ITEM_MENU_PANEL_EQUIPMENT) {
+        if (key_arg_no == ITEM_MENU_PANEL_ACTIVE_ITEMS || key_arg_no == ITEM_MENU_PANEL_EQUIPMENT) {
             form = view_form[sub_view];
         } else {
             form = forms[key_arg_no];
@@ -7461,7 +7463,7 @@ void CMenuItemInfo::CalcCursorPosition() {
     form->GetPutPosXY(NULL, pos[0], pos[1]);
     int msg_pos[2];
 
-    if (arg_no == 2) {
+    if (arg_no == ITEM_MENU_PANEL_BAG) {
         MenuPosData->GetPosMenuItemOnItemBrd(pos, cursor, 1);
         pos[0] -= 8;
         pos[1] -= 10;
@@ -7471,7 +7473,7 @@ void CMenuItemInfo::CalcCursorPosition() {
         char part_name[0x20];
         int  offset[2] = {0, 0};
 
-        if (arg_no == 4 || arg_no == 9) {
+        if (arg_no == ITEM_MENU_PANEL_WEAPON || arg_no == ITEM_MENU_PANEL_FISHING_ROD) {
             strcpy(part_name, "chrpos");
 
             if (form != NULL) {
@@ -7479,7 +7481,7 @@ void CMenuItemInfo::CalcCursorPosition() {
                 pos[0] += offset[0];
                 pos[1] += offset[1];
             }
-        } else if (arg_no == 5 || arg_no == 10) {
+        } else if (arg_no == ITEM_MENU_PANEL_WEAPON_STATS || arg_no == ITEM_MENU_PANEL_FISHING_ROD_STATS) {
             strcpy(part_name, WepStatusInfoStrTable[cursor]);
 
             if (form != NULL) {
@@ -7487,11 +7489,11 @@ void CMenuItemInfo::CalcCursorPosition() {
                 pos[0] += offset[0];
                 pos[1] += offset[1];
             }
-        } else if (arg_no == 0) {
+        } else if (arg_no == ITEM_MENU_PANEL_ACTIVE_ITEMS) {
             sprintf(name, "c_i%d", cursor);
             form->GetPutPosXY(name, pos[0], pos[1]);
             pos[1] -= 8;
-        } else if (arg_no == 1 || arg_no == 7) {
+        } else if (arg_no == ITEM_MENU_PANEL_EQUIPMENT || arg_no == ITEM_MENU_PANEL_RIDEPOD_PARTS) {
             int no = cursor;
 
             if (cursor < 0 || cursor > 1) {
@@ -7500,9 +7502,9 @@ void CMenuItemInfo::CalcCursorPosition() {
 
             sprintf(name, "c_w%d", no);
             form->GetPutPosXY(name, pos[0], pos[1]);
-        } else if (arg_no == 3 || arg_no == 6 || arg_no == 8) {
+        } else if (arg_no == ITEM_MENU_PANEL_CHARA || arg_no == ITEM_MENU_PANEL_RIDEPOD || arg_no == ITEM_MENU_PANEL_MONSTER) {
             form->GetPutPosXY("chr_cur", pos[0], pos[1]);
-        } else if (arg_no == 11) {
+        } else if (arg_no == ITEM_MENU_PANEL_FISHING_BAIT) {
             form->GetPutPosXY("esac", pos[0], pos[1]);
         }
 
@@ -7518,7 +7520,7 @@ void CMenuItemInfo::CalcCursorPosition() {
         }
     }
 
-    if (arg_no == 5) {
+    if (arg_no == ITEM_MENU_PANEL_WEAPON_STATS) {
         BuildUpFormInfoIndex[cursor]->rgba[0] = 0xA4;
         BuildUpFormInfoIndex[cursor]->rgba[1] = 0xA4;
         BuildUpFormInfoIndex[cursor]->rgba[2] = 0xA4;
@@ -7529,7 +7531,7 @@ void CMenuItemInfo::CalcCursorPosition() {
         pos[1] = BuildUpNameXY[BuildUpWeaponInfo.select_no][1];
     }
 
-    if (menu_debug_flag != 0 && key_arg_no == (int) ITEM_MENU_PANEL_BAG) {
+    if (menu_debug_flag != 0 && key_arg_no == ITEM_MENU_PANEL_BAG) {
         pos[0] = 0x64;
         pos[1] = 0x50;
     }
@@ -7542,14 +7544,14 @@ void CMenuItemInfo::CalcCursorPosition() {
 
     int cursor_offset[2] = {0, 0};
 
-    if (arg_no < 12) {
+    if (arg_no < ITEM_MENU_PANEL_NUM) {
         sprintf(name, "cur_off%d", arg_no);
         MenuPosData->GetEtcTblValue(name, cursor_offset[0], cursor_offset[1]);
     }
 
     MenuCommonInfo->MenuPosStep(pos, cursor_offset);
 
-    if (MenuCommonInfo->cursor_form->draw_flag == 0) {
+    if (MenuCommonInfo->cursor_form->draw_flag == false) {
         waku_no = -1;
     }
 
@@ -7562,7 +7564,7 @@ void CMenuItemInfo::CalcCursorPosition() {
 
     if (reset_cursor_pos) {
         MenuCommonInfo->MenuSetPos(pos[0], pos[1]);
-        reset_cursor_pos = 0;
+        reset_cursor_pos = false;
     }
 }
 
@@ -7580,15 +7582,15 @@ void CBaseMenuClass::EffectDrawCheck(CMenuPosDataForm *form) {
                     part->rgba[3] = (s8) trans_spectol_rgb;
                     break;
                 case 18:
-                    part->draw_flag = 0;
+                    part->draw_flag = false;
                     part = &form->parts[trans_spectol_posold];
                     part->rgba[3] = 0x80;
                     break;
                 case 20:
-                    part->draw_flag = 0;
+                    part->draw_flag = false;
 
                     if (spegetflag != 0) {
-                        part->draw_flag = 1;
+                        part->draw_flag = true;
                     }
 
                     break;
@@ -7628,7 +7630,7 @@ void CBaseMenuClass::EffectDrawCheck(CMenuPosDataForm *form) {
 }
 
 int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
-    FxScriptManPauseFlag = 0;
+    FxScriptManPauseFlag = false;
     u_long128 *buffer = stack->stack;
     stack->Alloc(0x80);
     MenuItemBGDataMemory.stSetBuffer(buffer, stack->stack_used);
@@ -7640,7 +7642,7 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
     CMenuItemInfoPt->Initialize();
     CMenuItemInfoPt->SetTexBlock(tex_block);
 
-    if (GetNowLoopNo() == (int) LOOP_DUNGEON) {
+    if (GetNowLoopNo() == LOOP_DUNGEON) {
         MenuMainScene->AssignStack(5);
         mgCMemory *scene_stack = MenuMainScene->GetStack(5);
         int        size = scene_stack->stGetSize();
@@ -7663,7 +7665,7 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
     CMenuItemInfoPt->ExeScript("ITEMINIT");
     CMenuItemInfoPt->EnterDataMenu(pack);
     MenuCommonInfo->SetWakuMoveMethod(0);
-    MenuCommonInfo->key_enable = 1;
+    MenuCommonInfo->key_enable = true;
     MenuCommonInfo->CursorFadeIn(1.0f, 0);
     CMenuItemInfoPt->ExeScript("MSGINIT");
     int chara_no = CMenuItemInfoPt->GetActiveCharaNo();
@@ -7675,7 +7677,7 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
 
     MenuLoadInfo.alternate_model = 0;
 
-    if (GetMenuLoopType() == (int) MENU_LOOP_TOWN) {
+    if (GetMenuLoopType() == MENU_LOOP_TOWN) {
         MenuLoadInfo.alternate_model = 1;
         CMenuItemInfoPt->equipped_model_no = -1;
     }
@@ -7688,7 +7690,7 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
     s8 view_mode = menuitem_initviewtbl[chara_no];
     CMenuItemInfoPt->view_mode = view_mode;
     CMenuItemInfoPt->active_chara_view_mode = view_mode;
-    CMenuItemInfoPt->key_arg_no = (int) ITEM_MENU_PANEL_BAG;
+    CMenuItemInfoPt->key_arg_no = ITEM_MENU_PANEL_BAG;
     MenuCommonInfo->cursor = 0;
     CheckEnableHaveItemNum();
 
@@ -7696,17 +7698,17 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
         CMenuItemInfoPt->sub_view = chara_no;
     }
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         Robo_Sound_ID_Save = MenuMainScene->GetCharacter(0)->sound_info.se_bank;
     }
 
     CMenuItemInfoPt->SetEquipListNo(chara_no);
 
-    if (chara_no == 2) {
+    if (chara_no == USER_CHARA_ROBO) {
         CMenuItemInfoPt->load_weapon_no = MenuUserParam.robo->parts[0].item_no;
     }
 
-    if (chara_no == 0 || chara_no == 1) {
+    if (chara_no == USER_CHARA_MAX || chara_no == USER_CHARA_MONICA) {
         CMenuItemInfoPt->load_weapon_no = MenuUserParam.chara[chara_no]->equip[1].item_no;
     }
 
@@ -7728,28 +7730,28 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
 
     if (trush) {
         MenuItemBoardTotalNum = GetNowBagMax(1);
-        MenuItem_ItemBoardTopLine = MenuItemBoardTotalNum / 6 - 5;
+        MenuItem_ItemBoardTopLine = MenuItemBoardTotalNum / MENU_ITEM_BOARD_COLUMNS - MENU_ITEM_BOARD_ROWS;
         MenuItem_ItemBoardTopSelect = GetNowBagMax(0);
     }
 
-    MenuItemBoardTotalLine = MenuItemBoardTotalNum / 6;
+    MenuItemBoardTotalLine = MenuItemBoardTotalNum / MENU_ITEM_BOARD_COLUMNS;
 
-    while (MenuItemBoardTotalLine - 5 < MenuItem_ItemBoardTopLine) {
+    while (MenuItemBoardTotalLine - MENU_ITEM_BOARD_ROWS < MenuItem_ItemBoardTopLine) {
         MenuItem_ItemBoardTopLine--;
     }
 
     while (MenuItem_ItemBoardTopSelect >= MenuItemBoardTotalNum) {
-        MenuItem_ItemBoardTopSelect -= 6;
+        MenuItem_ItemBoardTopSelect -= MENU_ITEM_BOARD_COLUMNS;
     }
 
-    item_menu_argtbl[(int) ITEM_MENU_PANEL_BAG].max = MenuItemBoardTotalNum;
-    item_menu_argtbl[(int) ITEM_MENU_PANEL_BAG].rows = MenuItemBoardTotalLine;
+    item_menu_argtbl[ITEM_MENU_PANEL_BAG].max = MenuItemBoardTotalNum;
+    item_menu_argtbl[ITEM_MENU_PANEL_BAG].rows = MenuItemBoardTotalLine;
     MenuCommonInfo->cursor = MenuItem_ItemBoardTopSelect;
     MenuCommonInfo->top_line = MenuItem_ItemBoardTopLine;
     MenuCommonInfo->key_arg = &item_menu_argtbl[CMenuItemInfoPt->key_arg_no];
-    MenuItemBrdSetInfo(MenuCommonInfo->cursor, MenuCommonInfo->top_line, MenuItemBoardTotalLine, 5);
+    MenuItemBrdSetInfo(MenuCommonInfo->cursor, MenuCommonInfo->top_line, MenuItemBoardTotalLine, MENU_ITEM_BOARD_ROWS);
     MenuItemBrdCalcManner = 0;
-    itemmenu_chr_rotflag = 1;
+    itemmenu_chr_rotflag = true;
 
     if (!trush) {
         CMenuItemInfoPt->FadeInMenu(1, 0.0f);
@@ -7802,7 +7804,7 @@ static void MenuItemDebugKey() {
     item = CMenuItemInfoPt->view_weapon;
 
     switch (CMenuItemInfoPt->key_arg_no) {
-        case 2:
+        case ITEM_MENU_PANEL_BAG:
             if (MenuDebugModelDrawFlag == 0) {
                 s32              direction;
                 mgCCameraFollow *camera;
@@ -7816,27 +7818,27 @@ static void MenuItemDebugKey() {
 
                 direction = MenuCommonInfo->CheckSelectKey();
 
-                if (direction & 0x20) {
+                if (direction & MENU_SELECT_KEY_R1) {
                     CMenuItemInfoPt->debug_item_no += 0x40;
                 }
 
-                if (direction & 0x10) {
+                if (direction & MENU_SELECT_KEY_L1) {
                     CMenuItemInfoPt->debug_item_no -= 0x40;
                 }
 
-                if (direction & 1) {
+                if (direction & MENU_SELECT_KEY_UP) {
                     CMenuItemInfoPt->debug_item_no -= 8;
                 }
 
-                if (direction & 2) {
+                if (direction & MENU_SELECT_KEY_DOWN) {
                     CMenuItemInfoPt->debug_item_no += 8;
                 }
 
-                if (direction & 8) {
+                if (direction & MENU_SELECT_KEY_RIGHT) {
                     CMenuItemInfoPt->debug_item_no += 1;
                 }
 
-                if (direction & 4) {
+                if (direction & MENU_SELECT_KEY_LEFT) {
                     CMenuItemInfoPt->debug_item_no -= 1;
                 }
 
@@ -7846,11 +7848,11 @@ static void MenuItemDebugKey() {
                     count_step = 5;
                 }
 
-                if (direction & 0x80) {
+                if (direction & MENU_SELECT_KEY_R2) {
                     CMenuItemInfoPt->debug_item_count += count_step;
                 }
 
-                if (direction & 0x40) {
+                if (direction & MENU_SELECT_KEY_L2) {
                     CMenuItemInfoPt->debug_item_count -= count_step;
                 }
 
@@ -7887,21 +7889,21 @@ static void MenuItemDebugKey() {
                             CMenuItemInfoPt->debug_item_count);
 
                         if (CheckItemOver() &&
-                            (MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_TOWN ||
-                             MenuCommonInfo->open_type == (int) MENU_OPEN_MAIN_DUNGEON)) {
+                            (MenuCommonInfo->open_type == MENU_OPEN_MAIN_TOWN ||
+                             MenuCommonInfo->open_type == MENU_OPEN_MAIN_DUNGEON)) {
                             MenuCommonInfo->open_type += 0x10;
-                            ItemOverFlowCheckFlag = 1;
+                            ItemOverFlowCheckFlag = true;
                         }
 
                         if (CheckTrushMenu()) {
                             MenuItemBoardTotalNum = GetNowBagMax(1);
-                            MenuItem_ItemBoardTopLine = MenuItemBoardTotalNum / 6 - 5;
+                            MenuItem_ItemBoardTopLine = MenuItemBoardTotalNum / MENU_ITEM_BOARD_COLUMNS - MENU_ITEM_BOARD_ROWS;
                             MenuItem_ItemBoardTopSelect = GetNowBagMax(0);
                         }
 
-                        item_menu_argtbl[(int) ITEM_MENU_PANEL_BAG].max = MenuItemBoardTotalNum;
-                        MenuItemBoardTotalLine = MenuItemBoardTotalNum / 6;
-                        item_menu_argtbl[(int) ITEM_MENU_PANEL_BAG].rows = MenuItemBoardTotalLine;
+                        item_menu_argtbl[ITEM_MENU_PANEL_BAG].max = MenuItemBoardTotalNum;
+                        MenuItemBoardTotalLine = MenuItemBoardTotalNum / MENU_ITEM_BOARD_COLUMNS;
+                        item_menu_argtbl[ITEM_MENU_PANEL_BAG].rows = MenuItemBoardTotalLine;
                         CheckEnableHaveItemNum();
                     }
                 } else if (buttons & MENU_PUSH_BUTTON_L3) {
@@ -7923,7 +7925,7 @@ static void MenuItemDebugKey() {
                     MenuDebugStack.Align64();
 
                     buffer = MenuDebugStack.stGetTop();
-                    model_loaded = 0;
+                    model_loaded = false;
 
                     if (debug_common_data != NULL) {
                         model_path = GetItemFilePath(CMenuItemInfoPt->debug_item_no, 0);
@@ -7941,11 +7943,11 @@ static void MenuItemDebugKey() {
                             MenuDebugCamera->SetPos(0.0f, 0.0f, 100.0f);
                             MenuDebugSize = MenuDebugStack.stack_used - stack_used_before_load;
                             MenuDebugSize = MenuDebugSize * 16 / 1024;
-                            model_loaded = 1;
+                            model_loaded = true;
                         }
                     }
 
-                    if (model_loaded == 0) {
+                    if (model_loaded == false) {
                         buffer = MenuDebugStack.stGetTop();
                         LoadFile2(dbox_path, buffer, &file_size, LOAD_FILE_READ);
                         MenuDebugStack.Alloc(file_size / 16 + 1);
@@ -7980,10 +7982,10 @@ static void MenuItemDebugKey() {
                     MenuDebugItemModel->GetRotation(rotation);
                     x = GamePad__2.GetLXf() / 10.0f;
                     y = GamePad__2.GetLYf() / 10.0f;
-                    camera_control = 0;
+                    camera_control = false;
 
                     if (GamePad__2.On(PAD_L2)) {
-                        camera_control = 1;
+                        camera_control = true;
                     }
 
                     if (camera_control) {
@@ -8054,7 +8056,7 @@ static void MenuItemDebugKey() {
 
             break;
 
-        case 3: {
+        case ITEM_MENU_PANEL_CHARA: {
             CHARA_DATA *chara;
             s32         change_maximum;
 
@@ -8063,17 +8065,17 @@ static void MenuItemDebugKey() {
             if (chara != NULL) {
                 float health_input[2] = {0.0f, 0.0f};
                 MenuCommonInfo->CheckAnalogKey(0, health_input);
-                change_maximum = 0;
+                change_maximum = false;
 
                 if (GamePad__2.On(PAD_L2)) {
-                    change_maximum = 1;
+                    change_maximum = true;
                 }
 
-                if (change_maximum == 0) {
+                if (change_maximum == false) {
                     chara->hp.now = chara->hp.now + (float) (s32) health_input[0];
                 }
 
-                if (change_maximum == 1) {
+                if (change_maximum == true) {
                     chara->hp.max = chara->hp.max + (float) (s32) health_input[0];
                 }
 
@@ -8138,7 +8140,7 @@ static void MenuItemDebugKey() {
             return;
         }
 
-        case 4: {
+        case ITEM_MENU_PANEL_WEAPON: {
             s32 change_maximum;
             s32 change_durability;
             s32 change_experience;
@@ -8147,20 +8149,20 @@ static void MenuItemDebugKey() {
                 break;
             }
 
-            change_maximum = 0;
-            change_durability = 0;
-            change_experience = 0;
+            change_maximum = false;
+            change_durability = false;
+            change_experience = false;
 
             if (GamePad__2.On(PAD_L2 | PAD_R2)) {
-                change_durability = 1;
+                change_durability = true;
             }
 
             if (GamePad__2.On(PAD_L1 | PAD_R1)) {
-                change_experience = 1;
+                change_experience = true;
             }
 
             if (GamePad__2.On(PAD_L2 | PAD_L1)) {
-                change_maximum = 1;
+                change_maximum = true;
             }
 
             float gauge_input[2] = {0.0f, 0.0f};
@@ -8168,11 +8170,11 @@ static void MenuItemDebugKey() {
 
             if (item->used_type == USED_ITEM_TYPE_WEAPON) {
                 if (change_durability) {
-                    if (change_maximum == 0) {
+                    if (change_maximum == false) {
                         item->data.weapon.whp.now += gauge_input[0];
                     }
 
-                    if (change_maximum == 1) {
+                    if (change_maximum == true) {
                         item->data.weapon.whp.max += gauge_input[0];
                     }
 
@@ -8196,11 +8198,11 @@ static void MenuItemDebugKey() {
                 }
 
                 if (change_experience) {
-                    if (change_maximum == 0) {
+                    if (change_maximum == false) {
                         item->data.weapon.abs.now += gauge_input[0];
                     }
 
-                    if (change_maximum == 1) {
+                    if (change_maximum == true) {
                         item->data.weapon.abs.max += gauge_input[0];
                     }
 
@@ -8244,7 +8246,7 @@ static void MenuItemDebugKey() {
             return;
         }
 
-        case 5: {
+        case ITEM_MENU_PANEL_WEAPON_STATS: {
             s32          status_index;
             CDataWeapon *info;
 
@@ -8325,7 +8327,7 @@ static void MenuItemDebugKey() {
             break;
         }
 
-        case 6: {
+        case ITEM_MENU_PANEL_RIDEPOD: {
             float amount;
 
             amount = 1.0f;
@@ -8349,7 +8351,7 @@ static void MenuItemDebugKey() {
             return;
         }
 
-        case 7: {
+        case ITEM_MENU_PANEL_RIDEPOD_PARTS: {
             s32 status_index;
 
             CMenuKeyFunc *common = MenuCommonInfo;
@@ -8367,7 +8369,7 @@ static void MenuItemDebugKey() {
             break;
         }
 
-        case 10: {
+        case ITEM_MENU_PANEL_FISHING_ROD_STATS: {
             s32          status_index;
             CDataWeapon *info;
 
@@ -8410,17 +8412,17 @@ static void MenuItemDebugKey() {
             break;
         }
 
-        case 11:
+        case ITEM_MENU_PANEL_FISHING_BAIT:
             break;
     }
 
     switch (CMenuItemInfoPt->key_arg_no) {
-        case 5:
+        case ITEM_MENU_PANEL_WEAPON_STATS:
             if (item != NULL) {
                 CDataWeapon *info = GetWeaponInfoData(item->item_no);
 
                 if (buttons & MENU_PUSH_BUTTON_TRIANGLE) {
-                    item->data.weapon.status[0] = info->status_max[0];
+                    item->data.weapon.status[WEAPON_STAT_ATTACK] = info->status_max[WEAPON_STAT_ATTACK];
                     item->data.weapon.status[WEAPON_STAT_DURABILITY] = info->status_max[WEAPON_STAT_DURABILITY];
                     item->data.weapon.attribute[0] = info->attribute_max[0];
                     item->data.weapon.attribute[1] = info->attribute_max[1];
@@ -8502,7 +8504,7 @@ static void MenuItemDebugDraw() {
     char               text[0x100];
 
     switch (CMenuItemInfoPt->key_arg_no) {
-        case 2: {
+        case ITEM_MENU_PANEL_BAG: {
             tex_manager->ReloadTexture(MenuCommonInfo->tex_block[1], (sceVif1Packet *) NULL);
             SetSpriteEnv(&prim, 2);
             prim.Begin(MG_PRIM_SPRITE);
@@ -8660,7 +8662,7 @@ static void MenuItemDebugDraw() {
 
             break;
         }
-        case 3:
+        case ITEM_MENU_PANEL_CHARA:
             DrawMenuFillBox(236.0f, 60.0f, 230.0f, 200.0f, 0x80, 0, 0, 0);
             font->SetStr("HP control");
             font->SetPos(236, 60);
@@ -8703,7 +8705,7 @@ static void MenuItemDebugDraw() {
             font->SetPos(236, 200);
             font->DrawDirect(font->str, font->pos_x, font->pos_y);
             break;
-        case 4: {
+        case ITEM_MENU_PANEL_WEAPON: {
             DrawMenuFillBox(236.0f, 60.0f, 230.0f, 300.0f, 0x80, 0, 0, 0);
             font->SetStr("WHP control");
             font->SetPos(236, 60);
@@ -8768,7 +8770,7 @@ static void MenuItemDebugDraw() {
 
             break;
         }
-        case 5: {
+        case ITEM_MENU_PANEL_WEAPON_STATS: {
             if (weapon == NULL) {
                 break;
             }
@@ -8806,7 +8808,7 @@ static void MenuItemDebugDraw() {
             font->DrawDirect(font->str, font->pos_x, font->pos_y);
             break;
         }
-        case 6:
+        case ITEM_MENU_PANEL_RIDEPOD:
             DrawMenuFillBox(236.0f, 60.0f, 230.0f, 260.0f, 0x80, 0, 0, 0);
             font->SetStr("Change Abs");
             font->SetPos(236, 80);
@@ -8821,7 +8823,7 @@ static void MenuItemDebugDraw() {
             font->SetPos(236, 140);
             font->DrawDirect(font->str, font->pos_x, font->pos_y);
             break;
-        case 7: {
+        case ITEM_MENU_PANEL_RIDEPOD_PARTS: {
             DrawMenuFillBox(236.0f, 60.0f, 230.0f, 260.0f, 0x80, 0, 0, 0);
             int cursor = MenuCommonInfo->cursor;
 
@@ -8845,12 +8847,12 @@ static void MenuItemDebugDraw() {
 
             break;
         }
-        case 0:
-        case 1:
-        case 8:
-        case 9:
-        case 10:
-        case 11:
+        case ITEM_MENU_PANEL_ACTIVE_ITEMS:
+        case ITEM_MENU_PANEL_EQUIPMENT:
+        case ITEM_MENU_PANEL_MONSTER:
+        case ITEM_MENU_PANEL_FISHING_ROD:
+        case ITEM_MENU_PANEL_FISHING_ROD_STATS:
+        case ITEM_MENU_PANEL_FISHING_BAIT:
             break;
     }
 }

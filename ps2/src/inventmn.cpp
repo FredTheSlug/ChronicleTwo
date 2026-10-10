@@ -1381,7 +1381,7 @@ static int _PIC_INFO(SPI_STACK *stack, int unused) {
     unsigned int size;
     unsigned int blocks;
     pic_name_info_num = spiGetStackInt(stack);
-    size = pic_name_info_num * 8;
+    size = pic_name_info_num * sizeof(PIC_NAME_INFO);
 
     if (size & 0xF) {
         blocks = (size >> 4) + 1;
@@ -1390,7 +1390,7 @@ static int _PIC_INFO(SPI_STACK *stack, int unused) {
     }
 
     pic_name_info_top =
-        (PIC_NAME_INFO *) operator new[](pic_name_info_num * 8, PicNameStack->Alloc(blocks + 2));
+        (PIC_NAME_INFO *) operator new[](pic_name_info_num * sizeof(PIC_NAME_INFO), PicNameStack->Alloc(blocks + 2));
     pic_name_info_num_count = 0;
     return 1;
 }

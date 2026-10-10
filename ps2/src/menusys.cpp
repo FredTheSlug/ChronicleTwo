@@ -1,9 +1,3 @@
-/**
- *
- * Inventory slots available to the item selector.
- *
- */
-const int kBagSlotCount = 0x96;
 #include "common.h"
 #include "mw_runtime.h"
 
@@ -54,102 +48,82 @@ inline unsigned int QuadwordsFor(int bytes) {
     return ((unsigned int) bytes & 0xF) ? ((unsigned int) bytes >> 4) + 1 : ((unsigned int) bytes >> 4);
 }
 
-enum {
-    kPadUp = 1,
-    kPadDown = 2,
-    kPadLeft = 4,
-    kPadRight = 8
+/**
+ *
+ * Steps of spending a fishing rod's points, as CBaseMenuClass::step holds them in MENU_ASK_MODE_ROD_POINTS.
+ *
+ */
+// clang-format off
+enum MENU_ROD_POINTS_STEP {
+    MENU_ROD_POINTS_STEP_ADJUST          = 0, /**< Moving points between the rod's parameters. */
+    MENU_ROD_POINTS_STEP_CONFIRM_SAVE    = 1, /**< Asking whether to keep the new parameters. */
+    MENU_ROD_POINTS_STEP_CONFIRM_DISCARD = 2, /**< Asking whether to throw the changes away. */
 };
+
+// clang-format on
+/**
+ *
+ * Costs and limits of a fishing rod's parameters.
+ *
+ */
+// clang-format off
+enum MENU_ROD_POINTS {
+    MENU_ROD_POINTS_PER_LEVEL = 100, /**< Points one level of a parameter costs. */
+    MENU_ROD_PARAM_MAX        = 100, /**< Highest level of a parameter. */
+};
+
+// clang-format on
+/**
+ *
+ * Timing of the blink of the parameters a fusion raised.
+ *
+ */
+// clang-format off
+enum MENU_FUSION_BLINK {
+    MENU_FUSION_BLINK_PERIOD  = 0x3C, /**< Frames of one blink. */
+    MENU_FUSION_BLINK_LAST_ON = 0x19, /**< Last frame of a blink in which the parameters are lit. */
+};
+
+// clang-format on
 
 /**
  *
- * Identifies the inventory area currently used by the item menu.
+ * Colour channels of a parameter, normally and when a fusion raised it.
  *
  */
-enum ItemArea {
-    kAreaHand = 0,
-    kAreaEquip = 1,
-    kAreaRobo = 2,
-    kAreaBag = 3,
-    kAreaSelected = 7,
-    kAreaBait = 0xA
+// clang-format off
+enum MENU_FUSION_COLOR {
+    MENU_FUSION_COLOR_NORMAL   = 0x80, /**< Every channel of an unchanged parameter. */
+    MENU_FUSION_COLOR_RAISED_R = 0x54, /**< Red channel of a raised parameter. */
+    MENU_FUSION_COLOR_RAISED_G = 0x54, /**< Green channel of a raised parameter. */
+    MENU_FUSION_COLOR_RAISED_B = 0xA4, /**< Blue channel of a raised parameter. */
 };
 
+// clang-format on
 /**
  *
- * Tracks the item menu browsing and transformation states.
+ * What a button does in the item menu while no question is open, as CMenuItemInfo::PushKey decides it.
  *
  */
-enum ItemMenuState {
-    kStateBrowse = 0,
-    kStateClosing = 2,
-    kStateSpectolBreak = 7,
-    kStateSpectolFusion = 8,
-    kStateExtended9 = 9,
-    kStateOverLimit = 0xD,
-    kStateTuneBuildUp = 0xF
+// clang-format off
+enum MENU_ITEM_KEY_ACTION {
+    MENU_ITEM_KEY_ACTION_NONE           = 0,    /**< Nothing. */
+    MENU_ITEM_KEY_ACTION_DENIED         = 5,    /**< Plays the cancel sound. */
+    MENU_ITEM_KEY_ACTION_OPEN_COMMAND   = 10,   /**< Opens the command list of the item at the cursor. */
+    MENU_ITEM_KEY_ACTION_PLACE_ITEM     = 0x14, /**< Puts the carried item down, fuses it or uses it at the cursor. */
+    MENU_ITEM_KEY_ACTION_TAKE_ALL       = 0x1E, /**< Picks up the whole stack at the cursor. */
+    MENU_ITEM_KEY_ACTION_SORT_BAG       = 0x28, /**< Sorts the inventory. */
+    MENU_ITEM_KEY_ACTION_CANCEL         = 0x32, /**< Puts the carried item back, or closes the menu. */
+    MENU_ITEM_KEY_ACTION_USE_ON_CHARA   = 0x3C, /**< Equips or uses the carried item on the shown character. */
+    MENU_ITEM_KEY_ACTION_USE_ON_WEAPON  = 0x46, /**< Fuses or uses the carried item on the shown weapon. */
+    MENU_ITEM_KEY_ACTION_USE_ON_ROBO    = 0x50, /**< Fits or uses the carried item on the ridepod. */
+    MENU_ITEM_KEY_ACTION_USE_ON_MONSTER = 0x5A, /**< Uses the carried item on the monster form. */
+    MENU_ITEM_KEY_ACTION_LEAVE_PAGE     = 100,  /**< Puts the carried item back without reloading models. */
+    MENU_ITEM_KEY_ACTION_UNUSED         = 0x6E, /**< Does nothing. */
+    MENU_ITEM_KEY_ACTION_BUILD_UP_INFO  = 0x78, /**< Shows what the shown weapon can be built up into. */
 };
 
-/**
- *
- * Tracks the confirmation stage of weapon build-up tuning.
- *
- */
-enum TuneBuildUpStep {
-    kTuneAdjust = 0,
-    kTuneConfirmSave = 1,
-    kTuneConfirmDiscard = 2
-};
-
-/**
- *
- * Defines numeric limits used while tuning a weapon build-up.
- *
- */
-enum BuildUpTuning {
-    kPointsPerStep = 100,
-    kStatMax = 100
-};
-
-enum {
-    kBlinkPeriod = 0x3C,
-    kBlinkLastOn = 0x19
-};
-
-/**
- *
- * Defines the colours used to show a raised fusion value.
- *
- */
-enum FusionColors {
-    kColorNormal = 0x80,
-    kColorRaisedR = 0x54,
-    kColorRaisedG = 0x54,
-    kColorRaisedB = 0xA4
-};
-
-/**
- *
- * Identifies an action returned by the item menu.
- *
- */
-enum ItemMenuCommand {
-    kCmdNone = 0,
-    kCmdDenied = 5,
-    kCmdOpenCommandMenu = 10,
-    kCmdPlaceItem = 0x14,
-    kCmdTakeAll = 0x1E,
-    kCmdSortBag = 0x28,
-    kCmdCancel = 0x32,
-    kCmdUseOnChara = 0x3C,
-    kCmdFuseSelected = 0x46,
-    kCmdUseOnRobo = 0x50,
-    kCmdUseOnMonster = 0x5A,
-    kCmdCancelNoLoad = 100,
-    kCmdUnused = 0x6E,
-    kCmdBuildUpInfo = 0x78
-};
-
+// clang-format on
 void MenuAquaInit(mgCMemory *memory, int *data, int arg);
 void NameRegistInit(mgCMemory *memory, int *data, int arg);
 void MenuNPCQuestViewInit(mgCMemory *memory, int *data, int arg);
@@ -5121,12 +5095,12 @@ void MenuFormUpdataAttachInfo(CMenuPosDataForm *form, CGameDataUsed *item, int i
                 form->SetNumber(vol_name, param[i] - before[i]);
             }
 
-            form->SetPartRGBA(WepStatusInfoStrTable[i], kColorNormal, kColorNormal, kColorNormal, 0x80);
-            form->SetPartRGBA(vol_name, kColorNormal, kColorNormal, kColorNormal, 0x80);
+            form->SetPartRGBA(WepStatusInfoStrTable[i], MENU_FUSION_COLOR_NORMAL, MENU_FUSION_COLOR_NORMAL, MENU_FUSION_COLOR_NORMAL, 0x80);
+            form->SetPartRGBA(vol_name, MENU_FUSION_COLOR_NORMAL, MENU_FUSION_COLOR_NORMAL, MENU_FUSION_COLOR_NORMAL, 0x80);
 
             if (raised[i]) {
-                form->SetPartRGBA(WepStatusInfoStrTable[i], kColorRaisedR, kColorRaisedG, kColorRaisedB, 0x80);
-                form->SetPartRGBA(vol_name, kColorRaisedR, kColorRaisedG, kColorRaisedB, 0x80);
+                form->SetPartRGBA(WepStatusInfoStrTable[i], MENU_FUSION_COLOR_RAISED_R, MENU_FUSION_COLOR_RAISED_G, MENU_FUSION_COLOR_RAISED_B, 0x80);
+                form->SetPartRGBA(vol_name, MENU_FUSION_COLOR_RAISED_R, MENU_FUSION_COLOR_RAISED_G, MENU_FUSION_COLOR_RAISED_B, 0x80);
             }
         }
 
@@ -8942,10 +8916,10 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
     short state = this->mode;
 
     switch (state) {
-        case kStateBrowse: {
+        case MENU_ASK_MODE_NONE: {
             held_item_no = MenuCommonInfo->have_item.item_no;
             cursor = MenuCommonInfo->select_pos[0];
-            command = kCmdNone;
+            command = MENU_ITEM_KEY_ACTION_NONE;
             target = NULL;
             area = -1;
             chara = MenuUserParam.chara[this->sub_view];
@@ -8965,26 +8939,26 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
             switch (this->key_arg_no) {
                 case 0:
                     target = &chara->active_item[cursor];
-                    swap.Set(kAreaHand, cursor, this->sub_view, 0);
-                    area = kAreaHand;
+                    swap.Set(MENU_SWAP_TYPE_ACTIVE_ITEM, cursor, this->sub_view, 0);
+                    area = MENU_SWAP_TYPE_ACTIVE_ITEM;
 
                     switch (trigger) {
                         case 4:
-                            command = kCmdPlaceItem;
+                            command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             break;
                         case 8:
-                            command = kCmdTakeAll;
+                            command = MENU_ITEM_KEY_ACTION_TAKE_ALL;
                             break;
                         case 1:
-                            command = kCmdOpenCommandMenu;
+                            command = MENU_ITEM_KEY_ACTION_OPEN_COMMAND;
 
                             if (held_item_no > 0) {
-                                command = kCmdPlaceItem;
+                                command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             }
 
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                     }
 
@@ -8993,23 +8967,23 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     fusion_target = 1;
                     target = &chara->equip[cursor];
                     swap.Set(fusion_target, cursor, this->sub_view, 0);
-                    area = kAreaEquip;
+                    area = MENU_SWAP_TYPE_EQUIP;
 
                     switch (trigger) {
                         case 4:
                         case 8:
-                            command = kCmdPlaceItem;
+                            command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             break;
                         case 1:
-                            command = kCmdOpenCommandMenu;
+                            command = MENU_ITEM_KEY_ACTION_OPEN_COMMAND;
 
                             if (held_item_no > 0) {
-                                command = kCmdPlaceItem;
+                                command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             }
 
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                     }
 
@@ -9017,29 +8991,29 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                 case 2:
                     fusion_target = 1;
                     target = &MenuUserParam.used_data[cursor];
-                    swap.Set(kAreaBag, cursor, -1, 0);
-                    area = kAreaBag;
+                    swap.Set(MENU_SWAP_TYPE_ITEM_BOARD, cursor, -1, 0);
+                    area = MENU_SWAP_TYPE_ITEM_BOARD;
 
                     switch (trigger) {
                         case 4:
-                            command = kCmdPlaceItem;
+                            command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             break;
                         case 8:
-                            command = kCmdTakeAll;
+                            command = MENU_ITEM_KEY_ACTION_TAKE_ALL;
                             break;
                         case 1:
-                            command = kCmdOpenCommandMenu;
+                            command = MENU_ITEM_KEY_ACTION_OPEN_COMMAND;
 
                             if (held_item_no > 0) {
-                                command = kCmdPlaceItem;
+                                command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             }
 
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                         case 32:
-                            command = kCmdSortBag;
+                            command = MENU_ITEM_KEY_ACTION_SORT_BAG;
                             break;
                     }
 
@@ -9049,10 +9023,10 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         case 4:
                         case 8:
                         case 1:
-                            command = kCmdUseOnChara;
+                            command = MENU_ITEM_KEY_ACTION_USE_ON_CHARA;
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                     }
 
@@ -9061,24 +9035,24 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                 case 9:
                     fusion_target = 1;
                     target = this->view_weapon;
-                    swap.Set(kAreaSelected, -1, -1, 0);
-                    area = kAreaSelected;
+                    swap.Set(MENU_SWAP_TYPE_VIEW_WEAPON, -1, -1, 0);
+                    area = MENU_SWAP_TYPE_VIEW_WEAPON;
 
                     if (trigger != 2) {
                         switch (trigger) {
                             case 4:
                             case 8:
                             case 1:
-                                command = kCmdOpenCommandMenu;
+                                command = MENU_ITEM_KEY_ACTION_OPEN_COMMAND;
 
                                 if (0 < held_item_no) {
-                                    command = kCmdFuseSelected;
+                                    command = MENU_ITEM_KEY_ACTION_USE_ON_WEAPON;
                                 }
 
                                 break;
                         }
                     } else {
-                        command = kCmdCancel;
+                        command = MENU_ITEM_KEY_ACTION_CANCEL;
                     }
 
                     break;
@@ -9087,10 +9061,10 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         case 4:
                         case 8:
                         case 1:
-                            command = kCmdDenied;
+                            command = MENU_ITEM_KEY_ACTION_DENIED;
                             break;
                         case 2:
-                            command = kCmdCancelNoLoad;
+                            command = MENU_ITEM_KEY_ACTION_LEAVE_PAGE;
                             break;
                     }
 
@@ -9100,10 +9074,10 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         case 4:
                         case 8:
                         case 1:
-                            command = kCmdDenied;
+                            command = MENU_ITEM_KEY_ACTION_DENIED;
                             break;
                         case 2:
-                            command = kCmdCancelNoLoad;
+                            command = MENU_ITEM_KEY_ACTION_LEAVE_PAGE;
                             break;
                     }
 
@@ -9113,10 +9087,10 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         case 4:
                         case 8:
                         case 1:
-                            command = kCmdUseOnRobo;
+                            command = MENU_ITEM_KEY_ACTION_USE_ON_ROBO;
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                     }
 
@@ -9124,24 +9098,24 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                 case 7: {
                     signed char robo_slot = MenuRoboEquipTable[cursor];
                     target = &MenuUserParam.robo->parts[robo_slot];
-                    swap.Set(kAreaRobo, robo_slot, 2, 0);
-                    area = kAreaRobo;
+                    swap.Set(MENU_SWAP_TYPE_ROBO_PART, robo_slot, 2, 0);
+                    area = MENU_SWAP_TYPE_ROBO_PART;
 
                     switch (trigger) {
                         case 4:
                         case 8:
-                            command = kCmdPlaceItem;
+                            command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             break;
                         case 1:
-                            command = kCmdOpenCommandMenu;
+                            command = MENU_ITEM_KEY_ACTION_OPEN_COMMAND;
 
                             if (0 < held_item_no) {
-                                command = kCmdPlaceItem;
+                                command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             }
 
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                     }
 
@@ -9152,36 +9126,36 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         case 4:
                         case 8:
                         case 1:
-                            command = kCmdUseOnMonster;
+                            command = MENU_ITEM_KEY_ACTION_USE_ON_MONSTER;
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                     }
 
                     break;
                 case 11:
                     target = GetUserDataMan()->GetActiveEsa();
-                    swap.Set(kAreaBait, cursor, this->sub_view, 0);
-                    area = kAreaBait;
+                    swap.Set(MENU_SWAP_TYPE_ACTIVE_ESA, cursor, this->sub_view, 0);
+                    area = MENU_SWAP_TYPE_ACTIVE_ESA;
 
                     switch (trigger) {
                         case 4:
-                            command = kCmdPlaceItem;
+                            command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             break;
                         case 8:
-                            command = kCmdTakeAll;
+                            command = MENU_ITEM_KEY_ACTION_TAKE_ALL;
                             break;
                         case 1:
-                            command = kCmdOpenCommandMenu;
+                            command = MENU_ITEM_KEY_ACTION_OPEN_COMMAND;
 
                             if (held_item_no > 0) {
-                                command = kCmdPlaceItem;
+                                command = MENU_ITEM_KEY_ACTION_PLACE_ITEM;
                             }
 
                             break;
                         case 2:
-                            command = kCmdCancel;
+                            command = MENU_ITEM_KEY_ACTION_CANCEL;
                             break;
                     }
 
@@ -9199,10 +9173,10 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
             this->SaveViewWeaponStatus();
 
             switch (command) {
-                case kCmdDenied:
+                case MENU_ITEM_KEY_ACTION_DENIED:
                     MenuSePlay(5);
                     break;
-                case kCmdOpenCommandMenu:
+                case MENU_ITEM_KEY_ACTION_OPEN_COMMAND:
                     if (MenuItemMoveItemCommand(target, area, 5, MenuMesForm[5],
                                                 GetActiveCharaIDForItemCmd()) != 0) {
                         CMenuPosDataForm *form = MenuCommonInfo->cursor_form;
@@ -9213,7 +9187,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdPlaceItem:
+                case MENU_ITEM_KEY_ACTION_PLACE_ITEM:
                     if (fusion_target != 0 &&
                         this->CheckSpectolFusion(target, 4, message_form) != 0) {
                         CMenuPosDataForm *form = MenuCommonInfo->cursor_form;
@@ -9238,7 +9212,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
 
                                 if (moved > 0) {
                                     switch (area) {
-                                        case kAreaEquip:
+                                        case MENU_SWAP_TYPE_EQUIP:
                                             this->CheckLoadInfo(this->sub_view);
                                             MenuLoadInfo.request_phase =
                                                 ConvertCharaLoadDataPhase(this->sub_view, cursor);
@@ -9246,7 +9220,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                                             MenuLoadInfo.load_all = 0;
                                             this->ModelReadStart(this->view_mode, 1, 1);
                                             break;
-                                        case kAreaRobo:
+                                        case MENU_SWAP_TYPE_ROBO_PART:
                                             this->CheckLoadInfo(2);
                                             MenuLoadInfo.request_phase = ConvertCharaLoadDataPhase(
                                                 2, MenuRoboEquipTable[cursor]);
@@ -9288,7 +9262,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdTakeAll:
+                case MENU_ITEM_KEY_ACTION_TAKE_ALL:
                     if (MenuCommonInfo->EnableSwapNowPos(&swap) == 0 ||
                         MenuCommonInfo->have_item.item_no <= 0) {
                         MenuCommonInfo->GetItemAll(target, &swap);
@@ -9296,7 +9270,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdSortBag: {
+                case MENU_ITEM_KEY_ACTION_SORT_BAG: {
                     int           found = 0;
                     CGameDataUsed saved_item;
                     short         view_mode = this->view_mode;
@@ -9327,7 +9301,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     MenuSePlay(1);
                     break;
                 }
-                case kCmdUseOnChara:
+                case MENU_ITEM_KEY_ACTION_USE_ON_CHARA:
                     switch (item_type) {
                         case 3:
                         case 4:
@@ -9373,7 +9347,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdFuseSelected:
+                case MENU_ITEM_KEY_ACTION_USE_ON_WEAPON:
                     if (this->CheckSpectolFusion(this->view_weapon, 4, message_form) != 0) {
                         CMenuPosDataForm *form = MenuCommonInfo->cursor_form;
 
@@ -9397,7 +9371,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdUseOnRobo:
+                case MENU_ITEM_KEY_ACTION_USE_ON_ROBO:
                     switch (item_type) {
                         case 3:
                         case 4:
@@ -9434,7 +9408,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdUseOnMonster:
+                case MENU_ITEM_KEY_ACTION_USE_ON_MONSTER:
                     item_used = MenuItemUse.UseItem(held_item, ITEM_USE_TARGET_MONSTER, MenuUserParam.monster);
                     MenuCommonInfo->SetHaveItemInfo(1, 1);
 
@@ -9447,7 +9421,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdCancel:
+                case MENU_ITEM_KEY_ACTION_CANCEL:
                     if (this->IsCancelLoadItem() == 2) {
                         int over_item_no;
                         leaving = 1;
@@ -9456,7 +9430,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         if (CheckItemOver() != 0 || over_item_no != 0) {
                             CDC2Mes *msg;
                             leaving = 0;
-                            this->mode = kStateOverLimit;
+                            this->mode = MENU_ASK_MODE_ITEM_OVER;
                             MenuMesForm[7]->draw_flag = 1;
                             msg = MenuDCMsg[7];
                             msg->MsgPreset(0xA);
@@ -9482,12 +9456,12 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kCmdCancelNoLoad:
+                case MENU_ITEM_KEY_ACTION_LEAVE_PAGE:
                     this->IsCancelNoneLoadItem();
                     break;
-                case kCmdUnused:
+                case MENU_ITEM_KEY_ACTION_UNUSED:
                     break;
-                case kCmdBuildUpInfo:
+                case MENU_ITEM_KEY_ACTION_BUILD_UP_INFO:
                     this->NextModeBuildUpInfo(this->view_weapon);
                     break;
             }
@@ -9497,7 +9471,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
             }
 
             if (leaving == 1) {
-                this->mode = kStateClosing;
+                this->mode = MENU_ASK_MODE_CLOSE;
                 MenuCommonInfo->key_enable = 0;
                 MenuRepairMan->Clear();
 
@@ -9578,9 +9552,9 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
 
             break;
         }
-        case kStateOverLimit:
+        case MENU_ASK_MODE_ITEM_OVER:
             if (trigger != 0) {
-                this->mode = kStateBrowse;
+                this->mode = MENU_ASK_MODE_NONE;
                 MenuMesForm[7]->draw_flag = 0;
                 CMenuPosDataForm *form = MenuCommonInfo->cursor_form;
 
@@ -9592,16 +9566,16 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
             }
 
             break;
-        case kStateTuneBuildUp: {
+        case MENU_ASK_MODE_ROD_POINTS: {
             switch (this->step) {
-                case kTuneAdjust: {
+                case MENU_ROD_POINTS_STEP_ADJUST: {
                     int previous = MenuCommonInfo->select_pos[0];
 
-                    if (pad & kPadUp) {
+                    if (pad & MENU_SELECT_KEY_UP) {
                         MenuCommonInfo->select_pos[0] = previous - 1;
                     }
 
-                    if (pad & kPadDown) {
+                    if (pad & MENU_SELECT_KEY_DOWN) {
                         MenuCommonInfo->select_pos[0] += 1;
                     }
 
@@ -9620,24 +9594,24 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     CGameDataUsed *item = this->view_weapon;
                     WEAPON_USED   *saved_weapon = &SpectolInfoStay.data.weapon;
                     WEAPON_USED   *weapon = &item->data.weapon;
-                    int            spare_points = weapon->fusion_point / kPointsPerStep;
+                    int            spare_points = weapon->fusion_point / MENU_ROD_POINTS_PER_LEVEL;
                     int            selected = MenuCommonInfo->select_pos[0];
                     short          value = weapon->attribute[selected];
 
                     if (0 < value - saved_weapon->attribute[selected]) {
                         if (0 < value) {
-                            if (pad & kPadLeft) {
+                            if (pad & MENU_SELECT_KEY_LEFT) {
                                 weapon->attribute[selected] = value - 1;
-                                weapon->fusion_point += kPointsPerStep;
+                                weapon->fusion_point += MENU_ROD_POINTS_PER_LEVEL;
                                 MenuSePlay(0);
                             }
                         }
                     }
 
                     if (0 < spare_points) {
-                        if (weapon->attribute[MenuCommonInfo->select_pos[0]] < kStatMax &&
-                            (pad & kPadRight)) {
-                            weapon->fusion_point -= kPointsPerStep;
+                        if (weapon->attribute[MenuCommonInfo->select_pos[0]] < MENU_ROD_PARAM_MAX &&
+                            (pad & MENU_SELECT_KEY_RIGHT)) {
+                            weapon->fusion_point -= MENU_ROD_POINTS_PER_LEVEL;
                             weapon->attribute[MenuCommonInfo->select_pos[0]] += 1;
 
                             if (weapon->fusion_point < 0) {
@@ -9661,51 +9635,51 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         } while (i < 5);
 
                         if (changed != 0) {
-                            this->step = kTuneConfirmSave;
+                            this->step = MENU_ROD_POINTS_STEP_CONFIRM_SAVE;
                             this->ExeScript("FPOK");
                             MenuSePlay(1);
                         } else {
                             MenuSePlay(5);
                         }
                     } else if (trigger & 2) {
-                        this->step = kTuneConfirmDiscard;
+                        this->step = MENU_ROD_POINTS_STEP_CONFIRM_DISCARD;
                         this->ExeScript("FPCANCEL");
                     }
 
                     break;
                 }
-                case kTuneConfirmSave: {
+                case MENU_ROD_POINTS_STEP_CONFIRM_SAVE: {
                     int answer = MenuDCMsg[7]->YesNoCursor2(0);
 
                     if (answer == 1) {
                         MenuSePlay(0x1E);
                         this->viewing_weapon = 0;
-                        this->mode = kStateBrowse;
+                        this->mode = MENU_ASK_MODE_NONE;
                         this->ExeScript("RET_FPMODE");
                     }
 
                     if (answer == 2) {
-                        this->step = kTuneAdjust;
+                        this->step = MENU_ROD_POINTS_STEP_ADJUST;
                         this->ExeScript("RET_FPMODE");
                         MenuSePlay(5);
                     }
 
                     break;
                 }
-                case kTuneConfirmDiscard: {
+                case MENU_ROD_POINTS_STEP_CONFIRM_DISCARD: {
                     int answer = MenuDCMsg[7]->YesNoCursor2(0);
 
                     if (answer == 1) {
                         this->view_weapon->CopyGameData(&SpectolInfoStay);
                         this->viewing_weapon = 0;
-                        this->mode = kStateBrowse;
-                        this->step = kTuneAdjust;
+                        this->mode = MENU_ASK_MODE_NONE;
+                        this->step = MENU_ROD_POINTS_STEP_ADJUST;
                         this->ExeScript("RET_FPMODE");
                         MenuSePlay(1);
                     }
 
                     if (answer == 2) {
-                        this->step = kTuneAdjust;
+                        this->step = MENU_ROD_POINTS_STEP_ADJUST;
                         this->ExeScript("RET_FPMODE");
                         MenuSePlay(5);
                     }
@@ -9721,7 +9695,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
             int        extend_result = this->ExtendCommand(pad, trigger);
 
             switch (this->mode) {
-                case kStateSpectolBreak:
+                case MENU_ASK_MODE_SPECTOL:
                     if (extend_result == 2) {
                         SetEffectSpectolBreak(load_stack, MenuEffect[0], (this->ask_para.item)->item_no);
                         MenuCommonInfo->FadeOutMenuBGMVol(-6, 0x18);
@@ -9749,7 +9723,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kStateSpectolFusion:
+                case MENU_ASK_MODE_FUSION:
                     /**
                      *
                      * Blink counter of the raised fusion parameters.
@@ -9759,7 +9733,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
 
                     fusion_blinkcnt += 1;
 
-                    if (fusion_blinkcnt >= kBlinkPeriod) {
+                    if (fusion_blinkcnt >= MENU_FUSION_BLINK_PERIOD) {
                         fusion_blinkcnt = 0;
                     }
 
@@ -9847,7 +9821,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         MENUFORMPARTS_TYPE *volume_part;
                         blink_on = 1;
 
-                        if (fusion_blinkcnt > kBlinkLastOn) {
+                        if (fusion_blinkcnt > MENU_FUSION_BLINK_LAST_ON) {
                             blink_on = 0;
                         }
 
@@ -9858,20 +9832,20 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                             volume_part = BuildUpFormInfoStatusVol[i];
 
                             if (index_part != NULL && volume_part != NULL) {
-                                index_part->rgba[0] = kColorNormal;
-                                index_part->rgba[1] = kColorNormal;
-                                index_part->rgba[2] = kColorNormal;
-                                volume_part->rgba[0] = kColorNormal;
-                                volume_part->rgba[1] = kColorNormal;
-                                volume_part->rgba[2] = kColorNormal;
+                                index_part->rgba[0] = MENU_FUSION_COLOR_NORMAL;
+                                index_part->rgba[1] = MENU_FUSION_COLOR_NORMAL;
+                                index_part->rgba[2] = MENU_FUSION_COLOR_NORMAL;
+                                volume_part->rgba[0] = MENU_FUSION_COLOR_NORMAL;
+                                volume_part->rgba[1] = MENU_FUSION_COLOR_NORMAL;
+                                volume_part->rgba[2] = MENU_FUSION_COLOR_NORMAL;
 
                                 if (0 < save_spectol_fusion_param[i] && blink_on != 0) {
-                                    index_part->rgba[0] = kColorRaisedR;
-                                    index_part->rgba[1] = kColorRaisedG;
-                                    index_part->rgba[2] = kColorRaisedB;
-                                    volume_part->rgba[0] = kColorRaisedR;
-                                    volume_part->rgba[1] = kColorRaisedG;
-                                    volume_part->rgba[2] = kColorRaisedB;
+                                    index_part->rgba[0] = MENU_FUSION_COLOR_RAISED_R;
+                                    index_part->rgba[1] = MENU_FUSION_COLOR_RAISED_G;
+                                    index_part->rgba[2] = MENU_FUSION_COLOR_RAISED_B;
+                                    volume_part->rgba[0] = MENU_FUSION_COLOR_RAISED_R;
+                                    volume_part->rgba[1] = MENU_FUSION_COLOR_RAISED_G;
+                                    volume_part->rgba[2] = MENU_FUSION_COLOR_RAISED_B;
                                 }
                             }
 
@@ -9880,7 +9854,7 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     }
 
                     break;
-                case kStateExtended9:
+                case MENU_ASK_MODE_TRUSH:
                     if (extend_result == 2 && this->view_mode == MENU_ITEM_VIEW_WEAPON) {
                         if (this->view_weapon == this->ask_para.item && (this->ask_para.item)->item_no <= 0) {
                             this->ReturnActiveCharaViewMode(0);
@@ -9890,13 +9864,13 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     break;
             }
 
-            if (state == kStateSpectolFusion) {
+            if (state == MENU_ASK_MODE_FUSION) {
                 if (extend_result != 0 && MenuSpectolSatusCheckForm != NULL) {
                     MenuSpectolSatusCheckForm->SetAction("\x8A\x4F\x82\xD6");
                 }
             }
 
-            if (state == kStateSpectolBreak && extend_result != 0) {
+            if (state == MENU_ASK_MODE_SPECTOL && extend_result != 0) {
                 if (MenuSpectolSatusCheckForm != NULL) {
                     MenuSpectolSatusCheckForm->SetAction("\x8A\x4F\x82\xD6");
                 }
@@ -9915,14 +9889,14 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                     form->draw_flag = 1;
                 }
 
-                if (state == kStateSpectolBreak) {
+                if (state == MENU_ASK_MODE_SPECTOL) {
                     if (extend_result == 4 && this->view_mode == MENU_ITEM_VIEW_WEAPON &&
                         (void *) this->view_weapon == Save_AskParamInfo) {
                         this->ReturnActiveCharaViewMode(0);
                     }
                 }
 
-                if (state == kStateSpectolFusion) {
+                if (state == MENU_ASK_MODE_FUSION) {
                     int i = 0;
 
                     do {
@@ -9930,12 +9904,12 @@ int CMenuItemInfo::PushKey(int pad, int trigger) {
                         MENUFORMPARTS_TYPE *volume = BuildUpFormInfoStatusVol[i];
 
                         if (index != NULL && volume != NULL) {
-                            index->rgba[0] = kColorNormal;
-                            index->rgba[1] = kColorNormal;
-                            index->rgba[2] = kColorNormal;
-                            volume->rgba[0] = kColorNormal;
-                            volume->rgba[1] = kColorNormal;
-                            volume->rgba[2] = kColorNormal;
+                            index->rgba[0] = MENU_FUSION_COLOR_NORMAL;
+                            index->rgba[1] = MENU_FUSION_COLOR_NORMAL;
+                            index->rgba[2] = MENU_FUSION_COLOR_NORMAL;
+                            volume->rgba[0] = MENU_FUSION_COLOR_NORMAL;
+                            volume->rgba[1] = MENU_FUSION_COLOR_NORMAL;
+                            volume->rgba[2] = MENU_FUSION_COLOR_NORMAL;
                         }
 
                         i += 1;
@@ -12310,7 +12284,7 @@ void CItemSelect::SetPtrList() {
     item_num = 0;
     entries = MenuUserParam.used_data;
 
-    for (i = 0; i < kBagSlotCount; i++) {
+    for (i = 0; i < MENU_BAG_PLACE_MAX; i++) {
         if (entries[i].item_no > 0 && !(0 < entries[i].GetSpectolNo()) &&
             entries[i].used_type != USED_ITEM_TYPE_BOILED) {
             item_list[item_num] = &entries[i];
@@ -12324,7 +12298,7 @@ void CItemSelect::SetPtrList() {
         }
     }
 
-    for (i = item_num; i < kBagSlotCount; i++) {
+    for (i = item_num; i < MENU_BAG_PLACE_MAX; i++) {
         item_list[i] = NULL;
     }
 

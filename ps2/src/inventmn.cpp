@@ -2867,7 +2867,7 @@ void CMenuInvent::EnterDataMenu(u8 *pack) {
 
 int CMenuInvent::ItemCmdAfter(int command, ITEMCMD_RET_PARA *para) {
     if (para->menu_cmd >= -1) {
-        MenuSePlay(para->cmd);
+        MenuSePlay(para->se_no);
         signed char result = para->menu_cmd;
 
         switch (result) {
@@ -2950,8 +2950,6 @@ static short sndtimetbl_2868[2] = {
  *
  */
 static float eff_light_2927[4] = {255.0f, 255.0f, 255.0f, 128.0f};
-
-#pragma inline_depth(5)
 
 int CMenuInvent::IsCreateObject(int mode, int keys) {
     CActionChara      *action_chara = MenuActionChara[0];
@@ -3554,8 +3552,6 @@ int CMenuInvent::IsCreateObject(int mode, int keys) {
 
     return 1;
 }
-
-#pragma inline_depth reset
 
 void CMenuInvent::CalcMakeBrd(int message_index) {
     if (makebrd_form != NULL && makebrd_form->draw_flag) {
@@ -6783,7 +6779,7 @@ static int MenuInventPushKey(int pad, int pushed) {
         int                swap_slot = CMenuInventPt->item_cursor;
         CGameDataUsed     *item = &MenuUserParam.used_data[swap_slot];
         MENU_SWAPITEM_INFO swap_info;
-        swap_info.Set(MENU_SWAP_TYPE_UNK_4, swap_slot, -1, 0);
+        swap_info.Set(MENU_SWAP_TYPE_INVENT_ITEM, swap_slot, -1, 0);
         int next_mode = -1;
 
         if (mode_changed == 0) {
@@ -7366,13 +7362,13 @@ int MenuInventKey() {
                 CMenuInventPt->InitEnd();
                 CMenuInventPt->mode = MENU_ASK_MODE_NONE;
                 CMenuInventPt->opened = true;
-                CMenuInventPt->unk_10 = 0x80;
+                CMenuInventPt->fade_alpha = 0x80;
             }
 
             break;
         case MENU_ASK_MODE_CLOSE:
             if ((CMenuInventPt->photo_only == 0 && GetMenuMainFrameEndFlag() != 0) ||
-                (CMenuInventPt->photo_only == 1 && CalcMenuAdd(&CMenuInventPt->unk_10, -8, 0) != 0)) {
+                (CMenuInventPt->photo_only == 1 && CalcMenuAdd(&CMenuInventPt->fade_alpha, -8, 0) != 0)) {
                 CMenuInventPt->ExitEnd();
                 result = 1;
 

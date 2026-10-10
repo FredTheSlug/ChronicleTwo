@@ -136,8 +136,6 @@ void SendDMA(void *packet, int size) {
     buff_id = !buff_id;
 }
 
-#pragma global_optimizer off
-
 int mgSetPkTEX0(u_int *packet, unsigned long tex0, unsigned long tex1) {
     *(u_long128 *) packet = *(u_long128 *) &set_tex0_dma;
     *(u_long128 *) (packet + 4) = *(u_long128 *) &set_tex0_giftag;
@@ -147,9 +145,6 @@ int mgSetPkTEX0(u_int *packet, unsigned long tex0, unsigned long tex1) {
     *(unsigned long *) (packet + 14) = 6;
     return 4;
 }
-
-#pragma global_optimizer reset
-#pragma global_optimizer off
 
 int mgSetPkTEX0(u_int *packet, unsigned long tex0, unsigned long tex1, unsigned long texa) {
     *(u_long128 *) packet = *(u_long128 *) &set_texa_dma;
@@ -162,8 +157,6 @@ int mgSetPkTEX0(u_int *packet, unsigned long tex0, unsigned long tex1, unsigned 
     *(unsigned long *) (packet + 18) = 0x3B;
     return 5;
 }
-
-#pragma global_optimizer reset
 
 int mgSetPkTexFlush_TagCnt(u_int *buffer) {
     if (buffer == NULL) {
@@ -1007,7 +1000,6 @@ u_long128 *SetData5(int count, int type, int **index, u_long128 *packet, u_long1
  * Writes the indexed vertex streams for one vertex batch.
  *
  */
-#pragma global_optimizer off
 
 u_long128 *SetData6(int count, int type, int **index, u_long128 *packet, u_long128 *vertex, u_long128 *normal, u_long128 *uv, u_long128 *colour) {
     int       *cursor;
@@ -1035,8 +1027,6 @@ u_long128 *SetData6(int count, int type, int **index, u_long128 *packet, u_long1
     *index = cursor;
     return vertex_out;
 }
-
-#pragma global_optimizer reset
 
 /**
  *

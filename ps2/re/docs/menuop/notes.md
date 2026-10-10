@@ -168,3 +168,10 @@ for menu message coordinates. The other eight rows supply stack space needed
 for the exact 0x1A0-byte frame and have no observed use. A natural source form
 that preserves the frame and retail instruction order remains a source cleanup
 blocker. Keep the exact match for review while searching for that form.
+
+## Enum notes
+
+- `SubGameSaveMode`: `SubGameSaveOrLoad` is 0 when the mini-game menu saves (open type 0x1A, `MENU_OPEN_SUBGAME_SAVE`) and 1 when it loads from the title screen (open type 0x1B, `MENU_OPEN_TITLE_SUBGAME_SAVE`).
+- `MovieBattleBGMStep`: the battle music volume phase of a manual movie played in a dungeon. Phase 1 saves the volume and mutes, phases 2 and 3 fade it out and back in, and phase 4 holds the saved level.
+- `OPTION_ITEM_UNK_9`: option line 9 writes `config.unk_24`; its purpose is unknown.
+- `MENU_OPEN_GYORACE_LOAD` (30): `menuaqua` passes this open type to `MenuSaveInit` from the fish race menu, which loads a saved game's fish.

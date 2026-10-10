@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "actionchara.hpp"
 #include "automap.hpp"
 #include "cameracontrol.hpp"
 #include "dng_debug.hpp"
@@ -30,19 +31,52 @@
 #include "prespr.hpp"
 #include "savedatadungeon.hpp"
 #include "sceneevent.hpp"
+#include "scenesnd.hpp"
 #include "snd_seseq.hpp"
+#include "subgame.hpp"
 #include "userdata.hpp"
 
+/**
+ *
+ * Angle of the rotating active item cursor, in radians.
+ *
+ */
 static float cur_ang_1005;
-static s8    init_1006;
-static float palanim_1023;
-static s8    init_1024;
-static float palanim_1222;
-static s8    init_1223;
 
-#include "actionchara.hpp"
-#include "scenesnd.hpp"
-#include "subgame.hpp"
+/**
+ *
+ * Whether cur_ang_1005 has been given its starting angle.
+ *
+ */
+static s8 init_1006;
+
+/**
+ *
+ * Phase of the low-gauge flash on the main characters' status board.
+ *
+ */
+static float palanim_1023;
+
+/**
+ *
+ * Whether palanim_1023 has been given its starting phase.
+ *
+ */
+static s8 init_1024;
+
+/**
+ *
+ * Phase of the low-gauge flash on the robot's status board.
+ *
+ */
+static float palanim_1222;
+
+/**
+ *
+ * Whether palanim_1222 has been given its starting phase.
+ *
+ */
+static s8 init_1223;
 
 void PrintV(int x, int y, int value, mgCTexture *texture, mgRect<int> rect, int digit_count,
             int right_align, int spacing, SP_RGBA *color) {
@@ -83,12 +117,12 @@ void PrintV(int x, int y, int value, mgCTexture *texture, mgRect<int> rect, int 
 
     CPreSprite sprite;
     CPreSprite spare;
-    sprite.Initialize(0, 0);
+    sprite.Initialize(NULL, NULL);
     sprite.Preset2D();
     sprite.Begin(MG_PRIM_SPRITE);
     sprite.Texture(texture);
 
-    if (color != 0) {
+    if (color != NULL) {
         sprite.Color(color->r, color->g, color->b, color->a);
     } else {
         sprite.Color(0x80, 0x80, 0x80, 0x80);
@@ -153,7 +187,7 @@ void DrawActiveItemCursor(int x, int y, float alpha) {
     float      corner[4];
     float      u;
     float      v;
-    sprite.Initialize(0, 0);
+    sprite.Initialize(NULL, NULL);
     sprite.Preset2D();
     sprite.Bilinear(1);
     sprite.Begin(MG_PRIM_TRIANGLE);
@@ -161,15 +195,15 @@ void DrawActiveItemCursor(int x, int y, float alpha) {
     sprite.SetAlphaBlend(MG_ALPHA_BLEND_ADD);
     sprite.Color(0x80, 0x80, 0x80, fptosi(128.0f * alpha));
 
-    if (init_1006 == 0) {
+    if (!init_1006) {
         cur_ang_1005 = -PI;
-        init_1006 = 1;
+        init_1006 = true;
     }
 
     cur_ang_1005 += DEG_TO_RAD;
 
     if (!(cur_ang_1005 <= PI)) {
-        cur_ang_1005 -= 25.132742f;
+        cur_ang_1005 -= 8.0f * PI;
     }
 
     v = -28.0f;
@@ -264,7 +298,7 @@ void DrawMainUnitStatusBord(float rate) {
         second_weapon_y = 8;
     }
 
-    event_running = 0;
+    event_running = false;
     character = (CActionChara *) DngMainScene->GetCharacter(0);
 
     if (character != NULL) {
@@ -282,10 +316,10 @@ void DrawMainUnitStatusBord(float rate) {
 
     if (!init_1024) {
         palanim_1023 = 0.0f;
-        init_1024 = 1;
+        init_1024 = true;
     }
 
-    palanim_1023 += 0.19634955f;
+    palanim_1023 += PI / 16.0f;
 
     if (!(palanim_1023 <= 0.0f)) {
         palanim_1023 -= PI;
@@ -339,7 +373,7 @@ void DrawMainUnitStatusBord(float rate) {
 
     for (index = 0, item_x = 0; index < 3; index++, active_items++, item_x += 41) {
         if (active_items->GetNum() > 1) {
-            PrintV(item_x + 64, hp_y + 45, active_items->GetNum(), TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 2, 1, 10, NULL);
+            PrintV(item_x + 64, hp_y + 45, active_items->GetNum(), TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 2, true, 10, NULL);
         }
     }
 
@@ -379,7 +413,7 @@ void DrawMainUnitStatusBord(float rate) {
 
     sprite.End();
     status_attr = info->GetAttr();
-    int status_mask[7] = {1, 2, 8, 4, 16, 32, 64};
+    int status_mask[7] = {CHARA_STATUS_POISON, CHARA_STATUS_SLOW, CHARA_STATUS_UNK_8, CHARA_STATUS_UNK_4, CHARA_STATUS_POWER, CHARA_STATUS_UNK_20, CHARA_STATUS_UNK_40};
     s16 status_glyph[7][2] = {
         {0,  0 },
         {24, 24},
@@ -449,8 +483,8 @@ void DrawMainUnitStatusBord(float rate) {
     }
 
     sprite.End();
-    PrintV(161, hp_y + 14, hp_now, TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, 1, 10, NULL);
-    PrintV(221, hp_y + 14, hp_max, TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, 0, 10, NULL);
+    PrintV(161, hp_y + 14, hp_now, TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, true, 10, NULL);
+    PrintV(221, hp_y + 14, hp_max, TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, false, 10, NULL);
     weapon_no = info->equip[0].item_no;
     second_weapon_no = info->equip[1].item_no;
 
@@ -493,8 +527,8 @@ void DrawMainUnitStatusBord(float rate) {
 
     sprite.End();
     number_x = weapon_x + 76;
-    PrintV(number_x - 61, weapon_y + 19, whp[0], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, 1, 10, &color);
-    PrintV(number_x - 4, weapon_y + 19, whp[1], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, 0, 10, &color);
+    PrintV(number_x - 61, weapon_y + 19, whp[0], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, true, 10, &color);
+    PrintV(number_x - 4, weapon_y + 19, whp[1], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, false, 10, &color);
     width = (int) (95.0f * whp_rate[0]);
     gauge_left = weapon_x + 36;
     gauge_right = gauge_left + width;
@@ -595,29 +629,29 @@ void DrawMainUnitStatusBord(float rate) {
     sprite.Vertex(gauge_right, second_weapon_y + 55, 0);
     sprite.End();
     number_x = second_weapon_x + 142;
-    PrintV(number_x - 61, second_weapon_y + 28, second_whp[0], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, 1, 10, &color);
-    PrintV(number_x - 4, second_weapon_y + 28, second_whp[1], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, 0, 10, &color);
+    PrintV(number_x - 61, second_weapon_y + 28, second_whp[0], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, true, 10, &color);
+    PrintV(number_x - 4, second_weapon_y + 28, second_whp[1], TEX_SystenFrame, mgRect<int>(0, 0xE8, 12, 12), 5, false, 10, &color);
 
     if (rate < 1.0f || SubGameRunning() != 0) {
         return;
     }
 
     if (hp_rate < 0.3f) {
-        WarningGage2.warning[0] = 1;
+        WarningGage2.warning[0] = true;
     } else {
-        WarningGage2.warning[0] = 0;
+        WarningGage2.warning[0] = false;
     }
 
     if (whp_rate[0] < 0.2f) {
-        WarningGage2.warning[1] = 1;
+        WarningGage2.warning[1] = true;
     } else {
-        WarningGage2.warning[1] = 0;
+        WarningGage2.warning[1] = false;
     }
 
     if (whp_rate[1] < 0.2f) {
-        WarningGage2.warning[2] = 1;
+        WarningGage2.warning[2] = true;
     } else {
-        WarningGage2.warning[2] = 0;
+        WarningGage2.warning[2] = false;
     }
 
     WarningGage2.rate[0] = hp_rate;
@@ -655,10 +689,10 @@ void DrawRoboUnitStatusBord(float rate) {
 
     if (!init_1223) {
         palanim_1222 = 0.0f;
-        init_1223 = 1;
+        init_1223 = true;
     }
 
-    palanim_1222 += 0.19634955f;
+    palanim_1222 += PI / 16.0f;
 
     if (!(palanim_1222 <= 0.0f)) {
         palanim_1222 -= PI;
@@ -716,10 +750,7 @@ void DrawRoboUnitStatusBord(float rate) {
     sprite.Begin(MG_PRIM_TRIANGLE_STRIP);
     sprite.Texture(TEX_SystenFrame);
     sprite.Color(0x80, 0x80, 0x80, 0x80);
-    {
-        int &saved_width = width;
-        top_right = (saved_width = (int) (141.0f * hp_rate[0])) + 58;
-    }
+    top_right = (width = (int) (141.0f * hp_rate[0])) + 58;
     bottom_right = top_right;
     int limit = 196;
 
@@ -757,17 +788,17 @@ void DrawRoboUnitStatusBord(float rate) {
     color[2] = blue;
     color[3] = 0x80;
     mgRect<int> whp_now_glyph(0, 0xE8, 12, 12);
-    PrintV(370, y + 18, whp[0], TEX_SystenFrame, whp_now_glyph, 5, 1, 10, (SP_RGBA *) color);
+    PrintV(370, y + 18, whp[0], TEX_SystenFrame, whp_now_glyph, 5, true, 10, (SP_RGBA *) color);
     mgRect<int> whp_max_glyph(0, 0xE8, 12, 12);
-    PrintV(430, y + 18, whp[1], TEX_SystenFrame, whp_max_glyph, 5, 0, 10, (SP_RGBA *) color);
+    PrintV(430, y + 18, whp[1], TEX_SystenFrame, whp_max_glyph, 5, false, 10, (SP_RGBA *) color);
     color[0] = 0x80;
     color[1] = 0x80;
     color[2] = 0x80;
     color[3] = 0x80;
     mgRect<int> hp_now_glyph(0, 0xE8, 12, 12);
-    PrintV(56, y + 20, hp_now, TEX_SystenFrame, hp_now_glyph, 5, 1, 10, (SP_RGBA *) color);
+    PrintV(56, y + 20, hp_now, TEX_SystenFrame, hp_now_glyph, 5, true, 10, (SP_RGBA *) color);
     mgRect<int> hp_max_glyph(0, 0xE8, 12, 12);
-    PrintV(116, y + 20, hp_max, TEX_SystenFrame, hp_max_glyph, 5, 0, 10, (SP_RGBA *) color);
+    PrintV(116, y + 20, hp_max, TEX_SystenFrame, hp_max_glyph, 5, false, 10, (SP_RGBA *) color);
     info->GetNowAbs(0, abs);
     DrawDrumCounter(230, y + 19, abs[0]);
     sprite.Initialize(NULL, NULL);
@@ -779,15 +810,15 @@ void DrawRoboUnitStatusBord(float rate) {
     sprite.End();
 
     if (hp_rate[0] < 0.3f) {
-        WarningGage2.warning[0] = 1;
+        WarningGage2.warning[0] = true;
     } else {
-        WarningGage2.warning[0] = 0;
+        WarningGage2.warning[0] = false;
     }
 
     if (whp_rate < 0.2f) {
-        WarningGage2.warning[1] = 1;
+        WarningGage2.warning[1] = true;
     } else {
-        WarningGage2.warning[1] = 0;
+        WarningGage2.warning[1] = false;
     }
 
     WarningGage2.rate[0] = hp_rate[0];
@@ -795,7 +826,7 @@ void DrawRoboUnitStatusBord(float rate) {
     WarningGage2.rate[1] = whp_rate;
 }
 
-void DrawMonsterUnitStatusBord(float alpha) {
+void DrawMonsterUnitStatusBord(float rate) {
 
     int               whp[2];
     int               abs[2];
@@ -810,7 +841,7 @@ void DrawMonsterUnitStatusBord(float alpha) {
     int               whp_bottom_right;
     int               abs_right;
 
-    if (alpha < 1.0f) {
+    if (rate < 1.0f) {
         return;
     }
 
@@ -821,12 +852,12 @@ void DrawMonsterUnitStatusBord(float alpha) {
 
     CPreSprite  prim;
     CPreSprite  spare;
-    int         color[4];
+    SP_RGBA     color;
     mgRect<int> rect0;
     mgRect<int> rect1;
     mgRect<int> rect2;
     mgRect<int> rect3;
-    prim.Initialize(0, 0);
+    prim.Initialize(NULL, NULL);
     prim.Preset2D();
     prim.Begin(MG_PRIM_SPRITE);
     prim.Bilinear(0);
@@ -837,7 +868,7 @@ void DrawMonsterUnitStatusBord(float alpha) {
     prim.SetIRect(0xA2, 0x18, 0xC, 0xC, 0x78, 0xE8);
     prim.SetIRect(0x177, 0x1D, 0xC, 0xC, 0x78, 0xE8);
     prim.End();
-    prim.Initialize(0, 0);
+    prim.Initialize(NULL, NULL);
     prim.Preset2D();
     prim.Begin(MG_PRIM_TRIANGLE_STRIP);
     prim.Texture(TEX_SystenFrame);
@@ -859,7 +890,7 @@ void DrawMonsterUnitStatusBord(float alpha) {
     prim.TextureCrd(0x4E, 0xA7);
     prim.Vertex(hp_bottom_right, 0x13, 0);
     prim.End();
-    prim.Initialize(0, 0);
+    prim.Initialize(NULL, NULL);
     prim.Preset2D();
     prim.Begin(MG_PRIM_TRIANGLE_STRIP);
     prim.Bilinear(0);
@@ -901,38 +932,38 @@ void DrawMonsterUnitStatusBord(float alpha) {
     prim.Vertex(abs_right, 0x17, 0);
     prim.End();
 
-    color[1] = 0x80;
-    color[2] = 0x80;
-    color[3] = 0x80;
-    color[0] = 0x80;
-    color[1] = 0x80;
-    color[2] = 0x80;
-    color[3] = 0x80;
+    color.g = 0x80;
+    color.b = 0x80;
+    color.a = 0x80;
+    color.r = 0x80;
+    color.g = 0x80;
+    color.b = 0x80;
+    color.a = 0x80;
     rect0.Set(0, 0xE8, 0xC, 0xC);
     PrintV(0x6E, 0x18, now_hp, TEX_SystenFrame, rect0, 5,
-           1, 0xA, (SP_RGBA *) color);
+           true, 0xA, &color);
     rect1.Set(0, 0xE8, 0xC, 0xC);
     PrintV(0xAC, 0x18, max_hp, TEX_SystenFrame, rect1, 5,
-           0, 0xA, (SP_RGBA *) color);
-    color[0] = 0x80;
-    color[1] = 0x80;
-    color[2] = 0x80;
-    color[3] = 0x80;
+           false, 0xA, &color);
+    color.r = 0x80;
+    color.g = 0x80;
+    color.b = 0x80;
+    color.a = 0x80;
     rect2.Set(0, 0xE8, 0xC, 0xC);
     PrintV(0x160, 0x1D, whp[1], TEX_SystenFrame, rect2, 5,
-           1, 0xA, (SP_RGBA *) color);
+           true, 0xA, &color);
     rect3.Set(0, 0xE8, 0xC, 0xC);
     PrintV(0x163, 0x1D, whp[0], TEX_SystenFrame, rect3, 5,
-           0, 0xA, (SP_RGBA *) color);
+           false, 0xA, &color);
 
     if (hp_rate < 0.3f) {
-        WarningGage2.warning[0] = 1;
+        WarningGage2.warning[0] = true;
     } else {
-        WarningGage2.warning[0] = 0;
+        WarningGage2.warning[0] = false;
     }
 
     WarningGage2.rate[0] = hp_rate;
-    WarningGage2.layout = 0;
+    WarningGage2.layout = WARNING_GAGE_LAYOUT_MAIN;
 }
 
 void DrawStatusBord() {
@@ -941,9 +972,9 @@ void DrawStatusBord() {
 
     chara = DngUserData->active_chr_no;
     rate = BattleAreaScene->statusbar_rate;
-    WarningGage2.warning[0] = 0;
-    WarningGage2.warning[1] = 0;
-    WarningGage2.warning[2] = 0;
+    WarningGage2.warning[0] = false;
+    WarningGage2.warning[1] = false;
+    WarningGage2.warning[2] = false;
     LockOnModel.pos[3] = 0.0f;
 
     switch (chara) {

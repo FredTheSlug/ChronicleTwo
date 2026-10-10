@@ -24,8 +24,8 @@ void mgCVisualMotionMDT::Initialize() {
     vu1_base = 0x7C;
     vu1_offset = 0x94;
     weight_num = 0;
-    weight = 0;
-    base_matrix = 0;
+    weight = NULL;
+    base_matrix = NULL;
     frame_id = 0;
 }
 
@@ -203,7 +203,7 @@ int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mgCVMotionData *
     MDT_FACES *section;
 
     if (work == NULL) {
-        return 0;
+        return false;
     }
 
     work->stack_used = 0;
@@ -252,7 +252,7 @@ int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mgCVMotionData *
         memory->Alloc(size);
     }
 
-    return 1;
+    return true;
 }
 
 /**
@@ -553,15 +553,15 @@ int mgCVisualMotionMDT::CreateFaceMotionPacket(u_int *packet, mgCFace *face, mgC
         return 0;
     }
 
-    use_scratchpad = 0;
+    use_scratchpad = false;
 
     if (((u_int) packet & 0xF0000000) == MG_UNCACHED) {
-        use_scratchpad = 1;
+        use_scratchpad = true;
     }
 
     start = packet;
     primitive = face->type & MG_FACE_PRIM_MASK;
-    started = 0;
+    started = false;
     remaining = face->vertex_num;
     batch_limit = (vu1_offset - 2) / 5 / 3 * 3;
     indices = face->index;
@@ -633,7 +633,7 @@ int mgCVisualMotionMDT::CreateFaceMotionPacket(u_int *packet, mgCFace *face, mgC
 
         if (!started) {
             *end++ = *(u_long128 *) prog_vif;
-            started = 1;
+            started = true;
         } else {
             *end++ = *(u_long128 *) progf_vif;
         }
@@ -792,7 +792,7 @@ int mgCVisualMotionMDT::CreateBBox(float *box_max, float *box_min, float (*matri
     } while (slot_count < 0x20);
 
     if (slot_count == 0) {
-        return 0;
+        return false;
     }
 
     sceVu0AddVector(center, base_box.max, base_box.min);
@@ -844,7 +844,7 @@ int mgCVisualMotionMDT::CreateBBox(float *box_max, float *box_min, float (*matri
     *(u_long128 *) box_min = *(u_long128 *) merged_min;
     box_max[3] = 1.0f;
     box_min[3] = 1.0f;
-    return 1;
+    return true;
 }
 
 mgCVisual *mgCVisualMotionMDT::Copy(mgCMemory *memory) {
@@ -877,5 +877,5 @@ mgCVisual *mgCVisualMotionMDT::Copy(mgCMemory *memory) {
 }
 
 int mgCVisualMotionMDT::Iam() {
-    return 3;
+    return MG_VISUAL_KIND_MOTION_MDT;
 }

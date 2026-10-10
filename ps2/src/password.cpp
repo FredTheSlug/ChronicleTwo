@@ -21,7 +21,6 @@ static char txt_table__2[] = "0123456789abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQR
 static unsigned int random_seed = 1;
 
 #pragma optimization_level 0
-#pragma unsigned_char off
 
 /**
  *
@@ -39,7 +38,6 @@ static int search_txt(char c) {
     return -1;
 }
 
-#pragma unsigned_char reset
 #pragma optimization_level reset
 
 #pragma optimization_level 0
@@ -70,7 +68,6 @@ static void ConvLongToTxt(unsigned long value, char *text) {
 #pragma optimization_level reset
 
 #pragma optimization_level 0
-#pragma unsigned_char off
 
 /**
  *
@@ -99,7 +96,6 @@ static int ConvTxtToLong(char *text, unsigned long *value) {
     return 1;
 }
 
-#pragma unsigned_char reset
 #pragma optimization_level reset
 
 #pragma optimization_level 0

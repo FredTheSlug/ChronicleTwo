@@ -1872,7 +1872,7 @@ int CBaseMenuClass::IsSpectolTrans(int select_key, int push_button) {
             if (spegetflag == 0 && effect_type == 20) {
                 MENU_EFFECT_INFO *info = &MenuEffect[0]->info[111];
 
-                if (info->unk_1c == 1.0f || !(info->unk_18 < 29.0f)) {
+                if (info->shrinking == 1.0f || !(info->ring_size < 29.0f)) {
                     SpectolTransBefore.ToSpectolTrans(ask_para.item2, -1);
                     spegetflag = 1;
                 }
@@ -6345,8 +6345,6 @@ static inline u_int align16_blocks(u_int size) {
     return size >> 4;
 }
 
-#pragma inline_depth(8)
-
 int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
     mgCMemory         *load_stack = &MenuCharaLoadStack;
     mgCMemory          work;
@@ -6653,8 +6651,6 @@ int CMenuItemInfo::IsAskExtend(int select_key, int push_button) {
 
     return 0;
 }
-
-#pragma inline_depth reset
 
 void MenuMoveItemPos(int *item, int *pos, int phase) {
     /**
@@ -7008,8 +7004,6 @@ void CMenuItemInfo::AttachFormInfo() {
     GiftBoxViewForm = (CMenuPosDataForm *) MenuPosData->GetFormInfo("giftview");
 }
 
-#pragma inline_depth(8)
-
 void CMenuItemInfo::MenuModeMalloc(mgCMemory *stack) {
     /**
      *
@@ -7063,8 +7057,6 @@ void CMenuItemInfo::MenuModeMalloc(mgCMemory *stack) {
     MenuItemMemory.stSetBuffer(
         (MenuItemMemory2.stack + MenuItemMemory2.stack_used), free_blocks);
 }
-
-#pragma inline_depth reset
 
 void CMenuItemInfo::CalcTex() {
     /**
@@ -7692,7 +7684,7 @@ void CBaseMenuClass::EffectDrawCheck(CMenuPosDataForm *form) {
         }
 
         if (MenuEffect[1]->run != 0 && MenuEffect[1]->info != NULL) {
-            MenuEffect[1]->info->unk_28 = fusion_ambient[3] / 3.0f;
+            MenuEffect[1]->info->alpha = fusion_ambient[3] / 3.0f;
         }
     }
 }
@@ -7842,7 +7834,6 @@ int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
     return 1;
 }
 
-#pragma inline_depth(5)
 
 /**
  *
@@ -8538,8 +8529,6 @@ static void MenuItemDebugKey() {
             break;
     }
 }
-
-#pragma inline_depth reset
 
 /**
  *

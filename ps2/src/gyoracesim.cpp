@@ -280,8 +280,6 @@ int StepFish(int index, RACE_FISH_PARAM *fish) {
     return 0;
 }
 
-#pragma divbyzerocheck on
-
 void LaneBattleStep(RACE_FISH_PARAM *fish, int count) {
     int              order[6];
     int              lane_fish[6][6];
@@ -534,8 +532,6 @@ void LaneBattleStep(RACE_FISH_PARAM *fish, int count) {
         }
     }
 }
-
-#pragma divbyzerocheck reset
 
 /**
  *

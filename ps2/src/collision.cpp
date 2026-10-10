@@ -272,8 +272,6 @@ int CColFrame::InsidePoint(float *point) {
     return collision->InsidePoint(local_point);
 }
 
-#pragma force_active on
-#pragma global_optimizer off
 /**
  *
  * Loads a matrix into the vector unit's registers vf10-vf13 for the
@@ -288,7 +286,6 @@ static asm void pre_trance_normal(float (*matrix)[4]) {
     jr ra
     lqc2 vf13, 0x30(a0)
 }
-#pragma global_optimizer reset
 
 /**
  *
@@ -296,7 +293,6 @@ static asm void pre_trance_normal(float (*matrix)[4]) {
  * loaded, and writes the unnormalised normal of the transformed triangle.
  *
  */
-#pragma global_optimizer off
 static asm void trance_normal(float *v0, float *v1, float *v2, float *normal) {
     .set noreorder
     lqc2 vf16, 0(a0)
@@ -325,8 +321,6 @@ static asm void trance_normal(float *v0, float *v1, float *v2, float *normal) {
     jr ra
     sqc2 vf22, 0(a3)
 }
-#pragma global_optimizer reset
-#pragma force_active reset
 
 int CColFrame::PickUpNearPoly(CCPoly *out, const mgVu0FBOX &box, int max) {
     sceVu0FVECTOR corners[8];

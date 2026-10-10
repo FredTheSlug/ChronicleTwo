@@ -1016,8 +1016,6 @@ void CFont::CalcDrawWH(char *text, int *width, int *height) {
     *height_out = max_height;
 }
 
-#pragma optimization_level 4
-
 void CFont::DrawDirect(char *text, int x, int y) {
     SetPos(x, y);
 
@@ -1102,8 +1100,6 @@ void CFont::DrawDirect(char *text, int x, int y) {
 
     (&prim)->End();
 }
-
-#pragma optimization_level reset
 
 void CFont::Preset(s32 preset) {
     switch (preset) {

@@ -5966,8 +5966,6 @@ int KillMonsterCount(int monster, int amount) {
     return 0;
 }
 
-#pragma global_optimizer off
-
 int SearchEquipType(int category, int slot) {
     // Gives the item type accepted by each human or ridepod equipment slot.
     static signed char equip_type_tbl[3][5] = {
@@ -5986,8 +5984,6 @@ int SearchEquipType(int category, int slot) {
 
     return equip_type_tbl[category][slot];
 }
-
-#pragma global_optimizer reset
 
 int IsItemtypeWhoisEquip(int item_no, int *out_slot) {
     int type = GetItemDataType(item_no);

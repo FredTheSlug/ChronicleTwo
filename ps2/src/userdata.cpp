@@ -27,18 +27,18 @@
  *
  */
 struct PackedFish {
-    u16 item_no : 9; /**< Inventory item number of the fish. */
-    u8  sex : 1;     /**< Sex of the fish, a BREEDFISH_SEX. */
-    u8  color : 5; /**< Colour variant of the fish. */
-    u8  battle : 7; /**< Battle parameter. */
-    u16 stamina : 7; /**< Stamina parameter. */
-    u16 length : 15; /**< Fish length. */
-    u16 weight : 15; /**< Fish weight. */
-    u8  boost : 7; /**< Boost parameter. */
+    u16 item_no : 9;   /**< Inventory item number of the fish. */
+    u8  sex : 1;       /**< Sex of the fish, a BREEDFISH_SEX. */
+    u8  color : 5;     /**< Colour variant of the fish. */
+    u8  battle : 7;    /**< Battle parameter. */
+    u16 stamina : 7;   /**< Stamina parameter. */
+    u16 length : 15;   /**< Fish length. */
+    u16 weight : 15;   /**< Fish weight. */
+    u8  boost : 7;     /**< Boost parameter. */
     u16 endurance : 7; /**< Endurance parameter. */
-    u8  kind : 2; /**< Fish variety used to select its displayed name. */
-    u8  tenacity : 7; /**< Tenacity parameter. */
-    u16 flags : 8; /**< Fish state flags. */
+    u8  kind : 2;      /**< Fish variety used to select its displayed name. */
+    u8  tenacity : 7;  /**< Tenacity parameter. */
+    u16 flags : 8;     /**< Fish state flags. */
 };
 
 /**

@@ -479,10 +479,10 @@ struct BREEDFISH_USED {
     u16   timer;                       /**< Time left, counted down by the game clock. */
     u8    unk_32[3];
     s8    breed_feeds_remaining; /**< Feedings left before this breeding fish stops eating. */
-    u16   feeds_remaining; /**< Feedings left before the fish stops eating. */
-    u16   flags;      /**< BREEDFISH_FLAGS of the fish. */
-    u8    color;      /**< Colour variant of the breeding fish. */
-    s8    grow_count; /**< Food eaten towards the next growth; the fish grows past 10. */
+    u16   feeds_remaining;       /**< Feedings left before the fish stops eating. */
+    u16   flags;                 /**< BREEDFISH_FLAGS of the fish. */
+    u8    color;                 /**< Colour variant of the breeding fish. */
+    s8    grow_count;            /**< Food eaten towards the next growth; the fish grows past 10. */
     u8    unk_3c;
     u8    race_placement_flags; /**< Race results; bit 0x1 marks a top-three finish in fish race 2, cleared with the fatigue. */
     u8    unk_3e[2];

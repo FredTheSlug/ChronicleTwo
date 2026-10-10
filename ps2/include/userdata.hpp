@@ -165,12 +165,12 @@ enum USER_DATA_ENV {
  *
  */
 enum RANDOM_CIRCLE {
-    RANDOM_CIRCLE_NONE_ROBO = -2,       /**< No effect, for the ridepod. */
-    RANDOM_CIRCLE_NONE_MONSTER = -1,    /**< No effect, for a monster form. */
-    RANDOM_CIRCLE_NONE = 0,             /**< No effect. */
-    RANDOM_CIRCLE_ABS_BONUS = 1,        /**< Gives a tenth of both weapons' absorption capacity. */
-    RANDOM_CIRCLE_HEAL = 2,             /**< Restores health and cures every condition but the power boost. */
-    RANDOM_CIRCLE_REPAIR = 3,           /**< Repairs both weapons of Max and Monica. */
+    RANDOM_CIRCLE_NONE_ROBO = -2,    /**< No effect, for the ridepod. */
+    RANDOM_CIRCLE_NONE_MONSTER = -1, /**< No effect, for a monster form. */
+    RANDOM_CIRCLE_NONE = 0,          /**< No effect. */
+    RANDOM_CIRCLE_ABS_BONUS = 1,     /**< Gives a tenth of both weapons' absorption capacity. */
+    RANDOM_CIRCLE_HEAL = 2,          /**< Restores health and cures every condition but the power boost. */
+    RANDOM_CIRCLE_REPAIR = 3,        /**< Repairs both weapons of Max and Monica. */
     RANDOM_CIRCLE_UNK_4 = 4,
     RANDOM_CIRCLE_POISON = 5,           /**< Poisons the character. */
     RANDOM_CIRCLE_HALVE_HP = 6,         /**< Halves the character's health. */
@@ -198,8 +198,8 @@ enum BREEDFISH_SEX {
  *
  */
 enum BREEDFISH_FLAGS {
-    BREEDFISH_FLAG_RAISED = 0x1,   /**< Marks a fish fed or bred in the aquarium; its weight is shown and the fishing tournament refuses it. */
-    BREEDFISH_FLAG_ELECTRIC = 0x2, /**< Marks an electric fish, which is never rubbish. */
+    BREEDFISH_FLAG_RAISED = 0x1,              /**< Marks a fish fed or bred in the aquarium; its weight is shown and the fishing tournament refuses it. */
+    BREEDFISH_FLAG_ELECTRIC = 0x2,            /**< Marks an electric fish, which is never rubbish. */
     BREEDFISH_FLAG_FEED_LIMIT_REACHED = 0x80, /**< Marks a fish that has used up its feedings and no longer eats. */
 };
 

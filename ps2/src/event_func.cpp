@@ -278,7 +278,7 @@ int CEoh::Set(int new_kind, CObject *new_object, int new_flag) {
 }
 
 int CEoh::Set(int new_kind, int new_chara_no, CCharacter2 *new_chara) {
-    if (new_chara == 0) {
+    if (new_chara == NULL) {
         return false;
     }
 
@@ -295,7 +295,7 @@ int CEoh::Set(int new_kind, int new_chara_no, CCharacter2 *new_chara) {
 }
 
 int CEoh::Set(int new_kind, CEventSprite2 *new_sprite) {
-    if (new_sprite == 0) {
+    if (new_sprite == NULL) {
         return false;
     }
 
@@ -311,7 +311,7 @@ int CEoh::Set(int new_kind, CEventSprite2 *new_sprite) {
 }
 
 int CEoh::Set(int new_kind, mgCFrame *new_frame) {
-    if (new_frame == 0) {
+    if (new_frame == NULL) {
         return false;
     }
 
@@ -327,7 +327,7 @@ int CEoh::Set(int new_kind, mgCFrame *new_frame) {
 }
 
 int CEoh::Set(int new_kind, CFuncPoint *new_func_point) {
-    if (new_func_point == 0) {
+    if (new_func_point == NULL) {
         return false;
     }
 
@@ -396,7 +396,6 @@ void SetCamWorldCoord(mgCCamera *camera) {
 }
 
 void SetCamWorldCoordGyaku(mgCCamera *camera) {
-
     float pos[4];
     float ref[4];
 
@@ -419,11 +418,11 @@ CEohMother::CEohMother() {
         handle->scene_no = -1;
         handle->world_coord = 1;
 
-        handle->object = 0;
-        handle->chara = 0;
-        handle->sprite = 0;
-        handle->frame = 0;
-        handle->func_point = 0;
+        handle->object = NULL;
+        handle->chara = NULL;
+        handle->sprite = NULL;
+        handle->frame = NULL;
+        handle->func_point = NULL;
     }
 }
 
@@ -872,7 +871,7 @@ int CEohMother::CheckMotionEnd(int slot) {
                 return chara->CheckMotionEnd();
             }
 
-            if (chara->seq_state == (int) CHARA_SEQ_STATE_END) {
+            if (chara->seq_state == CHARA_SEQ_STATE_END) {
                 return chara->CheckMotionEnd();
             }
 
@@ -902,7 +901,7 @@ int CEohMother::SetMotionTrg(int slot) {
                 break;
             }
 
-            chara->seq_advance = 1;
+            chara->seq_advance = true;
             break;
         }
         default:
@@ -1249,7 +1248,7 @@ mgCFrame *CEohMother::SearchFrame(int slot, char *name) {
     }
 
     CEoh     *handle = &eoh[slot];
-    mgCFrame *result = 0;
+    mgCFrame *result = NULL;
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
@@ -2012,7 +2011,7 @@ void CEventScriptArg::BuildArgData(u32 *program) {
             if (esa_ext_func_info[i].no == esa_ext_func_info[j].no) {
                 printf("EvectScriptArg same ext_func_no!!!\n");
 
-                while (1) {
+                while (true) {
                 }
             }
         }
@@ -2138,7 +2137,7 @@ static int _DATA(RS_STACKDATA *stack, int argc) {
 }
 
 static int _ID_OFFSET(RS_STACKDATA *stack, int arg_count) {
-    if (nowScriptArg == 0) {
+    if (nowScriptArg == NULL) {
         return false;
     }
 
@@ -2276,7 +2275,7 @@ void CRaster::StartRaster(float target_amplitude, float target_speed, float targ
     frame = 0;
 
     if (this->frames > 1) {
-        state = (int) RASTER_START;
+        state = RASTER_START;
 
         if (target_amplitude != -1.0f) {
             amplitude_step = (target_amplitude - amplitude) / (float) this->frames;
@@ -2311,7 +2310,7 @@ void CRaster::StartRaster(float target_amplitude, float target_speed, float targ
         pitch = target_pitch;
     }
 
-    state = (int) RASTER_ON;
+    state = RASTER_ON;
 }
 
 void CRaster::StopRaster(float target_amplitude, float target_speed, float target_pitch, int frames) {
@@ -2319,7 +2318,7 @@ void CRaster::StopRaster(float target_amplitude, float target_speed, float targe
     frame = 0;
 
     if (this->frames > 1) {
-        state = (int) RASTER_STOP;
+        state = RASTER_STOP;
 
         if (target_amplitude != -1.0f) {
             amplitude_step = (target_amplitude - amplitude) / (float) this->frames;
@@ -2354,7 +2353,7 @@ void CRaster::StopRaster(float target_amplitude, float target_speed, float targe
         pitch = target_pitch;
     }
 
-    state = (int) RASTER_OFF;
+    state = RASTER_OFF;
 }
 
 void CRaster::StepRaster() {
@@ -2393,12 +2392,12 @@ void CRaster::StepRaster() {
                 frame = 0;
                 this->frames = -1;
 
-                if (state == (int) RASTER_START) {
-                    state = (int) RASTER_ON;
+                if (state == RASTER_START) {
+                    state = RASTER_ON;
                 }
 
-                if (state == (int) RASTER_STOP) {
-                    state = (int) RASTER_OFF;
+                if (state == RASTER_STOP) {
+                    state = RASTER_OFF;
                 }
             }
 
@@ -2416,7 +2415,7 @@ void CRaster::DrawRaster() {
     float current_phase;
     float next_y;
 
-    if (state != (int) RASTER_OFF) {
+    if (state != RASTER_OFF) {
         mgCTexture screen;
 
         mgGetFrameBuffer(&screen);
@@ -2481,7 +2480,6 @@ void CScreenEffect::Step() {
 }
 
 void CScreenEffect::Draw() {
-
     mgCTextureManager *manager = &mgTexManager;
 
     if (sepia != 0 && sepia_texture != NULL) {
@@ -2642,7 +2640,7 @@ void CScreenEffect::SetMonoFlashFlag(int enabled, int interval) {
 void InitWorldCoord() {
     EdEventInfo.world_coord_pos[2] = 0.0f;
     EdEventInfo.world_coord_pos[1] = 0.0f;
-    SetWorldCoordFlg = 0;
+    SetWorldCoordFlg = false;
     EdEventInfo.world_coord_pos[3] = 1.0f;
     EdEventInfo.world_coord_pos[0] = 0.0f;
     EdEventInfo.world_coord_rot[3] = 0.0f;
@@ -2686,7 +2684,6 @@ int GetLocalFlag(int index) {
 }
 
 int SetLocalFlag(int index, int value) {
-
     int  bit;
     int  in_range;
     int  word;
@@ -2769,11 +2766,11 @@ void InitLocalCnt() {
 void EdEventInfoCommandInitialize() {
     int i;
 
-    EdEventInfo.request = 0;
-    EdEventInfo.command_mode = 0;
-    EdEventInfo.skip_button = 15;
+    EdEventInfo.request = EVENT_REQUEST_NONE;
+    EdEventInfo.command_mode = EVENT_COMMAND_RUN;
+    EdEventInfo.skip_button = PAD_BTN_START;
     EdEventInfo.env_bgm_volume = 1.0f;
-    EdEventInfo.skip_state = 0;
+    EdEventInfo.skip_state = EVENT_SKIP_NONE;
     EdEventInfo.skip_fade_color[0] = 0;
     EdEventInfo.skip_fade_color[1] = 0;
     EdEventInfo.skip_fade_color[2] = 0;
@@ -2781,8 +2778,8 @@ void EdEventInfoCommandInitialize() {
     EdEventInfo.start_button = 0;
     EdEventInfo.unk_128 = 0;
     EdEventInfo.env_bgm_no = 0;
-    EdEventInfo.stream_playing = 0;
-    EdEventInfo.stream_source = 0;
+    EdEventInfo.stream_playing = false;
+    EdEventInfo.stream_source = EVENT_STREAM_FILE;
 
     for (i = 0; i < 16; i++) {
         EdEventInfo.func_iparam[i] = 0;
@@ -2790,10 +2787,10 @@ void EdEventInfoCommandInitialize() {
     }
 
     EdEventInfo.door_type = 0;
-    EdEventInfo.map_draw = 1;
+    EdEventInfo.map_draw = true;
     EdEventInfo.interior_entrance = 0;
-    EdEventInfo.pack_loaded = 0;
-    EdEventInfo.stream_reading = 0;
+    EdEventInfo.pack_loaded = false;
+    EdEventInfo.stream_reading = false;
 }
 
 void EventSeqInit() {
@@ -2805,11 +2802,11 @@ void EventSeqInit() {
         handle->scene_no = -1;
         handle->world_coord = 1;
 
-        handle->object = 0;
-        handle->chara = 0;
-        handle->sprite = 0;
-        handle->frame = 0;
-        handle->func_point = 0;
+        handle->object = NULL;
+        handle->chara = NULL;
+        handle->sprite = NULL;
+        handle->frame = NULL;
+        handle->func_point = NULL;
     }
 
     CameraSeq.Initialize(cmr_seq_tbl, SEQ_NODE_NUM);
@@ -2827,9 +2824,9 @@ void EventSeqInit() {
 
     EventScreenEffect.Initialize();
     EventScriptArg.next_id = 0;
-    EventScriptArg.list = 0;
+    EventScriptArg.list = NULL;
     EventScriptArg.list_num = 0;
-    EventScriptArg.memory = 0;
+    EventScriptArg.memory = NULL;
 }
 
 void EdEventInit() {
@@ -2854,7 +2851,7 @@ void EdEventInit() {
     InitReadBG();
     EventDngMap.Initialize();
     p_use_item = 0;
-    SetWorldCoordFlg = 0;
+    SetWorldCoordFlg = false;
     InitWorldCoord();
     EventScene->map_event_no = 0;
     PakuAnimEohNo = -1;
@@ -2900,9 +2897,9 @@ void EdEventInit() {
     HitEffect[4].spark_num = 0;
     HitEffect[4].kind = 0;
     EventScriptArg.next_id = 0;
-    EventScriptArg.list = 0;
+    EventScriptArg.list = NULL;
     EventScriptArg.list_num = 0;
-    EventScriptArg.memory = 0;
+    EventScriptArg.memory = NULL;
     EventScreenEffect.Initialize();
 }
 
@@ -2914,7 +2911,7 @@ void EventTimeDraw() {
     if (save_data != NULL && EdEventInfo.stopwatch_start != 0) {
         u64 elapsed;
 
-        if (EdEventInfo.stopwatch_style == 1) {
+        if (EdEventInfo.stopwatch_style == EVENT_STOPWATCH_STYLE_COUNTDOWN) {
             elapsed = EdEventInfo.stopwatch_limit - 2;
             EdEventInfo.stopwatch_limit = elapsed;
         } else if (EdEventInfo.stopwatch_limit != 0) {
@@ -2952,7 +2949,7 @@ void EventTimeDraw() {
         glyph[6] = digit[hundredths / 10];
         glyph[7] = digit[hundredths % 10];
 
-        if (EdEventInfo.stopwatch_style == 1) {
+        if (EdEventInfo.stopwatch_style == EVENT_STOPWATCH_STYLE_COUNTDOWN) {
             glyph[2] = GetHalfFontNo(':');
             glyph[5] = GetHalfFontNo(':');
         } else {
@@ -2962,7 +2959,7 @@ void EventTimeDraw() {
 
         mgCDrawPrim prim;
 
-        if (EdEventInfo.stopwatch_style == 0) {
+        if (EdEventInfo.stopwatch_style == EVENT_STOPWATCH_STYLE_WINDOW) {
             prim.Begin(MG_PRIM_SPRITE);
             RECT       window;
             RGBAQ_TYPE window_color;
@@ -2987,7 +2984,7 @@ void EventTimeDraw() {
                 destination.x = EdEventInfo.stopwatch_x + texture.width * i;
                 destination.y = EdEventInfo.stopwatch_y;
 
-                if (EdEventInfo.stopwatch_style == 1) {
+                if (EdEventInfo.stopwatch_style == EVENT_STOPWATCH_STYLE_COUNTDOWN) {
                     destination.y += 0x40;
                 }
 
@@ -3002,23 +2999,23 @@ void EventTimeDraw() {
             }
         }
 
-        if (EdEventInfo.stopwatch_style == 1) {
+        if (EdEventInfo.stopwatch_style == EVENT_STOPWATCH_STYLE_COUNTDOWN) {
             int label[32];
 
             for (int i = 0; i < 32; i++) {
                 label[i] = -1;
             }
 
-            if (EdEventInfo.stopwatch_style == 1) {
+            if (EdEventInfo.stopwatch_style == EVENT_STOPWATCH_STYLE_COUNTDOWN) {
                 switch (LanguageCode) {
-                    case 0:
+                    case LANG_JAPANESE:
                         label[0] = GetFontNo("\x8C\x8E");
                         label[1] = GetFontNo("\x97\x8E");
                         label[2] = GetFontNo("\x89\xBA");
                         label[3] = GetFontNo("\x82\xDC");
                         label[4] = GetFontNo("\x82\xC5");
                         break;
-                    case 2:
+                    case LANG_FRENCH:
                         label[0] = GetHalfFontNo('C');
                         label[1] = GetHalfFontNo('h');
                         label[2] = GetHalfFontNo('u');
@@ -3034,7 +3031,7 @@ void EventTimeDraw() {
                         label[12] = GetHalfFontNo('n');
                         label[13] = GetHalfFontNo('e');
                         break;
-                    case 4:
+                    case LANG_ITALIAN:
                         label[0] = GetHalfFontNo('L');
                         label[1] = GetHalfFontNo('e');
                         label[2] = GetHalfFontNo(' ');
@@ -3057,7 +3054,7 @@ void EventTimeDraw() {
                         label[19] = GetHalfFontNo('n');
                         label[20] = GetHalfFontNo('a');
                         break;
-                    case 5:
+                    case LANG_SPANISH:
                         label[0] = GetHalfFontNo('C');
                         label[1] = GetHalfFontNo('a');
                         label[2] = GetHalfFontNo('t');
@@ -3073,8 +3070,8 @@ void EventTimeDraw() {
                         label[12] = GetHalfFontNo('n');
                         label[13] = GetHalfFontNo('a');
                         break;
-                    case 1:
-                    case 3:
+                    case LANG_ENGLISH:
+                    case LANG_GERMAN:
                     default:
                         label[0] = GetHalfFontNo('M');
                         label[1] = GetHalfFontNo('o');
@@ -3097,20 +3094,20 @@ void EventTimeDraw() {
                     RECT destination;
 
                     switch (LanguageCode) {
-                        case 0:
+                        case LANG_JAPANESE:
                             destination.x = EdEventInfo.stopwatch_x + texture.width * i + 0x18;
                             break;
-                        case 2:
-                        case 5:
+                        case LANG_FRENCH:
+                        case LANG_SPANISH:
                             destination.x = (int) (EdEventInfo.stopwatch_x + 0.75 * texture.width * i - 28.0);
                             break;
-                        case 3:
+                        case LANG_GERMAN:
                             destination.x = (int) (8.0 + (EdEventInfo.stopwatch_x + 0.75 * texture.width * i));
                             break;
-                        case 4:
+                        case LANG_ITALIAN:
                             destination.x = (int) (EdEventInfo.stopwatch_x + 0.5 * texture.width * i - 28.0);
                             break;
-                        case 1:
+                        case LANG_ENGLISH:
                         default:
                             destination.x = EdEventInfo.stopwatch_x + texture.width * i - 4;
                             break;
@@ -3118,7 +3115,7 @@ void EventTimeDraw() {
 
                     destination.y = EdEventInfo.stopwatch_y - 0x18;
 
-                    if (EdEventInfo.stopwatch_style == 1) {
+                    if (EdEventInfo.stopwatch_style == EVENT_STOPWATCH_STYLE_COUNTDOWN) {
                         destination.y += 0x40;
                     }
 
@@ -3229,13 +3226,13 @@ int EdEventFinish() {
 
     if (SetWorldCoordFlg != 0) {
         SetCamWorldCoord(camera);
-        SetWorldCoordFlg = 0;
+        SetWorldCoordFlg = false;
     }
 
     esMother.Init();
     EventMarker.Init();
     p_use_item = 0;
-    SetWorldCoordFlg = 0;
+    SetWorldCoordFlg = false;
 
     for (k = 0; k < EVENT_SPRITE2_NUM; k++) {
         EventSprite2[k].Initialize();
@@ -3250,12 +3247,12 @@ int EdEventFinish() {
     memset(PakuMotionName2, 0, PAKU_NAME_SIZE);
     PakuMotionType2 = 0;
     InitWorldCoord();
-    EdEventInfo.skip_state = 0;
-    EdEventInfo.pack_loaded = 0;
+    EdEventInfo.skip_state = EVENT_SKIP_NONE;
+    EdEventInfo.pack_loaded = false;
     EventScriptArg.next_id = 0;
-    EventScriptArg.list = 0;
+    EventScriptArg.list = NULL;
     EventScriptArg.list_num = 0;
-    EventScriptArg.memory = 0;
+    EventScriptArg.memory = NULL;
     EventScreenEffect.Initialize();
     return true;
 }
@@ -3297,18 +3294,18 @@ int EdEventStep() {
 void InitDramaScene() {
     EdEventInfo.skip_fade_color[0] = 0;
     EdEventInfo.skip_fade_color[1] = 0;
-    EdEventInfo.skip_state = 1;
-    EdEventInfo.skip_button = 15;
+    EdEventInfo.skip_state = EVENT_SKIP_ENABLED;
+    EdEventInfo.skip_button = PAD_BTN_START;
     EdEventInfo.skip_fade_color[2] = 0;
     EdEventInfo.skip_fade_color[3] = 0;
 }
 
 void CancelDramaScene() {
-    EdEventInfo.skip_state = 0;
+    EdEventInfo.skip_state = EVENT_SKIP_NONE;
 }
 
 void EdEventMenuExit() {
-    if (p_use_item != 0) {
+    if (p_use_item != NULL) {
         p_use_item->val.i = MenuArg.result[0];
     }
 
@@ -3324,7 +3321,7 @@ void EdEventLoopInit() {
 
     EdEventInfo.last_snd_id = 0;
     memset(EdEventInfo.script_name, 0, sizeof(EdEventInfo.script_name));
-    EdEventInfo.map_draw = 1;
+    EdEventInfo.map_draw = true;
     InitWorldCoord();
     EdEventInfoCommandInitialize();
     EventScreenEffect.Initialize();
@@ -3437,19 +3434,19 @@ void EdEventMapInit() {
     EdEventInfo.stopwatch_limit = 0;
     EdEventInfo.stopwatch_x = 0;
     EdEventInfo.stopwatch_y = 0;
-    EdEventInfo.stopwatch_style = 0;
+    EdEventInfo.stopwatch_style = EVENT_STOPWATCH_STYLE_WINDOW;
 }
 
 void EdEventTermination() {
-    EdEventInfo.stream_playing = 0;
+    EdEventInfo.stream_playing = false;
 
-    if (EdEventInfo.stream_source == 1) {
-        CSnd.StreamEND(1);
+    if (EdEventInfo.stream_source == EVENT_STREAM_VOICE_PACK) {
+        CSnd.StreamEND(EVENT_STREAM_CHANNEL);
     }
 
-    CSnd.StreamSetVol(1, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
-    CSnd.StreamClose(1);
-    EdEventInfo.stream_reading = 0;
+    CSnd.StreamSetVol(EVENT_STREAM_CHANNEL, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
+    CSnd.StreamClose(EVENT_STREAM_CHANNEL);
+    EdEventInfo.stream_reading = false;
 }
 
 void EdEventEnd() {

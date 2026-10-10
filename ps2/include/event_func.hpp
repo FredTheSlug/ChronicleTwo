@@ -1747,7 +1747,7 @@ STATIC_ASSERT(sizeof(CEventScriptArg) == 0x10);
  */
 class CRaster {
 public:
-    int   state;          /**< Progress of the effect. @see RASTER_STATE. */
+    RASTER_STATE state;   /**< Progress of the effect. @see RASTER_STATE. */
     float amplitude;      /**< Distance, in pixels, lines are moved at most. */
     float amplitude_step; /**< Change of the amplitude each frame. */
     float speed;          /**< Angle, in radians, the wave moves each frame. */

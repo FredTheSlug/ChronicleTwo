@@ -485,7 +485,7 @@ int CEohMother::SetPos(int slot, float x, float y, float z) {
             x = pos[0];
             y = pos[1];
             z = pos[2];
-            mgCObject *chara = eoh[slot].object;
+            mgCObject *chara = eoh[slot].chara;
 
             if (chara == NULL) {
                 return false;
@@ -545,7 +545,7 @@ int CEohMother::SetPos(int slot, float x, float y, float z) {
             pos[1] = y;
             pos[2] = z;
             pos[3] = 1.0f;
-            mgCObject *frame = handle->object;
+            mgCObject *frame = handle->frame;
 
             if (frame == NULL) {
                 return false;
@@ -588,7 +588,7 @@ int CEohMother::SetRot(int slot, float x, float y, float z) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            mgCObject *&chara = (mgCObject *&) handle->object;
+            CCharacter2 *&chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -602,7 +602,7 @@ int CEohMother::SetRot(int slot, float x, float y, float z) {
             return true;
         }
         case EOH_TYPE_OBJECT: {
-            mgCObject *&object = (mgCObject *&) handle->object;
+            CObject *&object = handle->object;
 
             if (object == NULL) {
                 return false;
@@ -619,7 +619,7 @@ int CEohMother::SetRot(int slot, float x, float y, float z) {
             return true;
         }
         case EOH_TYPE_FRAME: {
-            mgCObject *frame = handle->object;
+            mgCObject *frame = handle->frame;
 
             if (frame == NULL) {
                 return false;
@@ -673,7 +673,7 @@ int CEohMother::GetPos(int slot, float *pos) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            mgCObject *chara = handle->object;
+            mgCObject *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -716,7 +716,7 @@ int CEohMother::GetPos(int slot, float *pos) {
             return true;
         }
         case EOH_TYPE_FRAME: {
-            mgCObject *frame = handle->object;
+            mgCObject *frame = handle->frame;
 
             if (frame == NULL) {
                 return false;
@@ -750,7 +750,7 @@ int CEohMother::GetRot(int slot, float *rot) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            mgCObject *chara = handle->object;
+            mgCObject *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -778,7 +778,7 @@ int CEohMother::GetRot(int slot, float *rot) {
             return true;
         }
         case EOH_TYPE_FRAME: {
-            mgCObject *frame = handle->object;
+            mgCObject *frame = handle->frame;
 
             if (frame == NULL) {
                 return false;
@@ -830,8 +830,8 @@ int CEohMother::SetMotion(int slot, char *name, int type, float blend) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CObject    **held = &handle->object;
-            CCharacter2 *chara = (CCharacter2 *) *held;
+            CCharacter2 **held = &handle->chara;
+            CCharacter2 *chara = *held;
 
             if (chara == NULL) {
                 return false;
@@ -840,9 +840,9 @@ int CEohMother::SetMotion(int slot, char *name, int type, float blend) {
             chara->SetMotion(name, type);
 
             if (blend != -1.0f) {
-                ((CCharacter2 *) *held)->NormalDrive();
-                ((CCharacter2 *) *held)->SetStep(blend);
-                chara = (CCharacter2 *) *held;
+                (*held)->NormalDrive();
+                (*held)->SetStep(blend);
+                chara = *held;
                 chara->frame = (float) chara->now_key->start_frame;
             }
 
@@ -869,11 +869,11 @@ int CEohMother::CheckMotionEnd(int slot) {
             }
 
             if (chara->seq_mode == 0) {
-                return (chara)->CheckMotionEnd();
+                return chara->CheckMotionEnd();
             }
 
             if (chara->seq_state == (int) CHARA_SEQ_STATE_END) {
-                return (chara)->CheckMotionEnd();
+                return chara->CheckMotionEnd();
             }
 
             return false;
@@ -914,7 +914,7 @@ int CEohMother::SetMotionTrg(int slot) {
 
 int CEohMother::GetSeqStatus(int slot) {
     if (slot < 0 || slot >= EOH_NUM) {
-        return 0;
+        return CHARA_SEQ_STATE_NONE;
     }
 
     CEoh *handle = &eoh[slot];
@@ -924,18 +924,18 @@ int CEohMother::GetSeqStatus(int slot) {
             CCharacter2 *chara = handle->chara;
 
             if (chara == NULL) {
-                return 0;
+                return CHARA_SEQ_STATE_NONE;
             }
 
             if (chara->seq_mode == 1) {
                 return chara->seq_state;
             }
 
-            return 0;
+            return CHARA_SEQ_STATE_NONE;
         }
     }
 
-    return 0;
+    return CHARA_SEQ_STATE_NONE;
 }
 
 int CEohMother::SetStep(int slot, float step) {
@@ -947,7 +947,7 @@ int CEohMother::SetStep(int slot, float step) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1000,7 +1000,7 @@ int CEohMother::ResetMotion(int slot) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1057,7 +1057,7 @@ int CEohMother::SetScale(int slot, float x, float y, float z) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            mgCObject *chara = handle->object;
+            mgCObject *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1113,7 +1113,7 @@ int CEohMother::GetScale(int slot, float *scale) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            mgCObject *chara = handle->object;
+            mgCObject *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1182,7 +1182,7 @@ int CEohMother::SetShow(int slot, int show) {
             return true;
         }
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1222,7 +1222,7 @@ int CEohMother::GetShow(int slot, int *show) {
             return true;
         }
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1480,7 +1480,7 @@ char *CEohMother::GetNowMotionName(int slot) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara != NULL) {
                 return chara->GetNowMotionName();
@@ -1495,24 +1495,24 @@ char *CEohMother::GetNowMotionName(int slot) {
 
 int CEohMother::GetNowMotionStatus(int slot) {
     if (slot < 0 || slot >= EOH_NUM) {
-        return 0;
+        return CHARA_MOTION_STATUS_NONE;
     }
 
     CEoh *handle = &eoh[slot];
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara != NULL) {
                 return chara->GetMotionStatus();
             }
 
-            return 0;
+            return CHARA_MOTION_STATUS_NONE;
         }
     }
 
-    return 0;
+    return CHARA_MOTION_STATUS_NONE;
 }
 
 int CEohMother::SetMotionNowTime(int slot, float time) {
@@ -1524,8 +1524,8 @@ int CEohMother::SetMotionNowTime(int slot, float time) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CObject    **held = &handle->object;
-            CCharacter2 *chara = (CCharacter2 *) *held;
+            CCharacter2 **held = &handle->chara;
+            CCharacter2 *chara = *held;
 
             if (chara == NULL) {
                 return false;
@@ -1541,8 +1541,8 @@ int CEohMother::SetMotionNowTime(int slot, float time) {
                 }
 
                 chara->frame = now;
-                ((CCharacter2 *) *held)->NormalDrive();
-                ((CCharacter2 *) *held)->frame = now;
+                (*held)->NormalDrive();
+                (*held)->frame = now;
             } else {
                 return false;
             }
@@ -1563,8 +1563,8 @@ int CEohMother::SetMotionWaitTime(int slot, float rate) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CObject    **held = &handle->object;
-            CCharacter2 *chara = (CCharacter2 *) *held;
+            CCharacter2 **held = &handle->chara;
+            CCharacter2 *chara = *held;
 
             if (chara == NULL) {
                 return false;
@@ -1576,8 +1576,8 @@ int CEohMother::SetMotionWaitTime(int slot, float rate) {
                 float length = (float) (motion->end_frame - motion->start_frame);
                 length *= rate;
                 chara->frame = length + (float) motion->start_frame;
-                ((CCharacter2 *) *held)->NormalDrive();
-                chara = (CCharacter2 *) *held;
+                (*held)->NormalDrive();
+                chara = *held;
                 chara->frame = length + (float) chara->now_key->start_frame;
             }
 
@@ -1726,7 +1726,7 @@ int CEohMother::SetFadeFlag(int slot, int flag) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1749,7 +1749,7 @@ int CEohMother::ResetDAPosition(int slot) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CCharacter2 **chara = (CCharacter2 **) &handle->object;
+            CCharacter2 **chara = &handle->chara;
 
             if (*chara == NULL) {
                 return false;
@@ -1773,7 +1773,7 @@ int CEohMother::NormalDrive(int slot) {
 
     switch (handle->type) {
         case EOH_TYPE_CHARA: {
-            CCharacter2 *chara = (CCharacter2 *) handle->object;
+            CCharacter2 *chara = handle->chara;
 
             if (chara == NULL) {
                 return false;
@@ -1907,10 +1907,10 @@ void FileNameConvLanguage(char *name) {
 
         if ((found = strstr(name, marker)) != NULL) {
             switch (LanguageCode) {
-                case 2:
-                case 3:
-                case 4:
-                case 5:
+                case LANG_FRENCH:
+                case LANG_GERMAN:
+                case LANG_ITALIAN:
+                case LANG_SPANISH:
                     sprintf(found, "_%d.%s", LanguageCode, extension.name[i]);
                     break;
             }
@@ -2719,7 +2719,7 @@ int SetLocalFlag(int index, int value) {
     }
 
     mask = 1 << bit;
-    flags = EventLocalFlag + word;
+    flags = &EventLocalFlag[word];
     *flags &= ~mask;
 
     if (value != 0) {
@@ -3347,7 +3347,7 @@ void ResetMesFileBuffAll() {
             message->mes_data_size = 0;
         }
 
-        i += 1;
+        i++;
     } while (i < 8);
 }
 

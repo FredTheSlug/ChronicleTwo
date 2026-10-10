@@ -1914,7 +1914,9 @@ int _OUTLINE(SPI_STACK *stack, int argc) {
             }
         } else {
             /**
+             *
              * Identifier assigned to each newly allocated outline texture.
+             *
              */
             static int outline_num = 1;
             outline_num += 1;
@@ -2146,7 +2148,7 @@ int _OBJECT_NAME(SPI_STACK *stack, int argc) {
     }
 
     for (n = 0; n < argc; n++) {
-        if (frame_slot >= 2) {
+        if (frame_slot >= CHARA_ENTRY_FRAME_MAX) {
             return false;
         }
 
@@ -2206,7 +2208,7 @@ int _OBJECT_NAME2(SPI_STACK *stack, int argc) {
     }
 
     for (n = 0; n < pair_count; n++) {
-        if (object_slot >= 0x18) {
+        if (object_slot >= CHARA_ENTRY_OBJECT_MAX) {
             return false;
         }
 
@@ -2214,14 +2216,14 @@ int _OBJECT_NAME2(SPI_STACK *stack, int argc) {
         found = root->SearchFrame(name);
         value = 0.0f;
 
-        if (id >= 2) {
+        if (id >= CHARA_ENTRY_FRAME_MAX) {
             value = spiGetStackFloat(stack++);
         } else if (argc >= 3) {
             value = spiGetStackFloat(stack++);
         }
 
         if (found != NULL) {
-            if (id < 2) {
+            if (id < CHARA_ENTRY_FRAME_MAX) {
                 nowChr->entry_frame[id] = found;
             }
 
@@ -2382,7 +2384,7 @@ int _VERTEX_ANIME(SPI_STACK *stack, int argc) {
     int i;
 
     for (i = 0; i < argc; i++) {
-        if (alloc_vertex_num >= 24) {
+        if (alloc_vertex_num >= CHARA_DEFORM_FRAME_MAX) {
             return false;
         }
 
@@ -2685,7 +2687,7 @@ int _SE_START(SPI_STACK *stack, int argc) {
     }
 
     nowChr->se_num[now_motion_id] = spiGetStackInt(stack);
-    nowChr->se_list[now_motion_id] = new (now_stack->Alloc(DynAnimeAlign16Blocks(nowChr->se_num[now_motion_id] * 16) + 2))
+    nowChr->se_list[now_motion_id] = new (now_stack->Alloc(DynAnimeAlign16Blocks(nowChr->se_num[now_motion_id] * sizeof(CHRINFO_SE)) + 2))
         CHRINFO_SE[nowChr->se_num[now_motion_id]];
     now_se_header = nowChr->se_list[now_motion_id];
     return true;

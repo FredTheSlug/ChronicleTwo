@@ -2894,7 +2894,7 @@ void EdEventInit() {
     BuffEventSnd2.lock = 0;
     InitReadBG();
     EventDngMap.Initialize();
-    p_use_item = 0;
+    p_use_item = NULL;
     SetWorldCoordFlg = false;
     InitWorldCoord();
     EventScene->map_event_no = 0;
@@ -2919,7 +2919,7 @@ void EdEventInit() {
     HitEffect[1].spark = Hit_para[1];
     SwordEffect = NULL;
     HitEffect[2].spark = Hit_para[2];
-    EventEffectScript = 0;
+    EventEffectScript = NULL;
     HitEffect[3].spark = Hit_para[3];
     HitEffect[4].spark = Hit_para[4];
     HitEffect[0].spark_num = 0;
@@ -3240,7 +3240,7 @@ int EdEventFinish() {
     HitEffect[0].spark = Hit_para[0];
     HitEffect[0].spark_max = EVENT_HIT_PARTICLE_NUM;
     HitEffect[1].spark = Hit_para[1];
-    EventEffectScript = 0;
+    EventEffectScript = NULL;
     HitEffect[2].spark = Hit_para[2];
     HitEffect[3].spark = Hit_para[3];
     HitEffect[4].spark = Hit_para[4];
@@ -3275,7 +3275,7 @@ int EdEventFinish() {
 
     esMother.Init();
     EventMarker.Init();
-    p_use_item = 0;
+    p_use_item = NULL;
     SetWorldCoordFlg = false;
 
     for (k = 0; k < EVENT_SPRITE2_NUM; k++) {
@@ -3353,7 +3353,7 @@ void EdEventMenuExit() {
         p_use_item->val.i = MenuArg.result[0];
     }
 
-    p_use_item = 0;
+    p_use_item = NULL;
 }
 
 void EdEventLoopInit() {
@@ -3412,7 +3412,7 @@ void EdEventMapInit() {
     if (message != NULL) {
         message->draw_speed = message->GetDrawSpeedDef();
         message->mes_no = -1;
-        message->text_ptr = 0;
+        message->text_ptr = NULL;
         message->open = 0;
         message->fade = 0;
         message->fukidashi_centre_x = -1;
@@ -3424,7 +3424,7 @@ void EdEventMapInit() {
     if (message != NULL) {
         message->draw_speed = message->GetDrawSpeedDef();
         message->mes_no = -1;
-        message->text_ptr = 0;
+        message->text_ptr = NULL;
         message->open = 0;
         message->fade = 0;
         message->fukidashi_centre_x = -1;
@@ -3436,7 +3436,7 @@ void EdEventMapInit() {
     if (message != NULL) {
         message->draw_speed = message->GetDrawSpeedDef();
         message->mes_no = -1;
-        message->text_ptr = 0;
+        message->text_ptr = NULL;
         message->open = 0;
         message->fade = 0;
         message->fukidashi_centre_x = -1;
@@ -3452,7 +3452,7 @@ void EdEventMapInit() {
     HitEffect[0].spark_max = EVENT_HIT_PARTICLE_NUM;
     SwordEffect = NULL;
     HitEffect[1].spark = Hit_para[1];
-    EventEffectScript = 0;
+    EventEffectScript = NULL;
     HitEffect[2].spark = Hit_para[2];
     HitEffect[3].spark = Hit_para[3];
     HitEffect[4].spark = Hit_para[4];

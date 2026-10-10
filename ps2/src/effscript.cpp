@@ -2161,18 +2161,18 @@ static int _ATAN2F(RS_STACKDATA *stack, int argument_count) {
  *
  */
 static int _ANGLE_CMP(RS_STACKDATA *stack, int argument_count) {
-    float a;
-    float b;
+    float first_angle;
+    float second_angle;
     float c;
 
     if (argument_count != 4) {
         return 0;
     }
 
-    a = GetStackFloat(stack++);
-    b = GetStackFloat(stack++);
+    first_angle = GetStackFloat(stack++);
+    second_angle = GetStackFloat(stack++);
     c = GetStackFloat(stack++);
-    SetStack(stack, mgAngleCmp(a, b, c));
+    SetStack(stack, mgAngleCmp(first_angle, second_angle, c));
     return 1;
 }
 

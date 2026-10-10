@@ -4,6 +4,8 @@
 
 #include <libvu0.h>
 
+#include "mg_frame.hpp"
+
 /**
  * @file
  * Declares the collision primitives that carry an attack's damage through the dungeon: the
@@ -11,8 +13,13 @@
  * line of that attack touches a character, and the manager that holds every primitive.
  */
 
+/**
+ *
+ * Scene that owns the collision primitives and effect scripts; declared here because the scene's
+ * own header depends on this one.
+ *
+ */
 class CScene;
-class mgCFrame;
 
 /** Number of collision primitives that the manager holds. */
 #define COLPRIM_MAX 64

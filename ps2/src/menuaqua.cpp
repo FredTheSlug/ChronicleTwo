@@ -1,5 +1,5 @@
-struct fish_prize_record;
 extern char aquarium_fish_maxtbl[];
+extern float MenuItemBrdUnderBrdPosXY[];
 #include "menuaqua.hpp"
 #include "mw_runtime.h"
 
@@ -15,7 +15,6 @@ extern char aquarium_fish_maxtbl[];
 #include "mainloop.hpp"
 #include "menucls1.hpp"
 #include "menucommon.hpp"
-extern float MenuItemBrdUnderBrdPosXY[];
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
@@ -174,6 +173,16 @@ struct gyorace_list_select {
 
 /**
  *
+ * Stores prize information for three ranks.
+ *
+ */
+struct fish_prize_record {
+    int             unk_0;
+    FISH_PRIZE_INFO rank[3]; /**< Prize information for each rank. */
+};
+
+/**
+ *
  * Groups the prize records for a fish contest.
  *
  */
@@ -182,16 +191,6 @@ struct fish_prize_group {
     int                unk_4[8];
     u8                 unk_24[0x1C];
     fish_prize_record *prizes; /**< Prize records for the group. */
-};
-
-/**
- *
- * Stores prize information for three ranks.
- *
- */
-struct fish_prize_record {
-    int             unk_0;
-    FISH_PRIZE_INFO rank[3]; /**< Prize information for each rank. */
 };
 
 /**
@@ -235,8 +234,6 @@ static aqua_vector at_3311 = {
     {0.0f, 0.0f, 0.0f, 1.0f}
 };
 
-extern int menu_debug_flag;
-
 /**
  *
  * Stores the position and width of a fish parameter icon.
@@ -273,14 +270,7 @@ static int GetFishPath(int item_no, char *out);
 
 static aqua_food_info *GetEsaInfo(int item_no);
 
-extern CAquarium Aquarium;
-
 static int local_aquarium_limmit_check(float *pos, float radius, int check_y, float height);
-
-extern mgCMemory Aquarium_NameregistStack;
-extern mgCMemory GyoraceStack;
-
-extern mgCMemory GyoraceFishSelStack;
 
 static int local_aquarium_limmit_check(float *pos, float radius, int check_y, float height);
 
@@ -1966,8 +1956,6 @@ void CAquaFish::NextRootNormal() {
     target_rot[1] = mgAngleLimit(atan2f(dir[0], dir[2]));
 }
 
-#pragma optimization_level 4
-
 void CAquaFish::MoveActionRound() {
     /**
      *
@@ -2036,8 +2024,6 @@ void CAquaFish::MoveActionRound() {
     sceVu0ScaleVectorXYZ(dir, dir, action.speed);
     *(aqua_quad *) move = *(aqua_quad *) dir;
 }
-
-#pragma optimization_level reset
 
 void CAquaFish::MoveActionBattle() {
     CAquaFish    *foe;
@@ -7157,8 +7143,6 @@ void InitFishPrize() {
     spi_fish_prize_info = 0;
 }
 
-#pragma optimization_level 4
-
 int LoadFishPrize(int goods_type) {
     u8        buffer[0x2800];
     mgCMemory memory;
@@ -7167,8 +7151,6 @@ int LoadFishPrize(int goods_type) {
     LoadFishPrize(goods_type, &memory);
     return 0;
 }
-
-#pragma optimization_level reset
 
 int LoadFishPrize(int goods_type, mgCMemory *pool) {
     /**

@@ -147,14 +147,14 @@ static u8 TitleRushWaitCountBoot;
  */
 static int TitleCameraPhase;
 
-extern u8               TitleMCFuncFlag;
-extern u8               TitleMCCheckNow;
+static u8               TitleMCFuncFlag;
+static u8               TitleMCCheckNow;
 static s16              TitleMainMCCheckPhase;
 static mgCCameraFollow *TitleCamera;
 static mgCCamera       *TitleCamera2;
 static CWaveTable      *WaveTable__3;
 static CMap            *TitleMap;
-extern s8               DCRuncherMode;
+static s8               DCRuncherMode;
 static int              DCRuncherCounter;
 static u_int            TitleEventSound;
 static mgCTexture      *Tex_TitleBG;
@@ -176,8 +176,8 @@ void               CalcPushAlpha(int index, float *alpha);
 void               TitleMCCheckInit(int boot_mode);
 int                CheckAppInstallForTitle();
 static mgCTexture *RushStart;
-extern s8          TitleBootEventNo;
-extern u8          GameBootInit;
+static s8          TitleBootEventNo;
+static u8          GameBootInit;
 static u8          TitleHDDCheckFlag = 1;
 static void        TitleBootInit();
 
@@ -673,8 +673,6 @@ void TitleInit(INIT_LOOP_ARG arg) {
     TitleBootInit();
 }
 
-#pragma inline_depth(8)
-
 /**
  *
  * Loads the title scene, menu resources, sound, and boot-time memory card state.
@@ -832,8 +830,6 @@ static void TitleBootInit() {
         }
     }
 }
-
-#pragma inline_depth reset
 
 void TitleExit() {
     if (CheckOmakeFlag() != 0) {
@@ -3331,8 +3327,3 @@ void TitleLangSelDraw() {
 }
 
 int TitleSelectInit;
-INCLUDE_BSS(GameBootInit, 0x4);
-INCLUDE_BSS(TitleBootEventNo, 0x4);
-INCLUDE_BSS(DCRuncherMode, 0x4);
-INCLUDE_BSS(TitleMCFuncFlag, 0x4);
-INCLUDE_BSS(TitleMCCheckNow, 0x4);

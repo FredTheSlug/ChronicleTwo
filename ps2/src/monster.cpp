@@ -1846,16 +1846,9 @@ int CheckGiftPack(CActiveMonster *monster, CColPrim *prim) {
     return 1;
 }
 
-extern CFireAfterHit  fireAfterHit[];
-extern CChillAfterHit chillAfterHit[];
-extern CThunder       thunder[];
-extern CTornado       tornado[];
-
 static inline DNG_BATTLE_AREA *BattleArea(CScene *scene) {
     return &scene->battle_area;
 }
-
-#pragma divbyzerocheck on
 
 void CMonsterMan::CheckDamage() {
     CActionChara     *player;
@@ -2405,8 +2398,6 @@ void CMonsterMan::CheckDamage() {
         }
     }
 }
-
-#pragma divbyzerocheck reset
 
 void CMonsterMan::MoveUnit(CActiveMonster *monster, CCPoly *poly, int poly_num) {
     float position[4];

@@ -5,22 +5,27 @@
 #include <libvu0.h>
 
 #include "mapload.hpp"
+#include "mdslist.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
+#include "water.hpp"
 
 /**
  * @file
- * Declares the function points of a map and its placed parts: the manager
- * that keeps them in one list per kind, the conditions they are checked
- * against, the animations they drive on the pieces of a part, and the
- * helpers that draw their fire, find their lights and place their sounds.
+ * Declares the function points of a map and its placed parts: the manager that keeps them in one
+ * list per kind, the animations they drive on the pieces of a part, and the helpers that draw their
+ * fire, find their lights and place their sounds.
  */
 
-class mgCFrame;
-class mgCMemory;
-class mgCTexture;
-class CFireRaster;
+/**
+ *
+ * Placed map part that function-point animations drive; declared here because the part's own header
+ * depends on this one.
+ *
+ */
 class CMapParts;
-class CMapPiece;
 
 /**
  *
@@ -70,26 +75,6 @@ enum OBJ_ANIME_MODE {
     OBJ_ANIME_MODE_CLOCK_HOUR = 9,    /**< Turns about Y once per twelve hours of the time of day, as a clock's hour hand. */
     OBJ_ANIME_MODE_TIME = 10,         /**< Moves between the start and end values as the time of day enters and leaves the point's time range. */
 };
-
-/**
- *
- * Conditions function points are checked against: the time of day and the animation frame.
- *
- */
-class CFuncPointCheck {
-public:
-    float time;        /**< Time of day, in hours, that a point's time range must contain. */
-    s32   anime_frame; /**< Frames counted by the map, that light animations are timed by. */
-
-    /**
-     *
-     * Creates conditions for midnight.
-     *
-     */
-    CFuncPointCheck() { time = 0.0f; }
-};
-
-STATIC_ASSERT(sizeof(CFuncPointCheck) == 0x8);
 
 /**
  *

@@ -2,9 +2,8 @@
 
 #include "common.h"
 
-#include <libvu0.h>
-
 #include <cstring>
+#include <libvu0.h>
 
 /**
  * @file

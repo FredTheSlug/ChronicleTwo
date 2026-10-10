@@ -2,14 +2,14 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the chapter title screen the main menu shows between chapters:
  * the chapter's background and logo pictures, the narration stream that
  * plays over them, and the fades in and out.
  */
-
-class mgCMemory;
 
 /**
  *

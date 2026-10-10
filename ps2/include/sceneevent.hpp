@@ -1,9 +1,8 @@
 #pragma once
 #include "common.h"
 
-#include <libvu0.h>
-
 #include <cstring>
+#include <libvu0.h>
 
 #include "map.hpp"
 #include "mapload.hpp"

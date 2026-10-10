@@ -4,16 +4,16 @@
 
 #include <libvu0.h>
 
+#include "collision.hpp"
+#include "mapparts.hpp"
+#include "mdslist.hpp"
+#include "mg_frame.hpp"
+
 /**
  * @file
  * Declares the pot or box the player picks up and throws in a dungeon, and
  * the broken pieces that scatter from it when it smashes.
  */
-
-struct CCPoly;
-class CMapParts;
-class CMapPiece;
-class mgCFrame;
 
 /**
  *

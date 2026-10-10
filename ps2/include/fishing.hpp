@@ -2,15 +2,15 @@
 
 #include "common.h"
 
+#include "cameracontrol.hpp"
+#include "mg_memory.hpp"
+#include "subgame.hpp"
+
 /**
  * @file
  * Declares the fishing sub game: the fish table, the appearance places of each map, the state of
  * a hooked fish and the entry points the sub game manager calls each frame.
  */
-
-class CCameraControl;
-class mgCMemory;
-struct SubGameInfo;
 
 /**
  *

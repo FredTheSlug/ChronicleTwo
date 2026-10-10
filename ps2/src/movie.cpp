@@ -661,8 +661,6 @@ int pcmCallback(sceMpeg *mpeg, sceMpegCbDataStr *str, void *user) {
     return result;
 }
 
-#pragma global_optimizer off
-
 int vblankHandler(int irq) {
     if (isCountVblank) {
         VoTag *tag = voBufGetTag(&voBuf);
@@ -670,10 +668,7 @@ int vblankHandler(int irq) {
         if (tag == NULL) {
             frd++;
 
-            asm {
-                sync
-                ei
-            }
+            ExitHandler();
 
             return 0;
         } else {
@@ -689,14 +684,9 @@ int vblankHandler(int irq) {
             Cb ^= 1;
         }
     }
-    asm {
-        sync
-        ei
-    }
+    ExitHandler();
     return 0;
 }
-
-#pragma global_optimizer reset
 
 int handler_endimage(int irq) {
     if (isFrameEnd) {
@@ -704,10 +694,7 @@ int handler_endimage(int irq) {
         isFrameEnd = 0;
     }
 
-    asm {
-        sync
-        ei
-    }
+    ExitHandler();
 
     return 0;
 }
@@ -1051,8 +1038,6 @@ void viBufFlush(ViBuf *buf) {
     SignalSema(buf->sema);
 }
 
-#pragma divbyzerocheck on
-
 int viBufModifyPts(ViBuf *buf, TimeStamp *ts) {
     int        remaining;
     int        index;
@@ -1116,8 +1101,6 @@ int viBufModifyPts(ViBuf *buf, TimeStamp *ts) {
 
     return 0;
 }
-
-#pragma divbyzerocheck reset
 
 int viBufPutTs(ViBuf *buf, TimeStamp *ts) {
     int had_room = 0;

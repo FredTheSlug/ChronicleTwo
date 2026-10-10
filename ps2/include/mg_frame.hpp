@@ -4,18 +4,14 @@
 
 #include <libvu0.h>
 
+#include "mg_drawenv.hpp"
+#include "mg_drawprim.hpp"
 #include "mg_visual.hpp"
 
 /**
  * @file
- * Declares the engine's transformable object, the frame hierarchy built on it, and the drawing attributes each frame carries.
+ * Declares the engine's transformable object and the frame hierarchy built on it.
  */
-
-class mgCVisual;
-class mgCDrawManager;
-class mgRENDER_INFO;
-struct mgVu0FBOX;
-struct mgMaterial;
 
 /**
  *
@@ -80,59 +76,6 @@ enum mgFrameAttrParam {
     MG_FRAME_ATTR_DEST_ALPHA = 0x400000,    /**< Copies the visual attribute at offset 0x14 (destination alpha test). */
     MG_FRAME_ATTR_AMBIENT_BOOST = 0x800000, /**< Copies ambient_boost. */
 };
-
-/**
- *
- * Drawing attributes of one frame: the visual's GS settings plus visibility, lighting, fog and billboarding.
- *
- */
-class mgCFrameAttr : public mgCVisualAttr {
-public:
-    int           draw;        /**< Visibility bits, from mgFrameDrawFlag; set by the 'V' name flag. */
-    int           clip_enable; /**< Whether a frame crossing the screen's guard band is drawn with clipping; set by the 'N' name flag. */
-    float         unk_20;
-    int           unk_24;
-    int           unk_28;
-    int           program_option; /**< Sets bit 2 of the microprogram's draw flags; set by the 'S' name flag. */
-    int           fog;            /**< Fog mode: 0 off, 1 the scene's fog colour, 2 black fog, 3 white fog; set by the 'F' name flag. */
-    int           unk_34;
-    float         unk_38;
-    int           unk_3c;
-    int           program_mode;  /**< Microprogram mode bits; nonzero also sends the eye position in model space; set by the 'M' name flag. */
-    float         obj_alpha;     /**< Factor applied to the alpha of the frame's ambient and material colours. */
-    int           no_cull;       /**< Whether the frame is drawn without testing its bound against the screen. */
-    int           ambient_boost; /**< Whether the ambient light gains 30% of the first light's colour; set by the 'T' name flag. */
-    sceVu0FVECTOR unk_50;
-    int           no_light;    /**< Whether the frame is drawn without the scene's lights; set by the 'C0' name flag. */
-    sceVu0FVECTOR color;       /**< Colour handed to the renderer while the frame is drawn. */
-    int           point_light; /**< Whether the frame is lit by the point lights its bounding sphere reaches. */
-    int           unk_84;
-    int           billboard;  /**< Billboard mode, from mgFrameBillboard; set by the 'BA' and 'BY' name flags. */
-    float         depth_bias; /**< Above 1.0, pulls the frame's depth forward so it draws over coplanar geometry; set by the 'Zp' name flag. */
-
-    /**
-     *
-     * Makes a set of attributes with every field at its default.
-     *
-     * @mangled __ct__12mgCFrameAttrFv
-     * @address 0x1361F0
-     * @size 0x30
-     */
-    mgCFrameAttr();
-
-    /**
-     *
-     * Puts every field back to its default: drawn, full alpha, grey colour,
-     * depth written, no billboard.
-     *
-     * @mangled Initialize__12mgCFrameAttrFv
-     * @address 0x136160
-     * @size 0x90
-     */
-    void Initialize();
-};
-
-STATIC_ASSERT(sizeof(mgCFrameAttr) == 0x90);
 
 /**
  *

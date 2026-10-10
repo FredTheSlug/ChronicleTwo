@@ -377,10 +377,7 @@ int VSyncCallBack(int field) {
 
     call_back_active = 0;
 
-    asm {
-        sync
-        ei
-    }
+    ExitHandler();
 
     return 0;
 }
@@ -405,13 +402,14 @@ void mgSetRotateThread(int priority) {
  *
  */
 void WaitVSync(int start, int frames) {
-wait:
-    if ((mgGetVSyncCount() - start) < frames) {
+    for (;;) {
+        if (mgGetVSyncCount() - start >= frames) {
+            break;
+        }
+
         if (rot_priority > 0) {
             RotateThreadReadyQueue(rot_priority);
         }
-
-        goto wait;
     }
 }
 
@@ -1901,8 +1899,6 @@ int mgTransWorldPrim3DSprite(int *top_left, int *bottom_right, float *position, 
     return visible & prim_clip_check(second);
 }
 
-#pragma global_optimizer off
-
 /**
  *
  * Tests whether a built-in or user VU1 microprogram identifier is available.
@@ -1945,8 +1941,6 @@ valid:
     return 1;
 }
 
-#pragma global_optimizer reset
-
 u_long128 *mgGetVuProgPacket(int id) {
     if (CheckVuProgID(id) == 0) {
         return NULL;
@@ -1984,8 +1978,6 @@ void mgSetUserVuProg(u_long128 **table, int count) {
     user_prog_num = count;
 }
 
-#pragma global_optimizer off
-
 void mgSetUserVuProgAdr(int index, u_long128 *adr) {
     if (index < 0 || index >= user_prog_num) {
         return;
@@ -1993,8 +1985,6 @@ void mgSetUserVuProgAdr(int index, u_long128 *adr) {
 
     user_prog_adr[index] = adr;
 }
-
-#pragma global_optimizer reset
 
 /**
  *

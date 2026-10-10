@@ -2,17 +2,16 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+#include "padcontrol.hpp"
+#include "userdata.hpp"
+
 /**
  * @file
  * Declares the camera mode in which Max takes photos: aiming and zooming,
  * capturing the frame buffer into a carried picture, and drawing the
  * on-screen prompts, photo title and photography level messages.
  */
-
-class CPadControl;
-class CInventUserData;
-class mgCMemory;
-struct USER_PICTURE_INFO;
 
 /**
  *

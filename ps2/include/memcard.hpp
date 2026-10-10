@@ -4,6 +4,7 @@
 
 #include <libmc.h>
 
+#include "mg_memory.hpp"
 #include "savedata.hpp"
 
 /**
@@ -11,8 +12,6 @@
  * Declares the memory card manager that saves and loads the game, the photo album and the bonus (omake) data, the
  * records it keeps about each card and save file, and the save file image it writes.
  */
-
-class mgCMemory;
 
 /**
  *

@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#include "character.hpp"
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the table of maps read from the map configuration script, which
@@ -10,9 +13,6 @@
  * editor and the event viewer, and the switch that shows or hides the
  * Atlamillia on a character's model.
  */
-
-class mgCMemory;
-class CCharacter2;
 
 /**
  *

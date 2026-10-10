@@ -2053,7 +2053,7 @@ void CheckEnableHaveItemNum();
  * @address 0x244F30
  * @size 0x1CC
  */
-void MenuMoveItemPos(int *item, int *pos, int phase);
+void MenuMoveItemPos(int *row, int *pos, int phase);
 
 /**
  *

@@ -483,7 +483,7 @@ idea or photo board on left navigation. The remaining values:
   leads to 10.
 - 9 `INVENT_MODE_MEMO_LIST`: the notebook's word list (`memo_cursor`,
   `GetNetaMemoCursorPosition`); moving above the first word leads to 11, and
-  `K_COMMAND_SET_CIRCLE` takes the circled idea from the notebook here.
+  `INVENT_KEY_COMMAND_SET_IDEA` takes the circled idea from the notebook here.
 - 10 `INVENT_MODE_MEMO_ARROW`: the arrow between board and notebook
   (ネタ帳矢印), reached by moving up from the board's top row; up leads to 8,
   down back to the board.

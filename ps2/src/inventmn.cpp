@@ -209,8 +209,9 @@ struct InventCommandList {
     int cmd[5];  /**< Command codes for this mode. */
 };
 
-int  MenuInventDebugKey();
-void MenuInventDebugDraw();
+static int  MenuInventDebugKey();
+static void MenuInventDebugDraw();
+static int  CheckPhotoFlag();
 
 /**
  *
@@ -334,7 +335,7 @@ static mgCTexture *Tex_Hatsumei;
  * Background data-read handle of the inventory submenu.
  *
  */
-static unsigned int InventSubDataReadBGInfo;
+static BG_READ_INFO *InventSubDataReadBGInfo;
 
 /**
  *
@@ -1530,7 +1531,12 @@ char *GetPhotoNameCheck(USER_PICTURE_INFO *info) {
     return result;
 }
 
-int CheckPhotoFlag() {
+/**
+ *
+ * Learns the ideas of the carried photos that show new ones, returning non-zero when any was learnt.
+ *
+ */
+static int CheckPhotoFlag() {
     int                added = 0;
     CInventUserData   *user = GetInventUserDataPtr();
     USER_PICTURE_INFO *photos = user->GetPhotoInfo(0);
@@ -2031,6 +2037,19 @@ void CMenuInvent::AttachFormInfo() {
     }
 
     AttachMessageForm();
+}
+
+/**
+ *
+ * Rounds a byte count up to a number of 16-byte allocation blocks.
+ *
+ */
+static inline u_int align16_blocks(u_int size) {
+    if (size & 0xF) {
+        return (size >> 4) + 1;
+    }
+
+    return size >> 4;
 }
 
 /**
@@ -2736,7 +2755,7 @@ void CMenuInvent::GradationStep() {
 void CMenuInvent::InitEnd() {
     BG_READ_INFO *read_info;
 
-    read_info = (BG_READ_INFO *) InventSubDataReadBGInfo;
+    read_info = InventSubDataReadBGInfo;
     album_enable = 1;
 
     if (GetUserDataMan()->GetNumSameItem(0x165) <= 0) {
@@ -4711,19 +4730,6 @@ CStarDust::CStarDust() {
     this->active = 0;
 }
 
-/**
- *
- * Rounds a byte count up to a number of 16-byte allocation blocks.
- *
- */
-static inline u_int align16_blocks(u_int size) {
-    if (size & 0xF) {
-        return (size >> 4) + 1;
-    }
-
-    return size >> 4;
-}
-
 void CMenuInvent::IsAccessAlbum() {
     MC_CARD_INFO  *card;
     CDC2Mes       *message;
@@ -6198,7 +6204,7 @@ int MenuInventInit(mgCMemory *memory, int *tex_block, int arg) {
         stack->Alloc((size & 0xF) ? (size >> 4) + 1 : size >> 4);
     }
 
-    InventSubDataReadBGInfo = (unsigned int) GetReadBGFile(0);
+    InventSubDataReadBGInfo = GetReadBGFile(0);
     u_long128 *chara_top = stack->stGetTop();
     MenuInventMCStack.stSetBuffer(chara_top, stack->stGetRest());
     MenuActionCharaBuffer[0].stSetBuffer(stack->stGetTop(), 0x1B80);
@@ -6345,7 +6351,12 @@ void CMenuInvent::NextDifferentMode(int next, int arg) {
     this->key_arg_no = next;
 }
 
-int MenuInventDebugKey() {
+/**
+ *
+ * Handles the debug keys of the idea board: adding photos of any idea, learning every idea, levelling photos and marking inventions made.
+ *
+ */
+static int MenuInventDebugKey() {
     int keys = MenuCommonInfo->CheckSelectKey() | MenuCommonInfo->CheckLRKey();
     int button = MenuCommonInfo->CheckPushButton();
 
@@ -6425,7 +6436,12 @@ int MenuInventDebugKey() {
     return 1;
 }
 
-void MenuInventDebugDraw() {
+/**
+ *
+ * Draws the idea list of the debug keys and the created model's scale and position.
+ *
+ */
+static void MenuInventDebugDraw() {
     DrawMenuFillBox(0x40, 0, 0, 0);
     mgCTextureManager *texture_manager = &mgTexManager;
     mgCDrawPrim        prim;

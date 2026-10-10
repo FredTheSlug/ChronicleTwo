@@ -3,9 +3,13 @@
 #include "common.h"
 
 #include "dng_event.hpp"
+#include "dngfloor.hpp"
 #include "menucls1.hpp"
 #include "menusys.hpp"
+#include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
+#include "savedatadungeon.hpp"
 
 /**
  * @file
@@ -14,14 +18,6 @@
  * where a floor is chosen to jump to, and by event scripts that move the
  * piece across it; plus the menu that runs the tree map.
  */
-
-class CDngFloorManager;
-class CSaveDataDungeon;
-class mgCMemory;
-class mgCTexture;
-struct DNGMAP_ROOM_INFO;
-struct DNGMAP_ROOT_INFO;
-struct GLID_INFO;
 
 /**
  *

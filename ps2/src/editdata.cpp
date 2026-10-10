@@ -7,6 +7,7 @@
 
 #include "dataread.hpp"
 #include "editdata.hpp"
+#include "editmap.hpp"
 #include "editriver.hpp"
 #include "mdslist.hpp"
 #include "mg_memory.hpp"

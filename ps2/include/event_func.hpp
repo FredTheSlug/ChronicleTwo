@@ -4,8 +4,19 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
 #include "dng_effect.hpp"
+#include "eventsprite.hpp"
+#include "mapload.hpp"
+#include "mapparts.hpp"
+#include "mg_camera.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "nd_meswin.hpp"
+#include "object.hpp"
 #include "runscript.hpp"
+#include "scene.hpp"
 #include "sceneseq.hpp"
 #include "scenesnd.hpp"
 
@@ -17,20 +28,6 @@
  * screen effects, the argument lists that event scripts load, and the
  * routines that set up, step, draw and finish an event.
  */
-
-class CCharacter2;
-class CEventSprite2;
-class CEventSpriteMother;
-class CFuncPoint;
-class CMapParts;
-class CMarker;
-class CObject;
-class CRain;
-class mgCCamera;
-class mgCFrame;
-class mgCMemory;
-class mgCTexture;
-class ClsMes;
 
 /**
  *
@@ -2267,8 +2264,6 @@ int CommandStreamOpen2(int port, char *name);
  * @size 0x190
  */
 void SetEventFunc(CRunScript *script);
-
-class CCameraControl;
 
 /**
  *

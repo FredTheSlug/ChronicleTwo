@@ -6,15 +6,14 @@
 
 #include "gyoracesim.hpp"
 #include "mg_camera.hpp"
+#include "nd_meswin.hpp"
+#include "subgame.hpp"
 
 /**
  * @file
  * Declares the fish race (gyorace) sub game: the six racing fish shown swimming two laps of the
  * course, the race camera, the commentary window and the results kept for the event scripts.
  */
-
-class ClsMes;
-struct SubGameInfo;
 
 /**
  *

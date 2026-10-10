@@ -2,13 +2,13 @@
 
 #include "common.h"
 
+#include "mg_drawenv.hpp"
+#include "runscript.hpp"
+
 /**
  * @file
  * Declares the tests that find where pipes, spheres and line segments meet triangles and boxes.
  */
-
-struct mgVu0FBOX;
-struct RS_STACKDATA;
 
 /**
  *

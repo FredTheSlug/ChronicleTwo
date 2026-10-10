@@ -4,33 +4,27 @@
 
 #include <libvu0.h>
 
+#include "collision.hpp"
+#include "editdata.hpp"
 #include "editinfo.hpp"
 #include "editparts.hpp"
+#include "editriver.hpp"
+#include "funcpoint.hpp"
 #include "map.hpp"
+#include "mapload.hpp"
+#include "mapparts.hpp"
+#include "mdslist.hpp"
+#include "mg_drawenv.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
 #include "mg_tanime.hpp"
 #include "sceneload.hpp"
 
 /**
  * @file
- * Declares the map of a town being built in the Georama editor: the edit
- * parts placed in it, the houses and the placement log they keep, the river
- * grids laid on its ground, and the checks that decide where a part may go.
+ * Declares the map of a town being built in the Georama editor: the edit parts placed in it, the
+ * houses, the river grids laid on its ground, and the checks that decide where a part may go.
  */
-
-class mgCFrame;
-class mgCMemory;
-class CCPoly;
-class CEditData;
-class CEditGrid;
-class CFuncPoint;
-class CMapParts;
-class CMapPiece;
-class CObjAnimeEnv;
-struct EMAP_MESSAGE;
-struct InScreenFuncInfo;
-struct MapEventInfo;
-struct mgVu0FBOX;
 
 /**
  *
@@ -74,18 +68,6 @@ struct EP_PLACE_INFO {
 };
 
 STATIC_ASSERT(sizeof(EP_PLACE_INFO) == 0x48);
-
-/**
- *
- * Entry of an edit map's placement log, recording that one placed part rests on another.
- *
- */
-struct EditPlaceLog {
-    s16 parts_no; /**< Slot number of the part that rests on the other, or below zero when the entry is free. */
-    s16 base_no;  /**< Slot number of the part it rests on. */
-};
-
-STATIC_ASSERT(sizeof(EditPlaceLog) == 0x4);
 
 /**
  *

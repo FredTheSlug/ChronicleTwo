@@ -4,6 +4,8 @@
 
 #include <libvu0.h>
 
+#include "mg_memory.hpp"
+
 /**
  * @file
  * Declares the town villager manager: the per-villager state that walks
@@ -11,8 +13,6 @@
  * talk, and plays its camera poses, together with the place descriptions
  * read from the villager place script that drive it.
  */
-
-class mgCMemory;
 
 /**
  *

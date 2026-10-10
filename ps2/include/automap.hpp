@@ -4,6 +4,11 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
+#include "map.hpp"
+#include "mapparts.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 #include "prespr.hpp"
 
 /**
@@ -12,12 +17,6 @@
  * of map parts, the mini map that draws that grid and the symbols on it, and
  * the healing point a generated floor may contain.
  */
-
-class CCharacter2;
-class CMap;
-class CMapParts;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *

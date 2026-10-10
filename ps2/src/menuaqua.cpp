@@ -1,5 +1,5 @@
-struct fish_prize_record;
 extern char aquarium_fish_maxtbl[];
+extern float MenuItemBrdUnderBrdPosXY[];
 #include "menuaqua.hpp"
 #include "mw_runtime.h"
 
@@ -15,7 +15,6 @@ extern char aquarium_fish_maxtbl[];
 #include "mainloop.hpp"
 #include "menucls1.hpp"
 #include "menucommon.hpp"
-extern float MenuItemBrdUnderBrdPosXY[];
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
@@ -174,6 +173,16 @@ struct gyorace_list_select {
 
 /**
  *
+ * Stores prize information for three ranks.
+ *
+ */
+struct fish_prize_record {
+    int             unk_0;
+    FISH_PRIZE_INFO rank[3]; /**< Prize information for each rank. */
+};
+
+/**
+ *
  * Groups the prize records for a fish contest.
  *
  */
@@ -182,16 +191,6 @@ struct fish_prize_group {
     int                unk_4[8];
     u8                 unk_24[0x1C];
     fish_prize_record *prizes; /**< Prize records for the group. */
-};
-
-/**
- *
- * Stores prize information for three ranks.
- *
- */
-struct fish_prize_record {
-    int             unk_0;
-    FISH_PRIZE_INFO rank[3]; /**< Prize information for each rank. */
 };
 
 /**

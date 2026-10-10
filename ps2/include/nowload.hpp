@@ -3,14 +3,13 @@
 #include "common.h"
 
 #include "mg_memory.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
  * Declares the loading screen, which draws a progress bar from its own thread
  * while a town or dungeon loads, the pause screen, and the boot logo fade.
  */
-
-class CScene;
 
 /**
  *

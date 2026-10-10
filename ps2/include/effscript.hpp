@@ -4,6 +4,9 @@
 
 #include <libvu0.h>
 
+#include "character.hpp"
+#include "colprim.hpp"
+#include "mg_memory.hpp"
 #include "mg_sprite.hpp"
 #include "runscript.hpp"
 
@@ -14,9 +17,12 @@
  * and steps and draws every running effect with its characters and billboard sprites.
  */
 
-class mgCMemory;
-class CCharacter2;
-class CColPrim;
+/**
+ *
+ * Scene the effect scripts run in; declared here because the scene's own header depends on this
+ * one.
+ *
+ */
 class CScene;
 
 /** Number of effect bases that the manager can hold loaded at once. */

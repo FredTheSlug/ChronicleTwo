@@ -2,9 +2,12 @@
 
 #include "common.h"
 
+#include <cstring>
 #include <libvu0.h>
 
-#include <cstring>
+#include "collision.hpp"
+#include "mg_frame.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
@@ -12,10 +15,6 @@
  * that model the lure, float and hook, and the functions that step the rod,
  * line and tackle, run the struggle with a hooked fish and draw the line.
  */
-
-class CScene;
-class mgCFrame;
-struct CCPoly;
 
 /**
  *

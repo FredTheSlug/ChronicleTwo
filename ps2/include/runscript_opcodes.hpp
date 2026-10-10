@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "mg_memory.hpp"
+#include "monster.hpp"
 #include "runscript.hpp"
 
 /**
@@ -10,9 +12,6 @@
  * that maps script function numbers to them, and the routines that give a
  * monster's interpreter its program and that table.
  */
-
-class CActiveMonster;
-class mgCMemory;
 
 /**
  *

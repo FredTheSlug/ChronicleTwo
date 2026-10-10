@@ -4,8 +4,12 @@
 
 #include <libvu0.h>
 
+#include "editparts.hpp"
 #include "map.hpp"
+#include "mapparts.hpp"
+#include "mg_memory.hpp"
 #include "mg_sprite.hpp"
+#include "mg_texture.hpp"
 
 /**
  * @file
@@ -14,11 +18,6 @@
  * splash of paint drops, and the hop, squash and lift animations of the
  * placed parts themselves.
  */
-
-class CEditParts;
-class CMapParts;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *

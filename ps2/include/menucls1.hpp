@@ -3,6 +3,7 @@
 #include "common.h"
 
 #include "gamedata.hpp"
+#include "menudraw.hpp"
 #include "mg_tanime.hpp"
 #include "nd_meswin.hpp"
 #include "userdata.hpp"
@@ -14,8 +15,6 @@
  * carrier that animates items moving between two slots, and the item-use checker; plus the
  * full-width digit helpers and the "???" placeholder string the menus print with.
  */
-
-class CMenuPosDataForm;
 
 /**
  *

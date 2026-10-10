@@ -4,9 +4,13 @@
 
 #include <libvu0.h>
 
+#include "actionchara.hpp"
+#include "character.hpp"
 #include "gamedata.hpp"
+#include "menudraw.hpp"
 #include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
 #include "userdata.hpp"
 
 /**
@@ -84,15 +88,6 @@ enum ITEM_MENU_COMMAND {
     ITEM_MENU_COMMAND_BOIL_FISH = 42,
     ITEM_MENU_COMMAND_VIEW_FISHING_ROD = 46,
 };
-
-class CActionChara;
-class CCharacter2;
-class CDC2Mes;
-class CMenuEffect;
-class CMenuPosDataForm;
-class CRepairManager;
-class mgCTexture;
-struct MENUFORMPARTS_TYPE;
 
 /**
  *

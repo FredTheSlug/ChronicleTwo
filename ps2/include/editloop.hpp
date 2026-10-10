@@ -2,20 +2,20 @@
 
 #include "common.h"
 
+#include "mainloop.hpp"
+#include "mg_memory.hpp"
+#include "nd_meswin.hpp"
+
 /**
  * @file
  * Declares the town main-loop mode, which walks the player through a town and switches between walking and Georama editing.
  */
-
-class ClsMes;
-class mgCMemory;
 
 /**
  *
  * Parameters that the main loop hands to a mode when it enters it.
  *
  */
-struct INIT_LOOP_ARG;
 
 /**
  *

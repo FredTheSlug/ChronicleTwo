@@ -8,8 +8,6 @@
  * caller-supplied buffer, plus a stack region that hands out memory linearly.
  */
 
-class mgCMemory;
-
 /**
  *
  * Ways StartStackMode picks the free gap in the heap that becomes the

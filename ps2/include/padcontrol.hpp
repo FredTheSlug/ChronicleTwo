@@ -2,13 +2,13 @@
 
 #include "common.h"
 
+#include "gamepad.hpp"
+
 /**
  * @file
  * Declares the logical controller map, which binds numbered game actions to
  * controller buttons and stick axes and samples them once per frame.
  */
-
-class CGamePad;
 
 /** Number of logical buttons a CPadControl holds. */
 #define PAD_CTRL_BTN_MAX 128

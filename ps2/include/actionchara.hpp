@@ -2,28 +2,23 @@
 
 #include "common.h"
 
+#include <cstring>
 #include <libvu0.h>
 
-#include <cstring>
-
 #include "character.hpp"
+#include "colprim.hpp"
 #include "dng_effect.hpp"
-#include "dng_main.hpp"
+#include "effscript.hpp"
+#include "mapparts.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
 #include "runscript.hpp"
+#include "scenesnd.hpp"
 
 /**
  * @file
  * Declares the character that an action script drives in the dungeon: the player, the ridepod and the monsters.
  */
-
-class mgCFrame;
-class mgCMemory;
-class CScene;
-class CMapParts;
-class CColPrim;
-class CEffectScriptMan;
-class CActionChara;
-struct ACCUME_EFFECT;
 
 /**
  *
@@ -106,6 +101,26 @@ enum ACTION_PROG {
     ACTION_PROG_DEAD = 1400,        /**< Runs the character's death. */
     ACTION_PROG_LAND = 1500,        /**< Lands the character after a fall. */
 };
+
+/**
+ *
+ * Charging effect that gathers on the player's weapon.
+ *
+ */
+struct ACCUME_EFFECT {
+    mgCFrame *frame; /**< Frame that the effect gathers on. */
+    u8        unk_4[0x28C];
+    int       clear[32];
+    int       mode; /**< Stage of the effect that the action script set. */
+    int       unk_314;
+    int       unk_318;
+    float     scale;
+    s32       unk_320;
+    int       unk_324;
+    u8        unk_328[0x8];
+};
+
+STATIC_ASSERT(sizeof(ACCUME_EFFECT) == 0x330);
 
 /**
  *

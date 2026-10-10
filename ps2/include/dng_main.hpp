@@ -4,13 +4,28 @@
 
 #include <libvu0.h>
 
+#include "actionchara.hpp"
+#include "automap.hpp"
+#include "cameracontrol.hpp"
 #include "character.hpp"
 #include "collision.hpp"
 #include "colprim.hpp"
 #include "dng_effect.hpp"
+#include "dng_event.hpp"
 #include "dng_hud.hpp"
 #include "dng_object.hpp"
+#include "effscript.hpp"
+#include "mainloop.hpp"
+#include "map.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
+#include "monster.hpp"
+#include "nd_meswin.hpp"
+#include "pot.hpp"
+#include "savedata.hpp"
+#include "savedatadungeon.hpp"
+#include "scenesnd.hpp"
+#include "userdata.hpp"
 
 /**
  * @file
@@ -18,36 +33,6 @@
  * the player, monsters, events and menus on it each frame, and holds the
  * buffers, managers and effects that the rest of the dungeon code shares.
  */
-
-class CActionChara;
-class CWeaponElement;
-class CAutoMapGen;
-class CBPot;
-class CCameraControl;
-class CEffectScriptMan;
-class CGeoStone;
-class CHealingEffectMan;
-class CMap;
-class CMapEffectsManeger;
-class CMiniEffPrimMan;
-class CMonsterMan;
-class CPot;
-class CRandomCircle;
-class CRedMarkModel;
-class CSaveData;
-class CSaveDataDungeon;
-class CScene;
-class CStartupEpisodeTitle;
-class CTreasureBoxManager;
-class CUserDataManager;
-class BattleEffectMan;
-class ClsMes;
-class MessageTaskManager;
-class mgCFrame;
-struct DNG_BATTLE_AREA;
-struct DNG_FLOOR_SAVE;
-struct INIT_LOOP_ARG;
-struct RUN_SCRIPT_ENV;
 
 // clang-format off
 
@@ -69,50 +54,6 @@ enum DNG_STATUS_MODE {
 
 /**
  *
- * Holds the ground and special-area hits found while moving a character.
- *
- */
-struct MoveCheckInfo {
-    float         radius;          /**< Radius used by the movement query. */
-    int           skip_ground;     /**< Skips the ground search when set. */
-    int           landed;          /**< Indicates a ground contact. */
-    CCPoly        ground_poly;     /**< Ground polygon under the character. */
-    int           ground_found;    /**< Indicates that a ground polygon was found. */
-    CCPoly        second_poly;     /**< Other polygon retained by the movement query. */
-    sceVu0FVECTOR ground_point;    /**< Ground contact point. */
-    int           width_result;    /**< Result of the width check. */
-    int           in_water;        /**< Indicates a water-area contact. */
-    sceVu0FVECTOR water_surface;   /**< Water surface contact point. */
-    int           crossed_area;    /**< Indicates a special-area crossing. */
-    float         signed_distance; /**< Signed distance to the special area. */
-    sceVu0FVECTOR crossed_point;   /**< Special-area crossing point. */
-
-    /**
-     *
-     * Clears the movement query state.
-     *
-     * @mangled Initialize__13MoveCheckInfoFv
-     * @address 0x1CF550
-     * @size 0x10
-     */
-    void Initialize() {
-        memset(this, 0, sizeof(MoveCheckInfo));
-    }
-
-    /**
-     *
-     * Resets the movement query before another check.
-     *
-     */
-    void Clear() {
-        Initialize();
-    }
-};
-
-STATIC_ASSERT(sizeof(MoveCheckInfo) == 0x110);
-
-/**
- *
  * State of the dungeon main loop that the dungeon's other code reads and changes.
  *
  */
@@ -127,26 +68,6 @@ struct DNG_STATUS {
 };
 
 STATIC_ASSERT(sizeof(DNG_STATUS) == 0x1C);
-
-/**
- *
- * Charging effect that gathers on the player's weapon.
- *
- */
-struct ACCUME_EFFECT {
-    mgCFrame *frame; /**< Frame that the effect gathers on. */
-    u8        unk_4[0x28C];
-    int       clear[32];
-    int       mode; /**< Stage of the effect that the action script set. */
-    int       unk_314;
-    int       unk_318;
-    float     scale;
-    s32       unk_320;
-    int       unk_324;
-    u8        unk_328[0x8];
-};
-
-STATIC_ASSERT(sizeof(ACCUME_EFFECT) == 0x330);
 
 /**
  *

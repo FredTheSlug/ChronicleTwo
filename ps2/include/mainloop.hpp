@@ -4,7 +4,13 @@
 
 #include <cstring>
 
+#include "font.hpp"
 #include "gamepad.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "padcontrol.hpp"
+#include "savedata.hpp"
+#include "scenesnd.hpp"
 #include "sound.hpp"
 
 /**
@@ -14,14 +20,6 @@
  * shared state it owns: the main scene, the save data, the controller,
  * the language, the debug menu settings and the pause menu.
  */
-
-class CFont;
-class CScene;
-class CSaveData;
-class CSubGameData;
-class CPadControl;
-class mgCMemory;
-class mgCTexture;
 
 /**
  *

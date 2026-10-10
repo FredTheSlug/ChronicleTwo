@@ -2,19 +2,18 @@
 
 #include "common.h"
 
+#include "actionchara.hpp"
+#include "mg_camera.hpp"
+#include "mg_memory.hpp"
+#include "runscript.hpp"
+#include "scenesnd.hpp"
+
 /**
  * @file
  * Declares the routines that give an action character's interpreter its
  * program and the action external-function table, and the state that the
  * action script's external functions act on while a character's script runs.
  */
-
-class CActionChara;
-class CRunScript;
-class CScene;
-class mgCCameraFollow;
-class mgCMemory;
-struct RUN_SCRIPT_ENV;
 
 /**
  *

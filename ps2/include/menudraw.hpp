@@ -4,8 +4,15 @@
 
 #include <libvu0.h>
 
+#include "actionchara.hpp"
+#include "character.hpp"
+#include "gamedata.hpp"
+#include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
 #include "mg_tanime.hpp"
+#include "mg_texture.hpp"
+#include "nd_meswin.hpp"
+#include "userdata.hpp"
 
 /**
  * @file
@@ -14,16 +21,6 @@
  * helpers (textured quads, numbers, frames, cursors, item icons and the item
  * board), and the small particle effects shown on menu screens.
  */
-
-class CActionChara;
-class CCharacter2;
-class CGameDataUsed;
-class CItemUseTarget;
-class CUserDataManager;
-class ClsMes;
-class mgCDrawPrim;
-class mgCTexture;
-class CMenuPosDataForm;
 
 enum MENU_NUMBER_ALIGN {
     MENU_NUMBER_ALIGN_RIGHT = 0,

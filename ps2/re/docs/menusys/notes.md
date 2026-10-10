@@ -1,5 +1,7 @@
 # menusys: header notes
 
+Item commands, places, layouts and the enums derived from them: see item-menu.md.
+
 `MenuModeMalloc`, `MenuItemSelectInit` and `MenuItemDebugKey` are native C++
 with after-inline placement rows asserting two, one and one constructions.
 SelectInit additionally uses two float rows, and DebugKey one. Complete-object
@@ -35,6 +37,9 @@ Header order (acyclic, each includes only what it needs by value): gamedata < us
 | `MENU_ITEM_CURSOR_INFO` | 0xC | `MenuItemCursorInfo` size 0xC: bytes 0..6, int at 8 |
 | `BUILDUP_WEAPON_INFO` | 0x44 | `BuildUpWeaponInfo` size 0x44 |
 
+Fields: `se_no` (sound played after the command), `menu_cmd`, `chara`, `result`, `detail`, `no_equipped_rod`, `num`,
+`item`, `item2`; see item-menu.md.
+
 `MENU_INPUTKEY_ARG`, `MENU_ITEM_CURSOR_INFO` and `BUILDUP_WEAPON_INFO` are **not retail names**.
 No symbol names these types, so the names are neutral ones taken from the tables and globals that use them.
 `MENU_ASK_MODE`, `MENU_SELECT_KEY`, `MENU_PUSH_BUTTON` and `MENU_INPUTKEY_TYPE` are likewise our names.
@@ -51,15 +56,15 @@ No symbol names these types, so the names are neutral ones taken from the tables
 - 0x04 u8 `opened`: `CMenuItemInfo::KeyStep` sets it once it has run the opening script (`ExeScript`).
 - 0x08/0x0C: script pointer and size, from `GetPackFile(..., &size)` in `MenuItemInit` and passed to
   `MenuCommandAnalyze(char*, int, char*)`.
-- 0x10 is set to 0x80 by the ctor and never read in menusys (`unk_10`). 0x06, 0xF8, 0xFC and 0x104 are
+- 0x10 `fade_alpha`: the ctor sets 0x80 and the derived menus (editmenu, inventmn) fade it with `CalcMenuAdd`. 0x06, 0xF8, 0xFC and 0x104 are
   never read here either.
 - 0x14 s16 `key_arg_no`: index into `item_menu_argtbl` (`CMenuItemInfo`).
 - 0x18 `int tex_block[16]`: SetTexBlock/DeleteTexBlock loop to 16 and stop at a value <= 0 or < 0.
-- 0x58 `ask_para`; 0xEC `swap_info`; 0xF4 `cmd_arg_pos` (MenuItemCommnadSelectPrepare stores its arg).
+- 0x58 `ask_para`; 0xEC `swap_info`; 0xF4 `cmd_arg_pos` (MenuItemCommnadSelectPrepare stores its place).
 - 0x100/0x108/0x10A: the make question of SelectMakeObject (count, cursor row byte, max s16).
 - Ctor order in retail: vptr store, `ask_para` ctor, `swap_info.Set(-1,0,-1,0)`, `memset(this,0,0x110)`
   (this clears the vptr too; derived classes store theirs afterwards), field inits, 16x `tex_block=-1`,
-  `cmd_arg_pos=-1`, `unk_F8=0`, `step=0`, `SetAskParam(NULL)`, `memset(&unk_FC,0,0x10)`.
+  `cmd_arg_pos=-1`, `unk_F8=0`, `step=0`, `SetAskParam(NULL)`, `memset(&make_item_no,0,0x10)`.
   MENU_SWAPITEM_INFO has **no** constructor. Locals in EquipDirect and ItemCmdAfter are only `Set` once
   with other values, so the Set call belongs in the ctor body.
 

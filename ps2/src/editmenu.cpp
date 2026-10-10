@@ -1460,7 +1460,7 @@ int MenuGeoramaKey() {
     }
 
     if (menu->mode != 2 && menu->opened != 0) {
-        CalcMenuAdd(&menu->unk_10, -6, 0x40);
+        CalcMenuAdd(&menu->fade_alpha, -6, 0x40);
 
         if (GeoramaParts_DrawWaitCnt < 0) {
             GeoramaParts_DrawWaitCnt++;
@@ -3262,7 +3262,7 @@ void CMenuGeorama::InitEnd() {
     }
 
     GeoramaMesForceMakeFlag = 1;
-    unk_10 = 0x80;
+    fade_alpha = 0x80;
     form = MenuPosData->GetFormInfo(10);
     i = 0;
 
@@ -4385,7 +4385,7 @@ int MenuGeoramaBasePush(CMenuGeorama *menu, int buttons_held, int buttons_presse
         moved = 1;
     }
 
-    if (moved != 0 || (menu->view_loaded == 0 && menu->unk_10 <= 0)) {
+    if (moved != 0 || (menu->view_loaded == 0 && menu->fade_alpha <= 0)) {
         if (menu->view_mode < 3) {
             load_kind = 0;
 

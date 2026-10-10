@@ -286,9 +286,9 @@ void CCharacter2::SetPosition(float *pos) {
 
 void CCharacter2::AddOutLine(char *name, COutLineDraw *line) {
     mgCFrame     *target;
-    COutLineDraw *p;
+    COutLineDraw *existing;
     COutLineDraw *last;
-    COutLineDraw *q;
+    COutLineDraw *next_line;
 
     if (name != NULL) {
         target = this->CObjectFrame::frame;
@@ -297,8 +297,8 @@ void CCharacter2::AddOutLine(char *name, COutLineDraw *line) {
             target = target->SearchFrame(name);
 
             if (target == NULL) {
-                for (p = outline; p != NULL; p = p->next) {
-                    target = p->frame->SearchFrame(name);
+                for (existing = outline; existing != NULL; existing = existing->next) {
+                    target = existing->frame->SearchFrame(name);
 
                     if (target != NULL) {
                         break;
@@ -326,14 +326,14 @@ void CCharacter2::AddOutLine(char *name, COutLineDraw *line) {
 
             if (last != NULL) {
                 do {
-                    q = last->next;
+                    next_line = last->next;
 
-                    if (q == NULL) {
+                    if (next_line == NULL) {
                         break;
                     }
 
-                    last = q;
-                } while (q != NULL);
+                    last = next_line;
+                } while (next_line != NULL);
             }
 
             last->next = line;
@@ -891,7 +891,7 @@ void CCharacter2::Step() {
     int          sequence_done;
     int          reset_dynamic_anime;
     int          motion_state;
-    int          now_flags;
+    int          step_flags;
     float        entry_angle;
     CHRINFO_SEQ *playing;
     float       *entry_pos;
@@ -925,7 +925,7 @@ void CCharacter2::Step() {
 
                 if (seq_step != NULL) {
                     seq_state = (int) CHARA_SEQ_STATE_START;
-                    now_flags = seq_flags;
+                    step_flags = seq_flags;
 
                     switch (seq_step->type) {
                         case CHRINFO_SEQ_LOOP:
@@ -934,14 +934,14 @@ void CCharacter2::Step() {
                         default:
                         case CHRINFO_SEQ_ONCE:
                         case CHRINFO_SEQ_HOLD_WAIT:
-                            now_flags |= (int) CHARA_MOTION_HOLD;
+                            step_flags |= (int) CHARA_MOTION_HOLD;
                             break;
                         case CHRINFO_SEQ_WAIT:
                         case CHRINFO_SEQ_LOOP_WAIT:
                             break;
                     }
 
-                    SetMotionPara(seq_step->name, now_flags, 1);
+                    SetMotionPara(seq_step->name, step_flags, 1);
                     blend_speed = seq_step->blend_speed;
 
                     if (!(blend_speed < 1.0f)) {
@@ -1017,7 +1017,7 @@ void CCharacter2::Step() {
             seq_advance = 0;
 
             if (seq_step != NULL) {
-                now_flags = 0;
+                step_flags = 0;
 
                 switch (seq_step->type) {
                     case CHRINFO_SEQ_LOOP:
@@ -1025,14 +1025,14 @@ void CCharacter2::Step() {
                         break;
                     case CHRINFO_SEQ_ONCE:
                     case CHRINFO_SEQ_HOLD_WAIT:
-                        now_flags = (int) CHARA_MOTION_HOLD;
+                        step_flags = (int) CHARA_MOTION_HOLD;
                         break;
                     case CHRINFO_SEQ_WAIT:
                     case CHRINFO_SEQ_LOOP_WAIT:
                         break;
                 }
 
-                SetMotionPara(seq_step->name, now_flags, 1);
+                SetMotionPara(seq_step->name, step_flags, 1);
                 blend_speed = seq_step->blend_speed;
 
                 if (!(blend_speed < 1.0f)) {
@@ -1319,23 +1319,23 @@ CHRINFO_KEY_SET *CCharacter2::GetKeyListPtr(char *name, int *out_list) {
 }
 
 CHRINFO_SEQ_HEADER *CCharacter2::GetSeqHeaderPtr(char *name, int *out_list) {
-    CHRINFO_SEQ_HEADER *seq_step;
+    CHRINFO_SEQ_HEADER *header;
     int                 list = 0;
 
     do {
-        seq_step = seq_list[list];
+        header = seq_list[list];
 
-        if (seq_step != 0) {
-            while (seq_step != 0) {
-                if (strcmp(seq_step->name, name) == 0) {
+        if (header != 0) {
+            while (header != 0) {
+                if (strcmp(header->name, name) == 0) {
                     if (out_list != 0) {
                         *out_list = list;
                     }
 
-                    return seq_step;
+                    return header;
                 }
 
-                seq_step = seq_step->next;
+                header = header->next;
             }
         }
 
@@ -1355,7 +1355,7 @@ void CCharacter2::DeleteExtMotion() {
     u32                 k;
     int                 offset;
     mgIMG_FILE_HEADER **slot;
-    mgIMG_FILE_HEADER  *images;
+    mgIMG_FILE_HEADER  *archive;
 
     for (i = 1; i < 8; i++) {
         motion[i].frame_info = NULL;
@@ -1388,12 +1388,12 @@ void CCharacter2::DeleteExtMotion() {
 
     for (j = 1, offset = 4; j < CHARA_IMAGE_MAX; j++, offset += 4) {
         slot = (mgIMG_FILE_HEADER **) ((u8 *) this + offset + 0x2C4);
-        images = *slot;
+        archive = *slot;
 
-        if (images != 0) {
-            image = (mgIMG_HEADER *) (images + 1);
+        if (archive != 0) {
+            image = (mgIMG_HEADER *) (archive + 1);
 
-            for (k = 0; k < images->num3; k++) {
+            for (k = 0; k < archive->num3; k++) {
                 if ((u8) image->name[0] != '#') {
                     tex->DeleteTexture(image->name, texture_block);
                 }
@@ -1417,7 +1417,7 @@ void CCharacter2::DeleteImage() {
     int                group;
     mgIMG_HEADER      *image;
     u32                i;
-    mgIMG_FILE_HEADER *images;
+    mgIMG_FILE_HEADER *archive;
 
     tex->GetGroupNameList(texture_block, &group_count);
     group = tex_anime_group_start;
@@ -1428,14 +1428,14 @@ void CCharacter2::DeleteImage() {
         }
     }
 
-    images = this->images[0];
+    archive = images[0];
 
-    image = (mgIMG_HEADER *) (images + 1);
+    image = (mgIMG_HEADER *) (archive + 1);
 
-    if (images != NULL) {
+    if (archive != NULL) {
         i = 0;
 
-        while (i < images->num3) {
+        while (i < archive->num3) {
 
             if ((u8) image->name[0] != '#') {
                 tex->DeleteTexture(image->name, texture_block);
@@ -1445,7 +1445,7 @@ void CCharacter2::DeleteImage() {
             i += 1;
         }
 
-        this->images[0] = NULL;
+        images[0] = NULL;
     }
 }
 
@@ -1518,15 +1518,15 @@ CHARA_ENTRY_OBJECT *CCharacter2::GetEntryObjectPos(int id, int nth, float *out) 
 }
 
 float CCharacter2::GetWaitToFrame(char *name, float wait) {
-    float frame = 0.0f;
+    float wait_frame = 0.0f;
 
-    CHRINFO_KEY_SET *motion = nowChr->GetKeyListPtr(name, NULL);
+    CHRINFO_KEY_SET *key = nowChr->GetKeyListPtr(name, NULL);
 
-    if (motion != NULL) {
-        frame = (float) motion->start_frame + wait * ((float) motion->end_frame - (float) motion->start_frame);
+    if (key != NULL) {
+        wait_frame = (float) key->start_frame + wait * ((float) key->end_frame - (float) key->start_frame);
     }
 
-    return frame;
+    return wait_frame;
 }
 
 void CCharacter2::LoadSkin(u32 *pack_file, char *info_name, char *skin_name, mgCMemory *memory,
@@ -1542,10 +1542,10 @@ void CCharacter2::LoadPackNoLine(unsigned int *pack, char *name, mgCMemory *mode
     LoadChrFile(pack, name, model_stack, motion_stack, image_stack, image_block, parent, 0);
 }
 
-void CCharacter2::LoadChrFile(u32 *pack_file, char *name, mgCMemory *a, mgCMemory *b, mgCMemory *c,
-                              int d, CCharacter2 *e, int with_line) {
+void CCharacter2::LoadChrFile(u32 *pack_file, char *name, mgCMemory *model_stack, mgCMemory *motion_stack, mgCMemory *image_stack,
+                              int image_block, CCharacter2 *parent, int with_line) {
     CHRINFO_KEY_SET *had_motion = GetKeyListIndexPtr(0, 0);
-    ScanInfoFile(this, pack_file, name, a, b, c, d, e, with_line);
+    ScanInfoFile(this, pack_file, name, model_stack, motion_stack, image_stack, image_block, parent, with_line);
 
     if (had_motion == 0) {
         CHRINFO_KEY_SET *first = GetKeyListIndexPtr(0, 0);

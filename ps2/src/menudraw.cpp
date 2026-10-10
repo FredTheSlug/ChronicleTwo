@@ -132,7 +132,9 @@ struct menu_tile_color {
 };
 
 /**
+ *
  * Provides a rectangle initialized with zero coordinates and dimensions.
+ *
  */
 struct ZeroedRect : mgRect<int> {
     ZeroedRect() { Set(0, 0, 0, 0); }
@@ -238,62 +240,86 @@ struct board_line_width {
 } __attribute__((aligned(16)));
 
 /**
+ *
  * Selects the number of digit places used by menu number drawing.
+ *
  */
 static signed char MenuDrawNumberKeta;
 
 /**
+ *
  * Marks completion of the main menu frame movement.
+ *
  */
 static u8 MenuMainFrame_ActionEndFlag;
 
 /**
+ *
  * Holds the common creation-board texture.
+ *
  */
 static mgCTexture *Tex_CommonBoard;
 
 /**
+ *
  * Holds the material rows and controls drawn on the common creation board.
+ *
  */
 static MENUFORM_MAKEBRD_INFO CommonBoardDrawInfo;
 
 /**
+ *
  * Selects the source item-icon texture and palette.
+ *
  */
 static short use_trans_rect;
 
 /**
+ *
  * Tracks the phase of the enabled-item opacity pulse.
+ *
  */
 static float use_item_enable_alpha_angle;
 
 /**
+ *
  * Holds the current enabled-item opacity.
+ *
  */
 static int use_item_enable_alpha;
 
 /**
+ *
  * Holds horizontal offsets for the spectrum icon raster effect.
+ *
  */
 static float *spectol_raster_xtbl;
 
 /**
+ *
  * Holds the Geostone download panel texture.
+ *
  */
 static mgCTexture *Tex_MenuDl;
 
 /**
+ *
  * Holds the total size displayed by the Geostone download panel.
+ *
  */
 static int MenuDl_TotalSize;
 
 /**
+ *
  * Holds the processed size displayed by the Geostone download panel.
+ *
  */
 static int MenuDl_ProcessSize;
 
 /**
+ *
  * Gives the Geostone download and completion text for each language.
+ *
  */
 static char *tbl_1689[7][2] = {
     {" ",                                                         " "                                                          },
@@ -306,17 +332,23 @@ static char *tbl_1689[7][2] = {
 };
 
 /**
+ *
  * Holds the top-left position of the main menu frame.
+ *
  */
 static float MenuMainFrame_LeftTop_Pos[2];
 
 /**
+ *
  * Tracks the missing-material quantity blink phase.
+ *
  */
 static float make_object_husoku_number_blink;
 
 /**
+ *
  * Tracks the animated menu cursor rotation.
+ *
  */
 static float menu_cursor_rotation_angle;
 
@@ -342,12 +374,16 @@ static menu_line_origin at_3527;
 static menu_memo_pos at_3531;
 
 /**
+ *
  * Holds the repeated form-part quadrilateral screen coordinates.
+ *
  */
 static float putpostbl_3410[8];
 
 /**
+ *
  * Holds the repeated form-part quadrilateral texture coordinates.
+ *
  */
 static int getpostbl_3411[8];
 
@@ -355,47 +391,65 @@ static void MenuFrameImageDraw(mgCDrawPrim *prim, mgCTexture *tex, mgRect<float>
                                int alpha, int dtype);
 
 /**
+ *
  * Holds the item-board icon drawing colour.
+ *
  */
 static u8 localrgba_3166[4];
 
 /**
+ *
  * Tracks the item-board effect animation phase.
+ *
  */
 static float item_board_counter;
 
 /**
+ *
  * Selects the main menu frame display mode.
+ *
  */
 static short MenuMainFrame_Display_Mode;
 
 /**
+ *
  * Tracks the main menu frame display transition.
+ *
  */
 static float MenuMainFrame_Display_Mode_Cnt;
 
 /**
+ *
  * Sets the main menu frame display transition speed.
+ *
  */
 static float MenuMainFrame_Display_Mode_Cnt_Rate;
 
 /**
+ *
  * Holds the centre of the main menu frame lens.
+ *
  */
 static float MenuMainFrame_Lenze_Pos[2];
 
 /**
+ *
  * Holds horizontal and vertical main menu frame movement rates.
+ *
  */
 static float MenuMainFrame_MoveRate[2];
 
 /**
+ *
  * Tracks the main menu frame movement phase.
+ *
  */
 static float MenuMainFrame_MoveRate_Cnt;
 
 /**
+ *
  * Tracks the rotating circular menu frame phase.
+ *
  */
 static float MenuWakuRotCnt;
 
@@ -420,137 +474,191 @@ extern mgRect<int> ItemBoardScrlBar3;
 extern mgRect<int> ItemBoardCursor;
 
 /**
+ *
  * Holds the total number of item-board rows.
+ *
  */
 static int MenuItemBrdMaxLine;
 
 /**
+ *
  * Holds the number of visible item-board rows.
+ *
  */
 static int MenuItemBrdViewLine;
 
 /**
+ *
  * Holds the item-board scroll cursor length.
+ *
  */
 static float MenuItemBrdScrlCurLen;
 
 /**
+ *
  * Tracks the item icon animation phase.
+ *
  */
 static float DrawItemCounter;
 
 /**
+ *
  * Tracks the item icon blink cycle.
+ *
  */
 static signed char DrawItemDefCounter;
 
 /**
+ *
  * Holds the current item-board scroll bar position.
+ *
  */
 static float MenuItemBrdScrlBarY;
 
 /**
+ *
  * Holds the next vertical position of the item-board cells.
+ *
  */
 static float MenuItemBrdUnderBrdPosY_Next;
 
 /**
+ *
  * Holds the weapon build-up line effect texture.
+ *
  */
 static mgCTexture *MenuVerticalLineTex;
 
 /**
+ *
  * Sets the upper limit of the weapon build-up line effect.
+ *
  */
 static float MenuVerticalLineUpLimmit;
 
 /**
+ *
  * Holds the weapon build-up line effect particles.
+ *
  */
 static CEffVerticalLine *MenuVerticalLine;
 
 /**
+ *
  * Holds the number of weapon build-up line effect particles.
+ *
  */
 static int MenuVerticalLineNum;
 
 /**
+ *
  * Character followed by the weapon build-up effect, or NULL.
+ *
  */
 static CCharacter2 *MenuVerticalLineChara;
 
 /**
+ *
  * Holds the vertical range of the weapon build-up line effect.
+ *
  */
 static float MenuVerticalRange;
 
 /**
+ *
  * Holds the current character position for weapon build-up effects.
+ *
  */
 static float MenuVerticalLineCharaPos[4];
 
 /**
+ *
  * Holds the secondary character position for weapon build-up effects.
+ *
  */
 static float MenuVerticalLineCharaPos2[4];
 
 /**
+ *
  * Holds the positions of the shared level-up sparks.
+ *
  */
 static float l_levelup_pos[32][3];
 
 /**
+ *
  * Holds the velocities of the shared level-up sparks.
+ *
  */
 static float l_levelup_vec[32][3];
 
 /**
+ *
  * Tracks the lifetime of each shared level-up spark.
+ *
  */
 static signed char l_levelup_counter[32];
 
 /**
+ *
  * Tracks the generation interval of each shared level-up spark.
+ *
  */
 static signed char l_levelup_generate_counter[32];
 
 /**
+ *
  * Marks the boiled-fish icon effect as active.
+ *
  */
 static short fish_boiled_runflag;
 
 /**
+ *
  * Tracks the boiled-fish icon effect duration.
+ *
  */
 static short fish_boiled_count;
 
 /**
+ *
  * Holds the positions of the boiled-fish icon effect particles.
+ *
  */
 static float fish_boiled_positin[8][2];
 
 /**
+ *
  * Tracks the sway phase of each boiled-fish icon effect particle.
+ *
  */
 static float fish_boiled_amp_count[8];
 
 /**
+ *
  * Holds the opacity of each boiled-fish icon effect particle.
+ *
  */
 static float fish_boiled_alpha[8];
 
 /**
+ *
  * Holds the size multiplier of each boiled-fish icon effect particle.
+ *
  */
 static float fish_boiled_streatch_rate[8];
 
 /**
+ *
  * Holds the texture used by the boiled-fish icon effect.
+ *
  */
 static mgCTexture *fish_boiled_effect_tex;
 
 /**
+ *
  * Holds the generated item-icon texture name.
+ *
  */
 static char temp_3925[32];
 
@@ -597,7 +705,9 @@ void InitInitBuildUpInfoEffectPos();
 #include "common.h"
 
 /**
+ *
  * Defines the three texture-coordinate vertices of each spectrum fragment.
+ *
  */
 static s16 spectol_break_pos[16][3][2] = {
     {{0, 0},
@@ -651,7 +761,9 @@ static s16 spectol_break_pos[16][3][2] = {
 };
 
 /**
+ *
  * Defines the direction angles associated with each spectrum fragment.
+ *
  */
 static float spectol_break_angle[16][6] = {
     {0.0f, 0.0f, 0.0f,         0.0f,         -0.785398006f, -0.785398006f},
@@ -673,7 +785,9 @@ static float spectol_break_angle[16][6] = {
 };
 
 /**
+ *
  * Gives the item icon texture rectangles for the two source textures.
+ *
  */
 static MENU_SHORT_RECT item_transtbl[2] = {
     {224, 736, 32, 32},
@@ -681,7 +795,9 @@ static MENU_SHORT_RECT item_transtbl[2] = {
 };
 
 /**
+ *
  * Gives the RGBA overlays for the nine paint item icons.
+ *
  */
 static int paint_color_table_1234[9][4] = {
     {233, 0,   0,   64},
@@ -696,17 +812,23 @@ static int paint_color_table_1234[9][4] = {
 };
 
 /**
+ *
  * Gives the vertical offsets of the spectrum icon raster lines.
+ *
  */
 static s8 spectol_y_addtbl_1245[40] = {1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1};
 
 /**
+ *
  * Gives the texture rectangles used by the gift-box window frame.
+ *
  */
 static short MenuWindowHelpTable_1346[36] = {0, 0, 22, 24, 23, 0, 2, 24, 24, 0, 22, 24, 0, 25, 22, 1, 22, 25, 2, 1, 24, 25, 22, 1, 0, 68, 22, 24, 22, 68, 2, 24, 24, 68, 22, 24};
 
 /**
+ *
  * Gives the left, centre and right texture rectangles of each download-panel row.
+ *
  */
 static MENU_SHORT_RECT table_1650[3][3] = {
     {{0, 0, 32, 32},
@@ -721,7 +843,9 @@ static MENU_SHORT_RECT table_1650[3][3] = {
 };
 
 /**
+ *
  * Gives the three texture rectangles of active and inactive material-board rows.
+ *
  */
 static s16 get_onoffbrdtbl_1789[2][3][4] = {
     {{66, 72, 6, 30},
@@ -733,17 +857,23 @@ static s16 get_onoffbrdtbl_1789[2][3][4] = {
 };
 
 /**
+ *
  * Gives the target movement counts for each main menu frame mode.
+ *
  */
 static float tbl_2072[8] = {10.0f, 14.0f, 24.0f, 27.0f, 24.0f, 24.0f, 24.0f, 24.0f};
 
 /**
+ *
  * Gives the RGB colours used by the menu star particles.
+ *
  */
 static int star_color_table[9] = {255, 111, 111, 34, 230, 23, 0, 0, 128};
 
 /**
+ *
  * Identifies the texture rectangles used by the item-board frame.
+ *
  */
 enum MENU_ITEM_FRAME_PART {
     MENU_ITEM_FRAME_TOP_LEFT = 0,      /**< Top-left corner. */
@@ -761,7 +891,9 @@ enum MENU_ITEM_FRAME_PART {
 };
 
 /**
+ *
  * Selects texture rectangles for the top and bottom item-board frame segments.
+ *
  */
 static s16 frmtbl0_2922[16] = {
     MENU_ITEM_FRAME_TOP_LEFT,
@@ -783,7 +915,9 @@ static s16 frmtbl0_2922[16] = {
 };
 
 /**
+ *
  * Selects texture rectangles for the side item-board frame segments.
+ *
  */
 static s16 frmtbl1_2938[10] = {
     MENU_ITEM_FRAME_LEFT,
@@ -799,12 +933,16 @@ static s16 frmtbl1_2938[10] = {
 };
 
 /**
+ *
  * Gives the oscillation rates for each remaining fish bounce count.
+ *
  */
 static float rottbl_3145[3] = {0.130899698f, 0.112199739f, 0.0872664675f};
 
 /**
+ *
  * Gives the base position offsets for the main menu icons.
+ *
  */
 static short baseposoffset_tbl_4194[23][2] = {
     {0,   0},
@@ -833,7 +971,9 @@ static short baseposoffset_tbl_4194[23][2] = {
 };
 
 /**
+ *
  * Gives language-specific destination offsets for main menu icon movement.
+ *
  */
 static short actposoffsettbl1_4195[3][18][2] = {
     {{0, 0},
@@ -893,7 +1033,9 @@ static short actposoffsettbl1_4195[3][18][2] = {
 };
 
 /**
+ *
  * Gives the RGBA colours of the two level-up spark kinds.
+ *
  */
 static int l_levelup_color[2][4] = {
     {79,  125, 75,  128},
@@ -901,12 +1043,16 @@ static int l_levelup_color[2][4] = {
 };
 
 /**
+ *
  * Gives the normal gift-box item icon colour.
+ *
  */
 static u8 rgbatbl_1379[4] = {128, 128, 128, 128};
 
 /**
+ *
  * Gives the glyph coordinates for active and inactive creation-board buttons.
+ *
  */
 static s8 get_btntbl_1810[2][2] = {
     {80, 88},
@@ -914,17 +1060,23 @@ static s8 get_btntbl_1810[2][2] = {
 };
 
 /**
+ *
  * Holds the centre position used by circular menu frames.
+ *
  */
 static float MenuWakuPutXY[2] = {0.0f, 0.0f};
 
 /**
+ *
  * Gives the normal item-board icon colour.
+ *
  */
 static u8 static_rgba_table_3128[4] = {128, 128, 128, 128};
 
 /**
+ *
  * Selects the primitive kind and vertex count for repeated form-part drawing.
+ *
  */
 static u8 menu_prim_tbl[2][2] = {
     {MG_PRIM_SPRITE,         2},
@@ -932,22 +1084,30 @@ static u8 menu_prim_tbl[2][2] = {
 };
 
 /**
+ *
  * Holds the main menu icon base position.
+ *
  */
 static short basepos_4190[2] = {44, 96};
 
 /**
+ *
  * Holds the main menu icon left boundary position.
+ *
  */
 static short farleft_4191[2] = {-260, 0};
 
 /**
+ *
  * Holds the shared main menu icon movement offset.
+ *
  */
 static short xyoffset_4192[2] = {20, 43};
 
 /**
+ *
  * Holds the main menu icon action destination position.
+ *
  */
 static short actpos_4193[2] = {44, 16};
 
@@ -1626,9 +1786,9 @@ void MenuWindowHelp(mgCDrawPrim *prim, mgCTexture *texture, float x, float y, fl
         top.Set((int) x, (int) y, (int) width, 24);
         Menu3DivideTextureDraw(prim, top, table, 1);
         middle.Set((int) x, (int) (24.0f + y), (int) width, (int) height);
-        Menu3DivideTextureDraw(prim, middle, table + 12, 1);
+        Menu3DivideTextureDraw(prim, middle, &table[12], 1);
         bottom.Set((int) x, (int) (24.0f + y + height), (int) width, 24);
-        Menu3DivideTextureDraw(prim, bottom, table + 24, 1);
+        Menu3DivideTextureDraw(prim, bottom, &table[24], 1);
         prim->End();
     }
 }
@@ -1721,8 +1881,13 @@ static void SetMenuDrawNumberKeta(char value) {
     MenuDrawNumberKeta = value;
 }
 
+/**
+ *
+ * Returns its argument unchanged.
+ *
+ */
 template <typename T>
-static inline T Ident(T v) { return v; }
+static inline T Ident(T value) { return value; }
 
 /**
  *
@@ -1789,7 +1954,7 @@ void PrimDrawNumber(mgCDrawPrim *prim, int number, int alignment, int x, int y,
 
 void PrimDrawNumber2(mgCDrawPrim *prim, int number, int digit_count, int x, int y,
                      mgRect<int> texture_rect, int spacing, int vertical_spacing) {
-    SetMenuDrawNumberKeta((char) digit_count);
+    SetMenuDrawNumberKeta(digit_count);
     mgRect<int> rect(x, y, texture_rect.right, texture_rect.bottom);
     DrawMenuNumber(prim, number, MENU_NUMBER_ALIGN_RIGHT, rect, texture_rect, texture_rect.right + spacing, vertical_spacing);
 }
@@ -1836,7 +2001,7 @@ void MenuReloadCLUT(int index) {
 }
 
 void DrawMenuFillBox(int alpha, int red, int green, int blue) {
-    DrawMenuFillBox(0.0f, 0.0f, (float) mgScreenWidth, (float) mgScreenHeight, alpha, red, green, blue);
+    DrawMenuFillBox(0.0f, 0.0f, mgScreenWidth, mgScreenHeight, alpha, red, green, blue);
 }
 
 void DrawMenuFillBox(float x, float y, float width, float height, int alpha, int red, int green, int blue) {
@@ -1863,8 +2028,13 @@ void DrawMenuFillBox(mgCDrawPrim *prim, float x, float y, float width, float hei
     prim->End();
 }
 
+/**
+ *
+ * Generates the points of a scribbled line that wanders down and up within a box.
+ *
+ */
 void GenarateRandamLine(int *origin, int width, int height, int *points, int count, int unused) {
-    int   rising = 1;
+    int   rising = true;
     float sway;
     float progress;
     int   offset = 0;
@@ -1886,13 +2056,13 @@ void GenarateRandamLine(int *origin, int width, int height, int *points, int cou
             offset += step;
 
             if (offset > height) {
-                rising = 0;
+                rising = false;
             }
         } else {
             offset -= step;
 
             if (offset < 0) {
-                rising = 1;
+                rising = true;
             }
         }
     }
@@ -1956,32 +2126,32 @@ void InitMenuDl(mgCTexture *texture, int total_size) {
 
 int StepMenuDl(int step) {
     if (MenuDl_TotalSize <= 0) {
-        return 1;
+        return true;
     }
 
     MenuDl_ProcessSize += step;
 
     if (MenuDl_TotalSize <= MenuDl_ProcessSize) {
         MenuDl_ProcessSize = MenuDl_TotalSize;
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int StepMenuDl2(int progress) {
     if (MenuDl_TotalSize <= 0) {
-        return 1;
+        return true;
     }
 
     MenuDl_ProcessSize = progress;
 
     if (MenuDl_TotalSize <= progress) {
         MenuDl_ProcessSize = MenuDl_TotalSize;
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void DrawMenuDl(int &tex_block, int x, int y, int w, int alpha) {
@@ -2365,8 +2535,8 @@ void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int reverse, int alp
     }
 }
 
-void MenuCursorDraw(mgCTexture *texture, float *position, float value, int flag) {
-    MenuCursorDraw(texture, position, value, 0, flag, 1.0f);
+void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int alpha) {
+    MenuCursorDraw(tex, pos, rot, 0, alpha, 1.0f);
 }
 
 void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float x, float y, mgRect<int> tex_rect, int unused,
@@ -2917,8 +3087,8 @@ void MENU_BASETEXINFO_Init(MENU_BASETEXINFO *info) {
 
 void MenuPosDataTypeInit(MENUFORMPARTS_TYPE *part) {
     part->name = NULL;
-    part->active = 0;
-    part->draw_flag = 1;
+    part->active = false;
+    part->draw_flag = true;
     part->dtype = MENUFORMPARTS_DTYPE_NORMAL;
     part->vibe_cnt[1] = 0;
     part->vibe_cnt[0] = 0;
@@ -2943,16 +3113,16 @@ void MenuPosDataTypeInit(MENUFORMPARTS_TYPE *part) {
     part->bilinear = 0;
     part->item_flag = 0;
     part->tex = NULL;
-    part->shadow = 0;
+    part->shadow = false;
 }
 
-void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int value34, int value38) {
+void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int item_no, int original_item_no) {
     if (part != NULL) {
         part->draw_flag = visible != 0;
         part->etc_info[0] = 0;
-        part->etc_info[1] = value34;
+        part->etc_info[1] = item_no;
 
-        part->etc_info[2] = value38;
+        part->etc_info[2] = original_item_no;
         Func_MenuItemIconSetEffectOne(part);
     }
 }
@@ -2960,8 +3130,8 @@ void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int value34,
 void CMenuPosDataForm::Initialize() {
     int i;
     name = NULL;
-    active = 0;
-    draw_flag = 1;
+    active = false;
+    draw_flag = true;
     y = 0;
     x = 0;
     dtype = MENUFORM_DTYPE_NORMAL;
@@ -2988,7 +3158,7 @@ void CMenuPosDataForm::Initialize() {
     chara = NULL;
     chara_tex_block = 0;
     secondary_tex_block = 0;
-    step_stop = 0;
+    step_stop = false;
     action_no = -1;
     action_state = MENUFORM_ACTION_STATE_NONE;
     action_num = 0;
@@ -3003,7 +3173,7 @@ MENUFORMPARTS_TYPE *CMenuPosDataForm::GetPartInfo(char *name) {
 
     while (i < parts_num) {
         if (strcmp(parts[i].name, name) == 0) {
-            return parts + i;
+            return &parts[i];
         }
 
         i++;
@@ -3026,7 +3196,7 @@ void Func_MallocPartEffectInfo(MENUFORMPARTS_TYPE *part, mgCMemory *memory, int 
 
     if (part != NULL) {
         bytes = effect_count * sizeof(MENU_PARTS_EFFECT_STRUCT1);
-        part->effect_num = (signed char) effect_count;
+        part->effect_num = effect_count;
 
         if (bytes & 0xF) {
             blocks = (bytes >> 4) + 1;
@@ -3232,13 +3402,13 @@ int CMenuPosDataForm::GetNowPosRGBA(MENUFORMPARTS_TYPE *part, MENU_BASETEXINFO *
     short                      color;
 
     if (part == NULL) {
-        return 0;
+        return false;
     }
 
     effect = part->effect;
 
     if (effect == NULL || part->effect_num <= 0) {
-        return 0;
+        return false;
     }
 
     center_x = tex_info->rect.right + (x + part->x);
@@ -3330,7 +3500,7 @@ int CMenuPosDataForm::GetNowPosRGBA(MENUFORMPARTS_TYPE *part, MENU_BASETEXINFO *
         }
     }
 
-    return 1;
+    return true;
 }
 
 void CMenuPosDataForm::MenuPartsStep() {
@@ -3345,7 +3515,7 @@ void CMenuPosDataForm::MenuPartsStep() {
 
         if (part != NULL && (effect = part->effect) != NULL) {
             for (j = 0; j < part->effect_num; j++, effect++) {
-                finished = 0;
+                finished = false;
 
                 if (effect->type == MENU_PARTS_EFFECT_ICON_COUNTER) {
                     continue;
@@ -3367,7 +3537,7 @@ void CMenuPosDataForm::MenuPartsStep() {
                     effect->param[0] += 1.0f;
 
                     if (effect->param[0] >= effect->param[1]) {
-                        finished = 1;
+                        finished = true;
                         effect->param[0] = 0.0f;
                     }
                 } else if (effect->type == MENU_PARTS_EFFECT_ROT || effect->type == MENU_PARTS_EFFECT_HURIKO ||
@@ -3377,14 +3547,14 @@ void CMenuPosDataForm::MenuPartsStep() {
 
                         if (effect->param[0] >= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     } else if (effect->param[1] < 0.0f) {
                         effect->param[0] -= 1.0f;
 
                         if (effect->param[0] <= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     }
                 } else if (effect->type == MENU_PARTS_EFFECT_STRETCH || effect->type == MENU_PARTS_EFFECT_STRETCH_REP ||
@@ -3394,14 +3564,14 @@ void CMenuPosDataForm::MenuPartsStep() {
 
                         if (effect->param[0] <= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     } else if (effect->param[1] > 0.0f) {
                         effect->param[0] += 1.0f;
 
                         if (effect->param[0] >= effect->param[1]) {
                             effect->param[0] = 0.0f;
-                            finished = 1;
+                            finished = true;
                         }
                     }
                 } else if (effect->type == MENU_PARTS_EFFECT_UNK_12) {
@@ -3409,14 +3579,19 @@ void CMenuPosDataForm::MenuPartsStep() {
                 }
 
                 if (finished != 0 && effect->repeat == 0) {
-                    effect->active = 0;
+                    effect->active = false;
                 }
             }
         }
     }
 }
 
-static void DrawItemIconEffect2(mgCDrawPrim *prim, mgCTexture *tex, MENUFORMPARTS_TYPE *parts, mgRect<float> rect) {
+/**
+ *
+ * Draws the sparkles of a spectrumised item icon.
+ *
+ */
+static void DrawItemIconEffect2(mgCDrawPrim *prim, mgCTexture *tex, MENUFORMPARTS_TYPE *part, mgRect<float> rect) {
     MENU_PARTS_EFFECT_STRUCT1 *effect;
     int                        i;
     int                        k;
@@ -3432,8 +3607,8 @@ static void DrawItemIconEffect2(mgCDrawPrim *prim, mgCTexture *tex, MENUFORMPART
     float                      dx;
     float                      dy;
 
-    if (parts != NULL && parts->effect != NULL) {
-        effect = parts->effect + 2;
+    if (part != NULL && part->effect != NULL) {
+        effect = &part->effect[2];
         mgRect<float> star_rect;
         float         corners[4][2];
         int           uv[8];
@@ -3728,7 +3903,12 @@ void MenuItemBrdDraw(float *pos, mgRect<int> clip_rect, int &tex_block, int a, i
     }
 }
 
-static inline int UsedItemNo(CGameDataUsed *u) { return u->item_no; }
+/**
+ *
+ * Returns the item number of a used item.
+ *
+ */
+static inline int UsedItemNo(CGameDataUsed *used) { return used->item_no; }
 
 void MenuItemModeItemDraw(int &tex_block, mgRect<int> clip_rect, float *pos, MENUFORMPARTS_TYPE *parts,
                           mgCTexture *num_tex, mgRect<int> num_rect, int unused_arg) {
@@ -3930,13 +4110,13 @@ void MenuItemModeItemDraw(int &tex_block, mgRect<int> clip_rect, float *pos, MEN
 }
 
 int CMenuPosDataForm::MenuFormStep() {
-    int ended = 0;
+    int ended = false;
     int next[2];
     int calc;
     int i;
 
     if (step_stop != 0) {
-        return 0;
+        return false;
     }
 
     GetNextMovePos(next);
@@ -3981,7 +4161,7 @@ int CMenuPosDataForm::MenuFormStep() {
     }
 
     if (CheckMoveEnd(next[0], next[1]) != 0) {
-        ended = 1;
+        ended = true;
         action_state = MENUFORM_ACTION_STATE_END;
     }
 
@@ -3999,19 +4179,19 @@ int CMenuPosDataForm::MenuFormStep() {
         }
     }
 
-    x = (float) next[0];
-    y = (float) next[1];
+    x = next[0];
+    y = next[1];
     return ended;
 }
 
 int CMenuPosDataForm::CheckMoveEnd(int target_x, int target_y) {
-    int finished = 0;
+    int finished = false;
 
-    if (x == (float) target_x) {
-        finished = 1;
+    if (x == target_x) {
+        finished = true;
 
-        if (y != (float) target_y) {
-            finished = 0;
+        if (y != target_y) {
+            finished = false;
         }
     }
 
@@ -4020,14 +4200,14 @@ int CMenuPosDataForm::CheckMoveEnd(int target_x, int target_y) {
 
 int CMenuPosDataForm::CheckMoveEnd() {
     if (action != NULL && action_state == MENUFORM_ACTION_STATE_END) {
-        return 1;
+        return true;
     }
 
-    if (x == (float) next_x && y == (float) next_y) {
-        return 1;
+    if (x == next_x && y == next_y) {
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 void CMenuPosDataForm::SetAction(char *action) {
@@ -4062,7 +4242,7 @@ int CMenuPosDataForm::GetNextMovePos(int *pos) {
     int                    target[2];
 
     if (pos == NULL || active == 0) {
-        return 1;
+        return true;
     }
 
     int now[2] = {(int) x, (int) y};
@@ -4134,7 +4314,7 @@ int CMenuPosDataForm::GetNextMovePos(int *pos) {
 
     pos[0] = now[0];
     pos[1] = now[1];
-    return 1;
+    return true;
 }
 
 void Menu3DivideTextureDraw(mgCDrawPrim *prim, mgRect<int> rect, short *tex_tbl, int vertical) {
@@ -4649,7 +4829,7 @@ void CPosDataManage::Initialize() {
     tex_info_num = 0;
     form = NULL;
     form_num = 0;
-    step_stop = 0;
+    step_stop = false;
 }
 
 MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(int no) {
@@ -4657,7 +4837,7 @@ MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(int no) {
         return NULL;
     }
 
-    return tex_info + no;
+    return &tex_info[no];
 }
 
 MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(char *name) {
@@ -4669,7 +4849,7 @@ MENU_BASETEXINFO *CPosDataManage::GetTexGetInfo(char *name) {
 
     for (i = 0; i < tex_info_num; i++) {
         if (tex_info[i].name != NULL && strcmp(name, tex_info[i].name) == 0) {
-            return tex_info + i;
+            return &tex_info[i];
         }
     }
 
@@ -4698,7 +4878,7 @@ void CPosDataManage::TexGetInfoClear(int from, int to) {
     }
 
     for (i = from; i < to; i++) {
-        MENU_BASETEXINFO_Init(tex_info + i);
+        MENU_BASETEXINFO_Init(&tex_info[i]);
     }
 }
 
@@ -4752,7 +4932,7 @@ void CPosDataManage::EtcTblClear(int from, int to) {
         end = etc_tbl_num;
     }
 
-    p = etc_tbl + from;
+    p = &etc_tbl[from];
 
     for (i = 0; i < end - from; i++, p++) {
         p->name = NULL;
@@ -4864,7 +5044,7 @@ void CPosDataManage::EtcTbl2Clear(int from, int to) {
 
     count = end - from;
     i = 0;
-    p = etc_tbl2 + from;
+    p = &etc_tbl2[from];
 
     if (0 < count) {
         do {
@@ -4913,7 +5093,7 @@ CMenuPosDataForm *CPosDataManage::GetFormInfo(int no) {
         return NULL;
     }
 
-    return form + no;
+    return &form[no];
 }
 
 void CPosDataManage::FormInfoClear(int from, int to) {
@@ -4928,7 +5108,7 @@ void CPosDataManage::FormInfoClear(int from, int to) {
     }
 
     for (i = from; i < to; i++) {
-        (form + i)->Initialize();
+        form[i].Initialize();
     }
 }
 
@@ -4936,8 +5116,8 @@ void CPosDataManage::SetFormPos(char *name, int *pos) {
     CMenuPosDataForm *form = GetFormInfo(name);
 
     if (form != NULL) {
-        form->x = (float) pos[0];
-        form->y = (float) pos[1];
+        form->x = pos[0];
+        form->y = pos[1];
     }
 }
 
@@ -4955,7 +5135,7 @@ void CPosDataManage::InitDrawList() {
         for (j = 1; j < form_num - i; j++) {
             if (form[j].name != NULL) {
                 i += j;
-                next = form + j;
+                next = &form[j];
                 break;
             }
         }
@@ -4999,121 +5179,121 @@ block_4:
 }
 
 void CPosDataManage::FormReLink(char *form, char *target) {
-    CMenuPosDataForm *a = GetFormInfo(form);
-    CMenuPosDataForm *b = GetFormInfo(target);
-    CMenuPosDataForm *old_top;
-    CMenuPosDataForm *old_next;
+    CMenuPosDataForm *first = GetFormInfo(form);
+    CMenuPosDataForm *second = GetFormInfo(target);
+    CMenuPosDataForm *first_prev;
+    CMenuPosDataForm *first_next;
 
-    if (a == NULL || b == NULL) {
+    if (first == NULL || second == NULL) {
         return;
     }
 
-    old_top = a->prev;
-    old_next = a->next;
-    a->prev = b->prev;
-    a->next = b->next;
-    b->prev = old_top;
-    b->next = old_next;
+    first_prev = first->prev;
+    first_next = first->next;
+    first->prev = second->prev;
+    first->next = second->next;
+    second->prev = first_prev;
+    second->next = first_next;
 
-    if (b->prev != NULL) {
-        b->prev->next = b;
+    if (second->prev != NULL) {
+        second->prev->next = second;
     }
 
-    if (b->next != NULL) {
-        b->next->prev = b;
+    if (second->next != NULL) {
+        second->next->prev = second;
     }
 
-    if (a->next != NULL) {
-        a->next->prev = a;
+    if (first->next != NULL) {
+        first->next->prev = first;
     }
 
-    if (a->prev != NULL) {
-        a->prev->next = a;
+    if (first->prev != NULL) {
+        first->prev->next = first;
     }
 }
 
 void CPosDataManage::FormReLink2(char *form, char *target, char *third, char *fourth) {
-    CMenuPosDataForm *a = GetFormInfo(form);
-    CMenuPosDataForm *t = GetFormInfo(third);
-    CMenuPosDataForm *g = GetFormInfo(target);
-    CMenuPosDataForm *f = GetFormInfo(fourth);
-    CMenuPosDataForm *g_next;
-    CMenuPosDataForm *f_next;
-    CMenuPosDataForm *t_top;
-    CMenuPosDataForm *a_top;
+    CMenuPosDataForm *first_form = GetFormInfo(form);
+    CMenuPosDataForm *third_form = GetFormInfo(third);
+    CMenuPosDataForm *target_form = GetFormInfo(target);
+    CMenuPosDataForm *fourth_form = GetFormInfo(fourth);
+    CMenuPosDataForm *target_next;
+    CMenuPosDataForm *fourth_next;
+    CMenuPosDataForm *third_prev;
+    CMenuPosDataForm *first_prev;
 
-    if (a == NULL || t == NULL) {
+    if (first_form == NULL || third_form == NULL) {
         return;
     }
 
-    a_top = a->prev;
-    g_next = NULL;
-    t_top = t->prev;
-    f_next = NULL;
+    first_prev = first_form->prev;
+    target_next = NULL;
+    third_prev = third_form->prev;
+    fourth_next = NULL;
 
-    if (g != NULL) {
-        g_next = g->next;
+    if (target_form != NULL) {
+        target_next = target_form->next;
     }
 
-    if (f != NULL) {
-        f_next = f->next;
+    if (fourth_form != NULL) {
+        fourth_next = fourth_form->next;
     }
 
-    if (g == t_top) {
-        t->prev = a_top;
-        a_top->next = t;
-        a->prev = f;
-        f->next = a;
-        g->next = f_next;
-        f_next->prev = g;
-    } else if (f == a_top) {
-        a->prev = a_top;
-        t_top->next = a;
-        t->prev = g;
-        g->next = t;
-        f->next = g_next;
-        g_next->prev = f;
+    if (target_form == third_prev) {
+        third_form->prev = first_prev;
+        first_prev->next = third_form;
+        first_form->prev = fourth_form;
+        fourth_form->next = first_form;
+        target_form->next = fourth_next;
+        fourth_next->prev = target_form;
+    } else if (fourth_form == first_prev) {
+        first_form->prev = first_prev;
+        third_prev->next = first_form;
+        third_form->prev = target_form;
+        target_form->next = third_form;
+        fourth_form->next = target_next;
+        target_next->prev = fourth_form;
     } else {
-        t->prev = a_top;
+        third_form->prev = first_prev;
 
-        if (a_top != NULL) {
-            a_top->next = t;
+        if (first_prev != NULL) {
+            first_prev->next = third_form;
         }
 
-        if (g_next != NULL) {
-            f->next = g_next;
-            g_next->prev = f;
+        if (target_next != NULL) {
+            fourth_form->next = target_next;
+            target_next->prev = fourth_form;
         }
 
-        a->prev = t_top;
+        first_form->prev = third_prev;
 
-        if (t_top != NULL) {
-            t_top->next = a;
+        if (third_prev != NULL) {
+            third_prev->next = first_form;
         }
 
-        if (f_next != NULL) {
-            g->next = f_next;
-            f_next->prev = g;
+        if (fourth_next != NULL) {
+            target_form->next = fourth_next;
+            fourth_next->prev = target_form;
         }
     }
 }
 
 void CPosDataManage::FormStep() {
     CMenuPosDataForm *form = GetDrawTopList();
-    int               was_visible;
+    int               was_stopped;
 
     if (form != NULL) {
         do {
-            was_visible = form->step_stop;
+            was_stopped = form->step_stop;
 
             if (step_stop != 0) {
-                form->step_stop = 1;
+                form->step_stop = true;
             }
 
             form->MenuFormStep();
 
-            if (was_visible == 0) {
-                form->step_stop = 0;
+            if (was_stopped == 0) {
+                form->step_stop = false;
             }
 
             form = form->next;
@@ -5164,12 +5344,12 @@ void CPosDataManage::ClearPos() {
 }
 
 void CMenuPosDataManage::AttachCommonTexInfo() {
-    common_tex = (&mgTexManager)->GetTexture("menuwork2", -1);
+    common_tex = mgTexManager.GetTexture("menuwork2", -1);
     unused_tex[0] = NULL;
-    icon_effect_tex = (&mgTexManager)->GetTexture("menueff0", -1);
-    effect_tex = (&mgTexManager)->GetTexture("spectre", -1);
-    item_icon_tex[0][0] = (&mgTexManager)->GetTexture("wepicon", -1);
-    item_icon_tex[0][1] = (&mgTexManager)->GetTexture("itemicon", -1);
+    icon_effect_tex = mgTexManager.GetTexture("menueff0", -1);
+    effect_tex = mgTexManager.GetTexture("spectre", -1);
+    item_icon_tex[0][0] = mgTexManager.GetTexture("wepicon", -1);
+    item_icon_tex[0][1] = mgTexManager.GetTexture("itemicon", -1);
 }
 
 int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
@@ -5211,12 +5391,12 @@ int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
             }
 
             target.pos[1] = basepos_4190[1] + xyoffset_4192[1] * slot;
-            highlight = 1;
+            highlight = true;
 
             if (select >= 0 && select == icon && (mode == 2 || mode == 3)) {
                 target.pos[0] = actpos_4193[0] + act_offset[icon][0];
                 target.pos[1] = actpos_4193[1] + act_offset[icon][1];
-                highlight = 0;
+                highlight = false;
             }
 
             form->rgba[0] = 0xA0;
@@ -5235,7 +5415,7 @@ int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
             }
 
             form->SetNextMovePos(target.pos, MENUFORM_MTYPE_I);
-            form->draw_flag = 1;
+            form->draw_flag = true;
 
             if (form->CheckMoveEnd(target.pos[0], target.pos[1]) != 0) {
                 arrived++;
@@ -5246,10 +5426,10 @@ int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
     }
 
     if (arrived >= count - 1) {
-        return 1;
+        return true;
     }
 
-    return 0;
+    return false;
 }
 
 int CheckItemUseVariable(CGameDataUsed *item, CItemUseTarget *target) {
@@ -5331,7 +5511,7 @@ void Func_MenuItemBrdPrepare2(MENUFORMPARTS_TYPE *parts, CGameDataUsed *items,
 
 int NowUseNeedItemCheck(CUserDataManager *manager) {
     int            needs;
-    int            in_battle;
+    int            items_disabled;
     int            limit;
     int            party;
     int            active_chara;
@@ -5345,10 +5525,10 @@ int NowUseNeedItemCheck(CUserDataManager *manager) {
     }
 
     needs = 0;
-    in_battle = 0;
+    items_disabled = false;
 
     if ((GetMainScene()->battle_area.floor_status & DNG_FLOOR_DISABLE_ITEMS) != 0) {
-        in_battle = 1;
+        items_disabled = true;
     }
 
     active_chara = manager->active_chr_no;
@@ -5441,7 +5621,7 @@ int NowUseNeedItemCheck(CUserDataManager *manager) {
         needs &= ~MENU_ITEM_NEED_MONICA_IN_PARTY;
     }
 
-    if (in_battle != 0) {
+    if (items_disabled != 0) {
         needs &= ~MENU_ITEM_NEED_RECOVERY;
     }
 
@@ -5538,7 +5718,7 @@ void Func_MenuItemBrdPosStep(int top_line) {
         form->GetPutPosXY(NULL, pos[0], pos[1]);
     }
 
-    __typeof__(pos[0]) x = pos[0];
+    int x = pos[0];
     MenuItemBrdUnderBrdPosXY[0] = x + 16;
     MenuItemBrdUnderBrdPosY_Next = pos[1] + 26;
     MenuItemBrdUnderBrdPosY_Next -= 50.0f * top_line;
@@ -5577,13 +5757,13 @@ void CMenuPosDataManage::GetPosMenuItemBrdKoma(int *position, int item_index, in
 }
 
 void CMenuPosDataManage::GetPosMenuItemOnItemBrd(int *pos, int item_no, int clip) {
-    this->GetPosMenuItemBrdKoma(pos, item_no, clip);
+    GetPosMenuItemBrdKoma(pos, item_no, clip);
     pos[0] += 4;
     pos[1] += 4;
 }
 
 void CMenuPosDataManage::GetPosMenuItemBrdForEffect(int *pos, int item_no, int clip) {
-    this->GetPosMenuItemOnItemBrd(pos, item_no, clip);
+    GetPosMenuItemOnItemBrd(pos, item_no, clip);
     pos[0] += 0x12;
     pos[1] += 0x15;
 }
@@ -5602,19 +5782,19 @@ void Func_MenuItemIconSetEffectOne(MENUFORMPARTS_TYPE *part) {
     short first[10] = {GetRandI(20), 160, 16, 20, 0, 120};
     SetPartEffectInfoRandFunc(part->effect, first, 8);
     part->effect[0].type = MENU_PARTS_EFFECT_ICON_COUNTER;
-    part->effect[0].active = 1;
-    part->effect[0].repeat = 1;
+    part->effect[0].active = true;
+    part->effect[0].repeat = true;
     short second[10] = {GetRandI(30), 160, 16, 20, 0, 120};
     SetPartEffectInfoRandFunc(&part->effect[1], second, 8);
     part->effect[1].type = MENU_PARTS_EFFECT_ICON_COUNTER;
-    part->effect[1].active = 1;
-    part->effect[1].repeat = 1;
+    part->effect[1].active = true;
+    part->effect[1].repeat = true;
     short sparkle[10] = {0};
 
     for (i = 2; i < 8; i++) {
         Func_SetPartEffectInfo(&part->effect[i], MENU_PARTS_EFFECT_SPARKLE, sparkle);
-        part->effect[i].active = 1;
-        part->effect[i].repeat = 1;
+        part->effect[i].active = true;
+        part->effect[i].repeat = true;
     }
 }
 
@@ -5623,7 +5803,7 @@ void MenuItemBrdItemIconEffectMalloc(mgCMemory *memory, MENUFORMPARTS_TYPE *part
 
     for (i = 0; i < count; i++) {
         MenuPosDataTypeInit(&parts[i]);
-        parts[i].active = 1;
+        parts[i].active = true;
         Func_MallocPartEffectInfo(&parts[i], memory, 8);
         Func_MenuItemIconSetEffectOne(&parts[i]);
     }
@@ -5875,11 +6055,11 @@ int MenuCapture(int block, mgCMemory *stack, int draw) {
         prim->End();
     }
 
-    return 1;
+    return true;
 }
 
 void SetBGFrameForMenu(int tex_block, char *name) {
-    (&mgTexManager)->ReloadTexture(tex_block, (sceVif1Packet *) NULL);
+    mgTexManager.ReloadTexture(tex_block, (sceVif1Packet *) NULL);
     mgCTexture   frame;
     mgRect<int>  src;
     mgRect<int>  half;
@@ -5894,7 +6074,7 @@ void SetBGFrameForMenu(int tex_block, char *name) {
     prim->AlphaTestEnable(0);
     prim->ZMask(MG_Z_MASK_MASKED);
     prim->TextureMapEnable(1);
-    background = (&mgTexManager)->GetTexture(name, -1);
+    background = mgTexManager.GetTexture(name, -1);
     background->Bilinear(1);
     mgSetPkMoveImage(&frame, src, background, 0, 0, 0);
 }
@@ -6144,7 +6324,7 @@ void CRepairManager::SetStack(mgCMemory *memory, int mode) {
 }
 
 void CRepairManager::Clear() {
-    this->Initialize();
+    Initialize();
 }
 
 void CRepairManager::LoadDataBG(mgCMemory *memory) {
@@ -6178,10 +6358,10 @@ void CRepairManager::CheckDataBG(int block) {
     int pack_size;
 
     if (data_ready == 0) {
-        (&mgTexManager)->DeleteBlock(block);
+        mgTexManager.DeleteBlock(block);
         tex_block = block;
         MenuEnterIMG(block, (u8 *) GetPackFile(data, "repair_powder2d.img", &pack_size), "_2");
-        tex = (&mgTexManager)->GetTexture("menueff0_2", -1);
+        tex = mgTexManager.GetTexture("menueff0_2", -1);
         data_ready = true;
         bg_load = false;
     }
@@ -6193,7 +6373,7 @@ void CRepairManager::SetRepairData(mgCMemory *memory, int block, unsigned int *p
     tex_block = block;
     data = pack;
     MenuEnterIMG(block, (u8 *) GetPackFile(pack, "repair_powder2d.img", &pack_size), "_2");
-    tex = (&mgTexManager)->GetTexture("menueff0_2", -1);
+    tex = mgTexManager.GetTexture("menueff0_2", -1);
     data_ready = true;
     bg_load = false;
     SetStack(memory, 1);
@@ -6283,7 +6463,7 @@ int CRepairManager::IsRun() {
         }
     }
 
-    if (this->IsRunModel() != 0) {
+    if (IsRunModel() != 0) {
         running = true;
     }
 
@@ -7248,7 +7428,12 @@ void CMenuEffect::PresetInfo(MENU_EFFECT_INFO *particle, int no, int initial) {
     }
 }
 
-static inline int EffectType(CMenuEffect *e) { return e->type; }
+/**
+ *
+ * Returns the kind of a menu effect.
+ *
+ */
+static inline int EffectType(CMenuEffect *effect) { return effect->type; }
 
 #pragma divbyzerocheck on
 
@@ -7905,41 +8090,57 @@ float MakeBoardDrawInfo[5];
 mgRect<int> menu_long_hand(62, 1, 40, 24);
 
 /**
+ *
  * Holds the destination rectangle of the main menu lens frame.
+ *
  */
 mgRect<int> MenuMainFrame_PutRect(0, 0, 0, 0);
 
 /**
+ *
  * Holds the destination rectangle of the captured main menu image.
+ *
  */
 mgRect<int> MenuMainIMG_PutRect(0, 0, 0, 0);
 
 /**
+ *
  * Gives the texture rectangle used by menu sparkles.
+ *
  */
 mgRect<int> star_light(0, 32, 8, 8);
 
 /**
+ *
  * Gives the texture rectangle of an item-board cell.
+ *
  */
 mgRect<int> MenuItemBrdKomaRect(32, 32, 40, 50);
 
 /**
+ *
  * Gives the upper item-board scroll bar texture rectangle.
+ *
  */
 mgRect<int> ItemBoardScrlBar1(96, 128, 22, 11);
 
 /**
+ *
  * Gives the middle item-board scroll bar texture rectangle.
+ *
  */
 mgRect<int> ItemBoardScrlBar2(96, 138, 22, 4);
 
 /**
+ *
  * Gives the lower item-board scroll bar texture rectangle.
+ *
  */
 mgRect<int> ItemBoardScrlBar3(96, 140, 22, 12);
 
 /**
+ *
  * Gives the item-board selection cursor texture rectangle.
+ *
  */
 mgRect<int> ItemBoardCursor(118, 128, 8, 30);

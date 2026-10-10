@@ -2211,7 +2211,7 @@ void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int reverse, int alp
  * @address 0x225FF0
  * @size 0x20
  */
-void MenuCursorDraw(mgCTexture *tex, float *pos, float value, int flag);
+void MenuCursorDraw(mgCTexture *tex, float *pos, float rot, int alpha);
 
 /**
  *
@@ -2231,7 +2231,7 @@ void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float x, float y, m
  * @address 0x2261D0
  * @size 0xE0
  */
-void DrawMenuMainFrmImg(int &loaded_tex_no, mgRect<int> dest, mgRect<int> source, int red, int green, int blue, int alpha, int a);
+void DrawMenuMainFrmImg(int &loaded_tex_no, mgRect<int> dest, mgRect<int> source, int red, int green, int blue, int alpha, int unused);
 
 /**
  *
@@ -2291,7 +2291,7 @@ void MenuMainFrameStep();
  * @address 0x226B40
  * @size 0x4C0
  */
-void MenuMainFrameDraw(int &loaded_tex, int alpha);
+void MenuMainFrameDraw(int &loaded_tex, int unused);
 
 /**
  *
@@ -2351,7 +2351,7 @@ void MenuPosDataTypeInit(MENUFORMPARTS_TYPE *part);
  * @address 0x227AC0
  * @size 0x30
  */
-void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int value34, int value38);
+void MenuFormPartsPresetItem(MENUFORMPARTS_TYPE *part, int visible, int item_no, int original_item_no);
 
 /**
  *

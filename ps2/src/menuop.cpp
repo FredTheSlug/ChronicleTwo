@@ -3347,7 +3347,7 @@ static inline MC_CARD_INFO *GetSubGameCard(CMemoryCardManager *manager) {
 }
 
 template <typename T>
-static inline T Ident(T v) { return v; }
+static inline T Ident(T value) { return value; }
 
 static inline int &SubGameFileExists(CMemoryCardManager *manager) {
     return manager->file_exists;

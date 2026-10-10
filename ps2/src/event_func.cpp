@@ -14305,6 +14305,11 @@ static int _SND_DELETE_PORT(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Fades the background music in over a duration given in 60 Hz frames.
+ *
+ */
 static int _FADE_IN_BGM(RS_STACKDATA *stack, int argc) {
     int frames60;
     int frames;
@@ -14320,6 +14325,11 @@ static int _FADE_IN_BGM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Fades the background music out over a duration given in 60 Hz frames.
+ *
+ */
 static int _FADE_OUT_BGM(RS_STACKDATA *stack, int argc) {
     int frames60;
     int frames;
@@ -14335,11 +14345,21 @@ static int _FADE_OUT_BGM(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stops the environment background music.
+ *
+ */
 static int _STOP_ENV_BGM(RS_STACKDATA *stack, int argc) {
     EventScene->StopEnvBGM();
     return true;
 }
 
+/**
+ *
+ * Sets the background music volume from an integer, or from a float scaled by the current volume.
+ *
+ */
 static int _SET_BGM_VOL(RS_STACKDATA *stack, int argc) {
     if (stack->type == RS_INT) {
         EventScene->SetVolBGM(GetStackInt(stack));
@@ -14353,57 +14373,102 @@ static int _SET_BGM_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Does nothing and fails.
+ *
+ */
 static int _SND_SET_REVERB(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Sets the volume of the environment background music.
+ *
+ */
 static int _SND_SET_ENV_VOL(RS_STACKDATA *stack, int argc) {
     EventScene->SetEnvBGMVol(GetStackFloat(stack));
     return true;
 }
 
+/**
+ *
+ * Pushes 1 when the event voice stream is loud enough to hear, or 0 when it is silent.
+ *
+ */
 static int _STREAM_SILENT_CHECK(RS_STACKDATA *stack, int argc) {
     int level;
     int loud;
 
     GetStackInt(stack++);
     level = CSnd.StreamGetLevel(EVENT_STREAM_CHANNEL);
-    loud = 1;
+    loud = true;
 
     if ((s16) (u16) level < 11 && (s16) (u16) level >= -10 && (s16) (level >> 16) < 11 &&
         (s16) (level >> 16) >= -10) {
-        loud = 0;
+        loud = false;
     }
 
     SetStack(stack, loud);
     return true;
 }
 
+/**
+ *
+ * Sets the automatic environment background music change from an integer argument.
+ *
+ */
 static int _AUTO_CHANGE_ENV(RS_STACKDATA *stack, int argc) {
     EventScene->AutoChangeEnvBGM(GetStackInt(stack));
     return true;
 }
 
+/**
+ *
+ * Sets the flag that skips the next background music load.
+ *
+ */
 static int _BGM_LOAD_CANCEL(RS_STACKDATA *stack, int argc) {
-    EventScene->skip_load_bgm = 1;
+    EventScene->skip_load_bgm = true;
     return true;
 }
 
+/**
+ *
+ * Sets the flag that skips the next sound load.
+ *
+ */
 static int _SOUND_LOAD_CANCEL(RS_STACKDATA *stack, int argc) {
-    EventScene->skip_load_sound = 1;
+    EventScene->skip_load_sound = true;
     return true;
 }
 
+/**
+ *
+ * Clears the flag that skips the next background music load.
+ *
+ */
 static int _BGM_LOAD_ENABLE(RS_STACKDATA *stack, int argc) {
-    EventScene->skip_load_bgm = 0;
+    EventScene->skip_load_bgm = false;
     return true;
 }
 
+/**
+ *
+ * Clears the flag that skips the next sound load.
+ *
+ */
 static int _SOUND_LOAD_ENABLE(RS_STACKDATA *stack, int argc) {
-    EventScene->skip_load_sound = 0;
+    EventScene->skip_load_sound = false;
     return true;
 }
 
+/**
+ *
+ * Loads a sound effect bank into the read buffer and fails if the bank is not available.
+ *
+ */
 static int _LOAD_SE_BASE(RS_STACKDATA *stack, int argc) {
     int bank_no;
 
@@ -14416,17 +14481,27 @@ static int _LOAD_SE_BASE(RS_STACKDATA *stack, int argc) {
     return EventScene->LoadSeBase(bank_no, read_buffer);
 }
 
+/**
+ *
+ * Loads a sound into the read buffer.
+ *
+ */
 static int _LOAD_SOUND(RS_STACKDATA *stack, int argc) {
     EventScene->LoadSound(GetStackInt(stack), read_buffer);
     return true;
 }
 
+/**
+ *
+ * Ends the event voice stream and closes its channel.
+ *
+ */
 static int _STREAM_CLOSE(RS_STACKDATA *stack, int argc) {
-    EdEventInfo.stream_playing = 0;
+    EdEventInfo.stream_playing = false;
     GetStackInt(stack);
     CSnd.StreamSetVol(EVENT_STREAM_CHANNEL, EdEventInfo.stream_volume, EdEventInfo.stream_volume);
     CSnd.StreamClose(EVENT_STREAM_CHANNEL);
-    EdEventInfo.stream_reading = 0;
+    EdEventInfo.stream_reading = false;
     return true;
 }
 
@@ -14438,19 +14513,29 @@ int CommandStreamOpen2(int stream, char *name) {
     return true;
 }
 
+/**
+ *
+ * Opens an event voice stream by name from the voice folder and returns the open result.
+ *
+ */
 static int _STREAM_OPEN2(RS_STACKDATA *stack, int argc) {
     int result;
     GetStackInt(stack++);
-    EdEventInfo.stream_source = 0;
+    EdEventInfo.stream_source = EVENT_STREAM_FILE;
     result = CommandStreamOpen2(EVENT_STREAM_CHANNEL, GetStackString(stack));
 
     if (result == 1) {
-        EdEventInfo.stream_reading = 1;
+        EdEventInfo.stream_reading = true;
     }
 
     return result;
 }
 
+/**
+ *
+ * Loads a background music pack and fails if the music cannot be loaded or its buffer is missing.
+ *
+ */
 static int _LOAD_BGM_PACK(RS_STACKDATA *stack, int argc) {
     char file_name[64];
     int  bgm_no;
@@ -14472,16 +14557,31 @@ static int _LOAD_BGM_PACK(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Pushes the load number of the active background music.
+ *
+ */
 static int _GET_BGM_NO(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->GetActiveBgmInfo()->load_no);
     return true;
 }
 
+/**
+ *
+ * Pushes the master volume of the active background music.
+ *
+ */
 static int _GET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
     SetStack(stack, EventScene->GetActiveBgmInfo()->master_volf);
     return true;
 }
 
+/**
+ *
+ * Sets the master volume of the active background music from a float.
+ *
+ */
 static int _SET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
     float   volume;
     CScene *scene;
@@ -14493,6 +14593,11 @@ static int _SET_MASTER_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the battle background music volume.
+ *
+ */
 static int _GET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *battle_bgm;
 
@@ -14506,6 +14611,11 @@ static int _GET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets the battle background music volume from a float.
+ *
+ */
 static int _SET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     DNG_BATTLE_AREA *battle_bgm = &EventScene->battle_area;
 
@@ -14517,42 +14627,77 @@ static int _SET_BTL_BGM_VOL(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Turns the sound reverb on or off from an integer flag.
+ *
+ */
 static int _SND_IN_REVERB(RS_STACKDATA *stack, int argc) {
     CSnd.SndInReverb(GetStackInt(stack) != 0);
     return true;
 }
 
+/**
+ *
+ * Stops the sound effect sources of the scene.
+ *
+ */
 static int _SND_STOP_SRC(RS_STACKDATA *stack, int argc) {
     EventScene->StopSeSrc();
     return true;
 }
 
+/**
+ *
+ * Pauses the background music.
+ *
+ */
 static int _SND_PAUSE_BGM(RS_STACKDATA *stack, int argc) {
     EventScene->PauseBGM();
     return true;
 }
 
+/**
+ *
+ * Opens an event voice stream from its numbered wave file.
+ *
+ */
 static int _STREAM_OPEN3(RS_STACKDATA *stack, int argc) {
     char name[64];
 
     GetStackInt(stack++);
-    EdEventInfo.stream_source = 2;
+    EdEventInfo.stream_source = EVENT_STREAM_WAVE;
     sprintf(name, "%07d.wav", GetStackInt(stack));
     CSnd.StreamOpenFast(EVENT_STREAM_CHANNEL, name);
-    EdEventInfo.stream_reading = 1;
+    EdEventInfo.stream_reading = true;
     return true;
 }
 
+/**
+ *
+ * Saves the status of the active background music into the event's BGM status.
+ *
+ */
 static int _GET_ACTIVE_BGM_STATUS(RS_STACKDATA *stack, int argc) {
     EventScene->GetActiveBgmStatus(&EdEventInfo.bgm_status);
     return true;
 }
 
+/**
+ *
+ * Restores the active background music from the event's BGM status.
+ *
+ */
 static int _SET_ACTIVE_BGM_STATUS(RS_STACKDATA *stack, int argc) {
     EventScene->SetActiveBgmStatus(&EdEventInfo.bgm_status);
     return true;
 }
 
+/**
+ *
+ * Pushes the load number from the event's BGM status and fails unless called with one argument.
+ *
+ */
 static int _GET_BGM_STATUS_NOW_NO(RS_STACKDATA *stack, int argc) {
     if (argc != 1) {
         return false;
@@ -14562,6 +14707,11 @@ static int _GET_BGM_STATUS_NOW_NO(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Pushes the status of a sound effect for a sound id and voice, and fails unless called with three arguments.
+ *
+ */
 static int _GET_SE_STATUS(RS_STACKDATA *stack, int argc) {
     if (argc != 3) {
         return false;
@@ -14575,27 +14725,51 @@ static int _GET_SE_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Stops all sound effects of the scene.
+ *
+ */
 static int _SE_ALL_STOP(RS_STACKDATA *stack, int argc) {
     EventScene->SeAllStop();
     return true;
 }
 
+/**
+ *
+ * Stops all sounds of the scene.
+ *
+ */
 static int _SOUND_ALL_STOP(RS_STACKDATA *stack, int argc) {
     EventScene->SoundAllStop();
     return true;
 }
 
+/**
+ *
+ * Sets the flag that skips the next background music play.
+ *
+ */
 static int _BGM_PLAY_CANCEL(RS_STACKDATA *stack, int argc) {
-
-    (&EventScene->skip_load_sound)[1] = 1;
+    EventScene->skip_play_bgm = true;
     return true;
 }
 
+/**
+ *
+ * Clears the flag that skips the next background music play.
+ *
+ */
 static int _BGM_PLAY_ENABLE(RS_STACKDATA *stack, int argc) {
-    (&EventScene->skip_load_sound)[1] = 0;
+    EventScene->skip_play_bgm = false;
     return true;
 }
 
+/**
+ *
+ * Pushes the default background music number of the current map or of a given map.
+ *
+ */
 static int _GET_DEF_BGM_NO(RS_STACKDATA *stack, int argc) {
     int snd_id;
     int bgm_no;
@@ -14626,6 +14800,11 @@ static int _GET_DEF_BGM_NO(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Enables movie captions or sets the text and timing of one caption, by sub-command.
+ *
+ */
 static int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
     int   i;
     int   no;
@@ -14635,11 +14814,11 @@ static int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
     int   mode = GetStackInt(stack++);
 
     switch (mode) {
-        case 0:
+        case EVENT_CAPTION_ENABLE:
             EdEventInfo.caption_enable = GetStackInt(stack);
 
             if (EdEventInfo.caption_enable == 0) {
-                for (i = 0; i < 18; i++) {
+                for (i = 0; i < EVENT_CAPTION_NUM; i++) {
                     EdEventInfo.caption_start[i] = 0;
                     memset(EdEventInfo.caption_text[i], 0, sizeof(EdEventInfo.caption_text[i]));
                     EdEventInfo.caption_frames[i] = 0;
@@ -14647,7 +14826,7 @@ static int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 1:
+        case EVENT_CAPTION_SET:
             no = GetStackInt(stack++);
             start = GetStackInt(stack++);
             text = GetStackString(stack++);
@@ -14657,7 +14836,7 @@ static int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
                 return false;
             }
 
-            if (no >= 18) {
+            if (no >= EVENT_CAPTION_NUM) {
                 return false;
             }
 
@@ -14674,6 +14853,11 @@ static int _SET_MOVIE_CC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Registers a villager from a memory block in the scene.
+ *
+ */
 static int _REGISTER_VILLAGER2(RS_STACKDATA *stack, int argc) {
     int        villager_no;
     int        mode;
@@ -14691,12 +14875,17 @@ static int _REGISTER_VILLAGER2(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Sets or resets the fishing tournament state, or counts a tour, by sub-command.
+ *
+ */
 static int _SET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     CFishingTournament *tournament;
     RS_STACKDATA       *next = stack + 1;
 
     switch (GetStackInt(stack)) {
-        case 0:
+        case EVENT_SET_FISHING_RANK:
             tournament = GetFishTournament();
 
             if (tournament == NULL) {
@@ -14705,7 +14894,7 @@ static int _SET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
 
             tournament->SetRank(GetStackInt(next));
             break;
-        case 1:
+        case EVENT_SET_FISHING_RESET_RECORD:
             tournament = GetFishTournament();
 
             if (tournament == NULL) {
@@ -14714,11 +14903,11 @@ static int _SET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
 
             tournament->ResetRecord();
             break;
-        case 2:
+        case EVENT_SET_FISHING_LOAD_PRIZE:
             InitFishPrize();
             LoadFishPrize(1);
             break;
-        case 3:
+        case EVENT_SET_FISHING_COUNT_TOUR:
             TuriTourCount();
             break;
         default:
@@ -14728,6 +14917,11 @@ static int _SET_FISHINGTOURNAMENT_ETC(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Attaches an event object handle to a scene character.
+ *
+ */
 static int _EOH_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
     CCharacter2 *chara;
     int          slot;
@@ -14738,12 +14932,17 @@ static int _EOH_SYNC_CHARA(RS_STACKDATA *stack, int argc) {
     chara = GetChara(chara_no);
 
     if (chara != NULL) {
-        return EventObjHandleMother.Set(slot, 0, chara_no, chara);
+        return EventObjHandleMother.Set(slot, EOH_TYPE_CHARA, chara_no, chara);
     }
 
     return false;
 }
 
+/**
+ *
+ * Attaches an event object handle to a map part or to a piece of one.
+ *
+ */
 static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     CMap      *maps[8];
     int        map_count;
@@ -14766,7 +14965,7 @@ static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     slot = GetStackInt(stack++);
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             parts_id = GetStackInt(stack++);
 
             for (i = 0; i < map_count; i++) {
@@ -14778,7 +14977,7 @@ static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
             }
 
             break;
-        case 2:
+        case RS_STR:
             parts_name = GetStackString(stack++);
 
             for (i = 0; i < map_count; i++) {
@@ -14798,7 +14997,7 @@ static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
 
     switch (argc) {
         case 2:
-            EventObjHandleMother.Set(slot, 1, parts, 1);
+            EventObjHandleMother.Set(slot, EOH_TYPE_OBJECT, parts, true);
             break;
         case 3:
         case 4: {
@@ -14809,7 +15008,7 @@ static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
             }
 
             if (argc == 3) {
-                EventObjHandleMother.Set(slot, 1, piece, 0);
+                EventObjHandleMother.Set(slot, EOH_TYPE_OBJECT, piece, false);
             } else if (argc == 4) {
                 char     *frame_name = GetStackString(stack);
                 mgCFrame *root = piece->frame;
@@ -14824,7 +15023,7 @@ static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
                     return false;
                 }
 
-                EventObjHandleMother.Set(slot, 3, frame);
+                EventObjHandleMother.Set(slot, EOH_TYPE_FRAME, frame);
             }
 
             break;
@@ -14836,6 +15035,11 @@ static int _EOH_SYNC_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Attaches an event object handle to an edit map part or to a piece of one.
+ *
+ */
 static int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
     int         slot;
     CEditMap   *edit_map;
@@ -14851,11 +15055,11 @@ static int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
     slot = GetStackInt(stack++);
 
     switch (stack->type) {
-        case 0:
+        case RS_INT:
             parts_id = GetStackInt(stack++);
             parts = edit_map->GetePlaceParts(parts_id);
             break;
-        case 2:
+        case RS_STR:
             parts_name = GetStackString(stack++);
             parts = edit_map->GetePlaceParts(parts_name);
             break;
@@ -14867,7 +15071,7 @@ static int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
 
     switch (argc) {
         case 2:
-            EventObjHandleMother.Set(slot, 1, parts, 1);
+            EventObjHandleMother.Set(slot, EOH_TYPE_OBJECT, parts, true);
             break;
         case 3:
         case 4: {
@@ -14878,7 +15082,7 @@ static int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
             }
 
             if (argc == 3) {
-                EventObjHandleMother.Set(slot, 1, piece, 0);
+                EventObjHandleMother.Set(slot, EOH_TYPE_OBJECT, piece, false);
             } else if (argc == 4) {
                 char     *frame_name = GetStackString(stack);
                 mgCFrame *root = piece->frame;
@@ -14893,7 +15097,7 @@ static int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
                     return false;
                 }
 
-                EventObjHandleMother.Set(slot, 3, frame);
+                EventObjHandleMother.Set(slot, EOH_TYPE_FRAME, frame);
             }
 
             break;
@@ -14905,6 +15109,11 @@ static int _EOH_SYNC_EDIT_OBJ(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Attaches an event object handle to an event sprite.
+ *
+ */
 static int _EOH_SYNC_SPRITE(RS_STACKDATA *stack, int argc) {
     CEventSprite2 *sprite;
     int            slot;
@@ -14913,12 +15122,17 @@ static int _EOH_SYNC_SPRITE(RS_STACKDATA *stack, int argc) {
     sprite = GetEventSprite(GetStackInt(stack));
 
     if (sprite != NULL) {
-        return EventObjHandleMother.Set(slot, 2, sprite);
+        return EventObjHandleMother.Set(slot, EOH_TYPE_SPRITE, sprite);
     }
 
     return false;
 }
 
+/**
+ *
+ * Sets an event object position from direct arguments or an argument list.
+ *
+ */
 static int _EOH_SET_POS(RS_STACKDATA *stack, int argc) {
     float     pos[4];
     int       slot;
@@ -14946,6 +15160,11 @@ static int _EOH_SET_POS(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.SetPos(slot, pos[0], pos[1], pos[2]);
 }
 
+/**
+ *
+ * Sets an event object rotation from direct arguments or an argument list.
+ *
+ */
 static int _EOH_SET_ROT(RS_STACKDATA *stack, int argc) {
     float     rot[4];
     int       slot;
@@ -14977,7 +15196,9 @@ static int _EOH_SET_ROT(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Writes an event object position to the script stack and returns the lookup status.
+ *
  */
 static int _EOH_GET_POS(RS_STACKDATA *stack, int argc) {
     float pos[3];
@@ -14994,7 +15215,9 @@ static int _EOH_GET_POS(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Writes an event object rotation to the script stack and returns the lookup status.
+ *
  */
 static int _EOH_GET_ROT(RS_STACKDATA *stack, int argc) {
     float rot[3];
@@ -15010,6 +15233,11 @@ static int _EOH_GET_ROT(RS_STACKDATA *stack, int argc) {
     return result;
 }
 
+/**
+ *
+ * Sets an event object motion from direct arguments or an argument list.
+ *
+ */
 static int _EOH_SET_MOTION(RS_STACKDATA *stack, int argc) {
     int   index;
     int   type = 0;
@@ -15060,13 +15288,20 @@ static int _EOH_SET_MOTION(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event object motion step and returns the update status.
+ *
  */
 static int _EOH_SET_STEP(RS_STACKDATA *stack, int argc) {
     argc = GetStackInt(stack++);
     return EventObjHandleMother.SetStep(argc, GetStackFloat(stack));
 }
 
+/**
+ *
+ * Sets an event object texture animation from one name, or from an off name and an on name.
+ *
+ */
 static int _EOH_SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
     int no = GetStackInt(stack);
 
@@ -15096,6 +15331,11 @@ static int _EOH_SET_TEX_ANIM(RS_STACKDATA *stack, int argc) {
     return false;
 }
 
+/**
+ *
+ * Sets an event object scale.
+ *
+ */
 static int _EOH_SET_SCALE(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     float x = GetStackFloat(stack++);
@@ -15105,7 +15345,9 @@ static int _EOH_SET_SCALE(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event object visibility and returns the update status.
+ *
  */
 static int _EOH_SET_SHOW(RS_STACKDATA *stack, int argc) {
     int slot;
@@ -15115,7 +15357,9 @@ static int _EOH_SET_SHOW(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Writes an event object visibility to the script stack and returns the lookup status.
+ *
  */
 static int _EOH_GET_SHOW(RS_STACKDATA *stack, int argc) {
     RS_STACKDATA *next_slot;
@@ -15134,7 +15378,9 @@ static int _EOH_GET_SHOW(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event object frame visibility and returns the update status.
+ *
  */
 static int _EOH_SET_FRAME_SHOW(RS_STACKDATA *stack, int argc) {
     int   slot;
@@ -15146,7 +15392,9 @@ static int _EOH_SET_FRAME_SHOW(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event object shadow and returns the update status.
+ *
  */
 static int _EOH_SET_SHADOW(RS_STACKDATA *stack, int argc) {
     int slot;
@@ -15155,6 +15403,11 @@ static int _EOH_SET_SHADOW(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.SetShadow(slot, GetStackInt(stack));
 }
 
+/**
+ *
+ * Sets an event object translation.
+ *
+ */
 static int _EOH_SET_TRANSLATE(RS_STACKDATA *stack, int argc) {
     float translate[4];
     int   no = GetStackInt(stack++);
@@ -15166,7 +15419,9 @@ static int _EOH_SET_TRANSLATE(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event object footstep sound identifier and returns the update status.
+ *
  */
 static int _EOH_SET_FOOT_SOUND_ID(RS_STACKDATA *stack, int argc) {
     int slot;
@@ -15176,7 +15431,9 @@ static int _EOH_SET_FOOT_SOUND_ID(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event object frame visibility and returns the update status.
+ *
  */
 static int _EOH_SET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
     int   slot;
@@ -15188,7 +15445,9 @@ static int _EOH_SET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Writes an event object frame position to the script stack and returns the lookup status.
+ *
  */
 static int _EOH_GET_FRAME_POS(RS_STACKDATA *stack, int argc) {
     float pos[4];
@@ -15207,7 +15466,9 @@ static int _EOH_GET_FRAME_POS(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Sets an event object sound identifier and returns the update status.
+ *
  */
 static int _EOH_SET_SOUND_ID(RS_STACKDATA *stack, int argc) {
     int slot;
@@ -15216,6 +15477,11 @@ static int _EOH_SET_SOUND_ID(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.SetSoundID(slot, GetStackInt(stack));
 }
 
+/**
+ *
+ * Pushes the visibility of a frame of an event object.
+ *
+ */
 static int _EOH_GET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     char *name = GetStackString(stack++);
@@ -15223,6 +15489,11 @@ static int _EOH_GET_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
     return true;
 }
 
+/**
+ *
+ * Attaches an event object handle to a frame of a scene character.
+ *
+ */
 static int _EOH_SYNC_CHROBJ(RS_STACKDATA *stack, int argc) {
     int          slot = GetStackInt(stack++);
     int          chara_no = GetStackInt(stack++);
@@ -15244,11 +15515,13 @@ static int _EOH_SYNC_CHROBJ(RS_STACKDATA *stack, int argc) {
     }
 
     frame->SetRotType(2);
-    return EventObjHandleMother.Set(slot, 3, frame);
+    return EventObjHandleMother.Set(slot, EOH_TYPE_FRAME, frame);
 }
 
 /**
+ *
  * Sets an event object fade flag and returns the update status.
+ *
  */
 static int _EOH_SET_FADE_FLAG(RS_STACKDATA *stack, int argc) {
     int slot;
@@ -15258,14 +15531,18 @@ static int _EOH_SET_FADE_FLAG(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Resets an event object animation position and returns the update status.
+ *
  */
 static int _EOH_RESET_DA_POSITION(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.ResetDAPosition(GetStackInt(stack));
 }
 
 /**
+ *
  * Sets an event object shadow frame visibility and returns the update status.
+ *
  */
 static int _EOH_SET_SHADOW_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
     int   slot;
@@ -15277,12 +15554,19 @@ static int _EOH_SET_SHADOW_FRAME_STATUS(RS_STACKDATA *stack, int argc) {
 }
 
 /**
+ *
  * Attaches an event handle to a geostone and returns the update status.
+ *
  */
 static int _EOH_SYNC_GEOSTONE(RS_STACKDATA *stack, int argc) {
-    return EventObjHandleMother.Set(GetStackInt(stack), 0, -1, &GeoStone);
+    return EventObjHandleMother.Set(GetStackInt(stack), EOH_TYPE_CHARA, -1, &GeoStone);
 }
 
+/**
+ *
+ * Attaches an event object handle to a character found by name.
+ *
+ */
 static int _EOH_SYNC_SEARCH_CHARA(RS_STACKDATA *stack, int argc) {
     int           slot;
     char         *name;
@@ -15297,16 +15581,23 @@ static int _EOH_SYNC_SEARCH_CHARA(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    return EventObjHandleMother.Set(slot, 0, -1, player->SearchChara(name));
+    return EventObjHandleMother.Set(slot, EOH_TYPE_CHARA, -1, player->SearchChara(name));
 }
 
 /**
+ *
  * Updates an event character and returns the update status.
+ *
  */
 static int _EOH_NORMAL_DRIVE(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.NormalDrive(GetStackInt(stack));
 }
 
+/**
+ *
+ * Sets the alpha of a frame of an event object.
+ *
+ */
 static int _EOH_SET_FRAME_ALPHA(RS_STACKDATA *stack, int argc) {
     int   no = GetStackInt(stack++);
     char *name = GetStackString(stack++);
@@ -15314,6 +15605,11 @@ static int _EOH_SET_FRAME_ALPHA(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.SetFrameObjAlpha(no, name, alpha);
 }
 
+/**
+ *
+ * Attaches an event object handle to a function point of a map or of a map part.
+ *
+ */
 static int _EOH_SYNC_FUNCP(RS_STACKDATA *stack, int argc) {
     int         slot;
     CFuncPoint *func_point;
@@ -15360,14 +15656,16 @@ static int _EOH_SYNC_FUNCP(RS_STACKDATA *stack, int argc) {
     }
 
     if (func_point != NULL) {
-        return EventObjHandleMother.Set(slot, 4, func_point);
+        return EventObjHandleMother.Set(slot, EOH_TYPE_FUNC_POINT, func_point);
     }
 
     return false;
 }
 
 /**
+ *
  * Sets an event object footstep effect identifier and returns the update status.
+ *
  */
 static int _EOH_SET_FOOT_SE_ID(RS_STACKDATA *stack, int argc) {
     int slot;
@@ -15376,6 +15674,11 @@ static int _EOH_SET_FOOT_SE_ID(RS_STACKDATA *stack, int argc) {
     return EventObjHandleMother.SetFootSeId(slot, GetStackInt(stack));
 }
 
+/**
+ *
+ * Attaches an event object handle to the auto map door parts and pushes whether it succeeded.
+ *
+ */
 static int _EOH_SYNC_DOOR_PARTS(RS_STACKDATA *stack, int argc) {
     int        slot;
     int        result;
@@ -15385,12 +15688,12 @@ static int _EOH_SYNC_DOOR_PARTS(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    result = 0;
+    result = false;
     slot = GetStackInt(stack++);
 
     if ((door = AutoMapGen.SearchDoorParts()) != NULL) {
-        if (EventObjHandleMother.Set(slot, 1, door, 1) != 0) {
-            result = 1;
+        if (EventObjHandleMother.Set(slot, EOH_TYPE_OBJECT, door, true) != 0) {
+            result = true;
         }
     }
 

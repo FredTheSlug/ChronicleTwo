@@ -1,8 +1,10 @@
 #include "common.h"
 
+#include <eekernel.h>
 #include <sifdev.h>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -27,6 +29,10 @@ namespace {
 
 constexpr std::size_t kSector = DATAREAD_SECTOR_SIZE;
 constexpr std::size_t kExpectedFiles = 10240;
+
+// The index replaces DATA.HD4, which never listed these: manifest.txt and the movie/ and sound/ trees
+// are dc2data output that their own subsystems read, not dataread.
+constexpr std::array<std::string_view, 3> kExcludedRootNames = {"manifest.txt", "movie", "sound"};
 
 struct IndexedFile {
     fs::path path;
@@ -59,8 +65,25 @@ std::size_t PaddedSize(std::size_t size) {
     return (size + kSector - 1) / kSector * kSector;
 }
 
-// Root-anchored names skip the current directory: retail joined it in and produced "dir//name", which
-// the disc never matched.
+// The disc fills the tail of its last sector with whatever follows the file, so the tail is zeroed
+// here: the result must not depend on the caller's buffer.
+void ZeroSectorTail(void *buffer, std::size_t size) {
+    std::memset(static_cast<char *>(buffer) + size, 0, PaddedSize(size) - size);
+}
+
+bool IsExcludedRootName(std::string_view name) {
+    if (name.starts_with('.') || name.ends_with(".dc2tmp")) {
+        return true;
+    }
+    return std::any_of(kExcludedRootNames.begin(), kExcludedRootNames.end(), [name](std::string_view excluded) {
+        return std::equal(excluded.begin(), excluded.end(), name.begin(), name.end(),
+                          [](char a, char b) { return FoldChar(a) == FoldChar(b); });
+    });
+}
+
+// Root-anchored names skip the current directory; retail joined it in ahead of the name and the disc
+// never matched the resulting "dir//name". Slash runs are collapsed when the key is built, so names
+// that differ only in doubled slashes still match.
 std::string IndexKey(std::string_view name) {
     std::string text;
     std::size_t colon = name.find(':');
@@ -103,6 +126,18 @@ std::string IndexKey(std::string_view name) {
     return key;
 }
 
+// Only the explicit host spellings: retail's GetDevType matches these exactly and sends anything else
+// to the default device.
+bool IsHostName(std::string_view name) {
+    return name.starts_with("host:") || name.starts_with("host0:");
+}
+
+// A host name and the disc name it indexes to can be different files, so they never share a cache slot.
+std::string CacheKey(std::string_view name) {
+    std::string key = IndexKey(name);
+    return IsHostName(name) ? "host:" + key : key;
+}
+
 const IndexedFile *Lookup(const std::string &key) {
     if (!index_built) {
         InitCDFile();
@@ -122,8 +157,6 @@ std::optional<std::uintmax_t> FileSize(const IndexedFile &file) {
     return size;
 }
 
-// The disc fills the tail of its last sector with whatever follows the file, so the tail is zeroed
-// here: the result must not depend on the caller's buffer.
 int ReadWhole(const IndexedFile &file, void *buffer) {
     std::optional<std::uintmax_t> sized = FileSize(file);
     if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
@@ -138,8 +171,54 @@ int ReadWhole(const IndexedFile &file, void *buffer) {
         return -1;
     }
     std::size_t size = static_cast<std::size_t>(*sized);
-    std::memset(static_cast<char *>(buffer) + size, 0, PaddedSize(size) - size);
+    ZeroSectorTail(buffer, size);
     return static_cast<int>(size);
+}
+
+// sceOpen maps host0: onto the save tree, so this reads back whatever WriteFile put there. -1 when the
+// save tree does not have the file, which sends the caller on to the data index.
+int ReadSaveFile(const char *name, void *buffer, bool size_only) {
+    int fd = sceOpen(name, SCE_RDONLY);
+    if (fd < 0) {
+        return -1;
+    }
+    int  size = sceLseek(fd, 0, SCE_SEEK_END);
+    bool ok = size >= 0;
+    if (ok && !size_only) {
+        ok = sceLseek(fd, 0, SCE_SEEK_SET) >= 0 && sceRead(fd, buffer, size) == size;
+    }
+    sceClose(fd);
+    if (!ok) {
+        return -1;
+    }
+    if (!size_only) {
+        ZeroSectorTail(buffer, static_cast<std::size_t>(size));
+    }
+    return size;
+}
+
+// The save tree is searched before the index for host names, so a file WriteFile wrote shadows the
+// extracted copy. Returns -1 when neither has the name.
+int ResolveFile(const char *name, const std::string &key, void *buffer, bool size_only) {
+    if (IsHostName(name)) {
+        int size = ReadSaveFile(name, buffer, size_only);
+        if (size >= 0) {
+            return size;
+        }
+    }
+
+    const IndexedFile *file = Lookup(key);
+    if (!file) {
+        return -1;
+    }
+    if (!size_only) {
+        return ReadWhole(*file, buffer);
+    }
+    std::optional<std::uintmax_t> sized = FileSize(*file);
+    if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
+        return -1;
+    }
+    return static_cast<int>(*sized);
 }
 
 CacheSlot *CacheFind(const std::string &key) {
@@ -204,7 +283,11 @@ void BuildIndex(const fs::path &root) {
                                         error);
     for (const fs::recursive_directory_iterator end; !error && it != end; it.increment(error)) {
         const fs::directory_entry &entry = *it;
-        std::error_code            entry_error;
+        if (it.depth() == 0 && IsExcludedRootName(PathsDisplay(entry.path().filename()))) {
+            it.disable_recursion_pending();
+            continue;
+        }
+        std::error_code entry_error;
         if (!entry.is_regular_file(entry_error) || entry_error) {
             continue;
         }
@@ -299,19 +382,14 @@ PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
         return 0;
     }
 
-    std::string key = IndexKey(name);
-    int         size = 0;
+    int size = 0;
 
-    if (CacheSlot *cached = CacheFind(key)) {
+    if (CacheSlot *cached = CacheFind(CacheKey(name))) {
         std::memcpy(buffer, cached->address, static_cast<std::size_t>(cached->size));
         cached->ref_count--;
         size = cached->size;
     } else {
-        const IndexedFile *file = Lookup(key);
-        if (!file) {
-            return 0;
-        }
-        size = ReadWhole(*file, buffer);
+        size = ResolveFile(name, IndexKey(name), buffer, false);
         if (size < 0) {
             return 0;
         }
@@ -371,12 +449,12 @@ PORT_OVERRIDE void BreakReadBG() {
     InitReadBG();
 }
 
-// Retail's LoadFile stops the game when the file cannot be read. The host returns 0 and reports it,
-// so a missing file in a gate run is a visible failure rather than an exit.
+// Retail stops the game when a file cannot be loaded; the port matches it so a missing file fails at
+// the load that needs it.
 PORT_OVERRIDE int LoadFile(char *path, void *buffer, int *out_size) {
     if (!LoadFile2(path, buffer, out_size, LOAD_FILE_READ)) {
-        std::fprintf(stderr, "File open error \"%s\"\n", path);
-        return 0;
+        std::fprintf(stderr, "File open error \"%s\"\n \n \n", path);
+        Exit(0);
     }
     return 1;
 }
@@ -389,9 +467,7 @@ PORT_OVERRIDE int LoadFile2(char *path, void *buffer, int *out_size, int mode) {
         return 0;
     }
 
-    std::string key = IndexKey(path);
-
-    if (CacheSlot *cached = CacheFind(key)) {
+    if (CacheSlot *cached = CacheFind(CacheKey(path))) {
         if (mode != LOAD_FILE_SIZE) {
             std::memcpy(buffer, cached->address, static_cast<std::size_t>(cached->size));
         }
@@ -404,22 +480,7 @@ PORT_OVERRIDE int LoadFile2(char *path, void *buffer, int *out_size, int mode) {
         return 1;
     }
 
-    const IndexedFile *file = Lookup(key);
-    if (!file) {
-        return 0;
-    }
-    std::optional<std::uintmax_t> sized = FileSize(*file);
-    if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
-        return 0;
-    }
-    if (out_size) {
-        *out_size = static_cast<int>(*sized);
-    }
-    if (mode == LOAD_FILE_SIZE) {
-        return 1;
-    }
-
-    int size = ReadWhole(*file, buffer);
+    int size = ResolveFile(path, IndexKey(path), buffer, mode == LOAD_FILE_SIZE);
     if (size < 0) {
         return 0;
     }
@@ -450,21 +511,16 @@ PORT_OVERRIDE int LoadFileCacheBG(char *path) {
         return 0;
     }
 
-    std::string key = IndexKey(path);
+    std::string key = CacheKey(path);
     if (CacheSlot *cached = CacheFind(key)) {
         cached->ref_count++;
         return 1;
     }
 
-    const IndexedFile *file = Lookup(key);
-    if (!file) {
+    int size = ResolveFile(path, IndexKey(path), nullptr, true);
+    if (size < 0) {
         return 0;
     }
-    std::optional<std::uintmax_t> sized = FileSize(*file);
-    if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
-        return 0;
-    }
-    int         size = static_cast<int>(*sized);
     std::size_t quadwords = PaddedSize(static_cast<std::size_t>(size)) / 16;
 
     u_long128 *buffer = cache_next;
@@ -488,7 +544,7 @@ PORT_OVERRIDE u_long128 *SearchFileCache(char *path, int *out_size) {
     if (!path) {
         return nullptr;
     }
-    CacheSlot *cached = CacheFind(IndexKey(path));
+    CacheSlot *cached = CacheFind(CacheKey(path));
     if (!cached) {
         return nullptr;
     }

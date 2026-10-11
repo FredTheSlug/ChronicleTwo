@@ -24,6 +24,7 @@ namespace {
 
 constexpr std::size_t kFileSize = 3000;
 constexpr std::size_t kPadded = 4096;
+constexpr int         kRealIndexedFiles = 8751;
 
 std::vector<unsigned char> MakeBytes(std::size_t size, unsigned char seed) {
     std::vector<unsigned char> bytes(size);
@@ -39,8 +40,6 @@ void WriteBytes(const fs::path &path, const std::vector<unsigned char> &bytes) {
     out.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
 }
 
-// The layout ps2/include/dataread.hpp gives a pack: PACK_ENTRY records ending with an empty name, each
-// offset counted from its own record, each next pointer to the record after it.
 std::vector<unsigned char> BuildPack(const std::vector<std::pair<std::string, std::vector<unsigned char>>> &files) {
     std::size_t total = (files.size() + 1) * sizeof(PACK_ENTRY);
     std::vector<std::size_t> starts;
@@ -67,6 +66,19 @@ int Load(const char *name, void *buffer, int *size) {
     return LoadFile2(path.data(), buffer, size, LOAD_FILE_READ);
 }
 
+// The extracted data/ the test executable was built beside. Empty when that tree is absent, which is
+// the case in the Linux container, where data/ is a dangling junction.
+std::optional<fs::path> ExtractedDataRoot() {
+    fs::path dir = PathsExecutable().parent_path();
+    for (int up = 0; up < 6 && !dir.empty(); up++, dir = dir.parent_path()) {
+        std::error_code error;
+        if (fs::is_regular_file(dir / "data" / "edit.cfg", error)) {
+            return dir / "data";
+        }
+    }
+    return std::nullopt;
+}
+
 class DataRead : public testing::Test {
 protected:
     void SetUp() override {
@@ -81,6 +93,7 @@ protected:
     }
 
     void TearDown() override {
+        PathsReset();
         std::error_code error;
         fs::remove_all(base_, error);
     }
@@ -94,6 +107,8 @@ private:
     std::vector<u_long128> buffer_;
 };
 
+using DataReadDeathTest = DataRead;
+
 } // namespace
 
 TEST_F(DataRead, IndexLogsItsCountAndRoot) {
@@ -101,6 +116,28 @@ TEST_F(DataRead, IndexLogsItsCountAndRoot) {
     DataReadIndex(root_);
     std::string log = testing::internal::GetCapturedStderr();
     EXPECT_NE(log.find("dataread: indexed 3 files under " + PathsDisplay(root_)), std::string::npos) << log;
+}
+
+TEST_F(DataRead, RootExclusionsKeepDiscOnlyFilesOutOfTheIndex) {
+    const fs::path root = base_ / "excluded";
+    WriteBytes(root / "manifest.txt", MakeBytes(10, 1));
+    WriteBytes(root / ".kazarov-data", MakeBytes(10, 2));
+    WriteBytes(root / "movie" / "a.pss", MakeBytes(10, 3));
+    WriteBytes(root / "sound" / "sound.dat", MakeBytes(10, 4));
+    WriteBytes(root / "x.dc2tmp", MakeBytes(10, 5));
+    WriteBytes(root / "small.txt", MakeBytes(10, 6));
+    WriteBytes(root / "DIR" / "one.bin", MakeBytes(10, 7));
+    WriteBytes(root / "map" / "movie" / "b.bin", MakeBytes(10, 8));
+
+    testing::internal::CaptureStderr();
+    DataReadIndex(root);
+    std::string log = testing::internal::GetCapturedStderr();
+    EXPECT_NE(log.find("dataread: indexed 3 files under " + PathsDisplay(root)), std::string::npos) << log;
+
+    for (const char *name : {"manifest.txt", ".kazarov-data", "movie/a.pss", "sound/sound.dat", "x.dc2tmp"}) {
+        EXPECT_FALSE(DataReadFind(name).has_value()) << name;
+    }
+    EXPECT_TRUE(DataReadFind("map/movie/b.bin").has_value());
 }
 
 TEST_F(DataRead, FindIsCaseInsensitiveAndAcceptsDevicePrefixes) {
@@ -138,6 +175,13 @@ TEST_F(DataRead, LoadFileAcceptsPlainAndUpperCaseNames) {
     EXPECT_EQ(size, static_cast<int>(kFileSize));
     EXPECT_EQ(LoadFile(upper, Buffer(), &size), 1);
     EXPECT_EQ(size, static_cast<int>(kFileSize));
+}
+
+TEST_F(DataReadDeathTest, LoadFileExitsWhenTheFileIsMissing) {
+    DataReadIndex(root_);
+    int  size = 0;
+    char name[] = "dir/nope/missing.bin";
+    EXPECT_EXIT(LoadFile(name, Buffer(), &size), testing::ExitedWithCode(0), "File open error \"dir/nope/missing.bin\"");
 }
 
 TEST_F(DataRead, MissingFileReturnsZeroWithoutAborting) {
@@ -224,6 +268,9 @@ TEST_F(DataRead, BackgroundReadIsFinishedWhenItReturns) {
 TEST_F(DataRead, FileCacheHoldsAFileLoadedInTheBackground) {
     DataReadIndex(root_);
     std::vector<u_long128> cache(16384);
+    struct CacheReset {
+        ~CacheReset() { DeleteFileCache(); }
+    } reset;
     InitFileCache(cache.data(), FILE_CACHE_UP);
 
     char name[] = "DIR/Sub/File.BIN";
@@ -260,6 +307,48 @@ TEST_F(DataRead, WriteToHost0LandsUnderTheSaveRoot) {
     EXPECT_EQ(back, data);
 }
 
+TEST_F(DataRead, Host0ReadsBackWhatWasWrittenAndShadowsTheDataIndex) {
+    PathsSetSaveRoot(base_ / "save");
+    WriteBytes(root_ / "geo_data" / "t.edt", MakeBytes(16, 99));
+    DataReadIndex(root_);
+
+    std::vector<unsigned char> data = MakeBytes(5000, 11);
+    char name[] = "host0:geo_data/t.edt";
+    ASSERT_EQ(WriteFile(name, data.data(), static_cast<int>(data.size())), 1);
+
+    std::vector<u_long128> out(8192 / sizeof(u_long128));
+    int                    size = 0;
+    ASSERT_EQ(LoadFile2(name, out.data(), &size, LOAD_FILE_READ), 1);
+    EXPECT_EQ(size, static_cast<int>(data.size()));
+    EXPECT_EQ(std::memcmp(out.data(), data.data(), data.size()), 0);
+
+    int size_only = 0;
+    EXPECT_EQ(LoadFile2(name, nullptr, &size_only, LOAD_FILE_SIZE), 1);
+    EXPECT_EQ(size_only, static_cast<int>(data.size()));
+
+    StartReadBG();
+    char bg_name[] = "host0:geo_data/t.edt";
+    ASSERT_EQ(LoadFileBG(bg_name, out.data(), &size), 1);
+    EXPECT_EQ(size, static_cast<int>(data.size()));
+    EXPECT_EQ(std::memcmp(out.data(), data.data(), data.size()), 0);
+}
+
+TEST_F(DataRead, HostNameAbsentFromTheSaveTreeLoadsFromData) {
+    PathsSetSaveRoot(base_ / "save");
+    WriteBytes(root_ / "gyorace.cfg", MakeBytes(258, 4));
+    DataReadIndex(root_);
+
+    char name[] = "host:gyorace.cfg";
+    int  size = 0;
+    ASSERT_EQ(LoadFile2(name, Buffer(), &size, LOAD_FILE_READ), 1);
+    EXPECT_EQ(size, 258);
+    const std::vector<unsigned char> expected = MakeBytes(258, 4);
+    EXPECT_EQ(std::memcmp(Buffer(), expected.data(), expected.size()), 0);
+
+    EXPECT_EQ(LoadFile2(name, nullptr, &size, LOAD_FILE_SIZE), 1);
+    EXPECT_EQ(size, 258);
+}
+
 TEST_F(DataRead, MissingRootIndexesNothingAndDoesNotAbort) {
     testing::internal::CaptureStderr();
     DataReadIndex(base_ / "absent");
@@ -271,17 +360,23 @@ TEST_F(DataRead, MissingRootIndexesNothingAndDoesNotAbort) {
     EXPECT_EQ(Load("cdrom0:\\SMALL.TXT;1", Buffer(), &size), 0);
 }
 
-TEST_F(DataRead, ExtractedEditConfigLoadsWhenPresent) {
-    fs::path exe = PathsExecutable();
-    std::optional<fs::path> data;
-    fs::path                dir = exe.parent_path();
-    for (int up = 0; up < 6 && !dir.empty(); up++, dir = dir.parent_path()) {
-        std::error_code error;
-        if (fs::is_regular_file(dir / "data" / "edit.cfg", error)) {
-            data = dir / "data";
-            break;
-        }
+TEST_F(DataRead, RealDataIndexesTheDiscFiles) {
+    std::optional<fs::path> data = ExtractedDataRoot();
+    if (!data) {
+        GTEST_SKIP() << "no extracted data/ above the test executable";
     }
+
+    testing::internal::CaptureStderr();
+    DataReadIndex(*data);
+    std::string log = testing::internal::GetCapturedStderr();
+    EXPECT_NE(log.find("dataread: indexed " + std::to_string(kRealIndexedFiles) + " files under " +
+                       PathsDisplay(*data)),
+              std::string::npos)
+        << log;
+}
+
+TEST_F(DataRead, ExtractedEditConfigLoadsWhenPresent) {
+    std::optional<fs::path> data = ExtractedDataRoot();
     if (!data) {
         GTEST_SKIP() << "no extracted data/ above the test executable";
     }

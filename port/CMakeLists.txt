@@ -33,6 +33,9 @@ set(PS2_INCLUDE_SRC ${CMAKE_SOURCE_DIR}/ps2/include)
 set(PS2_INCLUDE_DIR ${CMAKE_BINARY_DIR}/ps2_include)
 set(PS2_INCLUDE_STAMP ${CMAKE_BINARY_DIR}/ps2_include.stamp)
 set(HEADER_FIXUPS_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/port/header_fixups.py)
+# The PS2's long is 64-bit and Windows' (LLP64) is not, so game sources and headers are rewritten to long long
+# on every host, keeping the types identical everywhere.
+set(LONG64_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/port/long64.py)
 file(GLOB_RECURSE PS2_INCLUDE_FILES CONFIGURE_DEPENDS LIST_DIRECTORIES false ${PS2_INCLUDE_SRC}/*)
 execute_process(COMMAND ${Python3_EXECUTABLE} ${HEADER_FIXUPS_SCRIPT} ${PS2_INCLUDE_SRC} ${PS2_INCLUDE_DIR} ${PS2_INCLUDE_STAMP}
     RESULT_VARIABLE header_fixups_result
@@ -43,7 +46,7 @@ if(NOT header_fixups_result EQUAL 0)
 endif()
 add_custom_command(OUTPUT ${PS2_INCLUDE_STAMP}
     COMMAND ${Python3_EXECUTABLE} ${HEADER_FIXUPS_SCRIPT} ${PS2_INCLUDE_SRC} ${PS2_INCLUDE_DIR} ${PS2_INCLUDE_STAMP}
-    DEPENDS ${PS2_INCLUDE_FILES} ${HEADER_FIXUPS_SCRIPT}
+    DEPENDS ${PS2_INCLUDE_FILES} ${HEADER_FIXUPS_SCRIPT} ${LONG64_SCRIPT}
     COMMENT "Mirroring ps2/include with the header fixups"
     VERBATIM)
 add_custom_target(ps2_include DEPENDS ${PS2_INCLUDE_STAMP})
@@ -88,7 +91,8 @@ foreach(unit IN LISTS PS2_SOURCES)
     add_custom_command(OUTPUT ${copy}
         COMMAND ${Python3_EXECUTABLE} ${PORT_OVERRIDE_SCRIPT} strip --overrides ${PORT_OVERRIDES} ${stubs}
             ${port_override_defines} ${PS2_DIR}/${unit} ${copy}
-        DEPENDS ${PS2_DIR}/${unit} ${PORT_OVERRIDES} ${PORT_OVERRIDE_SOURCES} ${PORT_OVERRIDE_SCRIPT} ${header}
+        COMMAND ${Python3_EXECUTABLE} ${LONG64_SCRIPT} ${copy}
+        DEPENDS ${PS2_DIR}/${unit} ${PORT_OVERRIDES} ${PORT_OVERRIDE_SOURCES} ${PORT_OVERRIDE_SCRIPT} ${LONG64_SCRIPT} ${header}
         COMMENT "Removing overridden definitions from ps2/src/${unit}"
         VERBATIM)
     list(APPEND PS2_UNITS ${copy})
@@ -193,6 +197,9 @@ endif()
 
 include(GNUInstallDirs)
 install(TARGETS darkchronicle RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+# The disc extractor the port's data comes from; its header is also the tests' subject.
+add_subdirectory(${CMAKE_SOURCE_DIR}/tools/dc2data ${CMAKE_BINARY_DIR}/tools/dc2data)
 
 option(CT_BUILD_TESTS "Build darkchronicle_tests" ON)
 if(CT_BUILD_TESTS)

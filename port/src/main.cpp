@@ -6,13 +6,21 @@
 #include <string_view>
 #include <vector>
 
+#include "dataread.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
 #include "identity.hpp"
 #include "mainloop.hpp"
+#include "platform/clock.hpp"
+#include "platform/config.hpp"
+#include "platform/display.hpp"
 #include "platform/input.hpp"
 #include "platform/paths.hpp"
+#include "platform/settings.hpp"
 #include "platform/window.hpp"
+#include "sce/threads.hpp"
+
+int VSyncCallBack(int field);
 
 namespace {
 
@@ -66,14 +74,36 @@ void ReportPipelineProgress(std::uint32_t done, std::uint32_t total) {
     }
 }
 
+gfx::PresentMode PresentMode(ConfigPresentMode mode) {
+    switch (mode) {
+        case ConfigPresentMode::Mailbox:
+            return gfx::PresentMode::Mailbox;
+        case ConfigPresentMode::Immediate:
+            return gfx::PresentMode::Immediate;
+        default:
+            return gfx::PresentMode::Fifo;
+    }
+}
+
+// A closed window ends the process here: the game has no stop request to ask its loop to return.
+void PumpHost() {
+    if (!WindowPollEvents()) {
+        std::exit(kExitOk);
+    }
+    DisplayPump();
+    InputPoll();
+}
+
 int Run(int argc, const char **argv) {
     GameSetIdentity();
     argc = PathsConsumeArgs(argc, argv);
     const Options options = ParseOptions(argc, argv);
-    const bool    offscreen = options.offscreen || (options.headless && !gfx::HeadlessSurfaceAvailable());
+    ConfigLoad();
+    const HostSettings &settings = SettingsGet();
+    const bool          offscreen = options.offscreen || (options.headless && !gfx::HeadlessSurfaceAvailable());
 
-    WindowConfig window;
-    window.headless = options.headless;
+    DisplaySetOverrides(0, 0, options.headless);
+    WindowConfig window = DisplayWindowConfig(settings);
     window.vulkan = !offscreen;
     WindowInit(window);
     InputInit();
@@ -83,14 +113,23 @@ int Run(int argc, const char **argv) {
     renderer.logical_width = kLogicalWidth;
     renderer.logical_height = kLogicalHeight;
     renderer.display_aspect = 4.0f / 3.0f;
+    renderer.present_mode = PresentMode(settings.present_mode);
     renderer.pipeline_cache = PathsSaveRoot() / "pipeline_cache.bin";
     renderer.progress = ReportPipelineProgress;
     renderer.offscreen = offscreen;
     gfx::RendererInit(WindowHandle(), renderer);
 
+    ClockSetTickRate(settings.tick_rate);
+    ClockSetUnbounded(options.headless);
+    ClockAddPumpHook(PumpHost);
+    ClockSetTickCallback(VSyncCallBack);
+
+    InitCDFile();
     MainThreadPriority = 10;
+    KzThreadsSetMainPriority(MainThreadPriority);
     MainLoop();
 
+    ClockRemovePumpHook(PumpHost);
     InputShutdown();
     gfx::RendererShutdown();
     WindowShutdown();

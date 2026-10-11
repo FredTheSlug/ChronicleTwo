@@ -4,11 +4,18 @@
     header_fixups.py <src_dir> <dst_dir> <stamp_file>
 
 Every fixup's old text must occur exactly once in its file; anything else fails before a byte is written.
+Headers are then passed through long64, because the PS2's `long` is 64-bit and Windows' is not.
 """
 
 import argparse
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from long64 import rewrite as rewrite_long64  # noqa: E402
+
+LONG64_SUFFIXES = (".h", ".hpp", ".hh", ".inc", ".inl")
 
 # MWCC accepts a `void` override of a base's `int` virtual and gives it a new vtable slot; clang rejects it.
 # The PS2 vtables keep those separate slots, so making them overrides here is an accepted difference until
@@ -32,6 +39,10 @@ def build_mirror(src: Path) -> dict[str, bytes]:
         if count != 1:
             sys.exit(f"header_fixups: {rel} has {count} occurrences of {old!r}, expected exactly 1")
         files[rel] = data.replace(old.encode(), new.encode())
+
+    for rel, data in files.items():
+        if rel.endswith(LONG64_SUFFIXES):
+            files[rel] = rewrite_long64(data.decode("latin-1")).encode("latin-1")
     return files
 
 

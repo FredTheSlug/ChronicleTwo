@@ -3,12 +3,127 @@
 #include "mg_math.hpp"
 #include "stubs/mg_math.hpp"
 
+#include <cfloat>
+#include <climits>
+#include <cmath>
+
+namespace {
+
+float lane_max(float a, float b) { return b > a ? b : a; }
+float lane_min(float a, float b) { return b < a ? b : a; }
+
+// Retail adds vf0.x (+0) to every lane it copies, which turns -0 into +0.
+float add_vf0x(float v) { return v + 0.0f; }
+
+// NaN has no verified VU result; it takes the x86 cvttss2si value so the C cast stays defined.
+int float_to_int_trunc(float v) {
+    if (std::isnan(v)) {
+        return INT_MIN;
+    }
+    if (v >= 2147483648.0f) {
+        return INT_MAX;
+    }
+    if (v < -2147483648.0f) {
+        return INT_MIN;
+    }
+    return static_cast<int>(v);
+}
+
+// Retail clip tests read the sticky sign bit of the status flag, so -0 counts as negative.
+bool sign_set(float v) { return std::signbit(v); }
+
+const int kLanesXYZ[3] = {0, 1, 2};
+const int kLanesXYW[3] = {0, 1, 3};
+
+int clip_box_overlap(const int *lanes, float *max0, float *min0, float *max1, float *min1) {
+    for (int i = 0; i < 3; i++) {
+        const int l = lanes[i];
+        if (sign_set(max0[l] - min1[l]) || sign_set(max1[l] - min0[l])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int clip_box_inside(const int *lanes, float *max0, float *min0, float *max1, float *min1) {
+    for (int i = 0; i < 3; i++) {
+        const int l = lanes[i];
+        if (sign_set(max1[l] - max0[l]) || sign_set(min0[l] - min1[l])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+// Accumulated in j order: the VU MAC chain's rounding depends on it.
+void mat_mul(float out[4][4], const float a[4][4], const float b[4][4]) {
+    float r[4][4];
+    for (int i = 0; i < 4; i++) {
+        for (int k = 0; k < 4; k++) {
+            float acc = a[i][0] * b[0][k];
+            for (int j = 1; j < 4; j++) {
+                acc = acc + a[i][j] * b[j][k];
+            }
+            r[i][k] = acc;
+        }
+    }
+    for (int i = 0; i < 4; i++) {
+        for (int k = 0; k < 4; k++) {
+            out[i][k] = r[i][k];
+        }
+    }
+}
+
+void transform_row(float out[4], const float v[4], const float m[4][4]) {
+    float r[4];
+    for (int k = 0; k < 4; k++) {
+        r[k] = ((m[0][k] * v[0] + m[1][k] * v[1]) + m[2][k] * v[2]) + m[3][k] * v[3];
+    }
+    for (int k = 0; k < 4; k++) {
+        out[k] = r[k];
+    }
+}
+
+void copy_matrix(float dst[4][4], float (*src)[4]) {
+    for (int r = 0; r < 4; r++) {
+        for (int k = 0; k < 4; k++) {
+            dst[r][k] = src[r][k];
+        }
+    }
+}
+
+float squared_sum3(float x, float y, float z) { return (x * x + y * y) + z * z; }
+
+} // namespace
+
 void mgFotI4(int *out, float *in) {
-    PS2_UNIMPLEMENTED();
+    int r[4];
+    for (int i = 0; i < 4; i++) {
+        r[i] = float_to_int_trunc(in[i] * 16.0f);
+    }
+    for (int i = 0; i < 4; i++) {
+        out[i] = r[i];
+    }
 }
 
 void mgCreateBox8(float (*corners)[4], float *max, float *min) {
-    PS2_UNIMPLEMENTED();
+    const float mx[4] = {max[0], max[1], max[2], max[3]};
+    const float mn[4] = {min[0], min[1], min[2], min[3]};
+    const float out[8][4] = {
+        {mn[0], mn[1], mn[2], mn[3]},
+        {add_vf0x(mx[0]), add_vf0x(mn[1]), add_vf0x(mn[2]), add_vf0x(mn[3])},
+        {add_vf0x(mn[0]), add_vf0x(mx[1]), add_vf0x(mn[2]), add_vf0x(mn[3])},
+        {add_vf0x(mx[0]), add_vf0x(mx[1]), add_vf0x(mn[2]), add_vf0x(mx[3])},
+        {add_vf0x(mn[0]), add_vf0x(mn[1]), add_vf0x(mx[2]), add_vf0x(mn[3])},
+        {add_vf0x(mx[0]), add_vf0x(mn[1]), add_vf0x(mx[2]), add_vf0x(mx[3])},
+        {add_vf0x(mn[0]), add_vf0x(mx[1]), add_vf0x(mx[2]), add_vf0x(mx[3])},
+        {mx[0], mx[1], mx[2], mx[3]},
+    };
+    for (int c = 0; c < 8; c++) {
+        for (int k = 0; k < 4; k++) {
+            corners[c][k] = out[c][k];
+        }
+    }
 }
 
 void mgZeroVectorW(float *vector) {
@@ -19,91 +134,176 @@ void mgZeroVectorW(float *vector) {
 }
 
 int mgClipBoxVertex(float *point, float *max, float *min) {
-    PS2_UNIMPLEMENTED();
+    for (int i = 0; i < 3; i++) {
+        if (sign_set(max[i] - point[i]) || sign_set(point[i] - min[i])) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 int mgClipBox(float *max0, float *min0, float *max1, float *min1) {
-    PS2_UNIMPLEMENTED();
+    return clip_box_overlap(kLanesXYZ, max0, min0, max1, min1);
 }
 
 int mgClipBoxW(float *max0, float *min0, float *max1, float *min1) {
-    PS2_UNIMPLEMENTED();
+    return clip_box_overlap(kLanesXYW, max0, min0, max1, min1);
 }
 
 int mgClipInBox(float *max0, float *min0, float *max1, float *min1) {
-    PS2_UNIMPLEMENTED();
+    return clip_box_inside(kLanesXYZ, max0, min0, max1, min1);
 }
 
 int mgClipInBoxW(float *max0, float *min0, float *max1, float *min1) {
-    PS2_UNIMPLEMENTED();
+    return clip_box_inside(kLanesXYW, max0, min0, max1, min1);
 }
 
 void mgAddVector(float *vector, float *add) {
-    PS2_UNIMPLEMENTED();
+    for (int i = 0; i < 4; i++) {
+        vector[i] = vector[i] + add[i];
+    }
 }
 
 void mgSubVector(float *vector, float *sub) {
-    PS2_UNIMPLEMENTED();
+    for (int i = 0; i < 4; i++) {
+        vector[i] = vector[i] - sub[i];
+    }
 }
 
 void mgNormalizeVector(float *out, float *in, float length) {
-    PS2_UNIMPLEMENTED();
+    // Follows the SDK sceVu0Normalize: unit w is 0, and a zero vector stays zero because the
+    // reciprocal saturates to FLT_MAX instead of becoming infinity.
+    const float len = std::sqrt(squared_sum3(in[0], in[1], in[2]));
+    const float scale = len == 0.0f ? FLT_MAX : 1.0f / len;
+    const float unit[4] = {in[0] * scale, in[1] * scale, in[2] * scale, 0.0f};
+    for (int i = 0; i < 4; i++) {
+        out[i] = unit[i] * length;
+    }
 }
 
 void mgVectorMin(float *min, float *a, float *b) {
-    PS2_UNIMPLEMENTED();
+    float r[4];
+    for (int i = 0; i < 4; i++) {
+        r[i] = lane_min(a[i], b[i]);
+    }
+    for (int i = 0; i < 4; i++) {
+        min[i] = r[i];
+    }
 }
 
 void mgVectorMin(float *min, float *a, float *b, float *c, float *d) {
-    PS2_UNIMPLEMENTED();
+    float r[4];
+    for (int i = 0; i < 4; i++) {
+        r[i] = lane_min(lane_min(lane_min(a[i], b[i]), c[i]), d[i]);
+    }
+    for (int i = 0; i < 4; i++) {
+        min[i] = r[i];
+    }
 }
 
 void mgVectorMaxMin(float *max, float *min, float *a, float *b) {
-    PS2_UNIMPLEMENTED();
+    float hi[4];
+    float lo[4];
+    for (int i = 0; i < 4; i++) {
+        hi[i] = lane_max(a[i], b[i]);
+        lo[i] = lane_min(a[i], b[i]);
+    }
+    for (int i = 0; i < 4; i++) {
+        max[i] = hi[i];
+        min[i] = lo[i];
+    }
 }
 
 void mgVectorMaxMin(float *max, float *min, float *a, float *b, float *c) {
-    PS2_UNIMPLEMENTED();
+    float hi[4];
+    float lo[4];
+    for (int i = 0; i < 4; i++) {
+        hi[i] = lane_max(lane_max(a[i], b[i]), c[i]);
+        lo[i] = lane_min(lane_min(a[i], b[i]), c[i]);
+    }
+    for (int i = 0; i < 4; i++) {
+        max[i] = hi[i];
+        min[i] = lo[i];
+    }
 }
 
 void mgVectorMaxMin(float *max, float *min, float *a, float *b, float *c, float *d) {
-    PS2_UNIMPLEMENTED();
+    float hi[4];
+    float lo[4];
+    for (int i = 0; i < 4; i++) {
+        hi[i] = lane_max(lane_max(lane_max(a[i], b[i]), c[i]), d[i]);
+        lo[i] = lane_min(lane_min(lane_min(a[i], b[i]), c[i]), d[i]);
+    }
+    for (int i = 0; i < 4; i++) {
+        max[i] = hi[i];
+        min[i] = lo[i];
+    }
 }
 
 void mgBoxMaxMin(mgVu0FBOX *box, mgVu0FBOX *other) {
-    PS2_UNIMPLEMENTED();
+    float hi[4];
+    float lo[4];
+    for (int i = 0; i < 4; i++) {
+        const float a = box->max[i];
+        const float b = box->min[i];
+        hi[i] = lane_max(lane_max(lane_max(a, b), other->max[i]), other->min[i]);
+        lo[i] = lane_min(lane_min(lane_min(a, b), other->max[i]), other->min[i]);
+    }
+    for (int i = 0; i < 4; i++) {
+        box->max[i] = hi[i];
+        box->min[i] = lo[i];
+    }
 }
 
 void mgPlaneNormal(float *normal, float *v0, float *v1, float *v2) {
-    PS2_UNIMPLEMENTED();
+    // Retail stores vf12 whole, but only xyz is computed, so its w is whatever the register
+    // held before. That value is not recoverable; normal[3] is left as it was.
+    float a[3];
+    float b[3];
+    for (int i = 0; i < 3; i++) {
+        a[i] = v1[i] - v0[i];
+        b[i] = v2[i] - v0[i];
+    }
+    const float n[3] = {
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    };
+    for (int i = 0; i < 3; i++) {
+        normal[i] = n[i];
+    }
 }
 
 float mgDistVector(float *vector) {
-    PS2_UNIMPLEMENTED();
+    return std::sqrt(squared_sum3(vector[0], vector[1], vector[2]));
 }
 
 float mgDistVectorXZ(float *vector) {
-    PS2_UNIMPLEMENTED();
+    return std::sqrt(vector[0] * vector[0] + vector[2] * vector[2]);
 }
 
 float mgDistVector2(float *vector) {
-    PS2_UNIMPLEMENTED();
+    return squared_sum3(vector[0], vector[1], vector[2]);
 }
 
 float mgDistVector(float *a, float *b) {
-    PS2_UNIMPLEMENTED();
+    return std::sqrt(squared_sum3(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
 }
 
 float mgDistVectorXZ(float *a, float *b) {
-    PS2_UNIMPLEMENTED();
+    const float dx = b[0] - a[0];
+    const float dz = b[2] - a[2];
+    return std::sqrt(dx * dx + dz * dz);
 }
 
 float mgDistVector2(float *a, float *b) {
-    PS2_UNIMPLEMENTED();
+    return squared_sum3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
 }
 
 float mgDistVectorXZ2(float *a, float *b) {
-    PS2_UNIMPLEMENTED();
+    const float dx = b[0] - a[0];
+    const float dz = b[2] - a[2];
+    return dx * dx + dz * dz;
 }
 
 void mgUnitMatrix(float (*matrix)[4]) {
@@ -123,26 +323,147 @@ void mgZeroMatrix(float (*matrix)[4]) {
 }
 
 void MulMatrix3(float (*matrix)[4], float (*second)[4], float (*third)[4]) {
-    PS2_UNIMPLEMENTED();
+    float m[4][4];
+    float t[4][4];
+    copy_matrix(m, matrix);
+    mat_mul(t, second, m);
+    mat_mul(m, third, t);
+    copy_matrix(matrix, m);
 }
 
 void mgMulMatrix(float (*product)[4], float (*left_matrix)[4], float (*right_matrix)[4]) {
-    PS2_UNIMPLEMENTED();
+    // Product is right * left: callers such as mg_drawenv and mg_frame depend on this order.
+    float l[4][4];
+    float r[4][4];
+    copy_matrix(l, left_matrix);
+    copy_matrix(r, right_matrix);
+    float p[4][4];
+    mat_mul(p, r, l);
+    copy_matrix(product, p);
 }
 
 void mgInversMatrix(float (*inverse)[4], float (*matrix)[4]) {
-    PS2_UNIMPLEMENTED();
+    float m[4][4];
+    copy_matrix(m, matrix);
+    const float *a = m[0];
+    const float *b = m[1];
+    const float *c = m[2];
+    const float *d = m[3];
+
+    // Retail's accumulation order; the determinant's rounding depends on it.
+    float acc = a[0] * b[1] * c[2];
+    acc = acc + c[0] * a[1] * b[2];
+    acc = acc + b[0] * c[1] * a[2];
+    acc = acc - a[0] * c[1] * b[2];
+    acc = acc - b[0] * a[1] * c[2];
+    const float det = acc - c[0] * b[1] * a[2];
+    // The VU divide saturates a zero divisor to +/-FLT_MAX rather than infinity.
+    float q = 1.0f / det;
+    if (std::isinf(q)) {
+        q = std::copysign(FLT_MAX, q);
+    }
+
+    const float *p[3] = {b, c, a};
+    const float *s[3] = {c, a, b};
+    float rows[3][3];
+    for (int k = 0; k < 3; k++) {
+        rows[0][k] = p[k][1] * s[k][2] - p[k][2] * s[k][1];
+        rows[1][k] = p[k][2] * s[k][0] - p[k][0] * s[k][2];
+        rows[2][k] = p[k][0] * s[k][1] - p[k][1] * s[k][0];
+    }
+
+    float out[4][4];
+    for (int r = 0; r < 3; r++) {
+        for (int k = 0; k < 3; k++) {
+            out[r][k] = (0.0f + rows[r][k]) * q;
+        }
+        out[r][3] = 0.0f * q;
+    }
+
+    for (int k = 0; k < 3; k++) {
+        float t = out[0][k] * d[0];
+        t = t + out[1][k] * d[1];
+        t = t + out[2][k] * d[2];
+        out[3][k] = 0.0f - t;
+    }
+    out[3][3] = 1.0f;
+
+    copy_matrix(inverse, out);
 }
 
 void mgApplyMatrixN(float (*out)[4], float (*matrix)[4], float (*in)[4], int count) {
-    PS2_UNIMPLEMENTED();
+    // Retail's loop is do-while, so count < 1 still writes one vector past the end of out.
+    // That write is not reproduced.
+    if (count < 1) {
+        return;
+    }
+    float m[4][4];
+    copy_matrix(m, matrix);
+    for (int i = 0; i < count; i++) {
+        const float v[4] = {in[i][0], in[i][1], in[i][2], in[i][3]};
+        transform_row(out[i], v, m);
+    }
 }
 
 void mgApplyMatrixN_MaxMin(float (*out)[4], float (*matrix)[4], float (*in)[4], int count,
                            float *max, float *min) {
-    PS2_UNIMPLEMENTED();
+    // Retail reads and writes past the arrays for count < 2; that is not reproduced.
+    if (count < 1) {
+        return;
+    }
+    float m[4][4];
+    copy_matrix(m, matrix);
+
+    float v0[4];
+    {
+        const float v[4] = {in[0][0], in[0][1], in[0][2], in[0][3]};
+        transform_row(v0, v, m);
+        for (int k = 0; k < 4; k++) {
+            out[0][k] = v0[k];
+        }
+    }
+    float hi[4];
+    float lo[4];
+    for (int k = 0; k < 4; k++) {
+        hi[k] = add_vf0x(v0[k]);
+        lo[k] = add_vf0x(v0[k]);
+    }
+
+    for (int i = 1; i < count; i++) {
+        const float v[4] = {in[i][0], in[i][1], in[i][2], in[i][3]};
+        float r[4];
+        transform_row(r, v, m);
+        for (int k = 0; k < 4; k++) {
+            out[i][k] = r[k];
+            hi[k] = lane_max(hi[k], r[k]);
+            lo[k] = lane_min(lo[k], r[k]);
+        }
+    }
+
+    for (int k = 0; k < 4; k++) {
+        max[k] = hi[k];
+        min[k] = lo[k];
+    }
 }
 
 void mgVectorMinMaxN(float *max, float *min, float (*vectors)[4], int count) {
-    PS2_UNIMPLEMENTED();
+    if (count < 1) {
+        return;
+    }
+    float hi[4];
+    float lo[4];
+    for (int k = 0; k < 4; k++) {
+        hi[k] = vectors[0][k];
+        lo[k] = vectors[0][k];
+    }
+    for (int i = 1; i < count; i++) {
+        for (int k = 0; k < 4; k++) {
+            hi[k] = lane_max(hi[k], vectors[i][k]);
+            lo[k] = lane_min(lo[k], vectors[i][k]);
+        }
+    }
+    for (int k = 0; k < 4; k++) {
+        max[k] = hi[k];
+        min[k] = lo[k];
+    }
 }

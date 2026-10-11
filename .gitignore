@@ -34,3 +34,7 @@ ctx.c
 
 # AI
 AGENTS.md
+
+/port/build/
+/data/
+/save/

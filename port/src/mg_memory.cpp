@@ -1,9 +1,12 @@
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <vector>
 
-#include "mg_memory.hpp"
+#include "mg_memory_port.hpp"
 
 namespace {
 
@@ -31,6 +34,72 @@ mgMEMORY_BLOCK *BlockAt(const void *base, std::ptrdiff_t quadwords) {
     return reinterpret_cast<mgMEMORY_BLOCK *>(QuadwordsFrom(base, quadwords));
 }
 
+struct PeakEntry {
+    const mgCMemory *memory;
+    bool             heap;
+    int              capacity;
+    int              peak;
+    // Arenas may be destroyed without MemoryForget, so the log prints this copy and never dereferences memory.
+    std::array<char, sizeof(mgCMemory::name) + 1> name;
+};
+
+// Function-local so arenas constructed during static initialisation can reach it.
+std::vector<PeakEntry> &PeakTable() {
+    static std::vector<PeakEntry> table;
+    return table;
+}
+
+PeakEntry *FindPeak(const mgCMemory *memory) {
+    for (PeakEntry &entry : PeakTable()) {
+        if (entry.memory == memory) {
+            return &entry;
+        }
+    }
+
+    return nullptr;
+}
+
+void ResetPeak(const mgCMemory *memory, bool heap, int capacity) {
+    PeakEntry *entry = FindPeak(memory);
+    PeakEntry  fresh{memory, heap, capacity, 0, {}};
+    std::memcpy(fresh.name.data(), memory->name, sizeof(memory->name));
+
+    if (entry == nullptr) {
+        PeakTable().push_back(fresh);
+    } else {
+        *entry = fresh;
+    }
+}
+
+int HeapAllocatedQuadwords(const mgCMemory &memory) {
+    if (memory.heap_top == nullptr) {
+        return 0;
+    }
+
+    int total = 0;
+
+    for (const mgMEMORY_BLOCK *block = memory.heap_top->next; block->next != nullptr; block = block->next) {
+        // The active stack block keeps size at its header until EndStackMode folds stack_used in.
+        total += block->size + (block == memory.stack_block ? memory.stack_used : 0);
+    }
+
+    return total;
+}
+
+void NotePeak(const mgCMemory &memory) {
+    PeakEntry *entry = FindPeak(&memory);
+
+    if (entry == nullptr) {
+        return;
+    }
+
+    const int used = entry->heap ? HeapAllocatedQuadwords(memory) : memory.stack_used;
+
+    if (used > entry->peak) {
+        entry->peak = used;
+    }
+}
+
 u_long128 *AllocQuadwords(mgCMemory &memory, int size) {
     if (memory.lock != 0 || size <= 0) {
         return nullptr;
@@ -46,6 +115,7 @@ u_long128 *AllocQuadwords(mgCMemory &memory, int size) {
 
     u_long128 *data = QuadwordsFrom(memory.stack, memory.stack_used);
     memory.stack_used = static_cast<int>(new_used);
+    NotePeak(memory);
     return data;
 }
 
@@ -64,6 +134,8 @@ void AlignStack(mgCMemory &memory) {
     if (memory.stack_used >= memory.stack_size) {
         memory.stack_used = memory.stack_size;
     }
+
+    NotePeak(memory);
 }
 
 } // namespace
@@ -85,6 +157,7 @@ PORT_OVERRIDE void mgCMemory::SetHeapMem(u_long128 *buffer, int size) {
     // past the end of the buffer.
     if (buffer == nullptr || size < 0x10) {
         Init();
+        ResetPeak(this, true, 0);
         return;
     }
 
@@ -97,6 +170,7 @@ PORT_OVERRIDE void mgCMemory::SetHeapMem(u_long128 *buffer, int size) {
     heap_top->next->data = nullptr;
     heap_top->next->size = 0;
     heap_top->next->next = nullptr;
+    ResetPeak(this, true, size);
 }
 
 PORT_OVERRIDE void mgCMemory::ClearHeapMem() {
@@ -186,6 +260,7 @@ PORT_OVERRIDE u_long128 *mgCMemory::StartStackMode(int mode, int size) {
     stack_block->data = QuadwordsFrom(stack_block, kHeaderQuadwords);
     stack = stack_block->data;
     stack_size = static_cast<int>(chosen_count - kHeaderQuadwords);
+    NotePeak(*this);
     return stack_block->data;
 }
 
@@ -241,4 +316,33 @@ PORT_OVERRIDE void mgCMemory::stSetBuffer(u_long128 *buffer, int size) {
     stack = buffer;
     stack_used = 0;
     stack_size = size;
+    ResetPeak(this, false, size);
+}
+
+mgMemoryUsage MemoryUsage(const mgCMemory &memory) {
+    const PeakEntry *entry = FindPeak(&memory);
+    return {memory.name, entry ? entry->capacity : 0, entry ? entry->peak : 0};
+}
+
+void MemoryLogPeaks() {
+    for (const PeakEntry &entry : PeakTable()) {
+        if (entry.name[0] == '\0') {
+            std::printf("mg_memory: ? [%p] peak %d of %d quadwords (%d free)\n", static_cast<const void *>(entry.memory),
+                        entry.peak, entry.capacity, entry.capacity - entry.peak);
+        } else {
+            std::printf("mg_memory: %.16s peak %d of %d quadwords (%d free)\n", entry.name.data(), entry.peak,
+                        entry.capacity, entry.capacity - entry.peak);
+        }
+    }
+}
+
+void MemoryForget(const mgCMemory &memory) {
+    std::vector<PeakEntry> &table = PeakTable();
+
+    for (auto it = table.begin(); it != table.end(); ++it) {
+        if (it->memory == &memory) {
+            table.erase(it);
+            return;
+        }
+    }
 }

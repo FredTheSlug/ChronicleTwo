@@ -16,9 +16,14 @@ struct Config : HostSettings {
     bool operator==(const Config &) const = default;
 };
 
-// <save root>/config.json. A missing file is written with the defaults; returns whether it was read.
+// <save root>/config.json. A missing file is written with the defaults. A file that exists but cannot
+// be read leaves the defaults in memory and is never written this session. Returns whether it was read.
 bool ConfigLoad();
 bool ConfigSave();
+
+// Called by SettingsChange once a changed value is stored, with the settings before and after it.
+using ConfigChangeHook = void (*)(const HostSettings &before, const HostSettings &after);
+void ConfigSetChangeHook(ConfigChangeHook hook);
 
 // Unknown keys and values of the wrong type or range keep their defaults and are reported on stderr.
 Config      ConfigParse(std::string_view text);

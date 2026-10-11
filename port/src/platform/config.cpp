@@ -27,6 +27,9 @@ using Json = nlohmann::ordered_json;
 Config g_config;
 // Whether config.json holds g_config, so a failed save is retried with the next change.
 bool g_saved = false;
+// An existing config.json that could not be read: replacing it would discard the user's settings.
+bool g_keep_file = false;
+ConfigChangeHook g_change_hook = nullptr;
 
 constexpr auto kPositive = [](auto value) { return value > 0; };
 constexpr auto kNonNegative = [](auto value) { return value >= 0; };
@@ -346,6 +349,9 @@ std::string ConfigSerialize(const Config &config) {
 }
 
 bool ConfigSave() {
+    if (g_keep_file) {
+        return false;
+    }
     const std::filesystem::path path = PathsSaveRoot() / "config.json";
     std::error_code             error;
     std::filesystem::create_directories(path.parent_path(), error);
@@ -358,11 +364,21 @@ bool ConfigSave() {
 
 bool ConfigLoad() {
     const std::filesystem::path path = PathsSaveRoot() / "config.json";
-    std::ifstream               file(path, std::ios::binary);
     std::error_code             error;
-    if (!file || !std::filesystem::is_regular_file(path, error)) {
+    const std::filesystem::file_status status = std::filesystem::status(path, error);
+    g_keep_file = false;
+    if (status.type() == std::filesystem::file_type::not_found) {
         g_config = Config{};
         ConfigSave();
+        return false;
+    }
+    std::ifstream file(path, std::ios::binary);
+    if (error || !std::filesystem::is_regular_file(status) || !file) {
+        std::fprintf(stderr, "config: could not read %s; using defaults and leaving it untouched\n",
+                     PathsDisplay(path).c_str());
+        g_config = Config{};
+        g_saved = false;
+        g_keep_file = true;
         return false;
     }
     std::ostringstream text;
@@ -388,5 +404,12 @@ bool SettingsChange(const HostSettings &settings) {
     Config before = std::exchange(g_config, std::move(after));
     ConfigSave();
     DisplayChanged(before, g_config);
+    if (g_change_hook != nullptr) {
+        g_change_hook(before, g_config);
+    }
     return g_saved;
+}
+
+void ConfigSetChangeHook(ConfigChangeHook hook) {
+    g_change_hook = hook;
 }

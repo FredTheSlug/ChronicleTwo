@@ -94,6 +94,13 @@ void PumpHost() {
     InputPoll();
 }
 
+void ApplyConfigChange(const HostSettings &before, const HostSettings &after) {
+    if (before.tick_rate != after.tick_rate) {
+        ClockSetTickRate(after.tick_rate);
+    }
+    InputApplyConfig(after);
+}
+
 int Run(int argc, const char **argv) {
     GameSetIdentity();
     argc = PathsConsumeArgs(argc, argv);
@@ -123,13 +130,15 @@ int Run(int argc, const char **argv) {
     ClockSetUnbounded(options.headless);
     ClockAddPumpHook(PumpHost);
     ClockSetTickCallback(VSyncCallBack);
+    ConfigSetChangeHook(ApplyConfigChange);
 
-    InitCDFile();
     MainThreadPriority = 10;
     KzThreadsSetMainPriority(MainThreadPriority);
+    InitCDFile();
     MainLoop();
 
     ClockRemovePumpHook(PumpHost);
+    ConfigSetChangeHook(nullptr);
     InputShutdown();
     gfx::RendererShutdown();
     WindowShutdown();

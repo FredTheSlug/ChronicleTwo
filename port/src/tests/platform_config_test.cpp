@@ -45,6 +45,16 @@ private:
     fs::path root_;
 };
 
+int          g_hook_calls = 0;
+HostSettings g_hook_before;
+HostSettings g_hook_after;
+
+void CaptureChange(const HostSettings &before, const HostSettings &after) {
+    ++g_hook_calls;
+    g_hook_before = before;
+    g_hook_after = after;
+}
+
 } // namespace
 
 TEST_F(PlatformConfig, DefaultsAreWrittenWhenAbsent) {
@@ -152,4 +162,32 @@ TEST_F(PlatformConfig, SettingsChangeStoresAndNormalises) {
     ASSERT_TRUE(SettingsGet().tick_rate == 120.0);
     ASSERT_TRUE(SettingsGet().rumble_strength == 1.0f);
     ASSERT_TRUE(ConfigParse(Read()).tick_rate == 120.0);
+}
+
+TEST_F(PlatformConfig, ExistingUnreadableFileIsNeverOverwritten) {
+    fs::create_directory(Path());
+    ASSERT_FALSE(ConfigLoad());
+    ASSERT_TRUE(SettingsGet() == static_cast<const HostSettings &>(Config{}));
+    HostSettings changed = SettingsGet();
+    changed.tick_rate = 120.0;
+    ASSERT_FALSE(SettingsChange(changed));
+    ASSERT_TRUE(SettingsGet().tick_rate == 120.0);
+    ASSERT_FALSE(ConfigSave());
+    ASSERT_TRUE(fs::is_directory(Path()));
+    ASSERT_FALSE(fs::is_regular_file(Path()));
+}
+
+TEST_F(PlatformConfig, ChangeHookSeesBeforeAndAfter) {
+    ASSERT_FALSE(ConfigLoad());
+    g_hook_calls = 0;
+    ConfigSetChangeHook(CaptureChange);
+    HostSettings changed = SettingsGet();
+    changed.tick_rate = 120.0;
+    ASSERT_TRUE(SettingsChange(changed));
+    ASSERT_TRUE(g_hook_calls == 1);
+    ASSERT_TRUE(g_hook_before.tick_rate == kConfigTickRateDefault);
+    ASSERT_TRUE(g_hook_after.tick_rate == 120.0);
+    ASSERT_TRUE(SettingsChange(SettingsGet()));
+    ASSERT_TRUE(g_hook_calls == 1);
+    ConfigSetChangeHook(nullptr);
 }

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "mg_memory.hpp"
+#include "mg_memory_port.hpp"
 #include "platform/memory.hpp"
 #include "platform_fixture.hpp"
 
@@ -334,6 +335,63 @@ TEST_P(MgMemory, HeapFreeOfAnUnknownPointerAborts) {
     memory.EndStackMode();
 
     KZ_ASSERT_ABORT([&] { memory.Free(buffer_ + 3); });
+}
+
+TEST_P(MgMemory, UsageTracksTheStackHighWaterMark) {
+    mgCMemory memory;
+    memory.stSetBuffer(buffer_, 100);
+
+    ASSERT_NE(memory.Alloc(10), nullptr);
+    ASSERT_NE(memory.Alloc(20), nullptr);
+    memory.stReset();
+    ASSERT_NE(memory.Alloc(5), nullptr);
+
+    const mgMemoryUsage usage = MemoryUsage(memory);
+    EXPECT_EQ(usage.capacity, 100);
+    EXPECT_EQ(usage.peak, 30);
+
+    MemoryForget(memory);
+}
+
+TEST_P(MgMemory, UsageResetsWhenTheBufferIsSetAgain) {
+    mgCMemory memory;
+    memory.stSetBuffer(buffer_, 100);
+    ASSERT_NE(memory.Alloc(40), nullptr);
+
+    memory.stSetBuffer(buffer_, 64);
+    const mgMemoryUsage reset = MemoryUsage(memory);
+    EXPECT_EQ(reset.capacity, 64);
+    EXPECT_EQ(reset.peak, 0);
+
+    ASSERT_NE(memory.Alloc(3), nullptr);
+    EXPECT_EQ(MemoryUsage(memory).peak, 3);
+
+    MemoryForget(memory);
+}
+
+TEST_P(MgMemory, UsageTracksTheHeapHighWaterMark) {
+    mgCMemory memory;
+    memory.SetHeapMem(buffer_, kQuadwords);
+
+    ASSERT_NE(memory.StartStackMode(1, 0), nullptr);
+    ASSERT_NE(memory.Alloc(10), nullptr);
+    memory.EndStackMode();
+
+    u_long128 *second = memory.StartStackMode(1, 0);
+    ASSERT_NE(second, nullptr);
+    ASSERT_NE(memory.Alloc(20), nullptr);
+    memory.EndStackMode();
+
+    // Two allocated blocks of 10 and 20 quadwords, each with a two-quadword header.
+    const int two_blocks = 2 * kHeader + 30;
+    EXPECT_EQ(MemoryUsage(memory).peak, two_blocks);
+
+    memory.Free(buffer_ + 2 * kHeader);
+    const mgMemoryUsage after_free = MemoryUsage(memory);
+    EXPECT_EQ(after_free.capacity, kQuadwords);
+    EXPECT_EQ(after_free.peak, two_blocks);
+
+    MemoryForget(memory);
 }
 
 INSTANTIATE_TEST_SUITE_P(Buffers, MgMemory, testing::Values(Source::Ordinary, Source::AboveFourGiB),

@@ -20,6 +20,7 @@
 #include "mapselect.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
+#include "mg_memory_port.hpp"
 #include "mglib.hpp"
 #include "monster.hpp"
 #include "nowload.hpp"
@@ -144,15 +145,19 @@ PORT_OVERRIDE void MainLoop() {
     file_buffer = reinterpret_cast<u_long128 *>(buffer_address);
     SystemSND_ID = -1;
 
-    if (LoadFile2("snd2/SY_000.snd", file_buffer, NULL, 0)) {
+    char sy_path[] = "snd2/SY_000.snd";
+    char rev_path[] = "snd2/rev.bin";
+    char map_index_path[] = "snd2/MAP_index.txt";
+
+    if (LoadFile2(sy_path, file_buffer, NULL, 0)) {
         SystemSND_ID = sndLoadSound(SND_PORT_SYSTEM, (u_int *) file_buffer, &SystemSeStack);
     }
 
-    if (LoadFile2("snd2/rev.bin", file_buffer, &file_size, 0)) {
+    if (LoadFile2(rev_path, file_buffer, &file_size, 0)) {
         MainScene.LoadSndRevInfo((char *) file_buffer, file_size);
     }
 
-    if (LoadFile2("snd2/MAP_index.txt", file_buffer, &file_size, 0)) {
+    if (LoadFile2(map_index_path, file_buffer, &file_size, 0)) {
         MainScene.LoadSndFileInfo((char *) file_buffer, file_size);
     }
 
@@ -330,6 +335,7 @@ PORT_OVERRIDE void MainLoop() {
         }
 
         LoopExit[PortLoopNo]();
+        MemoryLogPeaks();
 
         if (PortLoopNo != LOOP_MENU) {
             if (PortCaptureMode != CAPTURE_OFF) {

@@ -57,3 +57,8 @@ set_tests_properties(Smoke.LaunchAbortsAtFirstHardwareCall PROPERTIES
     PASS_REGULAR_EXPRESSION "SMOKE_OK"
     ENVIRONMENT "DC2_SAVE=${CMAKE_BINARY_DIR}/smoke-save;DC2_DATA=${CMAKE_BINARY_DIR}/smoke-data"
     TIMEOUT 120 RUN_SERIAL TRUE)
+
+file(GLOB ct_stream_cmake CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.cmake)
+foreach(f IN LISTS ct_stream_cmake)
+    include(${f})
+endforeach()

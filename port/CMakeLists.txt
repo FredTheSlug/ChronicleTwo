@@ -205,3 +205,8 @@ option(CT_BUILD_TESTS "Build darkchronicle_tests" ON)
 if(CT_BUILD_TESTS)
     add_subdirectory(src/tests)
 endif()
+
+file(GLOB ct_stream_cmake CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.cmake)
+foreach(f IN LISTS ct_stream_cmake)
+    include(${f})
+endforeach()

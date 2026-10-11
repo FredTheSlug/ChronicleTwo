@@ -200,9 +200,6 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS darkchronicle RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# The disc extractor the port's data comes from; its header is also the tests' subject.
-add_subdirectory(${CMAKE_SOURCE_DIR}/tools/dc2data ${CMAKE_BINARY_DIR}/tools/dc2data)
-
 option(CT_BUILD_TESTS "Build darkchronicle_tests" ON)
 if(CT_BUILD_TESTS)
     add_subdirectory(src/tests)

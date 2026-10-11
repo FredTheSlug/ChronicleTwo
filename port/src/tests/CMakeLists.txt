@@ -19,8 +19,6 @@ target_include_directories(darkchronicle_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DI
 ct_link_game(darkchronicle_tests)
 kz_port_tests(darkchronicle_tests)
 target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nlohmann_json)
-target_include_directories(darkchronicle_tests PRIVATE ${CMAKE_SOURCE_DIR}/tools/dc2data)
-target_compile_definitions(darkchronicle_tests PRIVATE "DC2_DISC_DIR=\"${CMAKE_SOURCE_DIR}/rom/pal/extracted/iso\"")
 
 # A case is a unit test: it finishes in milliseconds, and one that does not is cut off. The clock
 # cases measure short sleeps, which the parallel gfx cases skew, so they run on their own.

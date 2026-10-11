@@ -102,10 +102,77 @@ if ($command -eq 'build') {
     exit 0
 }
 
+# The game data is extracted from the PAL disc into data\, once per source and dc2data.exe. data\.kazarov-data
+# records the source's and dc2data's sizes and write times; a run with the same ones skips the extraction.
+# A directory source only reports its own write time, so edits to files inside it do not trigger re-extraction.
+$source = Join-Path $checkout 'rom/pal/Dark Chronicle (PAL).iso'
+if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+    $source = Join-Path $checkout 'rom/pal/extracted/iso'
+    if (-not (Test-Path -LiteralPath $source -PathType Container)) { $source = $null }
+}
+
+$data = Join-Path $checkout 'data'
+# Every port configuration extracts into the same data\, so they take one lock for it. The game holds it shared while it runs.
+$dataLockFile = Join-Path $locks 'port-data.lock'
+if (-not $source) {
+    # Without a disc an existing data\ is used; otherwise the game starts without its data.
+    if (-not (Test-Path -LiteralPath $data -PathType Container)) {
+        [Console]::Error.WriteLine('kazarov: no PAL disc found; the game starts without data and its file loads fail')
+    }
+} else {
+    $dataLock = $null
+    $dataAnnounced = $false
+    while ($null -eq $dataLock) {
+        try {
+            $dataLock = [IO.File]::Open($dataLockFile, 'OpenOrCreate', 'ReadWrite', 'None')
+        } catch [IO.IOException], [UnauthorizedAccessException] {
+            if (-not $dataAnnounced) { Write-Host "kazarov: waiting for $dataLockFile"; $dataAnnounced = $true }
+            Start-Sleep -Milliseconds 500
+        }
+    }
+    $dc2data = Join-Path $build 'dc2data.exe'
+    $sourceInfo = Get-Item -LiteralPath $source
+    $sourceLength = if ($sourceInfo.PSIsContainer) { 0 } else { $sourceInfo.Length }
+    $dc2dataInfo = Get-Item -LiteralPath $dc2data
+    $want = "iso $sourceLength $($sourceInfo.LastWriteTimeUtc.Ticks)`ndc2data $($dc2dataInfo.Length) $($dc2dataInfo.LastWriteTimeUtc.Ticks)"
+    $stamp = Join-Path $data '.kazarov-data'
+    $have = if (Test-Path -LiteralPath $stamp) { (Get-Content -LiteralPath $stamp -Raw) -replace "`r", '' } else { '' }
+    if ($have.Trim() -ne $want) {
+        New-Item -ItemType Directory -Force $data | Out-Null
+        & $dc2data extract $source $data
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
+        Set-Content -LiteralPath $stamp -Value $want
+    }
+    $dataLock.Dispose()
+}
+
 $lock.Dispose()
+
+# The game reads data\ while it runs, so it holds the data lock shared; another configuration's extraction waits for it.
+$dataShared = $null
+$dataSharedAnnounced = $false
+while ($null -eq $dataShared) {
+    try {
+        $dataShared = [IO.File]::Open($dataLockFile, 'OpenOrCreate', 'Read', 'Read')
+    } catch [IO.IOException], [UnauthorizedAccessException] {
+        if (-not $dataSharedAnnounced) { Write-Host "kazarov: waiting for $dataLockFile"; $dataSharedAnnounced = $true }
+        Start-Sleep -Milliseconds 500
+    }
+}
+
+# Another configuration can re-extract between the two locks; the game then refuses to start.
+if ($source) {
+    $have = if (Test-Path -LiteralPath $stamp) { (Get-Content -LiteralPath $stamp -Raw) -replace "`r", '' } else { '' }
+    if ($have.Trim() -ne $want) {
+        $dataShared.Dispose()
+        [Console]::Error.WriteLine("kazarov: $stamp no longer matches this build's dc2data; run again")
+        exit 1
+    }
+}
 
 Push-Location $checkout
 & (Join-Path $build 'darkchronicle.exe') @rest
 $code = $LASTEXITCODE
 Pop-Location
+$dataShared.Dispose()
 exit $code

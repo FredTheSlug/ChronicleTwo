@@ -19,7 +19,7 @@ Without the container, `cmake --preset linux-x64`, `cmake --build --preset linux
 
 The renderer's cases need a Vulkan device with the features `tools/kazarov/port/gfx/README.md` lists under "Device". The container's Mesa lavapipe provides them, so no GPU is needed there.
 
-`./run.sh linux-x64` builds, then runs `port/build/pc/darkchronicle` on a Linux host.
+`./run.sh linux-x64` builds, then runs `port/build/pc/darkchronicle` on a Linux host. It first extracts `data/` from `rom/pal/Dark Chronicle (PAL).iso` (or `rom/pal/extracted/iso`) with `dc2data`, under `.kazarov/locks/port-data.lock`, and skips the extraction when `data/.kazarov-data` matches the source and `dc2data`. The game holds the lock shared while it runs.
 
 ### Windows
 
@@ -29,6 +29,8 @@ The renderer's cases need a Vulkan device with the features `tools/kazarov/port/
 ```
 
 `build.bat` and `run.bat` pass the configuration through Kazarov's host launcher to `tools/windows/kazarov.ps1`. That script builds into `port/build/<configuration>`. The first run fetches the toolchain into `.kazarov/windows`, through `tools/windows/acquire.ps1`: llvm-mingw 20260922 (clang and lld), Ninja 1.13.2, SDL3 3.4.18 (MinGW), glslang 16.6.0 and the Vulkan 1.4.363.0 headers. Each archive is checked against its SHA-256 before it is extracted. `windows-x64` is a Debug build; `windows-x64-release` (and `windows`) is RelWithDebInfo.
+
+`run.bat` extracts `data\` from `rom/pal/Dark Chronicle (PAL).iso` (or `rom/pal/extracted/iso`) with `dc2data.exe` before launching, under the `port-data.lock` lock, and skips it when `data\.kazarov-data` matches the source and `dc2data.exe`, as the Linux launcher does. The game holds the lock shared while it runs.
 
 The scripts need PowerShell 7, 7-Zip, CMake and Python 3, found on `PATH` or at their default install locations.
 
@@ -169,7 +171,7 @@ The root `CMakeLists.txt` selects the platform: `PS2` builds `ps2/`, and `PC` en
 
 ### The shared-code pin
 
-The submodule is pinned at `0d72aa1`, the commit in the index. Changes to the shared code go to Kazarov's `main` first. ChronicleTwo, like Chronicle, must build and test green on that commit before either game pins it. A game never edits a submodule checkout in place.
+The submodule is pinned at Kazarov `main` `a7674f4`, which adds the fiber thread family as the only `eekernel_threads` family, `ClockPumping()`, `PathsReset`, `sceMcSeek`/`sceMcEnd`, and the `Vu_prog0` mesh pipelines behind `RendererConfig::prog0_meshes`. Chronicle pins the same commit. Changes to the shared code go to Kazarov's `main` first. ChronicleTwo, like Chronicle, must build and test green on that commit before either game pins it. A game never edits a submodule checkout in place.
 
 ## How `port/src` takes precedence
 

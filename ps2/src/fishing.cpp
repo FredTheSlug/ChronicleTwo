@@ -2184,7 +2184,7 @@ static void CharaControl(CScene *scene, CPadControl *pad) {
                 float event_pos[4];
                 chara->GetPosition(event_pos);
 
-                union {
+                union EventDataUnion { EventDataUnion() {}
                     CSceneEventData data;
 
                     struct {

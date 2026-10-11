@@ -496,19 +496,19 @@ void PauseEnd() {
         PauseInfo.scene->RePlayBGM();
     }
 
-    if ((wave_status & (int) SND_STREAM_STATE_PLAYING) != 0) {
+    if ((wave_status & SND_STREAM_STATE_PLAYING) != 0) {
         sndStreamRePlay();
     }
 
-    sndPortSqReplay((int) SND_PORT_EVENT);
-    sndPortSqReplay((int) SND_PORT_BGM);
+    sndPortSqReplay(SND_PORT_EVENT);
+    sndPortSqReplay(SND_PORT_BGM);
     PlayTimeCount(play_time_count);
 
     if (SeCoreVol >= 0.0f) {
         sndMasterVolFadeInOut(1, 15, SeCoreVol, 0.0f);
     }
 
-    sndSePlay(GetSystemSndID(), 0x19, 0);
+    sndSePlay(GetSystemSndID(), SYSTEM_SE_MESSAGE, 0);
 }
 
 int PauseLoop() {
@@ -522,12 +522,12 @@ int PauseLoop() {
     mgCTexture *backdrop = tex->GetTexture("pause_work", -1);
 
     if (InitFlag == 0) {
-        sndSePlay(GetSystemSndID(), 25, 0);
+        sndSePlay(GetSystemSndID(), SYSTEM_SE_MESSAGE, 0);
         SeCoreVol = sndGetMasterVol(1);
 
         sndMasterVolFadeInOut(1, 15, 0.0f, -1.0f);
-        sndPortSqPause((int) SND_PORT_EVENT);
-        sndPortSqPause((int) SND_PORT_BGM);
+        sndPortSqPause(SND_PORT_EVENT);
+        sndPortSqPause(SND_PORT_BGM);
         mgCTexture back_buffer;
         mgGetFrameBackBuffer(&back_buffer);
         mgRect<int> source(0, 0, (mgScreenWidth - 1) * 16, (mgScreenHeight - 1) * 16);
@@ -540,7 +540,7 @@ int PauseLoop() {
     if (InitFlag == 15) {
         wave_status = sndStreamGetState();
 
-        if (wave_status & (int) SND_STREAM_STATE_PLAYING) {
+        if (wave_status & SND_STREAM_STATE_PLAYING) {
             sndStreamPause();
             sndSetMasterVol(1, 0.0f);
         }

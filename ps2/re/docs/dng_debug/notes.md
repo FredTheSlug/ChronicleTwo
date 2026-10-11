@@ -37,14 +37,14 @@ EnemyReset, LockOnMode, Information, SkipFloor, Sound Flag, Monster Talk, Effect
 
 ## command_int (0x0033CFB0, .data, retail size 0x5C)
 Pairs {value, minimum} per menu line, indexed `command_int + cursor*8` (+4 = minimum, Key clamps
-value up to it). Initial values: [0]=100 (event no), [12]=1 (entry 6 Information), [16]=1
-(entry 8 Sound Flag), rest 0. Retail size 0x5C = 23 ints, so entry 11's minimum (offset 0x5C)
-is outside the symbol: likely declared as a flat `int command_int[23]` (or `[][2]` cannot give
-0x5C). Decide when migrating data. Synced in Start/Exit:
+value up to it), i.e. `command_int[DNG_DEBUG_COMMAND * 2]` and `[DNG_DEBUG_COMMAND * 2 + 1]`.
+Declared as a flat `static int command_int[23]`, the size of the retail symbol. Initial values:
+[0]=100 (event no), [12]=1 (entry 6 Information), [16]=1 (entry 8 Sound Flag), rest 0. Synced in Start/Exit:
 entry 2 <-> `DebugInfo[0]` (mainloop), entry 3 <-> `DebugInfo[1]`, entry 5 <-> s16 at
 `BattleAreaScene+0x9E`, entries 8..11 <-> dbinfo 0x10..0x1C.
-Entry 6 (Information): `DrawDebugWindow` calls `DrawSystemParamInfo` for 2,
-`DrawSystemParamInfo2` for 3.
+Entry 6 (Information) value is a `DNG_DEBUG_INFORMATION`: `DNG_DEBUG_INFORMATION_SYSTEM` (2)
+selects `DrawSystemParamInfo`, `DNG_DEBUG_INFORMATION_TARGET` (3) selects `DrawSystemParamInfo2`.
+`pause_flag` is set to DNG_PAUSE_MONSTER_AI | DNG_PAUSE_PLAYER_STEP | DNG_PAUSE_PLAYER_CONTROL | DNG_PAUSE_FIELD_STEP (0x1|0x2|0x4|0x8).
 
 ## dngDebugKey actions (accept = pad 0x20)
 - 0 RunEvent: command=0, event_no=value, Exit, return 1.
@@ -56,29 +56,18 @@ Entry 6 (Information): `DrawDebugWindow` calls `DrawSystemParamInfo` for 2,
 Steps: pad 0x2000/0x8000 +-1, 8/4 +-10 (+-4 on EnemyLoader), 2/1 +-100. Pad 0x400 closes.
 Returns 0 when not active, else 1.
 
-## dbFont (0x01ECDC30, .bss, retail size 0xB8; INCLUDE_BSS reserves 0xC0)
+## dbFont (0x01ECDC30, .bss, retail size 0xB8)
 `static CFont dbFont`; `__sinit` calls `CFont::Init`; dngDebugInit calls `Init` and
 `SetClearance(20,20)`; drawn with `DrawDirect(buf, 16, 72)`. CFont has no constructor call
 in `__sinit`, only `Init`.
 
-## Draft and promotion status
-All twelve named functions have typed C++ implementations. `command_int` is
-treated as a flat integer table with two entries per debug-menu command.
+## Function status
+All twelve named functions have typed C++ implementations, including the large
+bodies such as `dngDebugStart`. `command_int` is treated as a flat integer
+table with two entries per debug-menu command.
 Every function was run through `decompile.sh`; the Ghidra export clarified
 the irregular jump table in `dngDebugKey` and the monster target fields in
 `DrawSystemParamInfo2`.
-
-`dngGetDebugInfo`, `dngDebugInit`, `dngDebugExit`, and `DrawDebugWindow`
-passed linked-image promotion and are active. `CTreasureBox::Initialize`
-also compared exactly in the isolated draft, but its single promotion attempt
-failed because the header supplied an inline definition. The header now gives
-this unit a declaration so the guarded out-of-line draft compiles; a later
-matching pass can revisit that promotion. `dngDebugStart` and the other five
-large drafts differ from retail and remain behind `NONMATCHING`. The static
-initializer draft compiles, but `mwccgap` cannot locate its unmangled local
-symbol for promotion. Each symbol had one recorded promotion attempt in
-`scripts/re/promotion_attempts.tsv`. The default full build remains byte
-identical to retail.
 
 ## dngDebugDraw
 Reloads texture 0x6C, draws a translucent box (14,70)-(260,332), then prints the list; on
@@ -86,10 +75,16 @@ EnemyLoader line prints "[G%d]%s" of the matching `base_monster_define` row (str
 terminated by s16 -1; +2 s16, +4 name) or "[%d]--------", and "BASE > %s" of the row sharing the
 s16 at +0x44 when +2 > 0. `base_monster_define`'s row type belongs to the monster unit.
 
-## dngDebugStart draft
-`dngDebugStart` copies the live camera, movement, lock-on, sound, talk and effect settings into the editable command values. It configures pad repeat for 0xF000 and 0x5000, saves the battle pause flag, then sets that flag to 15. The guarded C++ draft compiles and differs from retail in nine instruction words.
+## dngDebugStart
+`dngDebugStart` copies the live camera, movement, lock-on, sound, talk and effect settings into the editable command values. It configures pad repeat for 0xF000 and 0x5000, saves the battle pause flag, then sets that flag to 15. It is native C++ and matches retail.
 
 `dngDebugDraw` constructs a `CPreSprite` after reloading its texture, while the debug window is active. Declaring the sprite before the text buffer within the active branch preserves the retail stack layout and eliminates the base-constructor alias.
+
+## Matching outcomes of the cleanup pass
+- `DBGCMD_ReloadEnemy` reset loop: indexing `ActiveMonster->memory[i]` directly (with or without a
+  `CMonsterMan *manager` local) changes the function's code. Keeping the original address arithmetic
+  with `offsetof(CMonsterMan, memory)` and `sizeof(mgCMemory)` matches; `<cstddef>` supplies `offsetof`.
+- `DrawSystemParamInfo2` casts to `CCharacter2 *` are unnecessary and removed; `dbFont` is `static`.
 
 ## Native static initialization
 

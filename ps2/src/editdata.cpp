@@ -6,6 +6,7 @@
 #include <cstring>
 
 #include "dataread.hpp"
+#include "editanalyze.hpp"
 #include "editdata.hpp"
 #include "editmap.hpp"
 #include "editriver.hpp"
@@ -380,7 +381,7 @@ void CEditMap::LoadData(CEditData *data) {
                             place_rot[1] = GetEditAngle(saved->angle);
                             placed = GetePlaceParts(no);
 
-                            if (placed != NULL && placed->GetPartsType() == 0xB) {
+                            if (placed != NULL && placed->GetPartsType() == EDIT_PARTS_TYPE_RIVER) {
                                 placed->state = EDIT_PARTS_STATE_RIVER;
                                 placed->SetPosition(0.0f, -10000.0f, 0.0f);
                             } else {
@@ -525,18 +526,18 @@ int CEditMap::CultureAnalyzeParts(int no, int cpoint_no) {
     }
 
     switch (parts->info->cpoint[0]) {
-        case 6:
+        case EDIT_CULTURE_KIND_ALONE:
             return GetCulturePoint(parts, cpoint_no);
         default:
             return 0;
-        case 1: {
+        case EDIT_CULTURE_KIND_MAIN: {
             int total = GetCulturePoint(parts, cpoint_no);
             int count = GetTerritoryParts(no, related, 0x200);
 
             for (int i = 0; i < count; i++) {
                 CEditParts *other = GetePlaceParts(related[i]);
 
-                if (other != NULL && other->info != NULL && other->info->cpoint[0] == 2) {
+                if (other != NULL && other->info != NULL && other->info->cpoint[0] == EDIT_CULTURE_KIND_TERRITORY) {
                     total += GetCulturePoint(other, cpoint_no);
                 }
             }
@@ -548,8 +549,8 @@ int CEditMap::CultureAnalyzeParts(int no, int cpoint_no) {
 
                 if (other != NULL && other->info != NULL) {
                     switch (other->info->cpoint[0]) {
-                        case 3:
-                        case 4:
+                        case EDIT_CULTURE_KIND_CHILD:
+                        case EDIT_CULTURE_KIND_CHILD_2:
                             total += GetCulturePoint(other, cpoint_no);
                             break;
                     }
@@ -1122,17 +1123,17 @@ int eaEND_GEO_ANALYZE(SPI_STACK *, int) {
 int GetMaxPolyn(int map_no) {
     int max_polygons = 0xFA0;
 
-    if (map_no != 4) {
+    if (map_no != EDIT_ANALYZE_MAP_MOON_FLOWER) {
         max_polygons = 0x1770;
 
         switch (map_no) {
-            case 0:
+            case EDIT_ANALYZE_MAP_SHARLOT:
                 return 0xFA0;
-            case 1:
+            case EDIT_ANALYZE_MAP_STERA:
                 return 0x1770;
-            case 2:
+            case EDIT_ANALYZE_MAP_BENIETIO:
                 return 0x1770;
-            case 3:
+            case EDIT_ANALYZE_MAP_HEIM:
                 return max_polygons;
             default:
                 return 0;
@@ -1145,17 +1146,17 @@ int GetMaxPolyn(int map_no) {
 int GetMaxDrawMem(int map_no) {
     int max_draw_memory = 0xBB80;
 
-    if (map_no != 4) {
+    if (map_no != EDIT_ANALYZE_MAP_MOON_FLOWER) {
         max_draw_memory = 0xD2F0;
 
         switch (map_no) {
-            case 0:
+            case EDIT_ANALYZE_MAP_SHARLOT:
                 return 0xBB80;
-            case 1:
+            case EDIT_ANALYZE_MAP_STERA:
                 return 0xC350;
-            case 2:
+            case EDIT_ANALYZE_MAP_BENIETIO:
                 return 0xD2F0;
-            case 3:
+            case EDIT_ANALYZE_MAP_HEIM:
                 return max_draw_memory;
             default:
                 return 0;

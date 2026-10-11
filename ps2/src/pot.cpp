@@ -90,8 +90,8 @@ void CFragment::Step(CCPoly *polys, int poly_count) {
                     s16 kind = polys[hit_indices[i]].area_kind;
 
                     switch (kind) {
-                        case 1:
-                        case 7: {
+                        case COL_AREA_WATER:
+                        case COL_AREA_FISHING_WATER: {
                             CEffectScriptMan *effects =
                                 GetMainScene()->GetEffect(0);
 
@@ -407,8 +407,8 @@ int CPot::FlyStep() {
         if (hit_count != 0) {
             for (int i = 0; i < hit_count; i++) {
                 switch (polys[hit_indices[i]].area_kind) {
-                    case 1:
-                    case 7: {
+                    case COL_AREA_WATER:
+                    case COL_AREA_FISHING_WATER: {
                         CEffectScriptMan *effects = GetMainScene()->GetEffect(0);
 
                         if (effects != NULL) {
@@ -492,30 +492,30 @@ int CPot::Step() {
     int result;
 
     switch (state) {
-        case (int) POT_STATE_HOLD:
+        case POT_STATE_HOLD:
             HoldStep();
             break;
-        case (int) POT_STATE_FLY:
+        case POT_STATE_FLY:
             result = FlyStep();
 
-            if (result == (int) POT_STEP_BREAK) {
-                return (int) POT_STEP_BREAK;
+            if (result == POT_STEP_BREAK) {
+                return POT_STEP_BREAK;
             }
 
-            if (result == (int) POT_STEP_TIMEOUT) {
-                return (int) POT_STEP_TIMEOUT;
+            if (result == POT_STEP_TIMEOUT) {
+                return POT_STEP_TIMEOUT;
             }
         default:
             break;
     }
 
-    return (int) POT_STEP_NONE;
+    return POT_STEP_NONE;
 }
 
 void CPot::Throw() {
     if (parts != NULL) {
         float player_position[4];
-        state = (int) POT_STATE_FLY;
+        state = POT_STATE_FLY;
         fly_time = 0;
         position[0] = hold_pos[0];
         position[1] = hold_pos[1];
@@ -541,12 +541,12 @@ void CPot::Throw() {
 void CPot::Hold(CMapParts *map_parts) {
     Init(0);
     parts = map_parts;
-    state = (int) POT_STATE_HOLD;
+    state = POT_STATE_HOLD;
     HoldStep();
 }
 
 void CPot::Init(int keep_velocity) {
-    state = (int) POT_STATE_NONE;
+    state = POT_STATE_NONE;
     parts = NULL;
     InitVector(position);
 

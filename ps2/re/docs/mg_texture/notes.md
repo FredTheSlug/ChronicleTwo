@@ -8,18 +8,13 @@ From `build/re/local_symbols.tsv`: `GetZBufVram(int*)`, `CheckCopyToZBufVram(mgC
 `GetIMGVersion(char*)`, `SetTexFlush_TagCnt(u_int*)`, `BlockConv32to8`, `PageConv32to8`,
 `Conv32To8`, and the data `texflush_dma` (mg_visual has its own local `texflush_dma`, which is
 why the symbol list calls that one `texflush_dma__2`). Hence the header has **no `extern`**.
-- `texflush_dma`: `u_long128[3]` (copied with `lq`/`sq` in `SetTexFlush_TagCnt`): DMA cnt tag
+- `texflush_dma`: `u_char[48]`, 16-byte aligned (read as three `u_long128` quadwords in `SetTexFlush_TagCnt`): DMA cnt tag
   qwc 2 + VIF DIRECT 2, GIF tag (NLOOP 1, EOP, A+D), TEXFLUSH (0x3F) = 0.
-- `lut_1246`, `block_table8_1266`, `block_table32_1267`, `conv_work_1306` (0x10000 bss) are
-  function-local statics of BlockConv32to8 / PageConv32to8 / Conv32To8. `conv_work_1306` alone
-  is still an `extern` over an `INCLUDE_BSS` marker: the generated data assembly
-  (the generated `libdev` read-only data and the menuop, title, fishing and automap data)
-  names it in address-shaped words that retail does not relocate (retail has no relocation at
-  those three library words, 0x36423C, 0x364244 and 0x36439C), so a native definition with
-  internal linkage leaves those references unresolved at link time. A native file-static
-  aligned `u_char conv_work[0x10000]` otherwise reproduces every byte and all 160 relocations
-  of the object; the marker stays until the generated data stops referencing the symbol.
-- Suggested signatures: `static int GetZBufVram(int *size)` (returns `(mgZBUF_1 & 0x1FF) << 5`
+- `lut_1246`, `block_table8_1266` and `block_table32_1267` are file-scope `static` tables in `mg_texture.cpp`,
+  each 16-byte aligned. `BlockConv32to8` and `PageConv32to8` read them.
+- `conv_work_1306` (0x10000 bytes of bss) is a function-local `static u_char conv_work[0x10000]` in
+  `Conv32To8`, defined natively in `mg_texture.cpp`. No `extern` or assembly marker refers to it.
+- Signatures: `static int GetZBufVram(int *size)` (returns `(mgZBUF_1 & 0x1FF) << 5`
   = Z buffer VRAM block address; `*size` = `height*height*4/256` blocks of a local
   mgCTexture filled by `mgGetFrameBuffer(&local)`; it also calls `mgGetTextureZ(0)` and
   discards the result); `static int CheckCopyToZBufVram(
@@ -35,8 +30,8 @@ why the symbol list calls that one `texflush_dma__2`). Hence the header has **no
 `mgCTexture::Initialize` matches PAL with typed field writes and an indexed
 clear of the four image pointers under MWCC optimization level 2. TEX1 and
 CLAMP require whole 64-bit zero stores before the two CLAMP wrap bits are set;
-the other fields are written directly. This removes the previous byte offsets
-and pointer arithmetic while preserving the 0x9C-byte function.
+the other fields are written directly. Typed field writes replace byte offsets
+and pointer arithmetic; the function is 0x9C bytes.
 
 ## mgCTexture (size 0x70)
 Size: `__construct_new_array(..., 0x70, n)` in SetTableBuffer and in `__sinit_mglib_cpp`
@@ -152,7 +147,7 @@ clut, qwc, 0, 0, w, h) with qwc/w/h = 0x40/16/16 for 8-bit and 4/8/2 for 4-bit.
 
 ## Native initialized data
 
-The 0x1B0-byte initialized-data run at 0x338080–0x338230 now comes from ordinary
+The 0x1B0-byte initialized-data run at 0x338080–0x338230 comes from ordinary
 C++ arrays. Its four pieces remain in retail order and retain their extents and
 16-byte placement alignment:
 
@@ -168,7 +163,7 @@ values. Retail ELF binding confirms all four tables are file-local. The block ta
 are separate mutable `int[32]` arrays even though their
 current values agree; each has its own retail symbol and address. The array
 initializers preserve all data bytes, all unit instructions, and all 160
-relocations against the prior object. After the normal `fixup_sections.sh` stage
+relocations against the retail object. After the normal `fixup_sections.sh` stage
 removes MWCC dead sections, `check_objects.py mg_texture --obj-dir
 /tmp/engine-satansfiddle -v` reports only the three existing hash-function
 instruction differences below.
@@ -183,30 +178,26 @@ node and appends it to its name's chain. `DelHash` unlinks the matching texture
 and returns that node to the free stack. `SearchHash` compares names and applies
 an optional texture-block filter.
 
-The native implementations now match retail exactly. `AddHash` obtains one free
+The native implementations match retail exactly. `AddHash` obtains one free
 link, initializes it, and either installs it as the bucket head or appends it to
 the end of the chain. `DelHash` unlinks the matching texture and returns the link
 to the free stack. `SearchHash` compares names and applies an optional texture-block
 filter. All three use typed `hash_table[index]` reads and writes.
 
-A single `optimization_level 2` scope across these contiguous methods, while the
-translation unit retains its existing disabled global optimizer and scheduler,
-produces the retail operand order for bucket address formation. The fixed
-translation-unit `-O3,p` build without this scope leaves one commutative `addu`
-operand mismatch in each function. Applying `-O2` to the whole unit fails many
-unrelated function extents and instructions, so the narrow shared scope is
-required. The fixed-profile private build passed `check_objects.py` for the whole
-unit: 0x3674 bytes and 160 resolved relocations, with all three functions exact.
+At the unit's level-2 setting, these contiguous methods produce the retail operand
+order for bucket address formation. A `-O3,p` build of the unit leaves one
+commutative `addu` operand mismatch in each function. The whole unit at level 2
+matches `check_objects.py`:
+0x3674 bytes and 160 resolved relocations, with all three functions exact.
 
 ## Native full-image conversion
 
-The merged `Conv32To8` uses the newer native optimization-level-1 body and
-its explicit local declaration order. It preserves the original image size,
+`Conv32To8` is a native body compiled at the unit's `-O2,p` setting, with its explicit local
+declaration order. It preserves the original image size,
 uses two 8 KiB stack pages and a 64 KiB output workspace, and copies page rows
-with the documented 256-byte and 128-byte pitches. Earlier level-2 trials
-matched topology and relocations but permuted saved registers; they do not
-establish a remaining failure in this newer body. The merged function needs
-canonical validation under the deterministic compiler profile. Its cursor
+with the documented 256-byte and 128-byte pitches. Level-2 variants of this body
+matched topology and relocations but permuted saved registers; that failure is not established for the
+current body. Canonical validation under the deterministic compiler profile is outstanding for this function. Its cursor
 advancement operates on byte-copy buffers rather than hidden object fields.
 
 ## Additional hash-table source trials
@@ -222,5 +213,11 @@ Nesting `hash()` in the subscript or changing its return to `u_int` retains
 the default mismatch. A `u_char` return adds normalization and size/relocation
 failures. Level 1 and global-optimizer-on change other instructions. The DC1
 `CTextureManager` uses fixed arrays and provides no corresponding bucket
-accessor. The active implementation uses upstream's single shared level-2
-scope; no profile row or shared-header change is required.
+accessor. The active implementation is built at the unit's `-O2,p` setting; no profile
+row or shared-header change is required.
+
+## Compiler options
+
+The unit is compiled with `-O2,p` (`UNIT_CC_FLAGS_<unit>` in `ps2/cmake/Toolchain.cmake`) in place
+of the game's `-O3,p`. The source has no `schedule` or `optimization_level` pragmas, and the object is
+byte-identical to one built with them. Its five `global_optimizer off` regions remain function-specific.

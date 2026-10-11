@@ -73,13 +73,25 @@ enum SCENE_DATA_KIND {
 /**
  *
  * Status flags of a scene data slot shared by every kind of slot; the
- * higher bits are given meanings by the code that uses each kind.
+ * higher bits are given meanings by the code that uses each kind (SCENE_CHARA_STATUS for characters).
  *
  */
 enum SCENE_DATA_STATUS {
     SCENE_DATA_LOADED = 1 << 0,   /**< The slot's data has finished loading into its memory stack. */
     SCENE_DATA_ACTIVE = 1 << 1,   /**< The slot takes part in stepping and drawing. */
     SCENE_DATA_ASSIGNED = 1 << 2, /**< Data has been given to the slot. */
+};
+
+/**
+ *
+ * Roles of a character slot, as CScene::SetType and CScene::GetType give them for SCENE_DATA_CHARA.
+ *
+ */
+enum SCENE_CHARA_TYPE {
+    SCENE_CHARA_TYPE_PLAYER = 1,  /**< A party character the player controls. */
+    SCENE_CHARA_TYPE_EVENT = 2,   /**< An event character. */
+    SCENE_CHARA_TYPE_MONSTER = 3, /**< A monster. */
+    SCENE_CHARA_TYPE_EFFECT = 4,  /**< An effect character, drawn after the water and effects. */
 };
 
 /**

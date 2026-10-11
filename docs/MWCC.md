@@ -92,13 +92,12 @@ therefore omits literal-reload policy settings.
 These rows were accepted through the canonical object comparison. They establish
 the listed functions' bytes and resolved relocations, not whole-unit matching
 when other source or data-layout failures remain.
-
-`mg_texture.cpp` needs one shared `#pragma optimization_level 2` region around
-its three hash-table methods. Direct indexing yields the retail table access;
-whole-unit level 2 changes unrelated functions. The scoped region preserves
-the exact 0x3674-byte object and 160 resolved relocations.
 Unit-specific evidence is in the tracked mapjump and event_func RE notes and
 [pbuggy calibration notes](../ps2/re/docs/pbuggy/notes.md).
+
+`mg_dataset`, `mg_shadow`, `mg_tanime` and `mg_texture` are compiled with `-O2,p`, `password` with `-O0` and
+`scriptinterpreter` with `-inline off` (`UNIT_CC_FLAGS_<unit>` in `ps2/cmake/Toolchain.cmake`). Each
+setting reproduces the whole unit's object; building the other `mg_*` units at level 2 differs.
 
 ## Source matching and verification
 
@@ -110,11 +109,13 @@ imitate incidental allocation. Use correctly typed literals and real field
 layouts rather than pointer arithmetic or instruction-shaped source.
 
 For each calibration, copy the profile privately, compile with the repository
-wrapper and canonical flags, run `scripts/build/fixup_sections.sh`, then run
+wrapper and the canonical flags (`CC_FLAGS` followed by the unit's
+`UNIT_CC_FLAGS_<unit>` overrides), run `scripts/build/fixup_sections.sh`, then run
 `scripts/build/check_objects.py`. Accept a row only when the target has zero
 byte and resolved-relocation differences and existing unit failures are
-preserved or resolved. Fixup is required: mwccgap's temporary `.dead` sections
-are removed by the normal build stage.
+preserved or resolved. Fixup is required: `scripts/build/postprocess_object.py`
+marks discarded copies of data as `.dead` sections, and `fixup_sections.sh`
+removes them before linking.
 
 Objdiff source-only objects use the same Satan's Fiddle profile as linked
 objects; native template names are mapped structurally to retail identities.
@@ -235,8 +236,8 @@ class initializers must be generated naturally by the compiler.
   top-level declaration, under the pragmas in force there. A scoped
   `optimization_level 2` / `optimization_level reset` pair around such a
   function therefore does not apply to it, and the reset lands on the
-  functions that follow instead; mg_tanime sets `#pragma optimization_level 2`
-  for the whole unit. Ordinary functions also read the global-optimizer
+  functions that follow instead; mg_tanime is compiled at level 2 as a whole for this reason.
+  Ordinary functions also read the global-optimizer
   state there: under `global_optimizer off`, a function containing an inline
   aggregate copy or a `new` of a class without a user-declared constructor
   folds an inline helper's constant result (`li a1,0x13`) and keeps the

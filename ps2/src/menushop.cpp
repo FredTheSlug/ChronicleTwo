@@ -350,7 +350,7 @@ void CShop::CheckEventItem() {
             local_sort1(cursor, &item_num, item_no);
         }
 
-        if (item_no[cursor] == 0xAC && user_data->GetNumSameItem(0xAC) > 0) {
+        if (item_no[cursor] == ITEM_ID_MONSTER_NOTES && user_data->GetNumSameItem(ITEM_ID_MONSTER_NOTES) > 0) {
             local_sort1(cursor, &item_num, item_no);
         }
 
@@ -359,26 +359,26 @@ void CShop::CheckEventItem() {
             cursor -= 1;
         }
 
-        if (item_no[cursor] == 0x1A7 && (once_item_chosen == 1 || user_data->special_item_bought >= 0x15)) {
+        if (item_no[cursor] == ITEM_ID_SHIELD_KIT && (once_item_chosen == 1 || user_data->special_item_bought >= 0x15)) {
             local_sort1(cursor, &item_num, item_no);
         }
 
-        if (item_no[cursor] == 0x163 && user_data->GetNumSameItem(0x163) > 0) {
+        if (item_no[cursor] == ITEM_ID_INSIDE_SCOOP_MEMO && user_data->GetNumSameItem(ITEM_ID_INSIDE_SCOOP_MEMO) > 0) {
             local_sort1(cursor, &item_num, item_no);
         }
 
-        if (item_no[cursor] == 0x12F && user_data->GetNumSameItem(0x12F) > 0) {
+        if (item_no[cursor] == ITEM_ID_LURE_ROD && user_data->GetNumSameItem(ITEM_ID_LURE_ROD) > 0) {
             local_sort1(cursor, &item_num, item_no);
         }
 
-        if (item_no[cursor] == 0x166 && user_data->GetNumSameItem(0x166) > 0) {
+        if (item_no[cursor] == ITEM_ID_COOKING_STOVE && user_data->GetNumSameItem(ITEM_ID_COOKING_STOVE) > 0) {
             local_sort1(cursor, &item_num, item_no);
         }
 
-        if (GetItemDataType(item_no[cursor]) == (int) ITEM_DATA_ROBO_CORE) {
+        if (GetItemDataType(item_no[cursor]) == ITEM_DATA_ROBO_CORE) {
             int core = CheckRobotCore();
 
-            if (core >= 0xF6 && core < 0xFC) {
+            if (core >= ITEM_ID_CORE && core < ITEM_ID_MASTER_GRADE_CORE) {
                 item_no[cursor] = core + 1;
             } else {
                 local_sort1(cursor, &item_num, item_no);
@@ -434,7 +434,7 @@ void CShop::GetPrice(CGameDataUsed *item, int *buy, int *sell) {
         }
     }
 
-    if (buy != NULL && item_id == 0x1A7) {
+    if (buy != NULL && item_id == ITEM_ID_SHIELD_KIT) {
         int   bought = GetUserDataMan()->special_item_bought;
         float scaled = (float) *buy;
 
@@ -447,7 +447,7 @@ void CShop::GetPrice(CGameDataUsed *item, int *buy, int *sell) {
     }
 
     if (sell != NULL) {
-        if (item->item_no == 0x130) {
+        if (item->item_no == ITEM_ID_GIFT_CAPSULE) {
             for (int slot = 0; slot < 3; slot++) {
                 int box_item = item->GetGiftBoxItemNo(slot);
                 int box_price = 0;
@@ -606,7 +606,7 @@ void CShopMenu::AttachForm() {
 
 int CShopMenu::IsCancelNoneLoadItem() {
     MENU_SWAPITEM_INFO origin;
-    origin.Set(-1, 0, -1, 0);
+    origin.Set(MENU_SWAP_TYPE_NONE, 0, -1, 0);
     memcpy(&origin, &MenuCommonInfo->have_swap, sizeof(origin));
     origin.flag = 0;
     CGameDataUsed *destination = GetGameDataUsedForSWAPINFO(&origin);
@@ -629,7 +629,7 @@ int CShopMenu::IsCancelNoneLoadItem() {
         return 0;
     }
 
-    MenuSePlay(5);
+    MenuSePlay(SYSTEM_SE_CANCEL);
     return 1;
 }
 
@@ -718,7 +718,7 @@ void CShopMenu::InitEnd() {
 
     if (LoadFile2("snd2/sp/SP_042.snd", sound_buffer, NULL, 0) != 0) {
         sndInitPort(8);
-        se_handle = sndLoadSound((int) SND_PORT_MENU, sound_buffer, &sound_memory);
+        se_handle = sndLoadSound(SND_PORT_MENU, sound_buffer, &sound_memory);
     }
 
     MenuPosData->AttachCommonTexInfo();
@@ -728,9 +728,9 @@ void CShopMenu::InitEnd() {
     AttachMessageForm();
     AttachForm();
     MenuMoveItemPtr->AttachForm();
-    int bag_max = GetNowBagMax(0);
+    int bag_max = GetNowBagMax(ITEM_BOARD_MAIN);
     MenuItemBrdSetInfo(bag_pos, bag_top, bag_max / 6, 5);
-    MenuItemBrdCalcManner = 0;
+    MenuItemBrdCalcManner = MENU_ITEM_BRD_CALC_EASE;
     UpdataScrlBar();
     MenuLocalStack.Align64();
     MenuMainScene->LoadBGM(0x32, MenuLocalStack.stGetTop());
@@ -799,7 +799,7 @@ int CShopMenu::KeyStep() {
             static s16         shop_mode_prev = 0;
             int                command = 0;
             MENU_SWAPITEM_INFO swap;
-            swap.Set(-1, 0, -1, 0);
+            swap.Set(MENU_SWAP_TYPE_NONE, 0, -1, 0);
             int item_num = CShopPtr->item_num;
             int buy_price = 0;
             int sell_price;
@@ -881,7 +881,7 @@ int CShopMenu::KeyStep() {
                             MenuSePlay(SYSTEM_SE_CURSOR);
                         }
                     } else {
-                        swap.Set(3, bag_pos, -1, 0);
+                        swap.Set(MENU_SWAP_TYPE_ITEM_BOARD, bag_pos, -1, 0);
 
                         switch (push) {
                             case 1:
@@ -1079,14 +1079,14 @@ int CShopMenu::KeyStep() {
 
             if (item != NULL) {
                 item_no = item->item_no;
-                item_name = item->GetName(1);
+                item_name = item->GetName(ITEM_NAME_TYPE_LEVEL);
             }
 
             if (trade_brd != NULL) {
                 MENUFORMPARTS_TYPE *icon = trade_brd->GetPartInfo("item");
 
                 if (item != NULL && item_no != 0x1A6 && item_no != 0x1A8) {
-                    if (item_no == 0x1AA) {
+                    if (item_no == ITEM_ID_BOILED_FISH) {
                         MenuFormPartsPresetItem(icon, 1, item_no, item->data.item.num);
                     } else {
                         MenuFormPartsPresetItem(icon, 1, item_no, item->GetSpectolNo());
@@ -1096,11 +1096,11 @@ int CShopMenu::KeyStep() {
 
             CDC2Mes *count_mes = MenuDCMsg[3];
             CDC2Mes *ask_mes = MenuDCMsg[4];
-            int      refuse = (int) SHOP_MENU_ERROR_NONE;
+            int      refuse = SHOP_MENU_ERROR_NONE;
 
             switch (command) {
                 case 5:
-                    MenuSePlay(5);
+                    MenuSePlay(SYSTEM_SE_CANCEL);
                     break;
                 case 0x14:
                     switch (MenuCommonInfo->EnableSwapNowPos(&swap)) {
@@ -1112,7 +1112,7 @@ int CShopMenu::KeyStep() {
                             MenuSePlay(SYSTEM_SE_DECIDE);
                             break;
                         default:
-                            MenuSePlay(5);
+                            MenuSePlay(SYSTEM_SE_CANCEL);
                             break;
                     }
 
@@ -1138,7 +1138,7 @@ int CShopMenu::KeyStep() {
                     int            room = 0;
                     CGameDataUsed *bag = user->GetUsedDataPtr(0);
 
-                    for (int slot = 0; slot < GetNowBagMax(0); bag++, slot++) {
+                    for (int slot = 0; slot < GetNowBagMax(ITEM_BOARD_MAIN); bag++, slot++) {
                         if (bag->item_no <= 0) {
                             room += common->stack_num;
                         }
@@ -1154,14 +1154,14 @@ int CShopMenu::KeyStep() {
                     }
 
                     if (room <= 0) {
-                        refuse = (int) SHOP_MENU_ERROR_BAG_FULL;
+                        refuse = SHOP_MENU_ERROR_BAG_FULL;
                         break;
                     }
 
                     int can_have = common->max_num - user->GetNumSameItem(item_no);
 
                     if (can_have <= 0) {
-                        refuse = (int) SHOP_MENU_ERROR_ITEM_LIMIT;
+                        refuse = SHOP_MENU_ERROR_ITEM_LIMIT;
                         break;
                     }
 
@@ -1172,7 +1172,7 @@ int CShopMenu::KeyStep() {
                     num_cursor = 0;
                     num_max = can_have;
 
-                    if (item_no == 0x1A7) {
+                    if (item_no == ITEM_ID_SHIELD_KIT) {
                         num_max = 1;
                         CShopPtr->once_item_chosen = 1;
                     }
@@ -1225,7 +1225,7 @@ int CShopMenu::KeyStep() {
                     CShopPtr->AddMoney(-total);
                     ExeScript("\x94\x84\x94\x83\x90\xAC\x97\xA7");
 
-                    if (item_no == 0x1A7) {
+                    if (item_no == ITEM_ID_SHIELD_KIT) {
                         user->special_item_bought++;
                     }
 
@@ -1261,7 +1261,7 @@ int CShopMenu::KeyStep() {
                         GetUserDataMan()->SetVoiceUnit(1);
                     }
 
-                    if (item_no == 0x163) {
+                    if (item_no == ITEM_ID_INSIDE_SCOOP_MEMO) {
                         GetUserDataMan()->GetInventUserData()->GetScoopData()->KnowScoop();
                     }
 
@@ -1287,11 +1287,11 @@ int CShopMenu::KeyStep() {
                     CGameDataUsed *sell_item = SearchNowPosItemExist();
 
                     if (sell_item->GetNum() <= 0) {
-                        MenuSePlay(5);
+                        MenuSePlay(SYSTEM_SE_CANCEL);
                     } else if (CShopPtr->price[item_no].sell <= 0) {
-                        MenuSePlay(5);
+                        MenuSePlay(SYSTEM_SE_CANCEL);
                     } else if (CheckEquipFishRod(sell_item) == 1) {
-                        refuse = (int) SHOP_MENU_ERROR_LAST_WEAPON;
+                        refuse = SHOP_MENU_ERROR_LAST_WEAPON;
                     } else {
                         arrow_flash[1] = 0;
                         arrow_flash[0] = 0;
@@ -1329,7 +1329,7 @@ int CShopMenu::KeyStep() {
                             "\x82\xA9\x82\xA4\x81\x48"};
 
                         if (NowSellMode != SHOP_SELL_MODE_DONY && total > CShopPtr->CheckMoney()) {
-                            refuse = (int) SHOP_MENU_ERROR_NO_MONEY;
+                            refuse = SHOP_MENU_ERROR_NO_MONEY;
                             break;
                         }
 
@@ -1347,7 +1347,7 @@ int CShopMenu::KeyStep() {
                         char          *name = NULL;
 
                         if (trade_item != NULL) {
-                            name = trade_item->GetName(0);
+                            name = trade_item->GetName(ITEM_NAME_TYPE_PLAIN);
                         }
 
                         char *names[2] = {NULL, NULL};
@@ -1370,7 +1370,7 @@ int CShopMenu::KeyStep() {
                     break;
                 case 0x44C:
                     ExeScript("\x83\x41\x83\x43\x83\x65\x83\x80\x91\x49\x91\xF0\x82\xC9\x82\xE0\x82\xC7\x82\xE9");
-                    error = (int) SHOP_MENU_ERROR_NONE;
+                    error = SHOP_MENU_ERROR_NONE;
                     key_arg_no = shop_mode_prev;
                     SetMenuKeyCtrlEnv(0);
                     break;
@@ -1774,7 +1774,7 @@ void ShopSellListDraw(int &tex_block, float *pos) {
 
     mgRect<int>  line_rect(0, 0x8E, 0xB0, 6);
     mgCDrawPrim *prim = GetMenuPrim();
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     float price_x;
     int   price;
     float mark_x;
@@ -1817,10 +1817,10 @@ void ShopSellListDraw(int &tex_block, float *pos) {
         PrimQuad(prim, x + 128.0f, y + 1.0f, have_board);
         int have = CShopPtr->GetHaveNum(line);
         price = have;
-        PrimDrawNumber(prim, have, (int) MENU_NUMBER_ALIGN_CENTER, fptosi(x + 134.0f + 23.0f), fptosi(y + 12.0f), have_digits, 0, 0);
+        PrimDrawNumber(prim, have, MENU_NUMBER_ALIGN_CENTER, fptosi(x + 134.0f + 23.0f), fptosi(y + 12.0f), have_digits, 0, 0);
         item.item_no = item_no;
         CShopPtr->GetPrice(&item, &price, NULL);
-        PrimDrawNumber(prim, price, (int) MENU_NUMBER_ALIGN_RIGHT, fptosi(price_x), fptosi(y + 16.0f), price_digits, 0, 0);
+        PrimDrawNumber(prim, price, MENU_NUMBER_ALIGN_RIGHT, fptosi(price_x), fptosi(y + 16.0f), price_digits, 0, 0);
         int mark_y = fptosi(y + 22.0f);
         int mark_left = fptosi(mark_x);
         PrimQuad(prim, mgRect<int>(mark_left, mark_y, price_mark->right, price_mark->bottom), *price_mark);
@@ -1943,7 +1943,7 @@ void MenuShopInit(mgCMemory *stack, int *tex_block, int arg) {
     MenuPosData->AttachCommonTexInfo();
     MenuCommonInfo->AttachFuncData();
     AttachMessageForm();
-    MenuMainFrameModeSet(0, 1);
+    MenuMainFrameModeSet(MENU_MAIN_FRAME_OPEN, true);
     CShopMenuPt->AttachForm();
     MenuLocalStack.Alloc(0x180);
     MenuLocalStack.Align64();
@@ -2177,7 +2177,7 @@ int CMenuQuestView::KeyStep() {
                     int select_key = MenuListSelectKeyCheck(lr_key, 7);
                     int old_select = select;
                     int old_top = top;
-                    MenuKeySelectCheck(select_key, &select, &top, 0, max, 7, (int) MENU_CURSOR_LIMIT_CLAMP);
+                    MenuKeySelectCheck(select_key, &select, &top, 0, max, 7, MENU_CURSOR_LIMIT_CLAMP);
 
                     if (old_select != select) {
                         MenuSePlay(SYSTEM_SE_CURSOR);
@@ -2266,7 +2266,7 @@ int CMenuQuestView::KeyStep() {
                         MenuSePlay(SYSTEM_SE_DECIDE);
                     } else if (push & 2) {
                         FadeOutMenu(0x28, 0.0f);
-                        MenuSePlay(5);
+                        MenuSePlay(SYSTEM_SE_CANCEL);
                         mode = 2;
                     }
 
@@ -2278,7 +2278,7 @@ int CMenuQuestView::KeyStep() {
                         ActiveQuestInfo = NULL;
                         ScmFlagCtrl = NULL;
                         step = 0;
-                        MenuSePlay(5);
+                        MenuSePlay(SYSTEM_SE_CANCEL);
                         UnderMsg(0);
                     }
 
@@ -2382,10 +2382,10 @@ void MenuNPCQuestViewDraw() {
     mgCTextureManager *textures = &mgTexManager;
     textures->ReloadTexture(Tex_QuestMemo->block, (sceVif1Packet *) NULL);
     mgCDrawPrim *prim = GetMenuPrim();
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     DrawMenuTilePattern(prim, Tex_QuestMemo, QuestTilePatternXY, QuestTilePatternXY,
                         mgRect<int>(0x180, 0, 0x80, 0x80), 0, NULL);
-    SetSpriteEnv(prim, 0);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(Tex_QuestMemo);
     mgRect<int> board_rect(0, 0xBA, 0x184, 0x146);
@@ -2580,7 +2580,7 @@ void MenuNPCQuestViewDraw() {
         }
 
         DrawMenuFillBox((float) (box_x + 6), 125.0f, 384.0f, (float) (box_h - 0xC), 0x56, 0, 0, 0);
-        SetSpriteEnv(prim, 0);
+        SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(Tex_QuestMemo);
         prim->Color(0x80, 0x80, 0x80, 0x80);

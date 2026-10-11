@@ -141,9 +141,9 @@ static PAD_TABLE_ENTRY pad_table[] = {
     {PAD_BTN_CANCEL,             PAD_CTRL_TRIGGER_DOWN, PAD_CROSS   },
     {PAD_BTN_R1_HELD,            PAD_CTRL_TRIGGER_ON,   PAD_R1      },
     {PAD_BTN_L1_HELD,            PAD_CTRL_TRIGGER_ON,   PAD_L1      },
-    {4,                          PAD_CTRL_TRIGGER_DOWN, PAD_L2      },
+    {PAD_BTN_L2,                 PAD_CTRL_TRIGGER_DOWN, PAD_L2      },
     {PAD_BTN_MENU,               PAD_CTRL_TRIGGER_DOWN, PAD_TRIANGLE},
-    {6,                          PAD_CTRL_TRIGGER_DOWN, PAD_R2      },
+    {PAD_BTN_R2,                 PAD_CTRL_TRIGGER_DOWN, PAD_R2      },
     {PAD_BTN_UP,                 PAD_CTRL_TRIGGER_DOWN, PAD_UP      },
     {PAD_BTN_DOWN,               PAD_CTRL_TRIGGER_DOWN, PAD_DOWN    },
     {PAD_BTN_RIGHT,              PAD_CTRL_TRIGGER_DOWN, PAD_RIGHT   },
@@ -153,10 +153,10 @@ static PAD_TABLE_ENTRY pad_table[] = {
     {13,                         PAD_CTRL_TRIGGER_ON,   PAD_RIGHT   },
     {14,                         PAD_CTRL_TRIGGER_ON,   PAD_LEFT    },
     {PAD_BTN_START,              PAD_CTRL_TRIGGER_DOWN, PAD_START   },
-    {16,                         PAD_CTRL_TRIGGER_DOWN, PAD_CIRCLE  },
-    {17,                         PAD_CTRL_TRIGGER_DOWN, PAD_CROSS   },
+    {PAD_BTN_CONFIRM_2,          PAD_CTRL_TRIGGER_DOWN, PAD_CIRCLE  },
+    {PAD_BTN_CANCEL_2,           PAD_CTRL_TRIGGER_DOWN, PAD_CROSS   },
     {19,                         PAD_CTRL_TRIGGER_ON,   PAD_CIRCLE  },
-    {20,                         PAD_CTRL_TRIGGER_DOWN, PAD_CIRCLE  },
+    {PAD_BTN_EVENT_SKIP_2,       PAD_CTRL_TRIGGER_DOWN, PAD_CIRCLE  },
     {PAD_BTN_PAUSE,              PAD_CTRL_TRIGGER_DOWN, PAD_START   },
     {PAD_BTN_EVENT_SKIP,         PAD_CTRL_TRIGGER_DOWN, PAD_TRIANGLE},
     {PAD_BTN_QUICK_CHANGE,       PAD_CTRL_TRIGGER_DOWN, PAD_L3      },
@@ -164,8 +164,8 @@ static PAD_TABLE_ENTRY pad_table[] = {
     {PAD_BTN_ACTION_CONFIRM,     PAD_CTRL_TRIGGER_DOWN, PAD_CIRCLE  },
     {PAD_BTN_ACTION_SQUARE,      PAD_CTRL_TRIGGER_DOWN, PAD_SQUARE  },
     {PAD_BTN_ACTION_CANCEL,      PAD_CTRL_TRIGGER_DOWN, PAD_CROSS   },
-    {53,                         PAD_CTRL_TRIGGER_ON,   PAD_L1      },
-    {54,                         PAD_CTRL_TRIGGER_ON,   PAD_R1      },
+    {PAD_BTN_L1_HELD_2,          PAD_CTRL_TRIGGER_ON,   PAD_L1      },
+    {PAD_BTN_R1_HELD_2,          PAD_CTRL_TRIGGER_ON,   PAD_R1      },
     {55,                         PAD_CTRL_TRIGGER_DOWN, PAD_SELECT  },
     {PAD_BTN_ACTION_HELD,        PAD_CTRL_TRIGGER_ON,   PAD_CIRCLE  },
     {PAD_BTN_EDIT_TURN_DECREASE, PAD_CTRL_TRIGGER_DOWN, PAD_R2      },
@@ -179,24 +179,24 @@ static PAD_TABLE_ENTRY pad_table[] = {
     {18,                         PAD_CTRL_TRIGGER_DOWN, PAD_R1      },
     {PAD_BTN_EDIT_SWITCH,        PAD_CTRL_TRIGGER_DOWN, PAD_SELECT  },
     {PAD_BTN_EDIT_MAGNET,        PAD_CTRL_TRIGGER_DOWN, PAD_SQUARE  },
-    {120,                        PAD_CTRL_TRIGGER_DOWN, PAD_CIRCLE  },
-    {121,                        PAD_CTRL_TRIGGER_ON,   PAD_CIRCLE  },
-    {122,                        PAD_CTRL_TRIGGER_ON,   PAD_SQUARE  },
+    {PAD_BTN_FISH_ACTION,        PAD_CTRL_TRIGGER_DOWN, PAD_CIRCLE  },
+    {PAD_BTN_FISH_REEL,          PAD_CTRL_TRIGGER_ON,   PAD_CIRCLE  },
+    {PAD_BTN_FISH_REEL_FAST,     PAD_CTRL_TRIGGER_ON,   PAD_SQUARE  },
     {-1,                         -1,                    -1          },
 };
 /**
  * Mappings from logical analog controls to pad stick axes.
  */
 static ANALOG_TABLE_ENTRY analog_table[] = {
-    {PAD_ANALOG_LEFT_X,  PAD_CTRL_AXIS_LX},
-    {PAD_ANALOG_LEFT_Y,  PAD_CTRL_AXIS_LY},
-    {PAD_ANALOG_RIGHT_X, PAD_CTRL_AXIS_RX},
-    {PAD_ANALOG_RIGHT_Y, PAD_CTRL_AXIS_RY},
-    {4,                  PAD_CTRL_AXIS_LY},
-    {5,                  PAD_CTRL_AXIS_LX},
-    {6,                  PAD_CTRL_AXIS_RX},
-    {7,                  PAD_CTRL_AXIS_RY},
-    {-1,                 -1              },
+    {PAD_ANALOG_LEFT_X,    PAD_CTRL_AXIS_LX},
+    {PAD_ANALOG_LEFT_Y,    PAD_CTRL_AXIS_LY},
+    {PAD_ANALOG_RIGHT_X,   PAD_CTRL_AXIS_RX},
+    {PAD_ANALOG_RIGHT_Y,   PAD_CTRL_AXIS_RY},
+    {PAD_ANALOG_LEFT_Y_2,  PAD_CTRL_AXIS_LY},
+    {PAD_ANALOG_LEFT_X_2,  PAD_CTRL_AXIS_LX},
+    {PAD_ANALOG_RIGHT_X_2, PAD_CTRL_AXIS_RX},
+    {PAD_ANALOG_RIGHT_Y_2, PAD_CTRL_AXIS_RY},
+    {-1,                   -1              },
 };
 
 extern CFont     Font;
@@ -390,19 +390,19 @@ static void InitPadTable(int language) {
     for (i = 0; pad_table[i].no >= 0; i++) {
         switch (pad_table[i].no) {
             case PAD_BTN_CONFIRM:
-            case 0x10:
-            case 0x14:
+            case PAD_BTN_CONFIRM_2:
+            case PAD_BTN_EVENT_SKIP_2:
             case PAD_BTN_ACTION_CONFIRM:
             case PAD_BTN_ACTION_HELD:
             case PAD_BTN_EDIT_PLACE:
             case PAD_BTN_EDIT_REMOVE:
             case PAD_BTN_EDIT_PAINT:
-            case 0x78:
-            case 0x79:
+            case PAD_BTN_FISH_ACTION:
+            case PAD_BTN_FISH_REEL:
                 pad_table[i].button = confirm[language_index];
                 break;
             case PAD_BTN_CANCEL:
-            case 0x11:
+            case PAD_BTN_CANCEL_2:
             case PAD_BTN_ACTION_CANCEL:
                 pad_table[i].button = cancel[language_index];
                 break;
@@ -1996,10 +1996,10 @@ int gcSTEVE(SPI_STACK *stack, int arg_count) {
     }
 
     manager->JoinPartyMember(USER_CHARA_ROBO);
-    manager->GetItemNotOver(0xF6, 1);
+    manager->GetItemNotOver(ITEM_ID_CORE, 1);
 
     if (arg_count == 2) {
-        manager->DeleteItem(0xF6, 1);
+        manager->DeleteItem(ITEM_ID_CORE, 1);
         manager->GetItemNotOver(GetRidePodCore(spiGetStackInt(stack)), 1);
     }
 
@@ -2026,7 +2026,7 @@ int gcMONSTER(SPI_STACK *stack, int arg_count) {
     }
 
     manager->JoinPartyMember(USER_CHARA_MONSTER);
-    manager->GetItemNotOver(0x134, 1);
+    manager->GetItemNotOver(ITEM_ID_BADGE_BOX, 1);
 
     for (i = 0; i < arg_count; i++) {
         monster_id = spiGetStackInt(stack++);
@@ -2064,8 +2064,8 @@ int gcPARTY(SPI_STACK *stack, int arg_count) {
     manager = GetUserDataMan();
 
     if (manager != NULL) {
-        manager->JoinPartyChara(chara_no, 0x80, 1);
-        manager->SetPartyCharaStatus(chara_no, 1);
+        manager->JoinPartyChara(chara_no, PARTY_CHARA_STATUS_JOIN, 1);
+        manager->SetPartyCharaStatus(chara_no, PARTY_CHARA_STATUS_IN_PARTY);
     }
 
     return 1;

@@ -67,8 +67,8 @@ to the retail symbol names without defining a compiler initializer manually.
 The earlier isolated C++ checkpoint of `InitDungeonMain` was 0x20D8 bytes,
 short of retail's 0x2110-byte function, and changed later text layout. The
 merged source now selects the native body by default; that change does not
-establish an exact match. Historical assembly-fallback layout observations
-below describe the earlier checkpoint. Fresh integrated verification is
+establish an exact match. The layout observations below describe the
+earlier checkpoint. Fresh integrated verification is
 required, including the naturally emitted local-static storage and helpers.
 
 ## Globals (types from __sinit, InitDungeonMain, CommonStageClassInit)
@@ -124,10 +124,8 @@ also compiles the unrelated `InitDungeonMain` draft. Disabling just that
 earlier draft restores the reverse load order. An isolated game-build link of
 `DngMainKey` differs from retail by ten bytes in `.text`; every other section,
 including BSS, matches. Local variables, unsuffixed literals, array elements,
-and equivalent constant expressions did not fix the ordering. The normal
-build therefore keeps the retail assembly and its three data pieces
-(`at_2994`, `at_3336`, `at_3337`) until the C++ function matches in the
-normal translation-unit configuration.
+and equivalent constant expressions did not fix the ordering. The native body in
+`dng_main.cpp` is the one the normal build links.
 
 ## Enums (names ours; values from the retail code)
 - DNG_CHARA_SLOT: InitDungeonMain fills scene character slots 0-7 (party, CActionChara via
@@ -135,8 +133,8 @@ normal translation-unit configuration.
   MONSTER_ACTIVE_MAX CActiveMonster entries, type 3). DngStep and DngMainDraw iterate the same ranges.
 - DNG_MAIN_ARRAY_SIZE: counts of the file-scope arrays, taken from their declarations and loop bounds.
 - DNG_SYSTEM_EVENT: the event numbers IsEventRun writes to `*event_no`, each gated by a save bit:
-  0x3B gates 2540 (magic sword guide), SAVE_FLAG_ROBO_BIKE_EVENT_SEEN gates 2530 (ridepod guide, with
-  move_type ACTION_MOVE_ROBO_BIKE), 0x32 gates 2500 (random stone), 0x34 gates 2520 (level-up guide,
+  SAVE_FLAG_GUIDE_MAGIC_SWORD gates 2540 (magic sword guide), SAVE_FLAG_ROBO_BIKE_EVENT_SEEN gates 2530 (ridepod guide, with
+  move_type ACTION_MOVE_ROBO_BIKE), SAVE_FLAG_GUIDE_RANDOM_STONE gates 2500 (random stone), SAVE_FLAG_GUIDE_LEVEL_UP gates 2520 (level-up guide,
   with LevelupInfo.phase != 0). 1500 is raised when no monster is left and battle_clear is 0.
 - DNG_FOOT_EFFECT: DngStep's `effect[35]` table maps CheckFootEffect ids to a kind. Kind 0 (dust) runs
   the effect script "足砂煙", kind 1 (grass) runs "足砂煙" then "足芝生", kind 2 (splash) runs "足水パシャ".
@@ -171,9 +169,9 @@ further matching claims. No source changes from this trial are retained.
 
 `InitDungeonMain` declares one local `mgCMemory debug_event_stack` (0x30 bytes),
 and `DngMainKey` declares one local `sceVu0FVECTOR chk_pos` (0x10 bytes). The
-source also retains the explicit retail BSS markers `debug_event_stack_1106`
-(0x01EF7380) and `chk_pos_2870` (0x01EF7400). Their typed C++ objects and their
-retail storage therefore coexist before object postprocessing.
+retail BSS objects `debug_event_stack_1106` (0x01EF7380) and `chk_pos_2870`
+(0x01EF7400) correspond to these typed C++ objects, and both storages coexist
+before object postprocessing.
 
 MWCC gives a local static a generated numeric suffix. The compiler's current
 suffix depends on the source/header parse; its value is not the variable's
@@ -183,8 +181,8 @@ native function has a different instruction sequence.
 
 `postprocess_object.py` binds these cases by the translation unit, a unique
 source static declaration, the variable's base name, and its exact storage
-extent. A matching target must be an explicit `INCLUDE_BSS` marker within that
-unit's retail BSS/SBSS ranges. Native storage must be a local, whole-section
+extent. A matching target is a retail BSS/SBSS object within that unit's retail
+BSS/SBSS ranges. Native storage must be a local, whole-section
 NOBITS object of the same BSS kind and exact size. Retail storage must have the
 same declared size and contain only zeroed storage. Interior symbols,
 initialized native objects, and ambiguous declarations, native names, or marker
@@ -243,6 +241,5 @@ does not claim that those addresses or the complete unit are exact.
 
 # `MoveCheckInfo::Initialize`
 
-The 0x110-byte movement-query record is cleared with `memset`. Moving its
-definition from the header into `dng_main.cpp` produces the retail tail call
-and allows the assembly fallback for this function to be removed.
+The 0x110-byte movement-query record is cleared with `memset`. Its inline
+definition in `gameutil.hpp` produces the retail tail call.

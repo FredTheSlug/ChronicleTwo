@@ -31,7 +31,9 @@ Size: CCharacter2 holds `tagMOTION_TYPE[8]` at 0x3C0 and another `[8]` at 0x460 
 - 0x00 base_matrices: CreateAnimeDataEX memcpy of file 0; MotionProc2/3 index `* 0x40` by frame.
 - 0x04 motion_list: built by CreateAnimeDataEX from file 1; walked by SetMotionTime/ChangeMotion.
 - 0x08 skin_list: built from file 2; walked by DeformMesh, AnimeDataInit.
-- 0x0C unknown (copied as a word by `_MOTION`).
+- 0x0C unk_0C: zeroed with the struct by the memset in `_MOTION` and `_SHADOW_MOTION`. `_MOTION` copies
+  it, with base_matrices, motion_list and skin_list, from shadow_motion[0] to shadow_motion[now_motion_id]
+  when now_motion_id > 0 (character.cpp). No other reader or writer found.
 - 0x10 frame_info: `_SHADOW_MOTION` stores the tagFRAME_INF* (chr+0x470); `_SKIN_MOTION` reads
   chr+0x3D0 as tagFRAME_INF*.
 First game's tagMOTION_TYPE was 0x80 with an embedded MOTION_STATE; this game moved state into
@@ -172,6 +174,13 @@ incorrect.
   is saved), where retail keeps it in the stack array. The found polygon is
   copied as `*(CCPolyCopy *) found = *(CCPolyCopy *) &polys[...]`: `CCPoly`'s
   implicit copy is emitted differently from the plain record copy.
+- Casts that must stay for the match: `(u64) header->more` and `(u64) deform_header->more`
+  in the motion and skin key readers, and `(unsigned int) list->target - 1` in the vertex
+  path of the float `MotionProc`. Removing them fails the build. Removing the cast on `time`
+  for `frame_no` builds.
+- `GetFootPoly`: the second loop indexes `short *poly = &polys[...].ground_kind` with
+  `poly[0..2]`. A `CCPoly *` with `poly->ground_kind`, `foot_sound` and `area_kind` changes
+  the match.
 - `ChangeWeight` and `AnimeDataInit`: `data` is a serialized stream of
   32-byte records, each `Mot_File_List` header followed by `key_count`
   `FRAME_VECTOR_EX_DATA` keys, walked with a `FRAME_VECTOR_EX_DATA *` cursor.

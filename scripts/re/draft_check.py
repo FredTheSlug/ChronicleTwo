@@ -25,9 +25,10 @@ compares each function with retail's bytes, relocated fields masked:
     NO DRAFT  the source defines no such function
 
 `--promote` is the test a promoted function has to pass: the unit is built
-without UNMATCHING through tools/mwccgap, exactly as the build does, its
-object is linked in place of the build's own among the objects of the last
-full build, and the image is compared with retail's. A function whose bytes
+without UNMATCHING through scripts/build/mwccgap.sh (a direct Satan's Fiddle compile
+with the unit's flags, then the object postprocess), as the build does, its object is
+linked in place of the build's own among the objects of the last full build, and the
+image is compared with retail's. A function whose bytes
 match can still fail it, when promoting it brings data of its own into the
 object that does not land where retail has it.
 
@@ -67,6 +68,8 @@ MW_DIR = "tools/compilers/mw/3.0-011126"
 LIB_INCLUDE_DIRS = "ps2/include/std;ps2/include/sce"
 CC_FLAGS = ["-O3,p", "-strings", "readonly", "-c", "-Cpp_exceptions", "off", "-RTTI", "off",
             "-pragma", "divbyzerocheck on", "-i", "ps2/include"]
+TOOLCHAIN = ROOT / "ps2/cmake/Toolchain.cmake"
+UNIT_FLAGS = re.compile(r"^\s*set\(UNIT_CC_FLAGS_(\w+)\s+([^)]*)\)\s*$")
 DRAFT_DIR = Path("build/re/draft")
 CHECK_DIR = Path("build/re/check")
 ATTEMPT_LEDGER = ROOT / "scripts/re/promotion_attempts.tsv"
@@ -77,6 +80,15 @@ STT_FUNC = 2
 STB_WEAK_FUNC = 0x22
 if STB_WEAK_FUNC not in mwccgap.elf.FUNCTION_ST_INFOS:
     mwccgap.elf.FUNCTION_ST_INFOS = mwccgap.elf.FUNCTION_ST_INFOS + (STB_WEAK_FUNC,)
+
+
+def unit_cc_flags(unit):
+    """A unit's options from its UNIT_CC_FLAGS_<unit> line in Toolchain.cmake, empty if it has none."""
+    for line in TOOLCHAIN.read_text().splitlines():
+        match = UNIT_FLAGS.match(line)
+        if match and match.group(1) == unit:
+            return match.group(2).split()
+    return []
 
 
 def project_name(name):
@@ -99,8 +111,8 @@ def compile_drafts(unit):
     obj = DRAFT_DIR / f"{unit}.o"
     obj.parent.mkdir(parents=True, exist_ok=True)
     obj.unlink(missing_ok=True)
-    command = ["wibo", f"{MW_DIR}/mwccps2.exe", *CC_FLAGS, "-lang", "c++", "-DUNMATCHING", "-DNONMATCHING",
-               "-o", str(obj), f"ps2/src/{unit}.cpp"]
+    command = ["wibo", f"{MW_DIR}/mwccps2.exe", *CC_FLAGS, *unit_cc_flags(unit), "-lang", "c++",
+               "-DUNMATCHING", "-DNONMATCHING", "-o", str(obj), f"ps2/src/{unit}.cpp"]
     result = subprocess.run(command, env={**os.environ, "MWCIncludes": LIB_INCLUDE_DIRS},
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     output = result.stdout.replace("\r", "").strip()
@@ -275,7 +287,7 @@ def promote_check(unit, source=None):
     obj.unlink(missing_ok=True)
     build = subprocess.run(
         ["sh", "scripts/build/mwccgap.sh", str(obj), str(obj) + ".d",
-         str(source or f"ps2/src/{unit}.cpp"), *CC_FLAGS, "-i", "ps2/src"],
+         str(source or f"ps2/src/{unit}.cpp"), *CC_FLAGS, *unit_cc_flags(unit), "-i", "ps2/src"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if build.returncode == 0:
         build = subprocess.run(["sh", "scripts/build/fixup_sections.sh", str(obj)],

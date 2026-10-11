@@ -35,7 +35,6 @@ static EditVector at_1837__2 = {
 };
 
 const int kRiverPolyFlag = 0x10;
-const int kEditPartsPolyFlag = 0x1000;
 const int kMaxInfoId = 0x100;
 const int kInfoFixedFlag = 0x1;
 const int kInfoRiverRelatedFlag = 0x80000;
@@ -310,14 +309,14 @@ int CEditMap::GetPoly(int mode, CCPoly *polys, mgVu0FBOX &box, int max) {
             continue;
         }
 
-        if (part->state != (int) EDIT_PARTS_STATE_PLACED) {
+        if (part->state != EDIT_PARTS_STATE_PLACED) {
             continue;
         }
 
         count = part->GetPoly(mode, polys, box, max);
 
         for (j = 0; j < count; j++, polys++) {
-            polys->parts_no = ((s16) (u16) i) | kEditPartsPolyFlag;
+            polys->parts_no = ((s16) (u16) i) | CCPOLY_PARTS_EDIT;
         }
 
         max -= count;
@@ -442,7 +441,7 @@ CEditParts *CEditMap::GetePlaceParts(char *name) {
         int is_free = slot->name[0] == 0;
 
         if (!is_free) {
-            if (slot->state != (int) EDIT_PARTS_STATE_NONE) {
+            if (slot->state != EDIT_PARTS_STATE_NONE) {
                 if (slot->info != 0) {
                     CEditPartsInfo *info = slot->info;
 
@@ -657,7 +656,7 @@ int CEditMap::GetSameParts(int index) {
         int is_free = edit_parts[i].name[0] == 0;
 
         if (!is_free) {
-            if (edit_parts[i].state == (int) EDIT_PARTS_STATE_NONE) {
+            if (edit_parts[i].state == EDIT_PARTS_STATE_NONE) {
                 if (edit_parts[i].info == info) {
                     return i;
                 }
@@ -833,7 +832,7 @@ int CEditMap::RemoveEditParts(int index, float *pos, RemoveInfo *remove_info_opa
         }
 
         id = part->GetInfoID();
-        part->state = (int) EDIT_PARTS_STATE_NONE;
+        part->state = EDIT_PARTS_STATE_NONE;
 
         if (id >= 0 && id < kMaxInfoId && remove_info != 0) {
             remove_info->parts_num[id] += 1;
@@ -890,7 +889,7 @@ int CEditMap::RemoveEditParts(int index, float *pos, RemoveInfo *remove_info_opa
     }
 
     if (RemoveRiver(pos) != 0) {
-        river_info = GetePartsInfoAtType((int) EDIT_PARTS_TYPE_RIVER);
+        river_info = GetePartsInfoAtType(EDIT_PARTS_TYPE_RIVER);
 
         if (river_info != 0) {
             id = river_info->id;
@@ -1021,7 +1020,7 @@ CEditParts *CEditMap::PlaceEditParts(char *name, float *pos, float *rot) {
         return 0;
     }
 
-    edit_parts->state = (int) EDIT_PARTS_STATE_PLACED;
+    edit_parts->state = EDIT_PARTS_STATE_PLACED;
     edit_parts->SetPosition(pos);
     edit_parts->SetRotation(rot);
     edit_parts->SetScale(1.0f, 1.0f, 1.0f);
@@ -1044,7 +1043,7 @@ CEditParts *CEditMap::PlaceEditParts(int index, EP_PLACE_INFO *place, float *pos
         return 0;
     }
 
-    if (edit_parts->GetPartsType() != (int) EDIT_PARTS_TYPE_RIVER) {
+    if (edit_parts->GetPartsType() != EDIT_PARTS_TYPE_RIVER) {
         if (!CreatePlaceLog(index, place)) {
             return 0;
         }
@@ -1060,19 +1059,19 @@ CEditParts *CEditMap::PlaceEditParts(int index, EP_PLACE_INFO *place, float *pos
         }
     }
 
-    edit_parts->state = (int) EDIT_PARTS_STATE_PLACED;
+    edit_parts->state = EDIT_PARTS_STATE_PLACED;
 
     if (same_index != 0) {
         *same_index = GetSameParts(index);
     }
 
-    if (info->attr & (int) EDIT_PARTS_ATR_RIVER) {
+    if (info->attr & EDIT_PARTS_ATR_RIVER) {
         if (CheckRiverParts(pos)) {
             PlaceRiver(pos);
-            edit_parts->state = (int) EDIT_PARTS_STATE_RIVER;
+            edit_parts->state = EDIT_PARTS_STATE_RIVER;
             edit_parts->SetPosition(0.0f, -10000.0f, 0.0f);
         } else {
-            edit_parts->state = (int) EDIT_PARTS_STATE_NONE;
+            edit_parts->state = EDIT_PARTS_STATE_NONE;
         }
 
         return 0;
@@ -1190,7 +1189,7 @@ int CEditMap::GetNearParts(CEditPartsInfo *info, float *pos, float angle, CEditP
             continue;
         }
 
-        if (part->state != (int) EDIT_PARTS_STATE_PLACED) {
+        if (part->state != EDIT_PARTS_STATE_PLACED) {
             continue;
         }
 
@@ -1235,7 +1234,7 @@ int CEditMap::GetNearParts(mgVu0FBOX &box, CEditParts **out, int max) {
             continue;
         }
 
-        if (part->state != (int) EDIT_PARTS_STATE_PLACED) {
+        if (part->state != EDIT_PARTS_STATE_PLACED) {
             continue;
         }
 
@@ -2020,7 +2019,7 @@ int CEditMap::DrawSub(int mode) {
     for (; i < edit_parts_max; i++, part++) {
         int is_free = part->name[0] == 0;
 
-        if (!is_free && part->state == (int) EDIT_PARTS_STATE_PLACED) {
+        if (!is_free && part->state == EDIT_PARTS_STATE_PLACED) {
             part->CopyFuncPointCheck(check);
 
             if (i == focus_parts) {
@@ -2355,7 +2354,7 @@ void CEditMap::LoadEditInfo(char *script, int size, mgCMemory *stack) {
         mgZeroVector(extent.max);
         mgZeroVector(extent.min);
         float area = 0.0f;
-        info->place_anime = (int) EDIT_PLACE_ANIME_SQUASH;
+        info->place_anime = EDIT_PLACE_ANIME_SQUASH;
 
         if (collision != NULL) {
             CEditCollision source;
@@ -2437,7 +2436,7 @@ void CEditMap::LoadEditInfo(char *script, int size, mgCMemory *stack) {
             float height = extent.max[1] - extent.min[1];
 
             if (!(height * height / area <= 2.0f)) {
-                info->place_anime = (int) EDIT_PLACE_ANIME_SWAY;
+                info->place_anime = EDIT_PLACE_ANIME_SWAY;
             }
 
             sceVu0FVECTOR span;
@@ -2461,11 +2460,11 @@ void CEditMap::LoadEditInfo(char *script, int size, mgCMemory *stack) {
         }
 
         if (info->attr & 0x100) {
-            info->place_anime = (int) EDIT_PLACE_ANIME_NONE;
+            info->place_anime = EDIT_PLACE_ANIME_NONE;
         }
 
         if (info->attr & 0x200) {
-            info->place_anime = (int) EDIT_PLACE_ANIME_NONE;
+            info->place_anime = EDIT_PLACE_ANIME_NONE;
         }
 
         if (parts != NULL && (info->attr & EDIT_PARTS_ATR_GROUND) == EDIT_PARTS_ATR_GROUND) {

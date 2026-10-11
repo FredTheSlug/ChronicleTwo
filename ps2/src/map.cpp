@@ -19,12 +19,6 @@
 #include "mglib.hpp"
 #include "object.hpp"
 
-enum {
-    kFuncPointHasFire = 2,
-    kFuncPointHasPLight = 0x40,
-    kMapPartsSize = 0x310
-};
-
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -839,10 +833,10 @@ int CMap::GetCharaLight(mgCObject *chara, CFuncPoint *points, int max, int use_p
     chara->GetPosition(chara_position);
     chara_position[3] = 0.0f;
     chara_position[1] += 20.0f;
-    light_mode = 1;
+    light_mode = FUNC_POINT_LIGHT_CHARA;
 
     if (use_parts != 0) {
-        light_mode |= 0x2;
+        light_mode |= FUNC_POINT_LIGHT_FIRE;
     }
 
     light_num = func_point.GetLight(chara_position, points, max, &check, light_mode);
@@ -975,7 +969,7 @@ int CMap::DrawSub(int direct) {
         parts = *list;
         parts->CopyFuncPointCheck(check);
 
-        if (func_point.flag & kFuncPointHasPLight) {
+        if (func_point.flag & FUNC_POINT_MNGR_LIGHT) {
             parts->GetBoundSphere(sphere);
             light_count = SetFuncPLight(sphere, &check);
         } else {
@@ -1019,7 +1013,7 @@ void CMap::DrawEffect() {
     static mgCFrameAttr attr;
     attr.draw = MG_FRAME_DRAW_VISIBLE | MG_FRAME_DRAW_SKIP_CHILDREN;
     attr.no_cull = 1;
-    attr.fog = 2;
+    attr.fog = MG_FOG_BLACK;
     attr.no_cull = 1;
     attr.depth_bias = 1.015f;
     func_point.GetStart(FUNC_POINT_EFFECT);
@@ -1082,7 +1076,7 @@ void CMap::DrawFireEffect(int tex_block) {
         for (i = 0; i < draw_parts_num; i++, list++) {
             parts = *list;
 
-            if ((parts->func_point_mngr.flag & kFuncPointHasFire) == 0) {
+            if ((parts->func_point_mngr.flag & FUNC_POINT_MNGR_BURN) == 0) {
                 continue;
             }
 
@@ -2142,7 +2136,7 @@ int CheckFuncEvent(CFuncPoint *point, float *pos, int check_type, MapEventInfo *
         flags = point->event.flag;
 
         if ((flags & FUNC_EVENT_ACTION) != 0 || (flags & FUNC_EVENT_ITEM) != 0) {
-            if (check_type == 0) {
+            if (check_type == MAP_EVENT_CHECK_TOUCH) {
                 if (flags & FUNC_EVENT_ACTION) {
                     return 0;
                 }
@@ -2150,11 +2144,11 @@ int CheckFuncEvent(CFuncPoint *point, float *pos, int check_type, MapEventInfo *
                 if (flags & FUNC_EVENT_ITEM) {
                     return 0;
                 }
-            } else if (check_type == 1) {
+            } else if (check_type == MAP_EVENT_CHECK_ACTION) {
                 if (!(flags & FUNC_EVENT_ACTION)) {
                     return 0;
                 }
-            } else if (check_type == 2) {
+            } else if (check_type == MAP_EVENT_CHECK_ITEM) {
                 if (!(flags & FUNC_EVENT_ITEM)) {
                     return 0;
                 }

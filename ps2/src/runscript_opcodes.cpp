@@ -91,7 +91,7 @@ void CMonsterMan::RunScript(int index) {
             if (nowMonster->mons_script.check_program(script) != 0) {
                 nowMonster->mons_script.run(script);
                 nowMonster->now_prog = script;
-                nowMonster->req_prog = (int) MONSTER_PROG_RUNNING;
+                nowMonster->req_prog = MONSTER_PROG_RUNNING;
             }
         } else {
             nowMonster->mons_script.resume();
@@ -260,10 +260,10 @@ int _SET_MONSTER_LIFE(RS_STACKDATA *stack, int argument_count) {
     int life;
 
     switch (stack->type) {
-        case (int) RS_INT:
+        case RS_INT:
             life = GetStackInt(stack);
             break;
-        case (int) RS_FLOAT:
+        case RS_FLOAT:
             life = fptosi((float) nowMonster->max_life * GetStackFloat(stack));
             break;
         default:
@@ -281,7 +281,7 @@ int _SET_MONSTER_LIFE(RS_STACKDATA *stack, int argument_count) {
     nowMonster->life = life;
 
     if (0 < life) {
-        nowMonster->state = (int) ACTIVE_MONSTER_LIVE;
+        nowMonster->state = ACTIVE_MONSTER_LIVE;
     }
 
     return 1;
@@ -1634,7 +1634,7 @@ int _V_PUSH(RS_STACKDATA *stack, int argc) {
         return 0;
     }
 
-    if (stack->type == (int) RS_INT) {
+    if (stack->type == RS_INT) {
         if (index < MONSTER_VAR_MAX) {
             int             value = GetStackInt(stack);
             ScriptVariable *vars = nowMonster->script_vars;
@@ -1650,7 +1650,7 @@ int _V_PUSH(RS_STACKDATA *stack, int argc) {
         return 1;
     }
 
-    if (stack->type == (int) RS_FLOAT) {
+    if (stack->type == RS_FLOAT) {
         if (index < MONSTER_VAR_MAX) {
             float           value = GetStackFloat(stack);
             ScriptVariable *vars = nowMonster->script_vars;
@@ -1736,7 +1736,7 @@ int _V_PUSH2(RS_STACKDATA *stack, int argc) {
         return 0;
     }
 
-    if (stack->type == (int) RS_INT) {
+    if (stack->type == RS_INT) {
         if (index < MONSTER_VAR2_MAX) {
             int             value = GetStackInt(stack);
             ScriptVariable *vars = nowMonster->secondary_script_vars;
@@ -1746,7 +1746,7 @@ int _V_PUSH2(RS_STACKDATA *stack, int argc) {
         }
 
         return 1;
-    } else if (stack->type == (int) RS_FLOAT) {
+    } else if (stack->type == RS_FLOAT) {
         if (index < MONSTER_VAR2_MAX) {
             float           value = GetStackFloat(stack);
             ScriptVariable *vars = nowMonster->secondary_script_vars;
@@ -1915,7 +1915,7 @@ int _SET_DMG2(RS_STACKDATA *stack, int argc) {
     }
 
     frame_b = NULL;
-    object = nowMonster->GetEntryObjectPos(3, index_a, pos);
+    object = nowMonster->GetEntryObjectPos(CHARA_ENTRY_GROUP_DAMAGE, index_a, pos);
 
     if (object == NULL) {
         return 0;
@@ -1928,7 +1928,7 @@ int _SET_DMG2(RS_STACKDATA *stack, int argc) {
     }
 
     if (index_b >= 0) {
-        object = nowMonster->GetEntryObjectPos(3, index_b, pos);
+        object = nowMonster->GetEntryObjectPos(CHARA_ENTRY_GROUP_DAMAGE, index_b, pos);
 
         if (object != NULL) {
             frame_b = object->frame;
@@ -2043,7 +2043,7 @@ int _LINK_MAP_TO_OBJECT(RS_STACKDATA *stack, int argc) {
         return 0;
     }
 
-    nowMonster->link_type = (int) MONSTER_LINK_PARTS;
+    nowMonster->link_type = MONSTER_LINK_PARTS;
     return 1;
 }
 
@@ -2075,7 +2075,7 @@ int _LINK_OBJECT_TO_PIECE(RS_STACKDATA *stack, int argc) {
         return 0;
     }
 
-    nowMonster->link_type = (int) MONSTER_LINK_PIECE;
+    nowMonster->link_type = MONSTER_LINK_PIECE;
     return 1;
 }
 
@@ -3064,7 +3064,7 @@ int _GET_RANGE_MONS_ID(RS_STACKDATA *stack, int argc) {
         CActiveMonster *other;
 
         if ((other = (CActiveMonster *) nowScene->GetCharacter(i + 24)) != NULL &&
-            other->chara_kind == (int) ACTION_KIND_SCRIPT && nowMonster->chara_type != other->chara_type) {
+            other->chara_kind == ACTION_KIND_SCRIPT && nowMonster->chara_type != other->chara_type) {
             other->GetPosition(other_pos);
             float distance = mgDistVector(self_pos, other_pos);
 
@@ -3217,11 +3217,11 @@ int _SET_DEAD_START(RS_STACKDATA *args, int argc) {
         money_rate += 0.3f;
     }
 
-    if (nowMonster->last_hit_attr & 0x1) {
+    if (nowMonster->last_hit_attr & WEAPON_SPECIAL_WEALTH) {
         money_rate += 0.3f;
     }
 
-    if (nowMonster->last_hit_attr & 0x2) {
+    if (nowMonster->last_hit_attr & WEAPON_SPECIAL_LESS_MONEY) {
         money_rate -= 0.3f;
     }
 
@@ -3407,7 +3407,7 @@ int _SET_DEAD_OFF(RS_STACKDATA *args, int argc) {
     experience = nowMonster->reward_exp;
     pickup_count = 0;
 
-    if (nowMonster->last_hit_attr & 0x800) {
+    if (nowMonster->last_hit_attr & WEAPON_SPECIAL_ABS_UP) {
         float bonus = 1.2f;
         experience = (int) ((float) experience * bonus);
     }
@@ -3476,7 +3476,7 @@ int _SET_SHROW_END(RS_STACKDATA *stack, int argument_count) {
         return 0;
     }
 
-    nowMonster->catch_state = 0;
+    nowMonster->catch_state = ACTION_CATCH_NONE;
     return 1;
 }
 
@@ -3826,7 +3826,7 @@ int _ESM_CREATE(RS_STACKDATA *stack, int argc) {
  */
 int _ESM_FINISH(RS_STACKDATA *stack, int argc) {
     int effect_id = nowMonster->chara_type;
-    return ActiveMonster->effect_man->SetScriptProgNo(300, effect_id, GetStackInt(stack));
+    return ActiveMonster->effect_man->SetScriptProgNo(EFFECT_SCRIPT_PROG_FINISH, effect_id, GetStackInt(stack));
 }
 
 /**
@@ -3994,11 +3994,11 @@ int _ESM_SET_VALUE(RS_STACKDATA *stack, int argc) {
     index = GetStackInt(stack++);
 
     switch (stack->type) {
-        case (int) RS_INT:
+        case RS_INT:
             result =
                 ActiveMonster->effect_man->SetValue(index, GetStackInt(stack), group, slot);
             break;
-        case (int) RS_FLOAT:
+        case RS_FLOAT:
             result =
                 ActiveMonster->effect_man->SetValue(index, GetStackFloat(stack), group, slot);
             break;
@@ -4023,7 +4023,7 @@ int _LOAD_EFFECT_SCRIPT(RS_STACKDATA *stack, int argc) {
     memory = nowScene->GetStack(3);
 
     switch (stack->type) {
-        case (int) RS_INT: {
+        case RS_INT: {
             int base_no = GetStackInt(stack++);
 
             if (argc >= 2) {
@@ -4033,7 +4033,7 @@ int _LOAD_EFFECT_SCRIPT(RS_STACKDATA *stack, int argc) {
             result = ActiveMonster->effect_man->LoadBaseEffSpt(base_no, memory, level);
             break;
         }
-        case (int) RS_STR: {
+        case RS_STR: {
             char *name = GetStackString(stack++);
 
             if (argc >= 2) {
@@ -4434,7 +4434,7 @@ int _GET_NEAR_MONS_POS(RS_STACKDATA *stack, int argument_count) {
         CActiveMonster *other;
 
         if ((other = (CActiveMonster *) nowScene->GetCharacter(i + 24)) != NULL &&
-            other->chara_kind == (int) ACTION_KIND_SCRIPT && nowMonster->chara_type != other->chara_type) {
+            other->chara_kind == ACTION_KIND_SCRIPT && nowMonster->chara_type != other->chara_type) {
             other->GetPosition(other_pos);
 
             if (nearest_dist >= 0.0) {

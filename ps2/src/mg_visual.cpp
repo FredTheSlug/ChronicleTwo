@@ -470,7 +470,7 @@ FACES_ID *mgCVisualMDT::CreateFace(FACES_ID *faces, mgCMemory *memory, mgCMemory
 
     GetTextureManager();
     face = (mgCFace *) memory->Alloc(3);
-    face->vertex_num = faces->face_num;
+    face->vertex_num = faces->vertex_num;
     face->type = faces->type;
     face->index_stride = 3;
 
@@ -1401,12 +1401,12 @@ int mgCVisualMDT::CreateRenderInfoPacket(u_int *packet, float (*matrix)[4], mgRE
     fog_colour |= info->fog.g << 8;
     fog_colour |= info->fog.b << 16;
 
-    if (info->attr->fog > 1) {
-        if (info->attr->fog == 2) {
+    if (info->attr->fog > MG_FOG_SCENE) {
+        if (info->attr->fog == MG_FOG_BLACK) {
             fog_colour = 0;
         }
 
-        if (info->attr->fog == 3) {
+        if (info->attr->fog == MG_FOG_WHITE) {
             fog_colour = 0xFFFFFF;
         }
     }

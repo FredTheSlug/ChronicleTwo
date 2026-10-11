@@ -1359,22 +1359,22 @@ int ClsMes::State() {
     float progress = fade;
 
     if (progress <= 0.0f) {
-        return (int) CLSMES_CLOSED;
+        return CLSMES_CLOSED;
     }
 
     if (0.0f < progress && progress < 1.0f) {
-        return open != 0 ? (int) CLSMES_OPENING : (int) CLSMES_CLOSING;
+        return open != 0 ? CLSMES_OPENING : CLSMES_CLOSING;
     }
 
     if (page_wait != 0) {
-        return (int) CLSMES_PAGE_WAIT;
+        return CLSMES_PAGE_WAIT;
     }
 
     if (reveal_num >= char_num) {
-        return (int) CLSMES_SHOWN;
+        return CLSMES_SHOWN;
     }
 
-    return scroll_wait != 0 ? (int) CLSMES_SCROLLING : (int) CLSMES_REVEALING;
+    return scroll_wait != 0 ? CLSMES_SCROLLING : CLSMES_REVEALING;
 }
 
 void ClsMes::GoNextPage() {
@@ -1397,7 +1397,7 @@ int ClsMes::MyTextureMake_sub() {
             } else if (voice_type == 2) {
                 sndSePlay(SystemSND_ID, 6, voice_cnt % 2);
             } else {
-                sndSePlay(SystemSND_ID, 5, voice_cnt % 2);
+                sndSePlay(SystemSND_ID, SYSTEM_SE_CANCEL, voice_cnt % 2);
             }
 
             voice_cnt += 1;

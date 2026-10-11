@@ -76,8 +76,9 @@ there is no `port/`, no `CMakePresets.json`, no `tools/windows/`, no
 Chronicle's pin `aa436b5`) has `port_override.py`, `include/kazarov/port.h`
 (`PORT_INIT/RETURN/FIX`, the empty `PORT_OVERRIDE` marker) and a container
 image with clang/lld 23, SDL3, Vulkan, Mesa lavapipe, glslang and GoogleTest.
-Kazarov holds no host code yet: Chronicle's renderer, audio and platform
-layers are in `Chronicle/port/src/{gfx,audio,platform,sce,stubs}`.
+Since Phase 0 (pin `0d72aa1`), Kazarov holds the shared host code in
+`tools/kazarov/port/{gfx,audio,platform,sce,tests}` and
+`cmake/KazarovPort.cmake`, and Chronicle consumes it from there.
 
 Facts from the four surveys that shape the plan:
 
@@ -548,6 +549,65 @@ in ChronicleTwo's `port/` depends on copies.
 
 Phase 0 parallel groups: {0.1, 0.2} then {0.3} then {0.4, 0.5}. ChronicleTwo's
 WP1.5 (ps2/ guards) may run during phase 0.
+
+**Phase 0 status: done.** Kazarov `main` is `0d72aa1`; Chronicle `master`
+is `c67a87c1`; both games pin Kazarov `0d72aa1`.
+- WP0.1 landed as Chronicle `588519a4`.
+  `RendererConfig{app_name, logical_width, logical_height, display_aspect}`
+  plus `gfx::LogicalWidth/Height/Frame()`. The game's own 640x480 constants
+  are `kScreenWidth/Height` in `port/src/screen.hpp`. The default
+  `DrawState::scissor_rect` is infinite, meaning the whole frame, because
+  `DrawState`s are built before `RendererInit`. `kUiAnchorThirds` was
+  unused and is gone.
+- WP0.2 landed as Chronicle `3faa756d` and `38717527`.
+  - `platform/settings.hpp` holds `HostSettings`, and Chronicle's `Config`
+    derives from it.
+  - The game defines `SettingsGet()` and `SettingsChange()`.
+  - `DisplayApply` takes the game's change as a callable.
+  - Identity is set by the game's `GameSetIdentity()`, through three calls:
+    `SettingsSetEnvPrefix` (`SettingsEnv("AUDIO")` reads `DC_AUDIO`),
+    `PathsConfigure{app_dir, env_data, env_save}` and
+    `WindowSetIdentity{title, app_id, icon}`.
+  - Deviation: the plan's `WindowConfig{title, app_id, icon}` became a
+    separate `WindowIdentity`, because `WindowConfig` already describes a
+    window mode. The env prefix is not a field of the settings struct,
+    because identity does not belong in config.json.
+- WP0.3 is Kazarov `0d72aa1`, fast-forwarded onto `main` (no PR, no
+  `shared` branch upstream).
+  - New: `port/{gfx,audio,platform,sce,sce/stubs,tests}`,
+    `cmake/KazarovPort.cmake`, `PS2_UNIMPLEMENTED` in `kazarov/port.h`,
+    and the `tests/cmake/test_port.py` fixture. Its host library builds in
+    the container.
+  - pytest: 76 passed, 14 skipped.
+  - Deviation: these tests stay in Chronicle because they need game code:
+    `platform_arena`, `platform_mouse_look`, `platform_pad`, `dualsense`,
+    the config and shipped-asset cases of `glyphs`, and the
+    `darkcloud`-binary case of `paths_xdg`.
+  - Shared tests read their env vars through `SettingsEnv`, so
+    Chronicle's `DC_GFX_OFFSCREEN` and `DC_TEST_FONT` keep working.
+    Chronicle's ctest sets `DC_TEST_FONT`.
+  - Open: the overlay's bitmap font (`port/platform/overlay_font.inc`,
+    the Dark Cloud Compendium Community Font) is now in MIT Kazarov, and
+    its licence has to be confirmed.
+- WP0.4 landed as Chronicle `c67a87c1` "Kazarov: consume the shared port
+  code".
+  - The work was done in a separate worktree and branch, `phase0`. The
+    other session's uncommitted lighting work (bloom, motion, ray tracing,
+    Streamline) on Chronicle's `shared-port` still has `port/src/gfx`. It
+    must be rebased onto the Kazarov layout: its renderer changes go into
+    Kazarov `port/gfx`.
+  - The four game-side platform units now compile in `dc_port`, with
+    `port.h` force-included.
+  - The game's remaining paths case moved to the `PathsXdgDarkcloud`
+    fixture, so its name does not collide with Kazarov's `PathsXdg`.
+  - Verified:
+    - `linux-x64` ctest: 281/281 (2 skips, as before).
+    - Headless screenshots: 9/9 byte-identical to the pre-Phase-0 build.
+    - `windows-x64` built; its tests passed 287/287 (1 skip).
+    - `ps2-pal`: 100% matching.
+  - Not run: `ps2-ntsc` (no NTSC image on this machine), macOS, and
+    `pc.yml` CI.
+- WP0.5: ChronicleTwo pins Kazarov `0d72aa1`. `ps2-pal` still matches.
 
 ### Phase 1: compile, link, launch, abort loudly
 

@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <charconv>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -63,9 +64,8 @@ inline std::string FoldPath(std::string_view path) {
     return out;
 }
 
-// The on-disk name of a game path, the same on every platform. Bytes >= 0x80 (Shift-JIS) and '%' are
-// percent-encoded so every name is ASCII and stays reversible. The port's IndexKey applies this rule
-// too; its test checks the two agree.
+// Bytes >= 0x80 (Shift-JIS) and '%' are percent-encoded so every on-disk name is ASCII on every platform
+// and stays reversible.
 inline std::string DiskName(std::string_view path) {
     std::string out;
     out.reserve(path.size());
@@ -475,6 +475,7 @@ struct Summary {
     std::size_t   kept = 0;
     std::uint64_t written_bytes = 0;
     std::size_t   removed = 0;
+    std::size_t   verified = 0;
     bool          manifest_changed = false;
 };
 
@@ -497,13 +498,26 @@ inline void WriteText(const fs::path &path, const std::string &text) {
     }
 }
 
-// Writes through a temporary name so that a file of the right size is always a complete one.
-inline void CopyExtent(const Extent &source, const fs::path &target, std::vector<unsigned char> &chunk) {
-    fs::create_directories(target.parent_path());
+// Writes through a temporary name so that a file of the right size is always a complete one. The
+// temporary is removed on any failure, the rename included.
+template <class Write>
+void Publish(const fs::path &target, Write &&write) {
     fs::path temp = target;
     temp += ".dc2tmp";
     try {
-        Reader reader(source.file);
+        write(temp);
+        fs::rename(temp, target);
+    } catch (...) {
+        std::error_code error;
+        fs::remove(temp, error);
+        throw;
+    }
+}
+
+inline void CopyExtent(const Extent &source, const fs::path &target, std::vector<unsigned char> &chunk) {
+    fs::create_directories(target.parent_path());
+    Publish(target, [&](const fs::path &temp) {
+        Reader        reader(source.file);
         std::ofstream file(temp, std::ios::binary | std::ios::trunc);
         if (!file) {
             Fail("cannot create {}", temp.string());
@@ -521,12 +535,7 @@ inline void CopyExtent(const Extent &source, const fs::path &target, std::vector
         if (!file) {
             Fail("write error on {}", temp.string());
         }
-    } catch (...) {
-        std::error_code error;
-        fs::remove(temp, error);
-        throw;
-    }
-    fs::rename(temp, target);
+    });
 }
 
 struct Planned {
@@ -548,42 +557,52 @@ inline void Place(const Planned &entry, const fs::path &out, std::vector<unsigne
     summary.written_bytes += entry.source.size;
 }
 
-// The game paths the previous extraction listed, one per manifest line after its size and tab.
-inline std::vector<std::string> ReadManifest(const fs::path &out) {
-    std::vector<std::string> rels;
-    fs::path                 path = out / "manifest.txt";
-    std::error_code          error;
+struct ManifestEntry {
+    std::uint64_t size = 0;
+    std::string   path;
+};
+
+inline std::vector<ManifestEntry> ReadManifest(const fs::path &out) {
+    std::vector<ManifestEntry> entries;
+    fs::path                   path = out / "manifest.txt";
+    std::error_code            error;
     if (!fs::is_regular_file(path, error)) {
-        return rels;
+        return entries;
     }
     std::string text = ReadText(path);
     std::size_t start = 0;
-    while (start < text.size()) {
+    for (std::size_t number = 1; start < text.size(); number++) {
         std::size_t      end = std::min(text.find('\n', start), text.size());
         std::string_view line(text.data() + start, end - start);
-        if (std::size_t tab = line.find('\t'); tab != std::string_view::npos) {
-            rels.emplace_back(line.substr(tab + 1));
+        std::size_t      tab = line.find('\t');
+        if (tab == std::string_view::npos) {
+            Fail("{}: manifest line {} has no tab: \"{}\"", path.string(), number, line);
         }
+        std::string_view      digits = line.substr(0, tab);
+        std::string_view      rel = line.substr(tab + 1);
+        std::uint64_t         size = 0;
+        std::from_chars_result parsed = std::from_chars(digits.data(), digits.data() + digits.size(), size);
+        if (parsed.ec != std::errc() || parsed.ptr != digits.data() + digits.size() || !IsSafeRelative(rel)) {
+            Fail("{}: manifest line {} is malformed: \"{}\"", path.string(), number, line);
+        }
+        entries.push_back({size, std::string(rel)});
         start = end + 1;
     }
-    return rels;
+    return entries;
 }
 
 // Removes what the previous manifest listed and this extraction no longer writes. Only listed paths are
-// touched; the current names are never removed, and the raw name of a listed path is removed too, since
-// earlier builds on Linux wrote Shift-JIS names unencoded.
-inline std::size_t RemoveStale(const fs::path &out, const std::vector<std::string> &previous,
+// touched; the current names are never removed. Each listed path is tried as written and as its disk
+// name, because manifests from earlier builds list raw Shift-JIS names.
+inline std::size_t RemoveStale(const fs::path &out, const std::vector<ManifestEntry> &previous,
                                const std::vector<Planned> &plan) {
     std::unordered_set<std::string> current_disk;
     for (const Planned &entry : plan) {
         current_disk.insert(DiskName(entry.rel));
     }
     std::size_t removed = 0;
-    for (const std::string &rel : previous) {
-        if (!IsSafeRelative(rel)) {
-            continue;
-        }
-        for (const std::string &name : {DiskName(rel), rel}) {
+    for (const ManifestEntry &old : previous) {
+        for (const std::string &name : {DiskName(old.path), old.path}) {
             if (current_disk.contains(name)) {
                 continue;
             }
@@ -601,15 +620,41 @@ inline std::size_t RemoveStale(const fs::path &out, const std::vector<std::strin
 inline bool WriteManifest(const fs::path &out, const std::vector<Planned> &plan) {
     std::string text;
     for (const Planned &entry : plan) {
-        text += std::format("{}\t{}\n", entry.source.size, entry.rel);
+        text += std::format("{}\t{}\n", entry.source.size, DiskName(entry.rel));
     }
     fs::path path = out / "manifest.txt";
     std::error_code error;
     if (fs::is_regular_file(path, error) && ReadText(path) == text) {
         return false;
     }
-    WriteText(path, text);
+    Publish(path, [&](const fs::path &temp) { WriteText(temp, text); });
     return true;
+}
+
+struct CheckReport {
+    std::size_t              checked = 0;
+    std::vector<std::string> problems;
+};
+
+inline CheckReport CheckManifest(const fs::path &out) {
+    std::error_code error;
+    if (!fs::is_regular_file(out / "manifest.txt", error)) {
+        Fail("{} holds no manifest.txt", out.string());
+    }
+    CheckReport report;
+    for (const ManifestEntry &entry : ReadManifest(out)) {
+        report.checked++;
+        fs::path      file = out / fs::path(entry.path);
+        std::error_code status;
+        bool          regular = fs::is_regular_file(file, status);
+        std::uint64_t found = regular ? fs::file_size(file, status) : 0;
+        if (!regular || status) {
+            report.problems.push_back(std::format("missing {}", entry.path));
+        } else if (found != entry.size) {
+            report.problems.push_back(std::format("size {}: expected {}, found {}", entry.path, entry.size, found));
+        }
+    }
+    return report;
 }
 
 inline Summary Extract(const Archive &archive, const fs::path &out, std::FILE *log) {
@@ -620,9 +665,13 @@ inline Summary Extract(const Archive &archive, const fs::path &out, std::FILE *l
     std::vector<const Record *> reachable = Reachable(records, log, &summary.duplicates);
     summary.files = reachable.size();
 
-    std::vector<Planned> plan;
+    std::vector<Planned>            plan;
     std::unordered_set<std::string> targets;
     auto add = [&](std::string rel, Extent source) {
+        std::string disk = DiskName(rel);
+        if (disk == "manifest.txt" || disk.ends_with(".dc2tmp")) {
+            Fail("{} would be written as {}, which the extractor reserves", rel, disk);
+        }
         if (!targets.insert(rel).second) {
             Fail("{} would be written twice", rel);
         }
@@ -638,7 +687,7 @@ inline Summary Extract(const Archive &archive, const fs::path &out, std::FILE *l
     add("sound/sound.dat", archive.sound_dat);
     add("sound/sound.hd3", archive.sound_hd3);
 
-    std::vector<std::string> previous = ReadManifest(out);
+    std::vector<ManifestEntry> previous = ReadManifest(out);
     fs::create_directories(out);
     std::vector<unsigned char> chunk(kChunkSize);
     for (const Planned &entry : plan) {
@@ -646,6 +695,12 @@ inline Summary Extract(const Archive &archive, const fs::path &out, std::FILE *l
     }
     summary.removed = RemoveStale(out, previous, plan);
     summary.manifest_changed = WriteManifest(out, plan);
+
+    CheckReport report = CheckManifest(out);
+    if (!report.problems.empty()) {
+        Fail("verification failed: {}", report.problems.front());
+    }
+    summary.verified = report.checked;
     return summary;
 }
 

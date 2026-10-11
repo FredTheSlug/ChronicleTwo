@@ -4,11 +4,13 @@
 
 #include <string>
 
+#include "platform/clock.hpp"
 #include "sce/threads.hpp"
 
 namespace {
 
 std::string g_log;
+int         g_pump_hook_runs = 0;
 
 constexpr int kPriority = 10;
 
@@ -41,6 +43,52 @@ void OnceAfterWait(void *sema) {
     g_log += 'w';
     WaitSema(*static_cast<int *>(sema));
     g_log += 'W';
+}
+
+void AppendTOnce(void *) {
+    g_log += 'T';
+}
+
+void RotateForever(void *) {
+    for (;;) {
+        RotateThreadReadyQueue(kPriority);
+    }
+}
+
+void RotateInPumpHook() {
+    ++g_pump_hook_runs;
+    RotateThreadReadyQueue(kPriority);
+}
+
+int RotateOnTickCallback(int) {
+    RotateThreadReadyQueue(kPriority);
+    return 0;
+}
+
+void PumpWithSwitchingPumpHook() {
+    KzThreadsSetMainPriority(kPriority);
+    ClockSetUnbounded(true);
+    ClockReset();
+
+    ThreadParam param = Param(RotateForever, kPriority);
+    const int   id = CreateThread(&param);
+    StartThread(id, nullptr);
+
+    ClockAddPumpHook(RotateInPumpHook);
+    ClockPump();
+}
+
+void PumpWithSwitchingTickCallback() {
+    KzThreadsSetMainPriority(kPriority);
+    ClockSetUnbounded(true);
+    ClockReset();
+
+    ThreadParam param = Param(RotateForever, kPriority);
+    const int   id = CreateThread(&param);
+    StartThread(id, nullptr);
+
+    ClockSetTickCallback(RotateOnTickCallback);
+    ClockPump();
 }
 
 } // namespace
@@ -127,6 +175,61 @@ TEST(EeKernelThreads, WaitSemaBlocksUntilAnotherThreadSignals) {
 
     EXPECT_EQ(g_log, "mwMSWx");
     EXPECT_EQ(DeleteThread(waiter), 0);
+    EXPECT_EQ(DeleteSema(sema), 0);
+}
+
+TEST(EeKernelThreads, SwitchFromPumpHookAborts) {
+    EXPECT_DEATH(PumpWithSwitchingPumpHook(), "thread switch inside ClockPump");
+}
+
+TEST(EeKernelThreads, SwitchFromTickCallbackAborts) {
+    EXPECT_DEATH(PumpWithSwitchingTickCallback(), "thread switch inside ClockPump");
+}
+
+TEST(EeKernelThreads, RotateInsidePumpWithNothingReadyDoesNotSwitch) {
+    KzThreadsSetMainPriority(kPriority);
+    ClockSetUnbounded(true);
+    ClockReset();
+    g_pump_hook_runs = 0;
+
+    ClockAddPumpHook(RotateInPumpHook);
+    ClockPump();
+    ClockRemovePumpHook(RotateInPumpHook);
+
+    EXPECT_EQ(g_pump_hook_runs, 1);
+}
+
+// The sound manager guards main-only sections with a binary semaphore. An uncontended pair must never yield,
+// or a ready thread would run in the middle of the update.
+TEST(EeKernelThreads, BinarySemaphoreAroundMainOnlyNeverSwitches) {
+    KzThreadsSetMainPriority(kPriority);
+    g_log.clear();
+
+    SemaParam sp{};
+    sp.maxCount = 1;
+    sp.initCount = 1;
+    const int sema = CreateSema(&sp);
+    ASSERT_GT(sema, 0);
+
+    ThreadParam param = Param(AppendTOnce, kPriority);
+    const int   t = CreateThread(&param);
+    ASSERT_EQ(StartThread(t, nullptr), t);
+
+    int mismatches = 0;
+    for (int i = 0; i < 100; ++i) {
+        if (WaitSema(sema) != sema) {
+            ++mismatches;
+        }
+        if (SignalSema(sema) != sema) {
+            ++mismatches;
+        }
+    }
+    EXPECT_EQ(mismatches, 0);
+    EXPECT_EQ(g_log.find('T'), std::string::npos);
+
+    RotateThreadReadyQueue(kPriority);
+    EXPECT_EQ(g_log, "T");
+    EXPECT_EQ(DeleteThread(t), 0);
     EXPECT_EQ(DeleteSema(sema), 0);
 }
 

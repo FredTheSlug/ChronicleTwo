@@ -1,19 +1,22 @@
 #include "common.h"
 
 #include "mglib.hpp"
+#include "stubs/mglib.hpp"
 
 #include <eekernel.h>
 
+#include <chrono>
+
 #include "platform/clock.hpp"
 
-// The retail VSync group's statics (vcount, VSyncCallBack2, rot_priority, call_back_active, old_vcount,
-// over_vsync) are read only by functions this port replaces, so the state lives here. VSyncField is the one
-// global the rest of the game reads; it is written in place.
+// The VSync count is ClockTickCount(). Only the secondary callback and the rotate priority are kept here.
+// VSyncField is the one global the game reads; it is written in place.
 
 namespace {
 
 int (*g_secondary_callback)(int) = nullptr;
 int   g_rotate_priority = -1;
+std::chrono::steady_clock::time_point g_frame_begin;
 
 } // namespace
 
@@ -45,4 +48,13 @@ PORT_OVERRIDE void WaitVSync(int start, int frames) {
 
 PORT_OVERRIDE int mgGetVSyncCount() {
     return static_cast<int>(ClockTickCount());
+}
+
+void mgTimeFrameBegin() {
+    g_frame_begin = std::chrono::steady_clock::now();
+}
+
+float mgTimeFrameFields() {
+    const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - g_frame_begin;
+    return static_cast<float>(elapsed.count() * ClockTickRate());
 }

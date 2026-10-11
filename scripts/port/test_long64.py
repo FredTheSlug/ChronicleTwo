@@ -96,6 +96,22 @@ class LongKeywordTests(unittest.TestCase):
     def test_angle_bracket_comparison_not_header(self):
         self.assertEqual(rewrite("if (a < b) long x;"), "if (a < b) long long x;")
 
+    def test_signed_long_rewritten(self):
+        self.assertEqual(rewrite("signed long x;"), "signed long long x;")
+
+    def test_conversion_operator_rewritten(self):
+        self.assertEqual(rewrite("operator long() const;"), "operator long long() const;")
+
+    def test_define_continuation_rewritten(self):
+        self.assertEqual(rewrite("#define A(x) \\\n  long x\n"), "#define A(x) \\\n  long long x\n")
+
+    def test_long_at_line_end_followed_by_identifier_prefix(self):
+        self.assertEqual(rewrite("unsigned long\nlong_t x;"), "unsigned long long\nlong_t x;")
+
+    def test_long_inside_attribute_rewritten_like_keyword(self):
+        self.assertEqual(rewrite("__attribute__((aligned(sizeof(long)))) long x;"),
+                         "__attribute__((aligned(sizeof(long long)))) long long x;")
+
     def test_newlines_preserved(self):
         src = "long a;\n\n// c\r\n/* x\n */\nlong b;\n"
         out = rewrite(src)
@@ -273,6 +289,18 @@ class FormatStringTests(unittest.TestCase):
     def test_format_and_long_keyword_together(self):
         self.assertEqual(rewrite('long x = 1UL; printf("%lu", x);'),
                          'long long x = 1ULL; printf("%llu", x);')
+
+    def test_wide_string_format_widened(self):
+        self.assertEqual(rewrite('wprintf(L"%ld", v);'), 'wprintf(L"%lld", v);')
+
+    def test_adjacent_concatenation_not_widened(self):
+        # Known limitation: a conversion split across string tokens is not widened. No game source does this.
+        src = 'printf("%" "lu", x);'
+        self.assertEqual(rewrite(src), src)
+
+    def test_mips_lo_relocation_in_asm_untouched(self):
+        src = 'asm("addiu $t0, $t0, %lo(sym)");'
+        self.assertEqual(rewrite(src), src)
 
 
 if __name__ == "__main__":

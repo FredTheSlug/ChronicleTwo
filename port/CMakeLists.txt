@@ -91,8 +91,9 @@ foreach(unit IN LISTS PS2_SOURCES)
     add_custom_command(OUTPUT ${copy}
         COMMAND ${Python3_EXECUTABLE} ${PORT_OVERRIDE_SCRIPT} strip --overrides ${PORT_OVERRIDES} ${stubs}
             ${port_override_defines} ${PS2_DIR}/${unit} ${copy}
+        COMMAND ${Python3_EXECUTABLE} ${HEADER_FIXUPS_SCRIPT} --unit ${copy}
         COMMAND ${Python3_EXECUTABLE} ${LONG64_SCRIPT} ${copy}
-        DEPENDS ${PS2_DIR}/${unit} ${PORT_OVERRIDES} ${PORT_OVERRIDE_SOURCES} ${PORT_OVERRIDE_SCRIPT} ${LONG64_SCRIPT} ${header}
+        DEPENDS ${PS2_DIR}/${unit} ${PORT_OVERRIDES} ${PORT_OVERRIDE_SOURCES} ${PORT_OVERRIDE_SCRIPT} ${LONG64_SCRIPT} ${HEADER_FIXUPS_SCRIPT} ${header}
         COMMENT "Removing overridden definitions from ps2/src/${unit}"
         VERBATIM)
     list(APPEND PS2_UNITS ${copy})
@@ -170,7 +171,8 @@ target_compile_options(ct_port PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-la
 # port/include/stubs, so no symbol is defined twice. The executable is position-independent on every
 # platform: no game object has to sit below 4 GiB, because pointer-to-32-bit casts are widened in port/src.
 if(WIN32)
-    # COFF has no weak/strong resolution: inline and out-of-line header copies collide.
+    # Guard only: COFF cannot resolve a strong definition against COMDAT copies of a header or unit.
+    # header_fixups.py removes the known ones; the flag tolerates any that remain.
     set(CT_LINK_OPTIONS -fuse-ld=lld -Wl,--gc-sections -Wl,--error-limit=0 -Wl,--allow-multiple-definition)
 elseif(APPLE)
     set(CT_LINK_OPTIONS -Wl,-dead_strip)

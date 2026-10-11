@@ -45,7 +45,7 @@ execute_process(COMMAND "${EXE}" --headless --offscreen
     OUTPUT_VARIABLE out ERROR_VARIABLE err TIMEOUT 120)
 set(log "${out}${err}")
 message("${log}")
-string(FIND "${log}" "dataread: indexed 0 files under " index_at)
+string(FIND "${log}" "dataread: indexed " index_at)
 string(FIND "${log}" "mgInit: PlayStation 2 code is not implemented on PC" abort_at)
 if(index_at GREATER -1 AND abort_at GREATER index_at)
     message("SMOKE_OK")

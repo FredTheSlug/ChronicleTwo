@@ -22,7 +22,8 @@ _HEADER_DIRECTIVES = ("include", "include_next", "import")
 _HEADER_OPERATORS = ("__has_include", "__has_include_next")
 _WS = " \t\r\n\f\v"
 # Consumes "%%" first so a literal percent never begins a conversion.
-_FORMAT_LONG = re.compile(r"(%%)|(%[-+ #0]*(?:\*|\d+)?(?:\.(?:\*|\d*))?)l(?=[diouxXn])")
+# "%lo(" is the MIPS %lo() relocation operator in asm strings, not an octal conversion.
+_FORMAT_LONG = re.compile(r"(%%)|(%[-+ #0]*(?:\*|\d+)?(?:\.(?:\*|\d*))?)l(?=[diouxXn])(?!o\()")
 
 
 def _is_ident(ch: str) -> bool:

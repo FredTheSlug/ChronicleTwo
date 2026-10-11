@@ -1,8 +1,7 @@
 #include "common.h"
 
-#include <cmath>
-
 #include "editcoll.hpp"
+#include "vu0_lanes.hpp"
 
 // Retail's status register keeps a sticky sign bit that the two XZ separations set; overlap means no
 // separation came out negative.
@@ -15,7 +14,7 @@ int ClipBoxXZ(float *max_a, float *min_a, float *max_b, float *min_b) {
     };
 
     for (float lane : separation) {
-        if (std::signbit(lane)) {
+        if (vu0::SignSet(lane)) {
             return 0;
         }
     }

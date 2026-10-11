@@ -1,36 +1,15 @@
 #include "common.h"
 
+#include <libvu0.h>
+
 #include "mg_math.hpp"
 #include "stubs/mg_math.hpp"
-
-#include <cfloat>
-#include <climits>
-#include <cmath>
+#include "vu0_lanes.hpp"
 
 namespace {
 
-float lane_max(float a, float b) { return b > a ? b : a; }
-float lane_min(float a, float b) { return b < a ? b : a; }
-
 // Retail adds vf0.x (+0) to every lane it copies, which turns -0 into +0.
 float add_vf0x(float v) { return v + 0.0f; }
-
-// NaN has no verified VU result; it takes the x86 cvttss2si value so the C cast stays defined.
-int float_to_int_trunc(float v) {
-    if (std::isnan(v)) {
-        return INT_MIN;
-    }
-    if (v >= 2147483648.0f) {
-        return INT_MAX;
-    }
-    if (v < -2147483648.0f) {
-        return INT_MIN;
-    }
-    return static_cast<int>(v);
-}
-
-// Retail clip tests read the sticky sign bit of the status flag, so -0 counts as negative.
-bool sign_set(float v) { return std::signbit(v); }
 
 const int kLanesXYZ[3] = {0, 1, 2};
 const int kLanesXYW[3] = {0, 1, 3};
@@ -38,7 +17,7 @@ const int kLanesXYW[3] = {0, 1, 3};
 int clip_box_overlap(const int *lanes, float *max0, float *min0, float *max1, float *min1) {
     for (int i = 0; i < 3; i++) {
         const int l = lanes[i];
-        if (sign_set(max0[l] - min1[l]) || sign_set(max1[l] - min0[l])) {
+        if (vu0::SignSet(max0[l] - min1[l]) || vu0::SignSet(max1[l] - min0[l])) {
             return 0;
         }
     }
@@ -48,7 +27,7 @@ int clip_box_overlap(const int *lanes, float *max0, float *min0, float *max1, fl
 int clip_box_inside(const int *lanes, float *max0, float *min0, float *max1, float *min1) {
     for (int i = 0; i < 3; i++) {
         const int l = lanes[i];
-        if (sign_set(max1[l] - max0[l]) || sign_set(min0[l] - min1[l])) {
+        if (vu0::SignSet(max1[l] - max0[l]) || vu0::SignSet(min0[l] - min1[l])) {
             return 0;
         }
     }
@@ -74,16 +53,6 @@ void mat_mul(float out[4][4], const float a[4][4], const float b[4][4]) {
     }
 }
 
-void transform_row(float out[4], const float v[4], const float m[4][4]) {
-    float r[4];
-    for (int k = 0; k < 4; k++) {
-        r[k] = ((m[0][k] * v[0] + m[1][k] * v[1]) + m[2][k] * v[2]) + m[3][k] * v[3];
-    }
-    for (int k = 0; k < 4; k++) {
-        out[k] = r[k];
-    }
-}
-
 void copy_matrix(float dst[4][4], float (*src)[4]) {
     for (int r = 0; r < 4; r++) {
         for (int k = 0; k < 4; k++) {
@@ -97,12 +66,8 @@ float squared_sum3(float x, float y, float z) { return (x * x + y * y) + z * z; 
 } // namespace
 
 void mgFotI4(int *out, float *in) {
-    int r[4];
     for (int i = 0; i < 4; i++) {
-        r[i] = float_to_int_trunc(in[i] * 16.0f);
-    }
-    for (int i = 0; i < 4; i++) {
-        out[i] = r[i];
+        out[i] = vu0::Ftoi4(in[i]);
     }
 }
 
@@ -135,7 +100,7 @@ void mgZeroVectorW(float *vector) {
 
 int mgClipBoxVertex(float *point, float *max, float *min) {
     for (int i = 0; i < 3; i++) {
-        if (sign_set(max[i] - point[i]) || sign_set(point[i] - min[i])) {
+        if (vu0::SignSet(max[i] - point[i]) || vu0::SignSet(point[i] - min[i])) {
             return 0;
         }
     }
@@ -171,20 +136,16 @@ void mgSubVector(float *vector, float *sub) {
 }
 
 void mgNormalizeVector(float *out, float *in, float length) {
-    // Follows the SDK sceVu0Normalize: unit w is 0, and a zero vector stays zero because the
-    // reciprocal saturates to FLT_MAX instead of becoming infinity.
-    const float len = std::sqrt(squared_sum3(in[0], in[1], in[2]));
-    const float scale = len == 0.0f ? FLT_MAX : 1.0f / len;
-    const float unit[4] = {in[0] * scale, in[1] * scale, in[2] * scale, 0.0f};
-    for (int i = 0; i < 4; i++) {
-        out[i] = unit[i] * length;
-    }
+    sceVu0FVECTOR unit;
+
+    sceVu0Normalize(unit, in);
+    sceVu0ScaleVector(out, unit, length);
 }
 
 void mgVectorMin(float *min, float *a, float *b) {
     float r[4];
     for (int i = 0; i < 4; i++) {
-        r[i] = lane_min(a[i], b[i]);
+        r[i] = vu0::Min(a[i], b[i]);
     }
     for (int i = 0; i < 4; i++) {
         min[i] = r[i];
@@ -194,7 +155,7 @@ void mgVectorMin(float *min, float *a, float *b) {
 void mgVectorMin(float *min, float *a, float *b, float *c, float *d) {
     float r[4];
     for (int i = 0; i < 4; i++) {
-        r[i] = lane_min(lane_min(lane_min(a[i], b[i]), c[i]), d[i]);
+        r[i] = vu0::Min(vu0::Min(vu0::Min(a[i], b[i]), c[i]), d[i]);
     }
     for (int i = 0; i < 4; i++) {
         min[i] = r[i];
@@ -205,8 +166,8 @@ void mgVectorMaxMin(float *max, float *min, float *a, float *b) {
     float hi[4];
     float lo[4];
     for (int i = 0; i < 4; i++) {
-        hi[i] = lane_max(a[i], b[i]);
-        lo[i] = lane_min(a[i], b[i]);
+        hi[i] = vu0::Max(a[i], b[i]);
+        lo[i] = vu0::Min(a[i], b[i]);
     }
     for (int i = 0; i < 4; i++) {
         max[i] = hi[i];
@@ -218,8 +179,8 @@ void mgVectorMaxMin(float *max, float *min, float *a, float *b, float *c) {
     float hi[4];
     float lo[4];
     for (int i = 0; i < 4; i++) {
-        hi[i] = lane_max(lane_max(a[i], b[i]), c[i]);
-        lo[i] = lane_min(lane_min(a[i], b[i]), c[i]);
+        hi[i] = vu0::Max(vu0::Max(a[i], b[i]), c[i]);
+        lo[i] = vu0::Min(vu0::Min(a[i], b[i]), c[i]);
     }
     for (int i = 0; i < 4; i++) {
         max[i] = hi[i];
@@ -231,8 +192,8 @@ void mgVectorMaxMin(float *max, float *min, float *a, float *b, float *c, float 
     float hi[4];
     float lo[4];
     for (int i = 0; i < 4; i++) {
-        hi[i] = lane_max(lane_max(lane_max(a[i], b[i]), c[i]), d[i]);
-        lo[i] = lane_min(lane_min(lane_min(a[i], b[i]), c[i]), d[i]);
+        hi[i] = vu0::Max(vu0::Max(vu0::Max(a[i], b[i]), c[i]), d[i]);
+        lo[i] = vu0::Min(vu0::Min(vu0::Min(a[i], b[i]), c[i]), d[i]);
     }
     for (int i = 0; i < 4; i++) {
         max[i] = hi[i];
@@ -246,8 +207,8 @@ void mgBoxMaxMin(mgVu0FBOX *box, mgVu0FBOX *other) {
     for (int i = 0; i < 4; i++) {
         const float a = box->max[i];
         const float b = box->min[i];
-        hi[i] = lane_max(lane_max(lane_max(a, b), other->max[i]), other->min[i]);
-        lo[i] = lane_min(lane_min(lane_min(a, b), other->max[i]), other->min[i]);
+        hi[i] = vu0::Max(vu0::Max(vu0::Max(a, b), other->max[i]), other->min[i]);
+        lo[i] = vu0::Min(vu0::Min(vu0::Min(a, b), other->max[i]), other->min[i]);
     }
     for (int i = 0; i < 4; i++) {
         box->max[i] = hi[i];
@@ -275,11 +236,11 @@ void mgPlaneNormal(float *normal, float *v0, float *v1, float *v2) {
 }
 
 float mgDistVector(float *vector) {
-    return std::sqrt(squared_sum3(vector[0], vector[1], vector[2]));
+    return vu0::Sqrt(squared_sum3(vector[0], vector[1], vector[2]));
 }
 
 float mgDistVectorXZ(float *vector) {
-    return std::sqrt(vector[0] * vector[0] + vector[2] * vector[2]);
+    return vu0::Sqrt(vector[0] * vector[0] + vector[2] * vector[2]);
 }
 
 float mgDistVector2(float *vector) {
@@ -287,13 +248,13 @@ float mgDistVector2(float *vector) {
 }
 
 float mgDistVector(float *a, float *b) {
-    return std::sqrt(squared_sum3(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
+    return vu0::Sqrt(squared_sum3(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
 }
 
 float mgDistVectorXZ(float *a, float *b) {
     const float dx = b[0] - a[0];
     const float dz = b[2] - a[2];
-    return std::sqrt(dx * dx + dz * dz);
+    return vu0::Sqrt(dx * dx + dz * dz);
 }
 
 float mgDistVector2(float *a, float *b) {
@@ -357,11 +318,7 @@ void mgInversMatrix(float (*inverse)[4], float (*matrix)[4]) {
     acc = acc - a[0] * c[1] * b[2];
     acc = acc - b[0] * a[1] * c[2];
     const float det = acc - c[0] * b[1] * a[2];
-    // The VU divide saturates a zero divisor to +/-FLT_MAX rather than infinity.
-    float q = 1.0f / det;
-    if (std::isinf(q)) {
-        q = std::copysign(FLT_MAX, q);
-    }
+    const float q = vu0::Div(1.0f, det);
 
     const float *p[3] = {b, c, a};
     const float *s[3] = {c, a, b};
@@ -375,15 +332,15 @@ void mgInversMatrix(float (*inverse)[4], float (*matrix)[4]) {
     float out[4][4];
     for (int r = 0; r < 3; r++) {
         for (int k = 0; k < 3; k++) {
-            out[r][k] = (0.0f + rows[r][k]) * q;
+            out[r][k] = vu0::Sat((0.0f + rows[r][k]) * q);
         }
-        out[r][3] = 0.0f * q;
+        out[r][3] = vu0::Sat(0.0f * q);
     }
 
     for (int k = 0; k < 3; k++) {
-        float t = out[0][k] * d[0];
-        t = t + out[1][k] * d[1];
-        t = t + out[2][k] * d[2];
+        float t = vu0::Sat(out[0][k] * d[0]);
+        t = vu0::Sat(t + vu0::Sat(out[1][k] * d[1]));
+        t = vu0::Sat(t + vu0::Sat(out[2][k] * d[2]));
         out[3][k] = 0.0f - t;
     }
     out[3][3] = 1.0f;
@@ -392,8 +349,7 @@ void mgInversMatrix(float (*inverse)[4], float (*matrix)[4]) {
 }
 
 void mgApplyMatrixN(float (*out)[4], float (*matrix)[4], float (*in)[4], int count) {
-    // Retail's loop is do-while, so count < 1 still writes one vector past the end of out.
-    // That write is not reproduced.
+    // Retail's do-while touches element 0 (and 1 for the bounds variants) even for count < 1; the port touches nothing outside count.
     if (count < 1) {
         return;
     }
@@ -401,13 +357,13 @@ void mgApplyMatrixN(float (*out)[4], float (*matrix)[4], float (*in)[4], int cou
     copy_matrix(m, matrix);
     for (int i = 0; i < count; i++) {
         const float v[4] = {in[i][0], in[i][1], in[i][2], in[i][3]};
-        transform_row(out[i], v, m);
+        vu0::Transform(out[i], m, v);
     }
 }
 
 void mgApplyMatrixN_MaxMin(float (*out)[4], float (*matrix)[4], float (*in)[4], int count,
                            float *max, float *min) {
-    // Retail reads and writes past the arrays for count < 2; that is not reproduced.
+    // Retail's do-while touches element 0 (and 1 for the bounds variants) even for count < 1; the port touches nothing outside count.
     if (count < 1) {
         return;
     }
@@ -417,7 +373,7 @@ void mgApplyMatrixN_MaxMin(float (*out)[4], float (*matrix)[4], float (*in)[4], 
     float v0[4];
     {
         const float v[4] = {in[0][0], in[0][1], in[0][2], in[0][3]};
-        transform_row(v0, v, m);
+        vu0::Transform(v0, m, v);
         for (int k = 0; k < 4; k++) {
             out[0][k] = v0[k];
         }
@@ -432,11 +388,11 @@ void mgApplyMatrixN_MaxMin(float (*out)[4], float (*matrix)[4], float (*in)[4], 
     for (int i = 1; i < count; i++) {
         const float v[4] = {in[i][0], in[i][1], in[i][2], in[i][3]};
         float r[4];
-        transform_row(r, v, m);
+        vu0::Transform(r, m, v);
         for (int k = 0; k < 4; k++) {
             out[i][k] = r[k];
-            hi[k] = lane_max(hi[k], r[k]);
-            lo[k] = lane_min(lo[k], r[k]);
+            hi[k] = vu0::Max(hi[k], r[k]);
+            lo[k] = vu0::Min(lo[k], r[k]);
         }
     }
 
@@ -447,6 +403,7 @@ void mgApplyMatrixN_MaxMin(float (*out)[4], float (*matrix)[4], float (*in)[4], 
 }
 
 void mgVectorMinMaxN(float *max, float *min, float (*vectors)[4], int count) {
+    // Retail's do-while touches element 0 (and 1 for the bounds variants) even for count < 1; the port touches nothing outside count.
     if (count < 1) {
         return;
     }
@@ -458,8 +415,8 @@ void mgVectorMinMaxN(float *max, float *min, float (*vectors)[4], int count) {
     }
     for (int i = 1; i < count; i++) {
         for (int k = 0; k < 4; k++) {
-            hi[k] = lane_max(hi[k], vectors[i][k]);
-            lo[k] = lane_min(lo[k], vectors[i][k]);
+            hi[k] = vu0::Max(hi[k], vectors[i][k]);
+            lo[k] = vu0::Min(lo[k], vectors[i][k]);
         }
     }
     for (int k = 0; k < 4; k++) {

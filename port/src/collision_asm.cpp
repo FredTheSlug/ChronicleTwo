@@ -5,6 +5,7 @@
 #include "collision.hpp"
 #include "mg_math.hpp"
 #include "stubs/collision.hpp"
+#include "vu0_lanes.hpp"
 
 // Retail parks the matrix in vf10-vf13 between pre_trance_normal and the trance_normal calls after it.
 static float trance_matrix[4][4];
@@ -99,12 +100,7 @@ void trance_normal(float *v0, float *v1, float *v2, float *normal) {
     std::memcpy(corners, v0, sizeof(corners));
 
     for (int corner = 0; corner < 3; corner++) {
-        for (int lane = 0; lane < 4; lane++) {
-            float sum = trance_matrix[0][lane] * corners[corner][0];
-            sum += trance_matrix[1][lane] * corners[corner][1];
-            sum += trance_matrix[2][lane] * corners[corner][2];
-            transformed[corner][lane] = sum + trance_matrix[3][lane] * corners[corner][3];
-        }
+        vu0::Transform(transformed[corner], trance_matrix, corners[corner]);
     }
 
     std::memcpy(v0, transformed[0], sizeof(transformed[0]));

@@ -1,6 +1,5 @@
 #include "common.h"
 
-#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -8,6 +7,7 @@
 #include "mg_math.hpp"
 #include "mglib.hpp"
 #include "stubs/mg_frame.hpp"
+#include "vu0_lanes.hpp"
 
 namespace {
 
@@ -16,21 +16,11 @@ float vu_corners[8][4];
 
 mgCFrameAttr dmy_attr;
 
-// Row-vector product: the row coefficients weight the rows of m, summed in the order the VU's ACC chain adds them.
-float RowTimesMatrix(const float *row, const float (*m)[4], int col) {
-    float sum = row[0] * m[0][col];
-    sum += row[1] * m[1][col];
-    sum += row[2] * m[2][col];
-    return sum + row[3] * m[3][col];
-}
-
 void MulMatrices(float (*out)[4], const float (*lhs)[4], const float (*rhs)[4]) {
     float product[4][4];
 
     for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-            product[i][j] = RowTimesMatrix(lhs[i], rhs, j);
-        }
+        vu0::Transform(product[i], rhs, lhs[i]);
     }
 
     memcpy(out, product, sizeof(product));
@@ -40,9 +30,7 @@ void TransformCorners(float (*out)[4], const float (*corners)[4], const float (*
     float result[8][4];
 
     for (int c = 0; c < 8; c++) {
-        for (int j = 0; j < 4; j++) {
-            result[c][j] = RowTimesMatrix(corners[c], m, j);
-        }
+        vu0::Transform(result[c], m, corners[c]);
     }
 
     memcpy(out, result, sizeof(result));
@@ -63,9 +51,9 @@ void ScaleColumns(float (*out)[4], const float (*in)[4], const float *s) {
 
 void DivideByW(float (*out)[4], const float (*in)[4]) {
     for (int c = 0; c < 8; c++) {
-        float q = 1.0f / std::fabs(in[c][3]);
-        out[c][0] = in[c][0] * q;
-        out[c][1] = in[c][1] * q;
+        float q = vu0::Div(1.0f, std::fabs(in[c][3]));
+        out[c][0] = vu0::Sat(in[c][0] * q);
+        out[c][1] = vu0::Sat(in[c][1] * q);
         out[c][2] = in[c][2];
         out[c][3] = in[c][3];
     }
@@ -77,8 +65,8 @@ void BoxOf(const float (*corners)[4], float *out_max, float *out_min) {
         float lo = hi;
 
         for (int c = 1; c < 8; c++) {
-            hi = std::max(hi, corners[c][lane]);
-            lo = std::min(lo, corners[c][lane]);
+            hi = vu0::Max(hi, corners[c][lane]);
+            lo = vu0::Min(lo, corners[c][lane]);
         }
 
         out_max[lane] = hi;

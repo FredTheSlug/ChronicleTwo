@@ -5,20 +5,15 @@
 #include "gameutil.hpp"
 #include "mg_math.hpp"
 #include "stubs/gameutil.hpp"
+#include "vu0_lanes.hpp"
 
-// Retail's OldSkinFrame is file-static in gameutil.cpp. DeformMesh clears it when a skin pass ends, so
-// clearing it when the pass starts (the list is the motion's first skin list) is the same reset.
+// Retail clears OldSkinFrame after each skin pass; DeformMesh is its only caller, so clearing at the motion's
+// first skin list starts every pass from the same state.
 static mgCFrame *cached_skin_frame;
 
 void testVUnew(float (*matrix)[4], float *vertex, float *weight, float *accum, float *out) {
     float transformed[4];
-
-    for (int lane = 0; lane < 4; lane++) {
-        float sum = matrix[0][lane] * vertex[0];
-        sum += matrix[1][lane] * vertex[1];
-        sum += matrix[2][lane] * vertex[2];
-        transformed[lane] = sum + matrix[3][lane] * vertex[3];
-    }
+    vu0::Transform(transformed, matrix, vertex);
 
     float result[4];
 
@@ -110,9 +105,9 @@ Mot_List *MotionProc2(mgCFrame *root, tagMOTION_TYPE *motion, tagFRAME_INF *fram
             def_vrtx[vertex][0] += moved[0];
             def_vrtx[vertex][1] += moved[1];
             def_vrtx[vertex][2] += moved[2];
-            def_vrtx[vertex][0] /= def_vrtx[vertex][3];
-            def_vrtx[vertex][1] /= def_vrtx[vertex][3];
-            def_vrtx[vertex][2] /= def_vrtx[vertex][3];
+            def_vrtx[vertex][0] = vu0::Div(def_vrtx[vertex][0], def_vrtx[vertex][3]);
+            def_vrtx[vertex][1] = vu0::Div(def_vrtx[vertex][1], def_vrtx[vertex][3]);
+            def_vrtx[vertex][2] = vu0::Div(def_vrtx[vertex][2], def_vrtx[vertex][3]);
             sceVu0CopyVectorXYZ(vert[vertex], def_vrtx[vertex]);
             def_vrtx[vertex][3] += 1.0f;
         }

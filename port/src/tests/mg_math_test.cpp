@@ -571,3 +571,157 @@ TEST(MgMath, VectorMinMaxNTwoVectors) {
     expect_lanes(hi, {1, 2, 3, 4});
     expect_lanes(lo, {0, 0, 0, 0});
 }
+
+TEST(MgMath, VectorMinSignedZeroTieKeepsNegativeZeroInEitherOrder) {
+    float pos[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float neg[4] = {-0.0f, -0.0f, -0.0f, -0.0f};
+    float m[4];
+    mgVectorMin(m, pos, neg);
+    for (int i = 0; i < 4; i++) {
+        EXPECT_TRUE(std::signbit(m[i])) << "lane " << i;
+    }
+    mgVectorMin(m, neg, pos);
+    for (int i = 0; i < 4; i++) {
+        EXPECT_TRUE(std::signbit(m[i])) << "lane " << i;
+    }
+}
+
+TEST(MgMath, VectorMaxMinSignedZeroTieGivesPositiveMaxNegativeMinInEitherOrder) {
+    float pos[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float neg[4] = {-0.0f, -0.0f, -0.0f, -0.0f};
+    float hi[4];
+    float lo[4];
+    mgVectorMaxMin(hi, lo, pos, neg);
+    for (int i = 0; i < 4; i++) {
+        EXPECT_FALSE(std::signbit(hi[i])) << "max lane " << i;
+        EXPECT_TRUE(std::signbit(lo[i])) << "min lane " << i;
+    }
+    mgVectorMaxMin(hi, lo, neg, pos);
+    for (int i = 0; i < 4; i++) {
+        EXPECT_FALSE(std::signbit(hi[i])) << "max lane " << i;
+        EXPECT_TRUE(std::signbit(lo[i])) << "min lane " << i;
+    }
+}
+
+TEST(MgMath, CreateBox8SignedZeroMaxLanesBecomePositiveExceptRawCorner) {
+    float max[4] = {-0.0f, -0.0f, -0.0f, -0.0f};
+    float min[4] = {1.0f, 2.0f, 3.0f, 4.0f};
+    float corners[8][4];
+    mgCreateBox8(corners, max, min);
+    expect_lanes(corners[0], {1, 2, 3, 4});
+    expect_lanes(corners[1], {0, 2, 3, 4});
+    for (int c = 1; c <= 6; c++) {
+        for (int k = 0; k < 4; k++) {
+            EXPECT_FALSE(std::signbit(corners[c][k])) << "corner " << c << " lane " << k;
+        }
+    }
+    for (int k = 0; k < 4; k++) {
+        EXPECT_TRUE(std::signbit(corners[7][k])) << "corner 7 lane " << k;
+    }
+}
+
+TEST(MgMath, ClipBoxVertexNegativeZeroDifferenceIsOutside) {
+    float max[4] = {-0.0f, 2.0f, 2.0f, 0.0f};
+    float min[4] = {-1.0f, 0.0f, 0.0f, 0.0f};
+    float p[4] = {0.0f, 1.0f, 1.0f, 0.0f};
+    EXPECT_EQ(mgClipBoxVertex(p, max, min), 0);
+}
+
+TEST(MgMath, ClipBoxVertexPositiveZeroDifferenceIsInside) {
+    float max[4] = {0.0f, 2.0f, 2.0f, 0.0f};
+    float min[4] = {-1.0f, 0.0f, 0.0f, 0.0f};
+    float p[4] = {0.0f, 1.0f, 1.0f, 0.0f};
+    EXPECT_EQ(mgClipBoxVertex(p, max, min), 1);
+}
+
+TEST(MgMath, ClipBoxZeroVolumeBoxTouchingBothFacesOverlaps) {
+    float max0[4] = {2.0f, 2.0f, 2.0f, 0.0f};
+    float min0[4] = {2.0f, 2.0f, 2.0f, 0.0f};
+    float max1[4] = {4.0f, 4.0f, 4.0f, 0.0f};
+    float min1[4] = {2.0f, 2.0f, 2.0f, 0.0f};
+    EXPECT_EQ(mgClipBox(max0, min0, max1, min1), 1);
+
+    float max2[4] = {2.0f, 2.0f, 2.0f, 0.0f};
+    float min2[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    EXPECT_EQ(mgClipBox(max0, min0, max2, min2), 1);
+}
+
+TEST(MgMath, ClipInBoxInvertedContainerRejectsContainedBox) {
+    float max0[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+    float min0[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+    float max1[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float min1[4] = {2.0f, 2.0f, 2.0f, 0.0f};
+    EXPECT_EQ(mgClipInBox(max0, min0, max1, min1), 0);
+}
+
+TEST(MgMath, MulMatrix3AppliesThirdTimesSecondTimesMatrix) {
+    float matrix[4][4] = {{3, 0, 0, 0}, {0, 3, 0, 0}, {0, 0, 3, 0}, {0, 0, 0, 1}};
+    float second[4][4] = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {1, 2, 3, 1}};
+    float third[4][4] = {{2, 0, 0, 0}, {0, 2, 0, 0}, {0, 0, 2, 0}, {0, 0, 0, 1}};
+    MulMatrix3(matrix, second, third);
+    const float want[4][4] = {{6, 0, 0, 0}, {0, 6, 0, 0}, {0, 0, 6, 0}, {3, 6, 9, 1}};
+    expect_matrix(matrix, want);
+}
+
+TEST(MgMath, ApplyMatrixNZeroCountWritesNothing) {
+    float m[4][4] = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {1, 2, 3, 1}};
+    float in[2][4] = {{0, 0, 0, 1}, {5, 5, 5, 5}};
+    float out[2][4] = {{42, 42, 42, 42}, {42, 42, 42, 42}};
+    mgApplyMatrixN(out, m, in, 0);
+    expect_lanes(out[0], {42, 42, 42, 42});
+    expect_lanes(out[1], {42, 42, 42, 42});
+}
+
+TEST(MgMath, ApplyMatrixNMaxMinZeroCountWritesNothing) {
+    float m[4][4] = {{1, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 1, 0}, {1, 2, 3, 1}};
+    float in[2][4] = {{0, 0, 0, 1}, {5, 5, 5, 5}};
+    float out[2][4] = {{42, 42, 42, 42}, {42, 42, 42, 42}};
+    float hi[4] = {42, 42, 42, 42};
+    float lo[4] = {42, 42, 42, 42};
+    mgApplyMatrixN_MaxMin(out, m, in, 0, hi, lo);
+    expect_lanes(out[0], {42, 42, 42, 42});
+    expect_lanes(out[1], {42, 42, 42, 42});
+    expect_lanes(hi, {42, 42, 42, 42});
+    expect_lanes(lo, {42, 42, 42, 42});
+}
+
+TEST(MgMath, VectorMinMaxNZeroCountWritesNothing) {
+    float vecs[2][4] = {{1, -2, 3, 4}, {7, 7, 7, 7}};
+    float hi[4] = {42, 42, 42, 42};
+    float lo[4] = {42, 42, 42, 42};
+    mgVectorMinMaxN(hi, lo, vecs, 0);
+    expect_lanes(hi, {42, 42, 42, 42});
+    expect_lanes(lo, {42, 42, 42, 42});
+}
+
+TEST(MgMath, InversMatrixOfSingularMatrixStaysFiniteAndSaturates) {
+    float m[4][4] = {{2, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 0, 0}, {0, 0, 1, 1}};
+    float inv[4][4];
+    mgInversMatrix(inv, m);
+    for (int r = 0; r < 4; r++) {
+        for (int k = 0; k < 4; k++) {
+            EXPECT_TRUE(std::isfinite(inv[r][k])) << "row " << r << " col " << k;
+        }
+    }
+    EXPECT_FLOAT_EQ(inv[2][2], FLT_MAX);
+    EXPECT_FLOAT_EQ(inv[3][2], -FLT_MAX);
+}
+
+TEST(MgMath, DistVectorBetweenCoincidentPointsIsZero) {
+    float a[4] = {1.5f, -2.0f, 3.0f, 1.0f};
+    EXPECT_FLOAT_EQ(mgDistVector(a, a), 0.0f);
+    EXPECT_FLOAT_EQ(mgDistVectorXZ(a, a), 0.0f);
+    EXPECT_FLOAT_EQ(mgDistVector2(a, a), 0.0f);
+    EXPECT_FLOAT_EQ(mgDistVectorXZ2(a, a), 0.0f);
+}
+
+TEST(MgMath, PlaneNormalCoincidentPointsGiveZeroNormal) {
+    float v0[4] = {1.0f, 2.0f, 3.0f, 1.0f};
+    float v1[4] = {1.0f, 2.0f, 3.0f, 1.0f};
+    float v2[4] = {4.0f, -1.0f, 0.0f, 1.0f};
+    float n[4] = {9.0f, 9.0f, 9.0f, 9.0f};
+    mgPlaneNormal(n, v0, v1, v2);
+    EXPECT_FLOAT_EQ(n[0], 0.0f);
+    EXPECT_FLOAT_EQ(n[1], 0.0f);
+    EXPECT_FLOAT_EQ(n[2], 0.0f);
+}

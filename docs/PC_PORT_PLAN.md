@@ -866,6 +866,14 @@ including `[E]/[D]/[T]` and dest masks; lower including branches, `xgkick`,
 the symbols file. Tests: known encodings round-trip. Output:
 `port/build/vu1/<program>.txt`. Depends: none. Size: ~900.
 
+Status: done. `scripts/port/vu1dis.py` (+ `test_vu1dis.py`, 31 unittest cases
+incl. two on the retail ELF) reads the ELF through `kazarov_elf`, walks
+DMA/VIF, decodes every pair (0 unknown words across the six programs; words
+cross-checked against the split's `vutext.data.s`/`vudata.data.s`) and
+writes `port/build/vu1/{prog0,prog_sdw,prog_3dsp,prog_wtr,progmain,dma_start0}.txt`.
+Branch targets are checked against all MPG blocks of a program, since
+Vu_prog0 (six MPGs) and Vu_prog_sdw (two) branch across them.
+
 **WP3.2 VU1 behavioural specs [decision]** `docs/vu1/prog0.md`,
 `prog_sdw.md`, `prog_3dsp.md`, `prog_wtr.md`, `progmain.md`,
 `dma_start0.md` from the listings and the CPU-side packet builders
@@ -877,6 +885,19 @@ rounding, fog from 1/w, point-light falloff, env-map UVs, the clipper's
 tests and interpolation, the scissor test, strip re-emission), the GIF tag
 and registers emitted, open points, and hand-derived test vectors.
 Depends: 3.1. Size: ~1,200 of prose.
+
+Status: done (~3,000 lines). Findings that change the plan: `Vu_progmain` is
+resident at micro 0x0000; `MSCAL 0` runs its setup (model-space light matrix,
+handedness at 0x1E, guard band at 0x15/0x16) for every program, `MSCAL 2`
+jumps to the swappable program at 0x0064. Vu_prog0 has four directional
+lights (not three), Phong "real" lighting, four point lights, a normal-based
+matcap (`__REF_SPHERE`), 4-bone skinning, back-face culling only under flag
+0x04, and its 6-plane clipper only under the scissor flag 0x02. Fog
+`F = offset + scale/w` clamped to [6th, 7th argument of `mgSetFogParam`].
+Each spec lists suspected retail bugs and open points; the pipeline rulings
+used (VF hazards interlocked, MAC flags of unwritten fields cleared,
+same-pair `waitq` reads the new Q) are stated in each, and the few results
+that depend on them are the first things to confirm with a PCSX2 trace.
 
 ### Phase 4: rendering
 

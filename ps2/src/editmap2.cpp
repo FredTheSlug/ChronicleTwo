@@ -23,7 +23,7 @@ static const int   kBalanceLimit = 4;
 static const int   kPartsTypeRiver = 0xB;
 static const int   kNpcLiveLength = 7;
 static const int   kChildIdMax = 0x200;
-
+#ifndef PORT
 /**
  *
  * Calculates a normal for a triangle projected onto the horizontal plane.
@@ -43,7 +43,7 @@ static void PlaneNormalXZ(float *normal, float *p0, float *p1, float *p2) {
         sqc2 vf12, 0(normal)
     }
 }
-
+#endif
 float CEditMap::GetEditPartsAlt(CEditPartsInfo *info, sceVu0FVECTOR pos, float rot_y, CEditParts **parts, int num) {
     sceVu0FMATRIX   parts_matrix;
     sceVu0FMATRIX   invers_matrix;

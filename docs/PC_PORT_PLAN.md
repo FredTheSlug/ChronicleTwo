@@ -639,6 +639,14 @@ behaviour is implemented; nothing from Chronicle is copied.
   byte-identical; `grep -c "#ifndef PORT" ps2/src/*.cpp` sums to 54.
 - Depends: none (may run during phase 0). Not parallel with 1.10. Size:
   ~120 lines of directives.
+- Status: done. 22 guards, not 54: each run of adjacent asm definitions
+  shares one guard because consecutive definitions have no blank line
+  between them to hold an `#endif` and an `#ifndef`. The guards cover all
+  54 definitions and the `static MulMatrix3` forward declaration (with
+  `Check_Point_Poly3`'s, mg_math.cpp:10-47, so `stubs/mg_math.hpp` must
+  declare both). `ExitHandler`'s doc comment became one line to hold the
+  `#else` branch. `./build.sh ps2-pal` matches (verify.py -c OK, 6872/6872
+  functions).
 
 **WP1.6 Stubs headers and asm-function stubs [mechanical]**
 - Create `port/include/stubs/mg_math.hpp` (declares `MulMatrix3`),

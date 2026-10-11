@@ -238,7 +238,7 @@ void mgCDrawPrim::End2() {
         memory->Alloc(write - packet_start);
     }
 }
-
+#ifndef PORT
 void mgCDrawPrim::Data0(float *data) {
     u_long128 *destination = write;
     write++;
@@ -258,7 +258,7 @@ void mgCDrawPrim::Data4(float *data) {
         sqc2 vf1, 0(destination)
     }
 }
-
+#endif
 void mgCDrawPrim::Data(int *data) {
     u_long128 quad = *(u_long128 *) data;
     *write++ = quad;
@@ -281,7 +281,7 @@ void mgCDrawPrim::Vertex(float x, float y, float z) {
     pos[2] = z;
     Vertex(pos);
 }
-
+#ifndef PORT
 void mgCDrawPrim::Vertex(float *pos) {
     int  converted[4] __attribute__((aligned(16)));
     int *result = converted;
@@ -293,7 +293,7 @@ void mgCDrawPrim::Vertex(float *pos) {
     }
     Vertex4(converted[0], converted[1], converted[2]);
 }
-
+#endif
 void mgCDrawPrim::Vertex4(int x, int y, int z) {
     int offset_x = 0;
     int offset_y = 0;
@@ -315,7 +315,7 @@ void mgCDrawPrim::Color(int r, int g, int b, int a) {
     vif_packet[1] = 1;
     command_write += 2;
 }
-
+#ifndef PORT
 void mgCDrawPrim::Color(float *color) {
     int  converted[4] __attribute__((aligned(16)));
     int *result = converted;
@@ -326,7 +326,7 @@ void mgCDrawPrim::Color(float *color) {
     }
     Color(converted[0], converted[1], converted[2], converted[3]);
 }
-
+#endif
 void mgCDrawPrim::TextureCrd4(int u, int v) {
     u_long *data = (u_long *) write;
     data[0] = (long) u | (long) v << 16;

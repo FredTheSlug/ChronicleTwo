@@ -461,21 +461,6 @@ PORT_OVERRIDE void mgCTextureManager::Initialize(int start, int end) {
     InstallSeam();
 }
 
-PORT_OVERRIDE mgCTexture *mgCTextureManager::SearchHash(char *name, int mode) {
-    mgTEXTURE_HASH *node;
-    int             bucket = hash(name);
-
-    for (node = hash_table[bucket]; node != NULL; node = node->next) {
-        if (strcmp(name, node->texture->name) == 0) {
-            if (mode < 0 || node->texture->block == mode) {
-                return node->texture;
-            }
-        }
-    }
-
-    return NULL;
-}
-
 PORT_OVERRIDE mgCTexture *mgCTextureManager::EnterTexture(int block, char *name, u_long128 **image, int width,
                                                           int height, int bpp, u_long128 *clut, u_long tex1,
                                                           int swizzled) {

@@ -144,7 +144,7 @@ Kernel threads are cooperative fibers. See "Threads and timing".
 
 ## Arenas
 
-The blocks come from `ArenaBlock` in Kazarov's `tools/kazarov/port/platform/arena.hpp`, the same code Dark Cloud 1 uses. Each block is zeroed, 64-byte aligned and followed by a guard page, and holds `kArenaHeadroom` (4) times the quadwords retail asked for. A debug build checks that a block lies above 4 GiB, so a mapping that drifted low cannot hide a pointer the game truncates (see "Pointer truncations"). `port/src/tests/arena_test.cpp` covers roots, children, the guard page and placement growth.
+The blocks come from `ArenaBlock` in Kazarov's `tools/kazarov/port/platform/arena.hpp`, the same code Dark Cloud 1 uses. Each block is zeroed, 64-byte aligned and followed by a guard page, and holds `kArenaHeadroom` (4) times the quadwords retail asked for. A debug build checks that a block lies above 4 GiB, so a mapping that drifted low cannot hide a pointer the game truncates (see "Pointers and 32-bit integers"). `port/src/tests/arena_test.cpp` covers roots, children, the guard page and placement growth.
 
 Retail buffers that lie inside no mapped block become blocks. `MainLoop` maps `main_buffer` (`MainBuffer`), `InfoBuff` (`InfoStack`) and `SystemSeBuff` (`SystemSeStack`) explicitly through `ArenaRoot` (`port/src/arena_root.cpp`). `mgCMemory::stSetBuffer` and `SetHeapMem` treat any other buffer that lies outside every block the same way: retail statics, function-local arrays and member arrays (`editdata.cpp`, `gamedata.cpp`, `inventmn.cpp`, `character.cpp`, `mg_visual.cpp`, `menuaqua.cpp`, `scenesnd.cpp`, `event_func.cpp` and others) are roots. A root is keyed by the retail buffer's address, takes a copy of the retail bytes (`gamedata.cpp` memsets its buffer before handing it over), and gets four times the quadwords. Each mapping is logged once, as `arena: <name> <bytes> bytes at <address> (above 4 GiB)`.
 
@@ -408,13 +408,102 @@ Scratchpad access goes through `GetScrPad`, a stub. The five `CreateRenderInfoPa
 
 `nm` of the executable shows no unresolved hardware symbol. The hardware-named definitions are Kazarov `sce` replacements or game code that is not `PS2_UNIMPLEMENTED`.
 
-## Pointer truncations
+## Pointers and 32-bit integers
 
-`docs/port/truncations.md` lists every cast of a pointer to a narrower integer in `ps2/src`, `port/src` and their headers. `scripts/port/truncations.py` generates it, and its command is at the top of that file. It has 123 rows.
+Pointers are 64-bit on PC, and the arenas lie above 4 GiB (see "Arenas"). An address the game keeps in a 32-bit integer is truncated. `docs/port/truncations.md` is the per-site table of every cast of a pointer to a narrower integer in `ps2/src`, `port/src` and their headers. `scripts/port/truncations.py` writes it.
 
-Eight round trips are open in linked code. Each has a phase in `PHASE_OF`: Phase 4 for `mgC3DSprite::Draw`, `mgCSprite::Draw`, `mgCVisualFixMDT::DataAssignMDT` and `CWater::Draw`; Phase 5 for `ezTransToIOP2`; Phase 7 for `_SET_INDEXOBJ_SIZE`, `_GET_INDEXOBJ_SIZE` and `niNPC_INFO_NUM`. `--check` fails on an unassigned one.
+### The types
 
-Caveat: libclang fails to parse 13 units fully (for example `mg_visual.cpp`'s over-wide integer literals), so their rows may be incomplete.
+`ps2/include/types.h` defines `uptr` and `sptr` as `__UINTPTR_TYPE__` and `__INTPTR_TYPE__` under `PORT`, and as `unsigned int` and `int` on the PS2. Every operation compiles to the same instructions on the PS2 except the signed-sensitive ones.
+
+### The policy
+
+Rule 12. `uptr` replaces every cast of a pointer to `int`, `u_int`, `s32`, `u32` or `long`, and every local, global, non-record field and return type that carries an address.
+
+`sptr` is used only where the integer is compared with `<`, `>`, `<=` or `>=`, shifted right, divided or reduced modulo, converted to `float` or `double`, widened into a 64-bit `long` or `u_long`, or stored in a signed field and so used. It is used only where the original type was signed. An original unsigned type becomes `uptr` everywhere.
+
+Parameter types never change, because they are part of mangled names. Declarations that are already pointers are not touched. Pointer arithmetic is not rewritten as integer arithmetic.
+
+### Records
+
+Rule 13. Structs read from a file in place keep their 32-bit offsets and never take `uptr`. The inventory is `docs/port/records.md`: 598 structs with a `STATIC_ASSERT`, of which 63 are records and 535 are runtime.
+
+`PORT_RECORD_ASSERT(expr)` in `port/include/port.h` is a `static_assert` on PC. `ps2/include/common.h` defines it empty for the PS2.
+
+### Strides and hand-counted sizes
+
+A hand-written stride is rewritten as indexing only where `verify.py` stays identical.
+
+| Function | Unit | State |
+|---|---|---|
+| `mgCTextureManager::SearchHash` (`hash_table[bucket]`) | - | indexed, landed |
+| `CEditGrid::GetFast` (`&data[x + y * num_x]`) | - | indexed, landed; correct on PC as it stands |
+| `mgCTextureManager::Initialize` (blocks `<< 4`, `hash_table` `<< 2`) | `port/src/mg_texture.cpp` | stride fix; the port override keeps the indexing; in-place rewrite reverted, MWCC code differs |
+| `mgCTextureManager::SetTableBuffer` | `port/src/mg_texture.cpp` | stride fix; the port override keeps the indexing |
+| `mgCTextureAnime::NewTexAnimeGroupData` (`(group << 2) + this + 0x64`) | `port/src/mg_tanime.cpp` | stride fix, owner draw2d; the override is a stride fix, not a widening; in-place rewrite reverted, MWCC code differs |
+| `mgRENDER_INFO::GetPlight` (`index * 0x30 + ... + 0x90`) | - | in-place rewrite reverted, MWCC code differs; correct on PC, since `mgLIGHT_INFO` holds floats only |
+| `CRepairManager::Generate` (`slot * sizeof(mgCMemory)`) | - | in-place rewrite reverted, MWCC code differs; correct on PC as it stands |
+| `CAutoMapGen::CreatTermParts` | - | correct on PC as it stands |
+| `_SWE_SET_COLOR`, `_SWE_SET_TEXTURE`, `_SWE_START_EFFECT` (`(slot << 2) + chara + offsetof(sword_effect)`) | `event_func.cpp` | in-place rewrite reverted, MWCC code differs; stride fix that needs an override, since `sword_effect` is an array of pointers and `<< 2` is wrong on PC; owner: event_func's sweep owner, W4 sweep-dungeon, or records |
+| `CVillagerMngr::GetAppearVlgr` (`time * sizeof(void *) + schedule + offset + 8`) | - | stride fix; owner records |
+| `mgCMemory::SetHeapMem`, `mgCMemory::StartStackMode` | - | stride fix; owner arena; kept |
+
+Hand-counted allocation sizes are rewritten with `sizeof` and are byte-identical: the script stacks in `SetActionScript`, `SetEffectScript` (stack), `SetEventScript` and `SetMonsterScript` (`(sizeof(RS_STACKDATA) * N + 15) / 16` and `(sizeof(RS_CALLDATA) * N + 15) / 16`), `mgCDrawManager::AddPacket` (`(sizeof(mgSORT_PACKET) + 15) / 16`), and `mgCVisualMDT::CopyMDTDataPointer` (`material_num * (int) sizeof(mgMaterial) / 16`).
+
+### Override pairs
+
+An address passed through an `int` parameter is fixed by replacing the callee and its callers on PC, under the owner.
+
+| Callee#param | Callers | Owner |
+|---|---|---|
+| `ezMidi(int, int)`, arg 2 | `CSound` | audio-game |
+| `ezBgm(int, int)`, arg 2 | `CSound` | audio-game |
+| `CSound::LoadHdBd`, `CSound::LoadHdBd2`, `CSound::LoadHdBdAdd`, args 1 and 3 | `sndLoadSound` | audio-game |
+| `CSound::LoadSeq`, arg 1 | `sndLoadSound` | audio-game |
+| `align_size(u_int, u_int)` | `InitFileCache` | data (already overridden) |
+| `sendToIOP(int iop_addr, ...)` | `audioDecCreate` | movies (unit replaced whole) |
+
+### Other corrections
+
+`SPI_STACK::operator=` copies `value.string`, the widest member, instead of `value.integer`. String arguments of every cfg script lost their upper half.
+
+### What is left
+
+- 39 narrowing sites remain in compiled `ps2/` code. Each has an owner:
+  - DMA, VIF and GS packet words written as `u_int` in packet-building code. The W3 streams replace that code through the seam: `mg_sprite` and `mg_drawprim` to draw2d, `mg_visual` and `visualmotion` to prog0, `water` and `mg_shadow` to fx-shadow, `mglib` to present-core.
+  - IOP addresses, to audio-game and movies.
+  - The save record `CMenuSystemData::item_cursor` and the script stack slot in `_SET_INDEXOBJ_SIZE` and `_GET_INDEXOBJ_SIZE`, to records.
+- 18 more are benign: low bits (`& K`), residues (`% K`) and differences of two addresses.
+- 13 sit in replaced functions.
+- 65 literal placement-new runs stay with arena, which grows them at run time.
+- `effscript.cpp`, `SetEffectScript`: the `RS_CALLDATA` `Alloc(1)` is undersized for a call depth of 2, in retail too. The correct value, 2, is not byte-identical.
+- Open round trips in linked code: 0. All eight that were open are closed by the conversion, and so is `MenuCalcBufAlignment`'s, which crashed `LoadGameDataAnalyze`.
+
+### The check
+
+```sh
+tools/kazarov/bin/kazarov shell python3 scripts/port/truncations.py --build port/build/pc --check
+tools/kazarov/bin/kazarov shell python3 -m unittest scripts/port/test_truncations.py
+```
+
+`truncations.py` runs libclang over `compile_commands.json` and parses each `ps2/src` unit as compiled. Header fixups and long64 are applied in memory, so replaced functions are seen too.
+
+`--check` fails on:
+
+- a stale `docs/port/truncations.md`;
+- an open round trip in linked code;
+- a narrowing site in compiled code with no `NARROWING_OWNER` entry;
+- a stale `PHASE_OF` entry.
+
+The ctest case is `Truncations.Check` (Linux; it skips when `clang.cindex` is missing). `scripts/port/test_truncations.py` covers the classifier. `--worklist FILE` writes the per-site TSV used for the conversion. `--verbose` prints libclang diagnostics; all of them are in replaced bodies.
+
+The checker sees casts and implicit conversions. It does not see an address copied through an int member of a union; `SPI_STACK` was found at run time.
+
+The tests are `port/src/tests/uptr_test.cpp` (`Uptr.*`). They cover pointer width, an address above 4 GiB through `(u_char *) ((uptr) p + ofs)`, through `MenuCalcBufAlignment`, through a `uptr` field and through a `uptr` return.
+
+### Rule text for later streams
+
+> An address the game keeps in an integer is a `uptr` (ps2/include/types.h: 32-bit on the PS2, std::uintptr_t on PC; `sptr` is its signed twin, used only where the original type was signed and the value is compared with < > <= >=, shifted right, divided, reduced modulo, converted to float or widened to 64 bits). Never change a parameter type or a declaration that is already a pointer. Never write a port copy of a retail function whose only change is a widened cast: send `NEEDS: ps2/<file>: <change>`. Structs read from a file in place (docs/port/records.md) keep their 32-bit fields.
 
 ## Keeping the PS2 build matching
 

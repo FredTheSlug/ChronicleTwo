@@ -73,10 +73,12 @@ add_dependencies(darkchronicle_tests darkchronicle)
 # ctest reports a process that dies by abort() as failed even when PASS_REGULAR_EXPRESSION matches its
 # output, so the executable runs under a script that checks the run and the file it writes, and the regex
 # judges the script's verdict. Its shader compile loads the CPU, so it runs alone with the clock cases.
-# The smoke data directory is empty on purpose, so the run stays in the logo fade and reaches frame 3 without game data.
+# The smoke data directory holds only an empty manifest.txt (an extraction with no files), so the run passes the
+# first-run data check and stays in the logo fade without game data.
 set(SMOKE_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/smoke_headless.cmake)
 file(WRITE ${SMOKE_SCRIPT} [=[
 file(MAKE_DIRECTORY "$ENV{DC2_DATA}")
+file(TOUCH "$ENV{DC2_DATA}/manifest.txt")
 file(MAKE_DIRECTORY "$ENV{DC2_SAVE}")
 file(REMOVE "$ENV{DC2_SAVE}/smoke.png")
 execute_process(COMMAND "${EXE}" --headless --offscreen --frames 3 --screenshot "$ENV{DC2_SAVE}/smoke.png"

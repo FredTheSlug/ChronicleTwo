@@ -18,6 +18,7 @@
 #include "platform/clock.hpp"
 #include "platform/config.hpp"
 #include "platform/display.hpp"
+#include "platform/firstrun.hpp"
 #include "platform/input.hpp"
 #include "platform/input_script.hpp"
 #include "platform/paths.hpp"
@@ -240,6 +241,7 @@ int Run(int argc, const char **argv) {
         }
     }
     ConfigLoad();
+    FirstRunRequireData(PathsDataRoot(), options.headless);
     const HostSettings &settings = SettingsGet();
     const bool          offscreen = options.offscreen || (options.headless && !gfx::HeadlessSurfaceAvailable());
 

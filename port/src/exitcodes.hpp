@@ -4,6 +4,7 @@
 // debugger or core dump stops at the stub.
 enum ExitStatus : int {
     kExitGameAssert = 4,
+    kExitNoData = 3,
     kExitOk = 0,
     kExitUsage = 2,
 };

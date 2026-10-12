@@ -11,6 +11,7 @@ endif()
 set(DATA "${WORK}/data")
 file(REMOVE_RECURSE "${WORK}")
 file(MAKE_DIRECTORY "${DATA}")
+file(TOUCH "${DATA}/manifest.txt")
 
 function(run_headless name)
     set(save "${WORK}/${name}-save")

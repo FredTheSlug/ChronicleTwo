@@ -19,22 +19,21 @@ Correction: the W3 records (`docs/port/process/wave3-report.md`, the old version
 
 | Repository | Branch | Pushed tip | Notes |
 |---|---|---|---|
-| ChronicleTwo (`C:\Users\Adubbz\Development\PS2\Projects\ChronicleTwo`) | `port/pc`, pushed as `origin/master` | the `Docs:` commit on top of `646c0c1` | `master` is kept equal to `port/pc` |
-| Kazarov (`...\Kazarov`) | `main` | `5bec132` | TheMoonPeople/Kazarov `main` |
-| Chronicle (`...\Chronicle-phase0`, worktree of `Chronicle` on `master`) | `master` | `Kazarov: pin main@5bec132` on `c6a8c918` | upstream unchanged since `109c6eff` |
+| ChronicleTwo (`C:\Users\Adubbz\Development\PS2\Projects\ChronicleTwo`) | `port/pc`, pushed as `origin/master` | the `Docs:` commit on top of `e0defd4` | `master` is kept equal to `port/pc` |
+| Kazarov (`...\Kazarov`) | `main` | `a0a5ff8` | TheMoonPeople/Kazarov `main` |
+| Chronicle (`...\Chronicle-phase0`, worktree of `Chronicle` on `master`) | `master` | `Kazarov: pin main@a0a5ff8` on `d4bae80b` (pin `5bec132`) on `c6a8c918` | upstream unchanged since `109c6eff` |
 
-Both games pin Kazarov `5bec132`. `C:\Users\Adubbz\Development\PS2\Projects\Chronicle` (branch `shared-port`) holds the user's own uncommitted work: never open, build or run git there. Chronicle is built and gated only in `Chronicle-phase0` (pull it to `origin/master` first).
+Both games pin Kazarov `a0a5ff8`. `C:\Users\Adubbz\Development\PS2\Projects\Chronicle` (branch `shared-port`) holds the user's own uncommitted work: never open, build or run git there. Chronicle is built and gated only in `Chronicle-phase0` (pull it to `origin/master` first).
 
-### What W4 merged (ChronicleTwo `79e5d84..master`, Kazarov `f1b8e80..5bec132`)
+### What W4 merged (ChronicleTwo `79e5d84..master`, Kazarov `f1b8e80..a0a5ff8`)
 
 In order, each rebased onto the growing `port/pc` (stream pin commits dropped, one pin of `main` at the end):
 
 1. `present` (`s/present`, `kz/present`): ChronicleTwo `af735bb f179c04`; Kazarov `5c2112a`, plus the integrator's README note `5bec132`.
 2. `sweep` (`s/sweep`): `1ac66bc b20417c 43672cb`.
 3. `text2d` (`s/text2d`): `646c0c1`.
-4. Integrator: `b2e49c2` (pin `main@5bec132`), then the `Docs:` commit (this file, PC.md intro, plan status, `tools/input/sweep-costume.input`, `docs/port/process/ADDENDUM-W3.md`).
-
-`buildperf` (`s/buildperf` + `kz/buildperf`) had not finished when this was pushed; see section 3.4 for its state and where its branches are.
+4. Integrator: `b2e49c2` (pin `main@5bec132`), then `7bad499` (Docs: this file, PC.md intro, plan status, `tools/input/sweep-costume.input`, `docs/port/process/ADDENDUM-W3.md`), pushed as a first push point.
+5. `buildperf` (`s/buildperf`, `kz/buildperf`): ChronicleTwo `01f7d21 8e23335`; Kazarov `a0a5ff8` (rebased from `dc8b81a`); integrator pin `e0defd4` (`main@a0a5ff8`), then the final `Docs:` commit (this section, `docs/port/process/kazarov-persistent-container.patch`).
 
 ## 3. What each W4 stream delivered
 
@@ -65,10 +64,12 @@ Runs are Windows headless (`darkchronicle.exe --headless --data data --save port
 - `79e5d84` (pushed before this point) and `646c0c1`: nearest-filtered sprites sample the GS's texel, including a sample exactly on a texel boundary (`kMgPortNearestTexelBias`, +1/64 texel, `port/src/mg_drawprim.cpp` `AssembleSprite`). Glyphs no longer bleed the next cell, and 1:1 background tiles lose their black seams at 2.5x. The `DrawVersatileWin` backings cover the frame opening, a deliberate deviation from retail (docs/PC.md "Sprites and window backings"). Tests `MgDrawPrimRender.TileSeamHasNoForeignTexel`, `MgDrawPrim.NearestTileSeamSamplesTheTileTexel`.
 - Integration check: the 1280x960 costume screen differs from the previous capture over most of the frame (171k pixels). At 4x the changes are one-texel column picks at 2.5x scale, with no blur and no moved text, and the black seam at the "Select Costume" title is gone. Accepted.
 
-### 3.4 `buildperf` (not finished at this push)
+### 3.4 `buildperf` (merged at the end; see the gate note)
 
-Goal: faster incremental builds. State when this was written: ChronicleTwo `s/buildperf` `b454658` ("one Python process per ps2/src copy, each copy keyed to its own overrides, and the ps2/include mirror declared to ninja", on `79e5d84`), Kazarov `kz/buildperf` `4b3a6e7` ("port_override.py check writes each unit's own overrides list and caches its per-unit results", on `f1b8e80`). Worktrees `ChronicleTwo-buildperf`, `Kazarov-buildperf`. Not gated by the integrator. If it was not merged later in this session, its branches are pushed as `wip/buildperf` (section 6 says which).
-
+- Kazarov `scripts/port_override.py`: `check --split DIR --cache FILE` (opt-in; without the flags every subcommand behaves as before, so Chronicle is unchanged by construction) and `strip_unit()`; 9 new pytest cases.
+- ChronicleTwo `port/CMakeLists.txt`, `scripts/port/unit_copy.py`, `scripts/port/header_fixups.py`: each `ps2/src` copy is one Python process (strip, unit fixups, long64 in-process, written only when its bytes change); each copy depends on its own overrides list written by the check; the `ps2/include` mirror files are BYPRODUCTS of the mirror step, which fixes a stale build after a header edit (dependents were only recompiled by the following build). All 149 copies and 178 mirror headers are byte-identical to the old pipeline.
+- Measured: a `ps2/src` edit on Windows 12.3 s -> 4.8 s; adding or removing a `PORT_OVERRIDE` recopies one unit (82 s -> 4.1 s); header edits are correct in one build. Numbers in `docs/port/buildperf.md`. Headless Windows runs start ~2 s faster with `SDL_JOYSTICK_HIDAPI=0 SDL_JOYSTICK_RAWINPUT=0 SDL_JOYSTICK_WGI=0 SDL_JOYSTICK_DIRECTINPUT=0`.
+- Gate note (run this first next session). The user waived the tests for this merge. What did run anyway on the final tree (`e0defd4`, Kazarov `a0a5ff8`): Chronicle-phase0 gate (Linux ctest 357/357, screenshot byte-identical, ps2-pal 100%, Windows build), Kazarov pytest in the container (95 passed, 14 skipped), ChronicleTwo Linux build + ctest 798/798, Truncations/Records/native_gate clean, ps2-pal `SCES_511.90: OK`, Linux headless costume screen. What did NOT run on the final tree: the ChronicleTwo Windows build and Windows test suite (they last ran green on `646c0c1`, before buildperf, 803 cases), and the Windows headless "Confirm Max's costume?" run. The stream itself ran Windows 792/792 on its own branch before the rebase.
 ## 4. Open items
 
 ### 4.1 Next blocker (sweep): frame-tree loop in the opening event
@@ -111,9 +112,16 @@ Opening event (4.1) -> first town (Palm Brinks) -> first dungeon, by `--input`, 
 - The boundary sampling rule is not applied to textured triangles or to linear-filtered sprites (GS bilinear at 1:1 integer UVs blends the texel before the edge; the shader's footprint models that but it is unverified at upscales).
 - Verify: `ctest -R "MgDrawPrim|MesWin"`; the costume screen at `--window 1280x960 --frames 3500`: no dots under glyphs, no black lines at window x 117/757, the dialog's upper section evenly dark.
 
-### 4.6 `buildperf` leftovers
+### 4.6 `buildperf` leftovers (ranked by expected saving)
 
-Whatever section 3.4 says was not merged: rebase onto `master`, run the gates (section 7), and measure a no-op and a one-file incremental build before and after.
+1. Debug optimisation for game code (`-Og`/`-O1` for ct_ps2/ct_port/ct_host in Debug, for example a `CT_DEBUG_OPT` cache option in `port/CMakeLists.txt`): the release title run is 4.6 s vs 18 s in debug with a byte-identical screenshot. Re-run both test suites under it.
+2. Persistent build container and the data junction mount (Kazarov `lib/host.sh`, `bin/kazarov`, `host/kazarov.ps1`: `kazarov up`/`down`, exec into a running container, `KZ_PERSIST=1`, a bind mount for each top-level junction such as `data/`): saves 6-18 s per Linux command and lets Linux data-dependent runs work in worktrees. Implemented and reverted because the tty exec path and the PowerShell path were not verified. The patch is `docs/port/process/kazarov-persistent-container.patch` (against Kazarov `dc8b81a`; apply with `git -C <Kazarov worktree> apply`); its 9 bash and 4 ps1 tests passed in the container.
+3. Do not initialise SDL's joystick/gamepad subsystems under `--headless` (Kazarov `port/platform` or `port/src/main.cpp`): ~2 s per headless run.
+4. Linux container filesystem: ninja stats ~2,229 bind-mounted files at ~2 ms each plus a 2 s glob check per build; a build directory on a Docker volume, or `CONFIGURE_DEPENDS` off in the container.
+5. ctest: higher `-j` for CPU-only cases, GPU and focus-dependent cases (`MouseCapture.*`) serial through `RESOURCE_LOCK`/labels. `Truncations.Check` (35 s) and `Records.Check` (20 s) are the Linux long poles.
+6. A one-command Windows loop (`tools/windows/quick.ps1`: ninja directly, DLL copy only when changed, headless run with a screenshot, joystick env set).
+7. Chronicle could adopt the split/cache check and single-process copies (Chronicle's owner).
+8. ccache/sccache: not installed; needs `tools/windows/acquire.ps1` and `image/Dockerfile` changes (an image rebuild).
 
 ### 4.7 Carried from W3 and `records`
 
@@ -140,16 +148,17 @@ Whatever section 3.4 says was not merged: rebase onto `master`, run the gates (s
 
 ## 5. The W4 plan remaining
 
+0. Run the Windows build, Windows tests and the Windows headless costume run on `master` (3.4 gate note).
 1. Sweep: 4.1, then the opening, first town, first dungeon (4.3). One stream, Windows headless, input scripts in `tools/input/`.
 2. Debug mode (4.2): small and independent; can run beside the sweep (owns `port/src/platform/config.*`, `port/src/mainloop.cpp`'s debug lines, `docs/DEBUG.md`).
 3. `present` leftovers (4.4) once the sweep reaches a town or dungeon; the matrix as a ctest.
 4. `options` (WP7.3/7.5/7.6) per its brief.
-5. `buildperf` (3.4, 4.6) if still open.
+5. `buildperf` leftovers (4.6).
 6. Phase 7 gate (SCHEDULE.md section 9 "W4 integrator"): town and dungeon by `--input` with screenshots, truncations/records clean, stub count equal to the documented list, CI green, the resolution and rate matrix.
 
 ## 6. Branches left on origin
 
-None besides `master`/`main` unless listed here: (buildperf: see 3.4).
+None besides `master` (ChronicleTwo, Chronicle) and `main` (Kazarov). Every W4 stream was merged; no `wip/*` branches. All W4 worktrees and stream branches were removed.
 
 ## 7. How to resume
 

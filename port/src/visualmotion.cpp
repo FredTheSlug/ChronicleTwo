@@ -2,7 +2,47 @@
 
 #include "mg_math.hpp"
 #include "mg_visual_port.hpp"
+#include "mglib.hpp"
 #include "visualmotion.hpp"
+
+PORT_OVERRIDE int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mgCVMotionData *motion,
+                                                        mgCMemory *memory, mgCMemory *work,
+                                                        mgCTextureManager *textures) {
+    if (work == nullptr) {
+        return 0;
+    }
+
+    work->stReset();
+    texture_manager = textures != nullptr ? textures : &mgTexManager;
+    CopyMDTDataPointer(header, memory);
+    frame = motion->frame;
+    base_matrix = motion->base_matrix;
+    frame_id = motion->frame_id;
+
+    // Copies share these weights, so they must live in the visual's arena rather than the reused work stack.
+    CreateVertexWeight(motion->weight_data, frame_id, memory);
+
+    int slots = 0;
+    while (slots < 32 && bone[slots] >= 0) {
+        ++slots;
+    }
+    vu1_base = slots * 4 + 0x3C;
+    vu1_offset = 0xB4 - (slots * 4) / 2;
+
+    mgCMemory indices;
+    indices.stSetBuffer(work->stGetTop(), work->stGetRest());
+    face_group = nullptr;
+    auto *section = reinterpret_cast<MDT_FACES *>(reinterpret_cast<u_char *>(header) + header->faces_ofs);
+    auto *source = reinterpret_cast<FACES_ID *>(section + 1);
+    for (int primitive = 0; primitive < section->prim_num; ++primitive) {
+        indices.stReset();
+        mgCFace *face = nullptr;
+        source = CreateFace(source, memory, &indices, &face);
+        CreateFaceMotionPacket(nullptr, face, motion);
+        face->packet_tag = 0;
+    }
+    return 1;
+}
 
 PORT_OVERRIDE int mgCVisualMotionMDT::CreateFaceMotionPacket(u_int *packet, mgCFace *face, mgCVMotionData *motion) {
     if (face != NULL) {

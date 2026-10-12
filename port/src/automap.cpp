@@ -1,6 +1,8 @@
 #include "common.h"
 
 #include <cmath>
+#include <cstring>
+#include <iterator>
 
 #include "automap.hpp"
 #include "dng_main.hpp"
@@ -15,6 +17,44 @@ namespace {
 constexpr gfx::UiAnchor kMiniMapAnchor = gfx::UiAnchor::Side(1, -1, true);
 
 } // namespace
+
+PORT_OVERRIDE void CMiniMapSymbol::SetMapInfo(CMap *new_map, CAutoMapParts *new_grid, int width, int height,
+                                             float cell_width, float cell_depth) {
+    if (!new_map) return;
+    map = new_map;
+    grid = new_grid;
+    grid_w = width;
+    grid_h = height;
+    cell_w = cell_width;
+    cell_d = cell_depth;
+    int capacity = 0;
+    parts_table = new_map->GetPlacPartsTable(&capacity);
+    parts_num = 0;
+    while (parts_table && parts_num < capacity && parts_table[parts_num].name[0]) ++parts_num;
+    texture = mgTexManager.GetTexture("minimap1", -1);
+    info = nullptr;
+    char floor_name[sizeof(BattleAreaScene->map_name)];
+    std::memcpy(floor_name, BattleAreaScene->map_name, sizeof floor_name);
+    floor_name[sizeof floor_name - 1] = 0;
+    if (std::strlen(floor_name) == 7) floor_name[6] = 0;
+    for (auto &entry : MiniMapInfoData) {
+        if (std::strcmp(entry.name, floor_name) == 0) {
+            info = &entry;
+            break;
+        }
+    }
+    if (!info) return;
+    for (int i = 0; i < parts_num; ++i) {
+        auto &part = parts_table[i];
+        part.minimap_tile = -1;
+        // The final entry has an empty string, not a null pointer.
+        for (std::size_t j = 0; j < std::size(PartsInfoData) && j < std::size(info->tile); ++j) {
+            const char *name = PartsInfoData[j].name;
+            if (!name || !*name) break;
+            if (std::strcmp(name, part.parts_name) == 0) part.minimap_tile = info->tile[j];
+        }
+    }
+}
 
 PORT_OVERRIDE void CMiniMapSymbol::DrawSymbolOpen() {
     prim.Initialize(0, 0);

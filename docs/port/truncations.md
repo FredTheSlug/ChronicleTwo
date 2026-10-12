@@ -194,18 +194,17 @@ stored, or resolve the integer where it comes back.
 |---|---|---|---|---|
 | ps2/src/dataread.cpp:926 | InitFileCache | replaced | `(u_long128 *)align_size((uptr)address,64)` | align_size |
 
-## Narrowing pointer casts: 15 narrowing sites in compiled ps2/ code (15 owned, 0 unowned), 18 benign, 37 in replaced functions
+## Narrowing pointer casts: 14 narrowing sites in compiled ps2/ code (14 owned, 0 unowned), 18 benign, 38 in replaced functions
 
 A pointer cast to a narrow integer, or a `uptr`/`sptr` value that a conversion narrows, in a unit under `ps2/src` (headers under `ps2/src` and `ps2/include` included). The destination is where the value goes. Benign sites are listed apart: their narrowed expression cannot carry an address.
 
-### In compiled functions: 15 sites
+### In compiled functions: 14 sites
 
 | unit | sites |
 |---|---|
 | ps2/src/menusys.cpp | 1 |
 | ps2/src/mg_visual.cpp | 1 |
 | ps2/src/movie.cpp | 12 |
-| ps2/src/visualmotion.cpp | 1 |
 
 - `ps2/src/menusys.cpp:6860 CMenuItemInfo::ExitEnd field CMenuSystemData::item_cursor (ps2/include/menusystemdata.hpp:55)`: records: stored into the save record CMenuSystemData::item_cursor
 - `ps2/src/mg_visual.cpp:610 mgCVisualFixMDT::DataAssignMDT other (memory)`: prog0: DMA tag words / packet build (CreatePacket, Draw, DataAssignMDT)
@@ -221,9 +220,8 @@ A pointer cast to a narrow integer, or a `uptr`/`sptr` value that a conversion n
 - `ps2/src/movie.cpp:1477 iopGetArea other (memory)`: movies: DMA/IPU/IOP addresses (unit replaced whole)
 - `ps2/src/movie.cpp:1482 iopGetArea other (memory)`: movies: DMA/IPU/IOP addresses (unit replaced whole)
 - `ps2/src/movie.cpp:1484 iopGetArea other (memory)`: movies: DMA/IPU/IOP addresses (unit replaced whole)
-- `ps2/src/visualmotion.cpp:249 mgCVisualMotionMDT::DataAssignMotionMDT other (memory)`: prog0: packet tag word in DataAssignMotionMDT
 
-### In replaced functions (widening-only override candidates): 37 sites
+### In replaced functions (widening-only override candidates): 38 sites
 
 - `ps2/src/dataread.cpp:926 InitFileCache arg align_size#0 (u_int)`: data/integrator: address through align_size(u_int) (replaced function)
 - `ps2/src/mg_drawprim.cpp:693 mgCDrawManager::Draw other (memory)`: draw2d: DMA tag words in mgCDrawManager::Draw (packet path replaced)
@@ -260,6 +258,7 @@ A pointer cast to a narrow integer, or a `uptr`/`sptr` value that a conversion n
 - `ps2/src/sound.cpp:886 CSound::LoadSeq arg ezMidi#1 (int)`: audio-game: addresses through ezMidi/ezBgm int parameters (override pairs)
 - `ps2/src/sound.cpp:932 CSound::StreamOpenFast arg ezBgm#1 (int)`: audio-game: addresses through ezMidi/ezBgm int parameters (override pairs)
 - `ps2/src/sound.cpp:941 CSound::StreamOpenFromFPLFast arg ezBgm#1 (int)`: audio-game: addresses through ezMidi/ezBgm int parameters (override pairs)
+- `ps2/src/visualmotion.cpp:249 mgCVisualMotionMDT::DataAssignMotionMDT other (memory)`: prog0: packet tag word in DataAssignMotionMDT
 - `ps2/src/water.cpp:603 CWater::Draw other (memory)`: fx-shadow: packet tag words in CWater::Draw
 - `ps2/src/water.cpp:608 CWater::Draw other (memory)`: fx-shadow: packet tag words in CWater::Draw
 

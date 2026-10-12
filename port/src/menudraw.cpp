@@ -8,6 +8,72 @@
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 
+extern float PortMenuWakuPosition[2] asm("MenuDraw_WakuPosition");
+
+PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
+                                    int alpha, int red, int green, int blue) {
+    if (texture == nullptr || uv.right <= 0) {
+        return;
+    }
+    const mgRect<int> outer(static_cast<int>(rect.left), static_cast<int>(rect.top),
+                            static_cast<int>(rect.left + rect.right + uv.bottom),
+                            static_cast<int>(rect.top + rect.bottom + uv.right));
+    auto scissor = outer;
+    MenuClipRectCheck(scissor);
+    if (scissor.right <= 1) {
+        return;
+    }
+    auto *prim = GetMenuPrim();
+    SetMenuScissor(scissor);
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
+    prim->Begin(MG_PRIM_SPRITE);
+    prim->Texture(texture);
+    prim->Color(red, green, blue, alpha);
+    float sign = 1.0f;
+    const int horizontal_count = static_cast<int>(3.0f + rect.right / uv.right);
+    for (int edge = 0; edge < 2; ++edge) {
+        float x = (edge == 0 ? outer.right - 3 : outer.left) + PortMenuWakuPosition[0] * sign;
+        const float y = edge == 0 ? outer.top - 5 : outer.bottom - 8;
+        for (int tile = 0; tile < horizontal_count; ++tile) {
+            prim->TextureCrd(uv.left, uv.top);
+            prim->Vertex(x, y, 0.0f);
+            prim->TextureCrd(uv.left + uv.right, uv.top + uv.bottom);
+            prim->Vertex(x + uv.right, y + uv.bottom, 0.0f);
+            x -= uv.right * sign;
+        }
+        sign = -sign;
+    }
+    prim->End();
+
+    SetMenuScissor({0, scissor.top + 1, mgScreenWidth - 1, scissor.bottom - 1});
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_ADD);
+    prim->Begin(MG_PRIM_TRIANGLE_FAN);
+    // Initialize clears the builder descriptor. Retail retains TEX0/RGBAQ in the GS;
+    // explicitly bind both again for the rotated bands on the host.
+    prim->Texture(texture);
+    prim->Color(red, green, blue, alpha);
+    const int vertical_count = static_cast<int>(3.0f + rect.bottom / uv.right);
+    for (int edge = 0; edge < 2; ++edge) {
+        const float x = edge == 0 ? outer.left - 5 : outer.right - 8;
+        float y = (edge == 0 ? outer.top - 13 : outer.bottom) + PortMenuWakuPosition[1] * sign;
+        for (int tile = 0; tile < vertical_count; ++tile) {
+            prim->TextureCrd(uv.left, uv.top + uv.bottom);
+            prim->Vertex(x, y, 0.0f);
+            prim->TextureCrd(uv.left, uv.top);
+            prim->Vertex(x + uv.bottom, y, 0.0f);
+            prim->TextureCrd(uv.left + uv.right, uv.top);
+            prim->Vertex(x + uv.bottom, y + uv.right, 0.0f);
+            prim->TextureCrd(uv.left + uv.right, uv.top + uv.bottom);
+            prim->Vertex(x, y + uv.right, 0.0f);
+            prim->Flush();
+            y += uv.right * sign;
+        }
+        sign = -sign;
+    }
+    prim->End();
+    ResetMenuScissor();
+}
+
 PORT_OVERRIDE int MenuCapture(int block, mgCMemory *stack, int draw) {
     u8                *dst;
     mgCTextureManager *tex_manager;

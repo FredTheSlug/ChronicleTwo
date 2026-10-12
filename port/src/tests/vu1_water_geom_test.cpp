@@ -1,4 +1,5 @@
 #include "vu1/water_geom.hpp"
+#include "vu1_oracle/water_oracle.hpp"
 
 #include <gtest/gtest.h>
 

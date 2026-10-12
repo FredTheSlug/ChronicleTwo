@@ -5,142 +5,58 @@
 namespace dc::vu1 {
 namespace {
 
-// Vertex indices: 0..2 = C0..C2, 3..5 = T0..T2. Spec 5.3.
-constexpr uint8_t kPathA[kSdwQuadCount][4] = {
-    {0, 3, 4, 1}, {1, 4, 5, 2}, {2, 5, 3, 0}, {5, 4, 3, 3}, {0, 1, 2, 2}};
-constexpr uint8_t kPathB[kSdwQuadCount][4] = {
-    {0, 1, 4, 3}, {1, 2, 5, 4}, {2, 0, 3, 5}, {3, 4, 5, 5}, {2, 1, 0, 0}};
-
-bool OutsideFrustum(const Vec4& v) {
-    const float aw = std::fabs(v.w);
-    return v.x > aw || v.x < -aw || v.y > aw || v.y < -aw || v.z > aw || v.z < -aw;
+bool Finite(const Vec4& v) {
+    return std::isfinite(v.x) && std::isfinite(v.y) && std::isfinite(v.z) && std::isfinite(v.w);
 }
 
-SdwScreenVertex Project(const Mat4& cs, const Vec4& v) {
-    const Vec4 p = Mul(cs, v);
-    const Vec4 s = p * (1.0f / p.w);
-    return {
-        Ftoi4(s.x),
-        Ftoi4(s.y),
-        Ftoi4(s.z) >> 4,
-        static_cast<uint32_t>(Ftoi4(s.w) >> 4) & 0xFFu,
-        s,
-    };
+Vec4 Point(const Vec4& v) {
+    return {v.x, v.y, v.z, 1.0f};
+}
+
+Vec4 Centroid(const Vec4 p[3]) {
+    return {(p[0].x + p[1].x + p[2].x) / 3.0f, (p[0].y + p[1].y + p[2].y) / 3.0f,
+            (p[0].z + p[1].z + p[2].z) / 3.0f, 0.0f};
 }
 
 }  // namespace
 
-SdwLight SdwPrepare(const SdwParams& p) {
-    const Vec4 a{Dot3(p.object[0], p.light), Dot3(p.object[1], p.light),
-                 Dot3(p.object[2], p.light), 0.0f};
-    const float len = std::sqrt(Dot3(a, a));
-    const Vec4 a_hat{a.x / len, a.y / len, a.z / len, 0.0f};
-
-    const Vec4 d{kSdwLightScale * a_hat.x, kSdwLightScale * a_hat.y, kSdwLightScale * a_hat.z,
-                 0.0f};
-    const Vec4 lc = p.vc.q[0] * d.x + p.vc.q[1] * d.y + p.vc.q[2] * d.z;
-
-    const float det = Dot3(Cross3(p.object[0], p.object[1]), p.object[2]);
-    return {a_hat, lc, det < 0.0f};
-}
-
-SdwTriangle SdwExtrude(const SdwParams& p, const SdwLight& light, Vec4 v0, Vec4 v1, Vec4 v2) {
-    SdwTriangle tri{};
-    const Vec4 in[3] = {v0, v1, v2};
-    for (uint32_t j = 0; j < 3; ++j) {
-        tri.c[j] = Mul(p.vc, in[j]);
-        tri.t[j] = Mul(p.sm, in[j]);
-    }
-
-    for (const Vec4& c : tri.c) {
-        if (OutsideFrustum(c)) {
-            tri.reject = SdwReject::CClip;
-            return tri;
-        }
-    }
-    for (const Vec4& t : tri.t) {
-        if (OutsideFrustum(t)) {
-            tri.reject = SdwReject::TClip;
-            return tri;
+void SdwPrism(const Vec4 top[3], const Vec4 drop[3], std::vector<SdwPrismTriangle>& out) {
+    for (uint32_t i = 0; i < 3; ++i) {
+        if (!Finite(top[i]) || !Finite(drop[i])) {
+            return;
         }
     }
 
-    tri.e1 = {tri.c[1].x - tri.c[0].x, tri.c[1].y - tri.c[0].y, tri.c[1].z - tri.c[0].z, 0.0f};
-    tri.e2 = {tri.c[2].x - tri.c[0].x, tri.c[2].y - tri.c[0].y, tri.c[2].z - tri.c[0].z, 0.0f};
-    tri.n = Cross3(tri.e2, tri.e1);
-    tri.q = Dot3(tri.n, light.lc);
-    if (std::fabs(tri.q) <= kSdwGrazingEpsilon) {
-        tri.reject = SdwReject::Grazing;
-        return tri;
+    const Vec4 normal = Cross3(top[1] - top[0], top[2] - top[0]);
+    const Vec4 height = Centroid(drop) - Centroid(top);
+    const float normal_len = std::sqrt(Dot3(normal, normal));
+    const float height_len = std::sqrt(Dot3(height, height));
+    const float thickness = Dot3(normal, height);
+    if (!std::isfinite(normal_len) || !std::isfinite(height_len) || !std::isfinite(thickness)) {
+        return;
+    }
+    if (normal_len == 0.0f || height_len == 0.0f ||
+        std::fabs(thickness) <= 1e-4f * normal_len * height_len) {
+        return;
     }
 
-    tri.path = tri.q < 0.0f ? SdwPath::B : SdwPath::A;
-    const Vec4 pts[6] = {tri.c[0], tri.c[1], tri.c[2], tri.t[0], tri.t[1], tri.t[2]};
-    const auto& order = tri.path == SdwPath::B ? kPathB : kPathA;
+    // The top normal points away from the drop exactly when the drop lies below the triangle; the
+    // side and drop caps follow that orientation so every face winds outward either way.
+    const bool down = thickness < 0.0f;
+    const Vec4 t[3] = {Point(top[0]), Point(top[1]), Point(top[2])};
+    const Vec4 d[3] = {Point(drop[0]), Point(drop[1]), Point(drop[2])};
 
-    std::array<bool, kSdwQuadCount> back{};
-    for (uint32_t g = 0; g < kSdwQuadCount; ++g) {
-        SdwQuad& quad = tri.quads[g];
-        for (uint32_t i = 0; i < 4; ++i) {
-            quad.v[i] = Project(p.cs, pts[order[g][i]]);
-        }
+    const auto emit = [&out](const Vec4& a, const Vec4& b, const Vec4& c, bool keep) {
+        out.push_back(keep ? SdwPrismTriangle{{a, b, c}} : SdwPrismTriangle{{a, c, b}});
+    };
 
-        // Spec tabulates s in 12.4 units; the sign is taken on the float S, before ftoi4 (5.4).
-        const Vec4& s0 = quad.v[0].s;
-        const Vec4& s1 = quad.v[1].s;
-        const Vec4& s2 = quad.v[2].s;
-        const float e1x = s1.x - s0.x;
-        const float e1y = s1.y - s0.y;
-        const float e2x = s2.x - s0.x;
-        const float e2y = s2.y - s0.y;
-        quad.zsign = e2x * e1y - e2y * e1x;
-        quad.back = quad.zsign < 0.0f;
-        back[g] = quad.back;
-        if (quad.back) {
-            ++tri.back_count;
-        } else {
-            ++tri.front_count;
-        }
+    emit(t[0], t[1], t[2], down);
+    emit(d[0], d[1], d[2], !down);
+    for (uint32_t e = 0; e < 3; ++e) {
+        const uint32_t next = (e + 1) % 3;
+        emit(t[e], d[e], d[next], down);
+        emit(t[e], d[next], t[next], down);
     }
-
-    tri.kicks = SdwKickOrder(back);
-    return tri;
-}
-
-std::vector<SdwKick> SdwKickOrder(const std::array<bool, kSdwQuadCount>& back) {
-    uint32_t front_count = 0;
-    uint32_t back_count = 0;
-    for (bool b : back) {
-        if (b) {
-            ++back_count;
-        } else {
-            ++front_count;
-        }
-    }
-
-    std::vector<SdwKick> kicks;
-    kicks.push_back({SdwKickKind::AlphaAdd, 0});
-    // Spec 6.5: back quads are never kicked when a triangle has no front quad.
-    if (front_count == 0) {
-        return kicks;
-    }
-    for (uint32_t g = 0; g < kSdwQuadCount; ++g) {
-        if (!back[g]) {
-            kicks.push_back({SdwKickKind::Quad, static_cast<uint8_t>(g)});
-        }
-    }
-    kicks.push_back({SdwKickKind::AlphaAdd, 0});
-    if (back_count == 0) {
-        return kicks;
-    }
-    kicks.push_back({SdwKickKind::AlphaSub, 0});
-    for (uint32_t g = 0; g < kSdwQuadCount; ++g) {
-        if (back[g]) {
-            kicks.push_back({SdwKickKind::Quad, static_cast<uint8_t>(g)});
-        }
-    }
-    kicks.push_back({SdwKickKind::AlphaSub, 0});
-    return kicks;
 }
 
 }  // namespace dc::vu1

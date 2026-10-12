@@ -136,7 +136,6 @@ DepthRect depth_answered_rect;
 std::map<gfx::TextureHandle, ColorImage> color_cache;
 std::set<gfx::TextureHandle> color_marks;
 
-gfx::TextureHandle shadow_target = gfx::kNullTexture;
 bool in_shadow = false;
 
 int ScreenSizeForMode(int mode, int *width, int *height) {
@@ -289,10 +288,6 @@ void WriteTexel(uint8_t *out, int psm, const uint8_t *rgba) {
             break;
         }
     }
-}
-
-std::string ShadowName(uint32_t key) {
-    return "mglib shadow " + std::to_string(key);
 }
 
 // Outside a recording and a frame. After a canonical render kPreviousFrame is the tick's image; the
@@ -887,7 +882,7 @@ std::optional<float> mgPortDepthResult(int query) {
 // Shadows
 
 gfx::TextureHandle mgPortShadowTarget() {
-    return shadow_target;
+    return in_shadow ? gfx::kMainTarget : gfx::kNullTexture;
 }
 
 bool mgPortInShadow() {
@@ -1575,25 +1570,12 @@ PORT_OVERRIDE void mgBeginDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
         return;
     }
 
-    const int fbp = static_cast<int>(shadow->tex0.TBP0 / 32);
-    const uint32_t key = static_cast<uint32_t>(fbp) << 5;
-    const int width = (shadow->width + 63) & ~63;
-    const int height = (shadow->height + 63) & ~63;
-    const int psm = static_cast<int>(shadow->tex0.PSM);
-
-    // Registered under the frame-buffer key before mgSetPkFrameBuffer runs, so it resolves to this
-    // target instead of creating a plain render target for the same address.
-    shadow_target = gfx::NamedRenderTarget(ShadowName(key), static_cast<uint32_t>(width),
-                                           static_cast<uint32_t>(height), false, true);
-    render_targets[key] = RenderTargetEntry{shadow_target, width, height, psm, false};
-    texture_targets[shadow] = key;
-    mgSetPkFrameBuffer(fbp, width, height, psm);
-    in_shadow = true;
-
+    // The counts live in the main target's stencil, which the renderer does not clear per frame.
     if (gfx_open) {
-        const uint8_t clear[4] = {0, 0, 0, 0};
-        gfx::Clear(true, clear, false, 0.0f, nullptr);
+        gfx::ClearStencil(0, nullptr);
     }
+
+    in_shadow = true;
 }
 
 PORT_OVERRIDE void mgEndDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
@@ -1601,41 +1583,35 @@ PORT_OVERRIDE void mgEndDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
         return;
     }
 
-    mgSetPkFrameBuffer(-1, -1, -1, -1);
-
+    // Any non-zero count darkens the pixel once and zeroes it: union, as retail's AEM composite.
     gfx::DrawState state = mgPortDrawState();
     state.blend = true;
-    state.alpha = gfx::GsBlend{2, 1, 0, 1, 64};
-    state.alpha_test = true;
-    state.alpha_func = gfx::AlphaFunc::GEqual;
-    state.alpha_ref = 1;
+    state.alpha = gfx::GsBlend{2, 1, 0, 1, 0x80};
     state.depth_test = gfx::DepthTest::Always;
     state.depth_write = false;
-    state.texa_aem = true;
-    state.texa_ta0 = 48;
+    state.alpha_test = false;
+    state.cull = gfx::CullMode::None;
+    state.stencil_test = true;
+    const gfx::StencilFace composite_face{gfx::CompareOp::NotEqual, gfx::StencilOp::Keep,
+                                          gfx::StencilOp::Zero, gfx::StencilOp::Keep};
+    state.stencil_front = composite_face;
+    state.stencil_back = composite_face;
+    state.color_write_mask = gfx::kWriteRgba;
 
-    const float width = static_cast<float>(mgScreenWidth);
-    const float height = static_cast<float>(mgScreenHeight);
-    const float last_u = static_cast<float>(shadow->width) - 1.0f;
-    const float last_v = static_cast<float>(shadow->height) - 1.0f;
-    const uint8_t colour[4] = {128, 128, 128, 128};
-
-    const auto corner = [&colour](float x, float y, float u, float v) {
-        gfx::Vertex2D vertex{};
-        vertex.x = x;
-        vertex.y = y;
-        vertex.u = u;
-        vertex.v = v;
-        std::memcpy(vertex.color, colour, sizeof colour);
-        return vertex;
-    };
-    const gfx::Vertex2D quad[4] = {corner(0.0f, 0.0f, 1.0f, 1.0f), corner(width, 0.0f, last_u, 1.0f),
-                                   corner(width, height, last_u, last_v), corner(0.0f, height, 1.0f, last_v)};
-
-    gfx::TextureBinding binding;
-    binding.texture = shadow_target;
-    binding.filter = gfx::Filter::Linear;
-    mgPortDraw2D(gfx::Primitive::Quads, quad, binding, state);
+    // Alpha 48 is retail's TEXA TA0 for the composite.
+    const uint8_t colour[4] = {0, 0, 0, 48};
+    const mgPortExtent extent = mgPortVisibleExtent();
+    const float corners[4][2] = {{extent.left, extent.top},
+                                 {extent.right, extent.top},
+                                 {extent.right, extent.bottom},
+                                 {extent.left, extent.bottom}};
+    gfx::Vertex2D quad[4]{};
+    for (int i = 0; i < 4; ++i) {
+        quad[i].x = corners[i][0];
+        quad[i].y = corners[i][1];
+        std::memcpy(quad[i].color, colour, sizeof colour);
+    }
+    mgPortDraw2D(gfx::Primitive::Quads, quad, gfx::TextureBinding{}, state);
 
     sceGsTexa texa = FromRaw<sceGsTexa>(0);
     texa.TA0 = 0;
@@ -1643,6 +1619,5 @@ PORT_OVERRIDE void mgEndDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
     texa.AEM = 1;
     gs_state.texa = ToRaw(texa);
 
-    shadow_target = gfx::kNullTexture;
     in_shadow = false;
 }

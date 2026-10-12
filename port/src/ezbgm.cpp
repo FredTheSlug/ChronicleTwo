@@ -15,6 +15,7 @@
 #include <string_view>
 
 #include "ezbgm.hpp"
+#include "audio_init.hpp"
 #include "sound.hpp"
 #include "sound_port.hpp"
 #include "audio/mixer.hpp"
@@ -245,7 +246,7 @@ int EzBgmOpenFromPack(int channel, const char *name, const char *pack_name) {
 }
 
 void EzBgmStep() {
-    if (AudioOutputRunning()) {
+    if (AudioOutputRunning() || AudioUsesTickClock()) {
         return;
     }
 

@@ -268,7 +268,7 @@ int Run(int argc, const char **argv) {
     gfx::RendererInit(WindowHandle(), renderer);
     PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));
 #ifdef CT_HAVE_AUDIO_INIT
-    AudioInit();
+    AudioInit(options.headless);
     // --frames leaves through std::exit from mgEndFrame: the output must stop before the mixer's statics are destroyed
     // under the audio thread.
     std::atexit(AudioShutdown);

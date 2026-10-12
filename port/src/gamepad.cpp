@@ -2,6 +2,7 @@
 
 #include "gamepad.hpp"
 #include "test_hooks.hpp"
+#include "platform/input.hpp"
 #include "platform/paths.hpp"
 
 #include <cstdio>
@@ -16,6 +17,16 @@ void Neutral(PAD_STATUS &status) {
     status.button = 0;
     status.left_x = status.left_y = status.right_x = status.right_y = 128;
 }
+}
+
+PORT_OVERRIDE void CGamePad::MenuModeOn(int threshold) {
+    axis_threshold[0] = threshold;
+    InputSetMenuNavigation(true);
+}
+
+PORT_OVERRIDE void CGamePad::MenuModeOff() {
+    axis_threshold[0] = 0;
+    InputSetMenuNavigation(false);
 }
 
 PORT_OVERRIDE void CGamePad::CaptureStart() {

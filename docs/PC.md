@@ -275,6 +275,22 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 
 `SettingsChange` stores the new settings, saves them, calls `DisplayChanged`, and calls a change hook. Through that hook `main` applies the tick rate, the present mode, `InputApplyConfig` and the present settings.
 
+### Keyboard menu controls
+
+With the default bindings, Tab sends Triangle, Enter sends Start, E sends Square,
+and Space or Mouse1 sends Cross. Escape sends Triangle outside the game's menu
+navigation mode and Circle while that mode is enabled. The game's
+`CGamePad::MenuModeOn/Off` entry points select that host mode as well as the
+retail stick threshold. In English, Cross confirms and Circle cancels; Japanese
+reverses those two logical buttons.
+
+Triangle opens the field or dungeon main menu. Inside a menu its meaning belongs
+to that screen: the main menu accepts it as OK, while some submenus treat it as
+Cancel. Enter retains the retail pause/resume action. WASD drives the left stick;
+retail menu navigation also converts that stick into D-pad presses past its
+threshold, including movement between active-item slots. Arrow keys send the
+D-pad directly.
+
 ## Decision 1: long64 is kept
 
 The PS2's `long` is 64-bit, and on Windows (LLP64) it is not. `scripts/port/long64.py` rewrites the build-tree copies of `ps2/src` and the `ps2/include` mirror, on every host, so the port keeps the PS2's width:

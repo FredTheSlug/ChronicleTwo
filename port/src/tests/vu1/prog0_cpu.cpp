@@ -1,6 +1,7 @@
-#include "vu1/prog0_cpu.hpp"
+#include "prog0_cpu.hpp"
 
 #include <cmath>
+#include <cstddef>
 
 namespace dc::vu1 {
 
@@ -261,6 +262,66 @@ Prog0Facing Prog0ListFacing(const std::array<Vec4, 3>& v, const std::array<uint3
 
 bool Prog0ClipFacingKeep(Vec4 p0, Vec4 p1, Vec4 p2, uint32_t mirror) {
     return Prog0OrientBit(p0, p1, p2) == (mirror & kOrient);
+}
+
+std::vector<bool> Prog0WindowAdc(std::span<const uint32_t> guard, Prog0Window& carry) {
+    std::vector<bool> adc;
+    adc.reserve(guard.size());
+    for (const uint32_t g : guard) {
+        const bool in = g == kGuardMask;
+        adc.push_back(!(carry.in_prev2 && carry.in_prev1 && in));
+        carry.in_prev2 = carry.in_prev1;
+        carry.in_prev1 = in;
+    }
+    return adc;
+}
+
+std::vector<bool> Prog0StripAdc(std::span<const Vec4> screen, std::span<const uint32_t> guard, uint32_t mirror,
+                                Prog0StripWindow& carry) {
+    std::vector<bool> adc;
+    adc.reserve(guard.size());
+    const uint32_t want = mirror & kOrient;
+    for (std::size_t k = 0; k < guard.size(); ++k) {
+        const bool in = guard[k] == kGuardMask;
+        const Vec4 cur = screen[k];
+        const float parity = (k % 2 == 0) ? 1.0f : -1.0f;
+        const float cz = Cross3(carry.pos_prev1 - cur, carry.pos_prev2 - cur).z * parity;
+        const uint32_t orient = cz < 0.0f ? kOrient : 0u;
+        const bool window = carry.window.in_prev2 && carry.window.in_prev1 && in;
+        adc.push_back(!(window && orient == want));
+
+        carry.window.in_prev2 = carry.window.in_prev1;
+        carry.window.in_prev1 = in;
+        carry.pos_prev2 = carry.pos_prev1;
+        carry.pos_prev1 = cur;
+    }
+    return adc;
+}
+
+std::vector<int> Prog0StripParity(int vertex_num, int batch_limit) {
+    if (vertex_num < 3 || batch_limit < 3) {
+        return {};
+    }
+    std::vector<int> parity(static_cast<std::size_t>(vertex_num - 2), 0);
+    int start = 0;
+    int remaining = vertex_num;
+    while (remaining > 0) {
+        const bool continues = batch_limit < remaining;
+        const int count = continues ? batch_limit : remaining;
+        for (int k = 2; k < count; ++k) {
+            parity[static_cast<std::size_t>(start + k - 2)] = (k % 2 == 0) ? 1 : -1;
+        }
+        start += continues ? batch_limit - 2 : count;
+        remaining += continues ? 2 - batch_limit : -batch_limit;
+    }
+    return parity;
+}
+
+std::array<int, 3> Prog0StripTriangle(int t, int parity) {
+    if (parity > 0) {
+        return {t, t + 1, t + 2};
+    }
+    return {t + 1, t, t + 2};
 }
 
 GsXyzf PackProg0Xyzf(Vec4 screen, float fog, bool adc) {

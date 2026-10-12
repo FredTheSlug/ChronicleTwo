@@ -2,6 +2,8 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
+#include <vector>
 
 #include "vu1/vu1_math.hpp"
 
@@ -119,6 +121,35 @@ struct Prog0Facing {
 // mirror is QW[30].x as an integer: 0 or 32.
 Prog0Facing Prog0ListFacing(const std::array<Vec4, 3>& v, const std::array<uint32_t, 3>& guard, uint32_t mirror);
 bool Prog0ClipFacingKeep(Vec4 p0, Vec4 p1, Vec4 p2, uint32_t mirror);
+
+// The window carry is the in-flags of the two vertices before the next one. A draw starts with
+// both out: vertices 0 and 1 of a draw are inert, since no list triangle and no strip triangle
+// completes on them (7.1, 7.3).
+struct Prog0Window {
+    bool in_prev2 = false;
+    bool in_prev1 = false;
+};
+
+// OUTPUTC window ADC (7.1). guard holds the Prog0GuardBits words of one batch.
+std::vector<bool> Prog0WindowAdc(std::span<const uint32_t> guard, Prog0Window& carry);
+
+struct Prog0StripWindow {
+    Prog0Window window;
+    Vec4 pos_prev2 = {};
+    Vec4 pos_prev1 = {};
+};
+
+// OUTPUTCN_STR facing and ADC (7.3) for one batch. screen and guard have equal length; mirror is 0 or 32.
+std::vector<bool> Prog0StripAdc(std::span<const Vec4> screen, std::span<const uint32_t> guard, uint32_t mirror,
+                                Prog0StripWindow& carry);
+
+// Parity sign for triangle t = 0..vertex_num-3 of a strip cut into batches of batch_limit vertices.
+// The parity belongs to the batch-local completing vertex and restarts at every batch (O-5).
+std::vector<int> Prog0StripParity(int vertex_num, int batch_limit);
+
+// Vertex order for triangle t whose retail parity is parity (+1 or -1). Prog0ListFacing on this
+// order reproduces the Prog0StripAdc accept decision for the triangle.
+std::array<int, 3> Prog0StripTriangle(int t, int parity);
 
 struct GsXyzf {
     uint16_t x;

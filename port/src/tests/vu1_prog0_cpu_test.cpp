@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <random>
+#include <span>
+#include <vector>
 
 #include "vu1/prog0_cpu.hpp"
 
@@ -639,6 +643,233 @@ TEST(Vu1Prog0Cpu, PackXyzfNegativeXWrapsLow16) {
     EXPECT_FALSE(p.adc);
 }
 
+
+const std::array<uint32_t, 8> kGuardChoice = {kGuardMask, kGuardMask, kGuardMask, kGuardMask,
+                                               kGuardMask, kGuardMask, 0x90u, 0x50u};
+
+uint32_t RandomGuard(std::mt19937& rng) {
+    return kGuardChoice[std::uniform_int_distribution<std::size_t>(0, kGuardChoice.size() - 1)(rng)];
+}
+
+std::vector<bool> RunWindowBatches(const std::vector<uint32_t>& guard, const std::vector<std::size_t>& sizes) {
+    Prog0Window carry{};
+    std::vector<bool> out;
+    std::size_t pos = 0;
+    for (const std::size_t n : sizes) {
+        const std::vector<bool> adc = Prog0WindowAdc(std::span<const uint32_t>(guard).subspan(pos, n), carry);
+        out.insert(out.end(), adc.begin(), adc.end());
+        pos += n;
+    }
+    return out;
+}
+
+std::vector<Vec4> StripWithFourth(Vec4 v3) {
+    return std::vector<Vec4>{{2100.0f, 2100.0f, 0.0f, 0.01f},
+                             {2200.0f, 2100.0f, 0.0f, 0.01f},
+                             {2100.0f, 2200.0f, 0.0f, 0.01f},
+                             v3};
+}
+
+std::vector<bool> StripAdcAllIn(const std::vector<Vec4>& screen, uint32_t mirror) {
+    const std::vector<uint32_t> guard(screen.size(), kGuardMask);
+    Prog0StripWindow carry{};
+    return Prog0StripAdc(screen, guard, mirror, carry);
+}
+
+struct Batch {
+    int start;
+    int count;
+};
+
+// Batch k starts at (batch_limit - 2) * k and runs while the remaining vertices exceed one batch (3.3, CreateFacePacket).
+std::vector<Batch> StripBatches(int vertex_num, int batch_limit) {
+    std::vector<Batch> out;
+    for (int b = 0;; ++b) {
+        const int start = (batch_limit - 2) * b;
+        const int remaining = vertex_num - start;
+        out.push_back({start, std::min(batch_limit, remaining)});
+        if (remaining <= batch_limit) {
+            break;
+        }
+    }
+    return out;
+}
+
+std::vector<int> ContinuousParity(std::size_t triangles) {
+    std::vector<int> p(triangles);
+    for (std::size_t t = 0; t < triangles; ++t) {
+        p[t] = (t % 2 == 0) ? 1 : -1;
+    }
+    return p;
+}
+
+void FlipRange(std::vector<int>& p, std::size_t first, std::size_t last) {
+    for (std::size_t t = first; t <= last; ++t) {
+        p[t] = -p[t];
+    }
+}
+
+void ExpectParity(const std::vector<int>& got, const std::vector<int>& want) {
+    ASSERT_EQ(got.size(), want.size());
+    for (std::size_t t = 0; t < want.size(); ++t) {
+        EXPECT_EQ(got[t], want[t]) << "triangle " << t;
+    }
+}
+
+void ExpectStripReorderMatchesRetail(int vertex_num, int batch_limit) {
+    std::mt19937 rng(static_cast<uint32_t>(vertex_num * 131 + batch_limit));
+    std::uniform_int_distribution<int> coord(0, 1023);
+    std::vector<Vec4> screen(static_cast<std::size_t>(vertex_num));
+    std::vector<uint32_t> guard(static_cast<std::size_t>(vertex_num));
+    for (std::size_t i = 0; i < screen.size(); ++i) {
+        screen[i] = {static_cast<float>(coord(rng)), static_cast<float>(coord(rng)), 0.0f, 0.01f};
+        guard[i] = RandomGuard(rng);
+    }
+
+    const std::vector<int> parity = Prog0StripParity(vertex_num, batch_limit);
+    ASSERT_EQ(parity.size(), static_cast<std::size_t>(vertex_num - 2));
+
+    const auto at = [](int i) { return static_cast<std::size_t>(i); };
+    std::size_t checked = 0;
+    bool seen_pos = false;
+    bool seen_neg = false;
+    bool seen_keep = false;
+    bool seen_drop = false;
+    for (const Batch& b : StripBatches(vertex_num, batch_limit)) {
+        const auto start = static_cast<std::size_t>(b.start);
+        const auto count = static_cast<std::size_t>(b.count);
+        for (const uint32_t mirror : {0u, 32u}) {
+            Prog0StripWindow carry{};
+            const std::vector<bool> adc = Prog0StripAdc(std::span<const Vec4>(screen).subspan(start, count),
+                                                        std::span<const uint32_t>(guard).subspan(start, count),
+                                                        mirror, carry);
+            for (std::size_t k = 2; k < count; ++k) {
+                const std::size_t t = start + k - 2;
+                const std::array<int, 3> tri = Prog0StripTriangle(static_cast<int>(t), parity[t]);
+                const std::array<Vec4, 3> v = {screen[at(tri[0])], screen[at(tri[1])], screen[at(tri[2])]};
+                const std::array<uint32_t, 3> g = {guard[at(tri[0])], guard[at(tri[1])], guard[at(tri[2])]};
+                const bool list_keep = Prog0ListFacing(v, g, mirror).keep;
+                const bool retail_keep = !adc[k];
+
+                EXPECT_EQ(retail_keep, list_keep) << "t=" << t << " mirror=" << mirror;
+                EXPECT_EQ(parity[t], k % 2 == 0 ? 1 : -1) << "t=" << t;
+                ++checked;
+                (parity[t] > 0 ? seen_pos : seen_neg) = true;
+                (retail_keep ? seen_keep : seen_drop) = true;
+            }
+        }
+    }
+    EXPECT_EQ(checked, static_cast<std::size_t>(2 * (vertex_num - 2)));
+    EXPECT_TRUE(seen_pos && seen_neg);
+    EXPECT_TRUE(seen_keep && seen_drop);
+}
+
+TEST(Vu1Prog0Cpu, WindowAdcAllInDrawStartOnly) {
+    const std::vector<uint32_t> guard(5, kGuardMask);
+    Prog0Window carry{};
+    EXPECT_EQ(Prog0WindowAdc(guard, carry), (std::vector<bool>{true, true, false, false, false}));
+}
+
+TEST(Vu1Prog0Cpu, WindowAdcOneOutPoisonsThreeWindows) {
+    const std::vector<uint32_t> guard = {kGuardMask, kGuardMask, kGuardMask, 0x00u,
+                                         kGuardMask, kGuardMask, kGuardMask};
+    Prog0Window carry{};
+    EXPECT_EQ(Prog0WindowAdc(guard, carry), (std::vector<bool>{true, true, false, true, true, true, false}));
+}
+
+TEST(Vu1Prog0Cpu, WindowAdcCarryKeepsTwoPriorFlags) {
+    const std::vector<uint32_t> first = {kGuardMask, kGuardMask};
+    const std::vector<uint32_t> second = {kGuardMask};
+    Prog0Window carry{};
+    Prog0WindowAdc(first, carry);
+    EXPECT_EQ(Prog0WindowAdc(second, carry), (std::vector<bool>{false}));
+}
+
+TEST(Vu1Prog0Cpu, WindowAdcCarryBreaksOnOutPriorVertex) {
+    const std::vector<uint32_t> first = {0x00u, kGuardMask};
+    const std::vector<uint32_t> second = {kGuardMask};
+    Prog0Window carry{};
+    Prog0WindowAdc(first, carry);
+    EXPECT_EQ(Prog0WindowAdc(second, carry), (std::vector<bool>{true}));
+}
+
+TEST(Vu1Prog0Cpu, WindowAdcBatchSplitInvariant) {
+    std::mt19937 rng(7);
+    std::vector<uint32_t> guard(40);
+    for (uint32_t& g : guard) {
+        g = RandomGuard(rng);
+    }
+
+    std::vector<bool> direct(guard.size());
+    for (std::size_t k = 0; k < guard.size(); ++k) {
+        const bool in2 = k >= 2 && guard[k - 2] == kGuardMask;
+        const bool in1 = k >= 1 && guard[k - 1] == kGuardMask;
+        direct[k] = !(in2 && in1 && guard[k] == kGuardMask);
+    }
+
+    EXPECT_EQ(RunWindowBatches(guard, {40}), direct);
+    EXPECT_EQ(RunWindowBatches(guard, {1, 6, 9, 24}), direct);
+    EXPECT_EQ(RunWindowBatches(guard, {13, 13, 14}), direct);
+}
+
+TEST(Vu1Prog0Cpu, StripAdc10_4UnmirroredRejectsBothTriangles) {
+    EXPECT_EQ(StripAdcAllIn(StripWithFourth(Vec4{2200.0f, 2200.0f, 0.0f, 0.01f}), 0),
+              (std::vector<bool>{true, true, true, true}));
+}
+
+TEST(Vu1Prog0Cpu, StripAdc10_4MirroredAcceptsBothTriangles) {
+    EXPECT_EQ(StripAdcAllIn(StripWithFourth(Vec4{2200.0f, 2200.0f, 0.0f, 0.01f}), 32),
+              (std::vector<bool>{true, true, false, false}));
+}
+
+TEST(Vu1Prog0Cpu, StripAdc10_4ReversedSecondTriangleUnmirroredAccepted) {
+    EXPECT_EQ(StripAdcAllIn(StripWithFourth(Vec4{2000.0f, 2000.0f, 0.0f, 0.01f}), 0),
+              (std::vector<bool>{true, true, true, false}));
+}
+
+TEST(Vu1Prog0Cpu, StripAdc10_4ReversedSecondTriangleMirroredRejected) {
+    EXPECT_EQ(StripAdcAllIn(StripWithFourth(Vec4{2000.0f, 2000.0f, 0.0f, 0.01f}), 32),
+              (std::vector<bool>{true, true, false, true}));
+}
+
+TEST(Vu1Prog0Cpu, StripParity57NoFlip) {
+    ExpectParity(Prog0StripParity(57, 57), ContinuousParity(55));
+}
+
+TEST(Vu1Prog0Cpu, StripParity58SecondBatchFirstTriangleFlipped) {
+    std::vector<int> want = ContinuousParity(56);
+    FlipRange(want, 55, 55);
+    ExpectParity(Prog0StripParity(58, 57), want);
+}
+
+TEST(Vu1Prog0Cpu, StripParity112SecondBatchFlipped) {
+    std::vector<int> want = ContinuousParity(110);
+    FlipRange(want, 55, 109);
+    ExpectParity(Prog0StripParity(112, 57), want);
+}
+
+TEST(Vu1Prog0Cpu, StripParity113ThirdBatchNotFlipped) {
+    std::vector<int> want = ContinuousParity(111);
+    FlipRange(want, 55, 109);
+    ExpectParity(Prog0StripParity(113, 57), want);
+}
+
+TEST(Vu1Prog0Cpu, StripParity42EvenStepNoFlip) {
+    ExpectParity(Prog0StripParity(121, 42), ContinuousParity(119));
+}
+
+TEST(Vu1Prog0Cpu, StripTriangleOrderFollowsParity) {
+    EXPECT_EQ(Prog0StripTriangle(5, 1), (std::array<int, 3>{5, 6, 7}));
+    EXPECT_EQ(Prog0StripTriangle(5, -1), (std::array<int, 3>{6, 5, 7}));
+}
+
+TEST(Vu1Prog0Cpu, StripReorderMatchesRetailAcceptBatch57) {
+    ExpectStripReorderMatchesRetail(200, 57);
+}
+
+TEST(Vu1Prog0Cpu, StripReorderMatchesRetailAcceptBatch42) {
+    ExpectStripReorderMatchesRetail(200, 42);
+}
 
 TEST(Vu1Prog0Cpu, GsToNdcMapsCentreAndEdges) {
     const Vec4 centre = GsToNdc(Vec4{2048.0f, 2048.0f, 0.0f, 1.0f}, 512.0f, 384.0f);

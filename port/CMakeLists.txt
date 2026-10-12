@@ -63,6 +63,8 @@ set(PS2_UNITS "")
 # C2 ships only the PAL release, so PAL is the one region the port is built for.
 set(PORT_DEFINITIONS PORT PAL)
 list(TRANSFORM PORT_DEFINITIONS PREPEND --define= OUTPUT_VARIABLE port_override_defines)
+# ps2/src spells the 64-bit long that long64.py turns into the long long port/src has to spell.
+list(APPEND port_override_defines --long-is-64)
 # The names port/src's PORT_OVERRIDE definitions link under. PORT_OVERRIDE_SOURCES is written only when
 # its content changes, and a unit or stub header appearing or vanishing changes no timestamp, so it is a
 # dependency of its own.

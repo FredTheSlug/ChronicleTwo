@@ -2,10 +2,12 @@
 
 #include <libgraph.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 
+#include "arena_root.hpp"
 #include "dataread.hpp"
 #include "editdata.hpp"
 #include "font.hpp"
@@ -26,6 +28,7 @@
 #include "nowload.hpp"
 #include "npccfg.hpp"
 #include "padcontrol.hpp"
+#include "platform/arena.hpp"
 #include "savedata.hpp"
 #include "scene.hpp"
 #include "scenesnd.hpp"
@@ -50,6 +53,8 @@ extern u_long128     main_buffer[0x1A0000];
 extern CScene        MainScene;
 extern CFont         Font;
 
+static constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
+
 PORT_OVERRIDE void MainLoop() {
     static u_long128 *vu_prog[16];
 
@@ -61,9 +66,10 @@ PORT_OVERRIDE void MainLoop() {
     int               mode_finished;
     std::uintptr_t    buffer_address;
     std::uintptr_t    alignment;
+    u_long128        *main_arena = ArenaRoot(&main_buffer, 0x1A0000, "MainBuffer");
 
     memory = GetMainStack();
-    memory->stSetBuffer(main_buffer, 0x1A0000);
+    memory->stSetBuffer(main_arena, 0x1A0000 * kArenaHeadroom);
     memory->stack_used = 0;
     memory->lock = 0;
     SaveData.Initialize();
@@ -113,7 +119,7 @@ PORT_OVERRIDE void MainLoop() {
     LoadFontTblBin();
     LoadFontTex2Img();
     LoadNPCCfg();
-    InfoStack.stSetBuffer(PortInfoBuff, 5000);
+    InfoStack.stSetBuffer(ArenaRoot(PortInfoBuff, 5000, "InfoStack"), 5000 * kArenaHeadroom);
     LoadGameInfo(&InfoStack);
     InitPauseData();
     InitSaveData();
@@ -131,7 +137,7 @@ PORT_OVERRIDE void MainLoop() {
     sndInitMngr();
     MainScene.InitSnd();
     SetCurrentDir(NULL);
-    SystemSeStack.stSetBuffer(PortSystemSeBuff, 400);
+    SystemSeStack.stSetBuffer(ArenaRoot(PortSystemSeBuff, 400, "SystemSeStack"), 400 * kArenaHeadroom);
     SystemSeStack.stack_used = 0;
     SystemSeStack.lock = 0;
     read_memory = GetMainStack();
@@ -176,8 +182,8 @@ PORT_OVERRIDE void MainLoop() {
 
     while (1) {
         if (PortLoopNo == LOOP_TITLE || OmakeFlag != 0) {
-            PortSubGameSaveData = (CSubGameData *) main_buffer;
-            memory->stSetBuffer(&main_buffer[5000], 0x1A0000 - 5000);
+            PortSubGameSaveData = (CSubGameData *) main_arena;
+            memory->stSetBuffer(&main_arena[kSubGameQuads],0x1A0000 * kArenaHeadroom - kSubGameQuads);
             memory->stack_used = 0;
             memory->lock = 0;
         }

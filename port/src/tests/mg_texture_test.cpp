@@ -1072,9 +1072,9 @@ TEST_F(MgTextureGpu, DeleteBlockReleases) {
 
 TEST(MgTexture, TablesAboveFourGiB) {
     Harness h;
-    const uintptr_t arena_lo = reinterpret_cast<uintptr_t>(h.storage.data());
+    const uintptr_t arena_lo = reinterpret_cast<uintptr_t>(h.memory.stack);
     if (arena_lo <= 0xFFFFFFFFu) {
-        GTEST_SKIP() << "host storage at 0x" << std::hex << arena_lo << " is below 4 GiB";
+        GTEST_SKIP() << "arena at 0x" << std::hex << arena_lo << " is below 4 GiB";
     }
 
     ASSERT_GT(reinterpret_cast<uintptr_t>(h.manager.blocks), 0xFFFFFFFFu);

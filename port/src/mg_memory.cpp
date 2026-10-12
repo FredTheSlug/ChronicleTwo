@@ -1,4 +1,5 @@
 #include <array>
+#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -6,7 +7,9 @@
 #include <cstring>
 #include <vector>
 
+#include "arena_root.hpp"
 #include "mg_memory_port.hpp"
+#include "platform/arena.hpp"
 
 namespace {
 
@@ -15,6 +18,30 @@ constexpr std::uintptr_t kQuadwordBytes = sizeof(u_long128);
 // A PS2 header is one quadword. A host header holds two 8-byte pointers, 24 bytes, so it takes two
 // quadwords. Every size and gap below counts in quadwords, header included.
 constexpr int kHeaderQuadwords = static_cast<int>((sizeof(mgMEMORY_BLOCK) + kQuadwordBytes - 1) / kQuadwordBytes);
+
+using NameCopy = std::array<char, sizeof(mgCMemory::name) + 1>;
+
+NameCopy CopyName(const char *name) {
+    NameCopy copy{};
+    std::memcpy(copy.data(), name, sizeof(mgCMemory::name));
+    return copy;
+}
+
+// Placement new grows the run AllocQuadwords handed out last, since retail's quadword counts for
+// host objects were written for the PS2 and a host object holding pointers is larger.
+struct LastRun {
+    mgCMemory *arena = nullptr;
+    u_long128 *start = nullptr;
+    int        quadwords = 0;
+};
+
+LastRun g_last_run;
+
+void ForgetRun(const mgCMemory *memory) {
+    if (g_last_run.arena == memory) {
+        g_last_run = LastRun{};
+    }
+}
 
 std::uintptr_t AddressOf(const void *pointer) {
     return reinterpret_cast<std::uintptr_t>(pointer);
@@ -40,7 +67,7 @@ struct PeakEntry {
     int              capacity;
     int              peak;
     // Arenas may be destroyed without MemoryForget, so the log prints this copy and never dereferences memory.
-    std::array<char, sizeof(mgCMemory::name) + 1> name;
+    NameCopy         name;
 };
 
 // Function-local so arenas constructed during static initialisation can reach it.
@@ -100,6 +127,17 @@ void NotePeak(const mgCMemory &memory) {
     }
 }
 
+[[noreturn]] void Overflow(const mgCMemory &memory, long long used) {
+    const int clamped = used > INT_MAX ? INT_MAX : static_cast<int>(used);
+
+    if (memory.name[0] != '\0') {
+        const NameCopy name = CopyName(memory.name);
+        ArenaOverflow(name.data(), clamped, memory.stack_size);
+    }
+
+    ArenaOverflow(static_cast<const void *>(&memory), clamped, memory.stack_size);
+}
+
 u_long128 *AllocQuadwords(mgCMemory &memory, int size) {
     if (memory.lock != 0 || size <= 0) {
         return nullptr;
@@ -109,14 +147,40 @@ u_long128 *AllocQuadwords(mgCMemory &memory, int size) {
     const long long new_used = static_cast<long long>(memory.stack_used) + size;
 
     if (new_used >= memory.stack_size) {
-        std::printf("stack over %lld/%d at %.16s\n", new_used, memory.stack_size, memory.name);
-        return nullptr;
+        Overflow(memory, new_used);
     }
 
     u_long128 *data = QuadwordsFrom(memory.stack, memory.stack_used);
     memory.stack_used = static_cast<int>(new_used);
+    g_last_run = {&memory, data, size};
     NotePeak(memory);
     return data;
+}
+
+void GrowLastRun(u_long128 *buffer, std::size_t bytes) {
+    LastRun &run = g_last_run;
+
+    if (run.arena == nullptr || run.start != buffer) {
+        return;
+    }
+
+    mgCMemory &memory = *run.arena;
+    const int  quadwords = static_cast<int>((bytes + kQuadwordBytes - 1) / kQuadwordBytes);
+
+    if (quadwords <= run.quadwords ||
+        QuadwordsFrom(run.start, run.quadwords) != QuadwordsFrom(memory.stack, memory.stack_used)) {
+        return;
+    }
+
+    const long long new_used = static_cast<long long>(memory.stack_used) + (quadwords - run.quadwords);
+
+    if (new_used >= memory.stack_size) {
+        Overflow(memory, new_used);
+    }
+
+    memory.stack_used = static_cast<int>(new_used);
+    run.quadwords = quadwords;
+    NotePeak(memory);
 }
 
 void AlignStack(mgCMemory &memory) {
@@ -141,6 +205,7 @@ void AlignStack(mgCMemory &memory) {
 } // namespace
 
 PORT_OVERRIDE void mgCMemory::Init() {
+    ForgetRun(this);
     heap_size = 0;
     heap = nullptr;
     heap_top = nullptr;
@@ -153,6 +218,16 @@ PORT_OVERRIDE void mgCMemory::Init() {
 }
 
 PORT_OVERRIDE void mgCMemory::SetHeapMem(u_long128 *buffer, int size) {
+    ForgetRun(this);
+
+    if (buffer != nullptr && size >= 0x10 && !ArenaContains(buffer)) {
+        const NameCopy label = CopyName(name);
+        u_long128     *block = ArenaRoot(buffer, size, label.data());
+        std::memcpy(block, buffer, static_cast<std::size_t>(size) * sizeof(u_long128));
+        buffer = block;
+        size *= kArenaHeadroom;
+    }
+
     // Signed on purpose: an unsigned compare would take a negative size as huge and map the terminator
     // past the end of the buffer.
     if (buffer == nullptr || size < 0x10) {
@@ -313,10 +388,29 @@ PORT_OVERRIDE void mgCMemory::Align64() {
 }
 
 PORT_OVERRIDE void mgCMemory::stSetBuffer(u_long128 *buffer, int size) {
+    if (buffer != nullptr && size > 0 && !ArenaContains(buffer)) {
+        const NameCopy label = CopyName(name);
+        u_long128     *block = ArenaRoot(buffer, size, label.data());
+        std::memcpy(block, buffer, static_cast<std::size_t>(size) * sizeof(u_long128));
+        buffer = block;
+        size *= kArenaHeadroom;
+    }
+
+    ForgetRun(this);
     stack = buffer;
     stack_used = 0;
     stack_size = size;
     ResetPeak(this, false, size);
+}
+
+PORT_OVERRIDE void *operator new(size_t size, u_long128 *buffer) {
+    GrowLastRun(buffer, size);
+    return buffer;
+}
+
+PORT_OVERRIDE void *operator new[](size_t size, u_long128 *buffer) {
+    GrowLastRun(buffer, size);
+    return buffer;
 }
 
 mgMemoryUsage MemoryUsage(const mgCMemory &memory) {

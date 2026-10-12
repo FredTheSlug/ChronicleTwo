@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include "gamepad.hpp"
+#include "test_hooks.hpp"
 #include "platform/paths.hpp"
 
 #include <cstdio>
@@ -86,4 +87,31 @@ PORT_OVERRIDE void CGamePad::LoadCapture() {
         loaded.push_back({static_cast<u16>(bytes[0] | (bytes[1] << 8)), bytes[2], bytes[3], bytes[4], bytes[5]});
     }
     recording = std::move(loaded);
+}
+
+namespace {
+bool DebugModifier(const CGamePad &pad) {
+    constexpr int modifier = PAD_L2 | PAD_SELECT;
+    return GameDebugEnabled() && (pad.pad[0].button & modifier) == modifier;
+}
+}
+
+PORT_OVERRIDE int CGamePad::On2(int mask) {
+    if (key_lock) return 0;
+    const int real = key_lock2 ? 0 : pad[1].button;
+    const int single = DebugModifier(*this) ? pad[0].button : 0;
+    return ((real | single) & mask) != 0;
+}
+
+PORT_OVERRIDE int CGamePad::Down2(int mask) {
+    if (key_lock) return 0;
+    const int real = key_lock2 ? 0 : pad[1].button & ~previous_pad[1].button;
+    const int single = DebugModifier(*this) ? pad[0].button & ~previous_pad[0].button : 0;
+    return ((real | single) & mask) != 0;
+}
+
+PORT_OVERRIDE int CGamePad::Down(int mask) {
+    if (key_lock) return 0;
+    if (DebugModifier(*this)) mask &= ~(PAD_CIRCLE | PAD_CROSS);
+    return (mask & pad[0].button & ~previous_pad[0].button) != 0;
 }

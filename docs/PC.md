@@ -155,6 +155,48 @@ A `PS2_UNIMPLEMENTED` stub aborts instead of exiting, so a debugger or a core du
 
 The test `Smoke.HeadlessFramesScreenshot` (`port/src/tests/CMakeLists.txt`) runs `darkchronicle --headless --offscreen --frames 3 --screenshot` on a data directory holding only an empty `manifest.txt`. It passes when the run exits 0, prints `dataread: indexed` and `mglib: frame 3 written to`, and writes a PNG. It is labelled `gpu`. It runs under a generated CMake script, because ctest counts a process killed by `abort()` as failed even when `PASS_REGULAR_EXPRESSION` matches its output; the script checks the exit status and the file.
 
+### Test hooks
+
+These options prepare a fresh debug state for testing. Command-line values take
+priority over their `DC2_` environment variables. Malformed values, unknown
+items, and targets absent from the loaded map or event tables exit with status 2.
+
+- `--jump MODE[:ARG]` (`DC2_JUMP`) skips the boot logos, starts in English, and
+  enables debug controls for that run. `town:<map>` (also `edit:<map>`) uses the
+  Palm Brinks debug preset and entry event 100; the default map is 10.
+  `dungeon:<n>[:<floor>]` uses the chapter-one preset and the retail floor list;
+  dungeon numbers are 0-6 and the default floor is 1. A supplied floor selects
+  it in that list. `event:<id>` resolves the first matching row of
+  `event/view_pal.txt` and uses its town or dungeon, floor and event number.
+  `title`, `opening`, and `menu` start the title scene, Monica's playable opening,
+  and the retail developer menu respectively. An event jump uses the retail
+  debug item set; it does not reproduce campaign progress from a save.
+- `--fast-load` (`DC2_FAST_LOAD=1`) completes the loading progress bar in one
+  step after loading finishes. This game's loading screen has no separate
+  fixed holds or fades to shorten; scene and event timing stays unchanged.
+- `--give ITEM,...` (`DC2_GIVE`) gives missing items and weapons by their numeric
+  IDs through `CUserDataManager::GetItem` each time a town or dungeon starts.
+  Items already held are skipped. See `ITEM_ID` in `ps2/include/gamedata.hpp`.
+
+For example, `darkchronicle --jump dungeon:0:1 --fast-load --headless --offscreen
+--input tools/input/jump-dungeon-floor1.input --frames 2300 --screenshot floor.png`
+reaches the first Underground Channel floor with movement and the HUD. See
+[Debug mode](DEBUG.md#jump-replays) for other rendered checkpoints and controls.
+
+To replay a milestone save without changing its source, use:
+
+```sh
+python scripts/port/run_from_save.py --exe path/to/darkchronicle --data path/to/data \
+  --save-fixture path/to/fixture --input tools/input/continue-dungeon-start.input \
+  --frames 5000 --screenshot loaded.png
+```
+
+The runner requires a fixture with `mc0/` or `mc1/`, copies it to a temporary
+save root, starts at ordinary boot, and removes only that temporary copy after
+the process ends. The screenshot remains at the requested path. Ambient
+`DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` are removed from the child environment.
+Fixtures and extracted game data stay outside the repository.
+
 ## Startup
 
 `main` (`port/src/main.cpp`, `Run`) does these steps in order:

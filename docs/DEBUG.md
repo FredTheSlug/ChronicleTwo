@@ -19,7 +19,27 @@ Hold L1, L2, R1 and R2 on pad 1, then press R3. This toggles `DebugFlag`, the sa
 
 Keyboard (Kazarov `tools/kazarov/port/platform/input.cpp`, pad 1 bindings): L1 `Z`, L2 `Q`, R1 `F` or `X`, R2 `R`, R3 `B`. `Mouse3` also feeds R3, but it is also bound to `zoom_reset`.
 
-`DebugFlag` starts off on every boot. Turn it on with the chord or with pad 2 Circle. The pad-1 controls below need it on.
+`DebugFlag` starts off on ordinary boots. A `--jump` enables it for that run. Turn it on with the chord or with pad 2 Circle. The pad-1 controls below need it on.
+
+## One controller
+
+With `game.debug_mode` enabled, or with `--jump`, hold L2+Select on pad 1 to send
+its buttons to the retail pad-2 debug reads. Real pad 2 still works. Circle toggles
+`DebugFlag`, L1 toggles the performance meter, Right/Left scrub town time, and R2
+toggles rain. Circle and Cross do not also activate their ordinary pad-1 actions
+while the modifier is held. The game's overall pad lock is respected.
+
+Pressing Select with L2 held pauses. While paused, the modifier plus Right steps
+one frame and the modifier plus Start stores a frame image in the save root.
+Release the modifier and press Start to resume, or release and press Select with
+L2 held again. To use another modified debug button without pausing first, hold
+Select before adding L2.
+
+Start+Select on pad 1 enters the retail developer menu from any active mode when
+`game.debug_mode` is enabled or `--jump` is in use, even during a scripted pad
+lock. Loading between modes finishes first. The chord acts once per press;
+release both buttons before using it again. While frame-paused, modified Start
+captures instead. The existing four-shoulder/R3 toggle remains available.
 
 ## Retail pad-2 controls
 
@@ -42,7 +62,27 @@ These work with the pad-2 Circle toggle. Pad 2 is locked unless the boot unlock 
 
 ## PC gaps
 
-- The keyboard feeds pad 1 only (`tools/kazarov/port/platform/input.cpp`, `Compose`). Pad 2 needs a second controller.
+- The keyboard feeds pad 1 only (`tools/kazarov/port/platform/input.cpp`, `Compose`); L2+Select makes its debug button reads available too.
 - `developer_menu` (paddle 2) and `debug_menu` (paddle 1) are bound in `input.cpp` but nothing reads them. See `docs/port/HANDOFF.md` 86 and 91.
-- Capture and Play on the debug top screen hit the `CGamePad` capture stubs (`port/src/gamepad.cpp`, the first definitions).
 - GyoRace hits the `sgLoopGyoRace` stub (`port/src/gyorace.cpp`).
+
+## Jump replays
+
+See [PC test hooks](PC.md#test-hooks) for launch arguments. With `--fast-load`,
+`town:10` shows controllable Max outdoors in Palm Brinks by frame 120;
+`dungeon:0:1` shows Underground Channel's floor list by frame 250. Its floor
+argument selects the floor in the retail list rather than bypassing the list.
+`tools/input/jump-dungeon-floor1.input` confirms entry and skips the first
+communication scene: by frame 2100 Max is on floor 1 with the dungeon HUD and
+minimap; its frame-2200 movement changes his position by frame 2300.
+
+`event:26010` enters the Rainbow Butterfly Wood boss-event arena by frame 250;
+the boss encounter itself still depends on its event logic. `opening` shows
+Monica's castle corridor by frame 250, `title` shows the title scene by frame
+250, and `menu` shows the retail Ver0.334 developer menu by frame 250. These are
+rendered checkpoints, not guarantees that each scene is interactive that early.
+
+At the first dungeon's floor list, `tools/input/save-dungeon-start.input` saves
+File 1 on card 1 and shows Save complete by frame 1700. From an ordinary boot
+with that save, `tools/input/continue-dungeon-start.input` uses Continue and
+returns to the floor list by frame 5000. Always replay against a copied save root.

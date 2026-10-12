@@ -10,6 +10,8 @@
 #include "arena_root.hpp"
 #include "dataread.hpp"
 #include "debug_mode.hpp"
+#include "test_hooks.hpp"
+#include "platform/input.hpp"
 #include "editdata.hpp"
 #include "font.hpp"
 #include "gaiji.hpp"
@@ -84,8 +86,8 @@ PORT_OVERRIDE void MainLoop() {
     mgInit(MG_SCREEN_MODE_512X480, 3);
     PortPlayTimeCountFlag = false;
     mgInitVSyncCallBack(PortVSyncCallBack);
-    LanguageCode = LANG_FRENCH;
-    SCElogoFade(0, memory);
+    LanguageCode = GameHasJump() ? LANG_ENGLISH : LANG_FRENCH;
+    if (!GameHasJump()) SCElogoFade(0, memory);
     PortLoopNo = LOOP_TITLE;
     DebugFlag = false;
     DebugInfo.chara_move = 0;
@@ -102,7 +104,7 @@ PORT_OVERRIDE void MainLoop() {
     if (GamePad__2.On2(PAD_R1) && GamePad__2.On2(PAD_R2) && GamePad__2.On2(PAD_L1) && GamePad__2.On2(PAD_L2)) {
         MasterDebugCode = MASTER_DEBUG_CODE;
     }
-    DebugModeBoot(ConfigGet().debug_mode);
+    DebugModeBoot(GameDebugEnabled());
 
     GamePad__2.DebugKeyLock(1);
     sceGsSyncV(0);
@@ -182,7 +184,8 @@ PORT_OVERRIDE void MainLoop() {
     CreateGamePadThread(&GamePad__2);
     LoadGameConfig(NULL);
     SetIoErrCallBack(EmergencyMessage);
-    SCElogoFade(1, memory);
+    if (!GameHasJump()) SCElogoFade(1, memory);
+    GamePrepareJump(PortLoopNo, InitArg);
 
     while (1) {
         if (PortLoopNo == LOOP_TITLE || OmakeFlag != 0) {
@@ -240,11 +243,20 @@ PORT_OVERRIDE void MainLoop() {
         // Single entry for every mode change: covers the LOOP_MENU->LOOP_TITLE redirect above and the PortNextLoopNo hand-off below.
         mgPortCutInterpolation();
         LoopInit[PortLoopNo](InitArg);
+        GameGiveOnArrival(PortLoopNo);
         INIT_LOOP_ARG next_arg;
 
         NextLoop(LOOP_MENU, next_arg);
 
         while (1) {
+            if (GameDeveloperMenuRequested(PortLoopNo)) {
+                INIT_LOOP_ARG menu_arg;
+                DebugFlag = 1;
+                GamePad__2.KeyLock(0);
+                NextLoop(LOOP_MENU, menu_arg);
+                PauseCancel();
+                break;
+            }
             if (GamePad__2.On(PAD_CIRCLE)) {
                 cat_start();
             }
@@ -273,7 +285,7 @@ PORT_OVERRIDE void MainLoop() {
             mgPerformanceMeter(pmeter_flag);
 
             if (GamePad__2.Down2(PAD_CIRCLE) ||
-                (ConfigGet().debug_mode && DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()))) {
+                (GameDebugEnabled() && DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()))) {
                 DebugFlag = !DebugFlag;
             }
 
@@ -323,7 +335,7 @@ PORT_OVERRIDE void MainLoop() {
                         sceGsSyncV(0);
                         GamePad__2.UpDate();
 
-                        if (GamePad__2.Down(PAD_START) || GamePad__2.Down2(PAD_SELECT)) {
+                        if (GameDebugPauseResumeRequested(GamePad__2)) {
                             pause = false;
                             break;
                         }

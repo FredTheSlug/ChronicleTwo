@@ -12,6 +12,7 @@
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
 #include "identity.hpp"
+#include "test_hooks.hpp"
 #include "mainloop.hpp"
 #include "mglib_port.hpp"
 #include "present.hpp"
@@ -41,6 +42,9 @@ constexpr float kLogicalWidth = 512.0f;
 constexpr float kLogicalHeight = 480.0f;
 
 struct Options {
+    const char *jump = nullptr;
+    const char *give = nullptr;
+    bool fast_load = false;
     bool                  headless = false;
     bool                  offscreen = false;
     int                   frames = 0;
@@ -62,6 +66,9 @@ Options g_options;
                  "usage: %s [--data DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n"
                  "          [--frames N] [--screenshot PATH] [--input SCRIPT] [--display-per-tick N]\n"
                  "          [--show-fps] [--log-fps] [--screenshot-display N] [--screenshot-fps]\n"
+                 "  --jump MODE[:ARG]  start in town:<map>, dungeon:<n>[:<floor>], event:<id>, title, opening, menu (DC2_JUMP)\n"
+                 "  --fast-load        shorten loading-screen holds (DC2_FAST_LOAD=1)\n"
+                 "  --give ITEM,...    give missing items and weapons on arrival (DC2_GIVE)\n"
                  "  --data DIR         the extracted game data (default: DC2_DATA, then ./data, then data/ beside\n"
                  "                     the executable)\n"
                  "  --save DIR         saves and the pipeline cache (default: DC2_SAVE, then ./save, then save/\n"
@@ -115,7 +122,13 @@ Options ParseOptions(int argc, const char **argv) {
     Options options;
     for (int i = 1; i < argc; i++) {
         std::string_view arg = argv[i];
-        if (arg == "--headless") {
+        if (arg == "--jump") {
+            options.jump = OptionValue(argc, argv, i);
+        } else if (arg == "--give") {
+            options.give = OptionValue(argc, argv, i);
+        } else if (arg == "--fast-load") {
+            options.fast_load = true;
+        } else if (arg == "--headless") {
             options.headless = true;
         } else if (arg == "--offscreen") {
             options.headless = true;
@@ -233,6 +246,12 @@ int Run(int argc, const char **argv) {
     argc = PathsConsumeArgs(argc, argv);
     g_options = ParseOptions(argc, argv);
     const Options &options = g_options;
+    const char *jump = options.jump ? options.jump : SettingsEnv("JUMP");
+    const char *give = options.give ? options.give : SettingsEnv("GIVE");
+    if ((jump && (options.jump || *jump) && !GameSetJump(jump)) ||
+        (give && (options.give || *give) && !GameSetGive(give))) Usage(argv[0]);
+    const char *fast = SettingsEnv("FAST_LOAD");
+    GameSetFastLoad(options.fast_load || (fast && *fast && *fast != '0'));
     InputScript   input_script;
     if (!options.input.empty()) {
         std::string error;

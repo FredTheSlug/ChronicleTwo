@@ -653,7 +653,8 @@ int _GET_BTN(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    SetStack(stack, PadCtrl.Btn(GetStackInt(stack++)));
+    int button = GetStackInt(stack++);
+    SetStack(stack, PadCtrl.Btn(button));
     return true;
 }
 

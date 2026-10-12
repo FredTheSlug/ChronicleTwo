@@ -769,20 +769,12 @@ inline Summary Extract(const Archive &archive, const fs::path &out, std::FILE *l
     }
     add("sound/sound.dat", archive.sound_dat);
     add("sound/sound.hd3", archive.sound_hd3);
-    // A SOUND.HD3 that does not parse leaves only the whole-file copies; the synthetic fixtures carry a random one.
-    std::optional<SoundIndex> sound;
-    try {
-        sound = ReadSoundIndex(archive);
-    } catch (const Error &error) {
-        Log(log, "dc2data: SOUND.HD3: {}; entries not split\n", error.what());
+    SoundIndex sound = ReadSoundIndex(archive);
+    for (const SoundEntry &entry : sound.entries) {
+        add("sound/" + FoldPath(entry.name),
+            {archive.sound_dat.file, archive.sound_dat.offset + entry.sector * kSector, entry.size});
     }
-    if (sound) {
-        for (const SoundEntry &entry : sound->entries) {
-            add("sound/" + FoldPath(entry.name),
-                {archive.sound_dat.file, archive.sound_dat.offset + entry.sector * kSector, entry.size});
-        }
-        Log(log, "sound: {} entries, {} shadowed\n", sound->entries.size(), sound->shadowed.size());
-    }
+    Log(log, "sound: {} entries, {} shadowed\n", sound.entries.size(), sound.shadowed.size());
 
     std::vector<ManifestEntry> previous = ReadManifest(out);
     fs::create_directories(out);

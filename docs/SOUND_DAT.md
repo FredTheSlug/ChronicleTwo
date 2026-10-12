@@ -103,7 +103,7 @@ It also keeps whole copies, `data/sound/sound.dat` and `data/sound/sound.hd3`, u
 sound: 3100 entries, 1 shadowed, 966486464 bytes, 969644032 bytes in sectors, SOUND.DAT 969644032 bytes
 ```
 
-A malformed SOUND.HD3 makes `dc2data sound` fail. `extract` then keeps only the whole-file copies and prints a one-line warning.
+A malformed SOUND.HD3 makes both `dc2data sound` and `extract` fail, and `extract` writes nothing.
 
 The parser rejects a SOUND.HD3 when any of these hold:
 

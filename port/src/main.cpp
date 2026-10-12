@@ -21,6 +21,7 @@
 #include "platform/firstrun.hpp"
 #include "platform/input.hpp"
 #include "platform/input_script.hpp"
+#include "platform/input_startup.hpp"
 #include "platform/paths.hpp"
 #include "platform/settings.hpp"
 #include "platform/window.hpp"
@@ -249,7 +250,7 @@ int Run(int argc, const char **argv) {
     WindowConfig window = DisplayWindowConfig(settings);
     window.vulkan = !offscreen;
     WindowInit(window);
-    InputInit();
+    InputInitForRun(options.headless);
     InputScriptInstall(std::move(input_script));
 
     gfx::RendererConfig renderer;

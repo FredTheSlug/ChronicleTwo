@@ -156,6 +156,64 @@ Switches happen only in `StartThread`, `RotateThreadReadyQueue`, a blocking `Wai
 
 The reason for this design: the retail thread loops (`GamePadStep`, `NowLoadingLoop`, fishing's `StepDataLoading`, the movie threads) run unchanged, and host state stays on the main thread.
 
+## Rendering
+
+`port/src/mglib.cpp` replaces retail's `mglib`. Its `PORT_OVERRIDE` definitions are the only mglib bodies the port links. `port/src/mglib_port.hpp` is the seam the Phase-4 units use. It is frozen: changes to it are additive only. Its groups:
+
+- Frame: renderer state, the frame count, and `--frames` exit.
+- Projection: the eye, clip and view-to-clip mapping.
+- GS state: the context-1 registers (TEST, ZBUF, ALPHA, TEXA, CLAMP, TEX1), scissor and fog colour.
+- Textures: the lookups from `mgCTexture` and TEX0 to gfx textures, and the bindings.
+- Render targets: the main target, the render targets and the current target.
+- Submission: 2D and mesh draws, and the VU program id.
+- Readback: colour of a target and the depth queries.
+
+### Frame
+
+`mgBeginFrame` opens a gfx frame, sets the main target, CLAMP repeat and the default frame buffer, and clears the colour to `mgBackColor` and the depth to far. The game draws immediately between `mgBeginFrame` and `mgEndFrame`. Display lists and interpolation are Phase 7.
+
+`mgEndFrame` queues the four `mgPickZBuff` 8x8 reads. A pick within 4 pixels of the screen edge gets `z` of -1, as retail does. It ends the gfx frame and fills `mgPickZBuff[].z` in GS units. It then waits the tick: `WaitVSync` on the shared clock for `mgFrameRate`. It sets `mgNowFrameRate` from `mgTimeFrameFields()`, with retail's upper clamp of `1 + mgFrameRate`. When the frame count reaches the `--frames` limit, it writes the screenshot and exits before the wait.
+
+### Packets
+
+No packet is sent. Packet begin, end, send and wait are bookkeeping on host arenas. `mgInitVif1Packet` supplies the two packet buffers; otherwise an internal default of 0x10000 quadwords each is used. `mgDrawDirect` keeps retail's size arithmetic, and moves the cursor to the buffer start when fewer than 0x4000 quadwords remain. `SendDMA` is empty. `mgSendVuProg` only records the program id, which `mgPortVuProg` returns. VU programs are never uploaded: the `linknames.cpp` symbols are placeholders.
+
+### Initial GS state
+
+`mgPortResetGs` sets the state `My_dma_start0` leaves the GS in (`docs/vu1/dma_start0.md`, 8.1): TEST `0x5000B`, ALPHA `0x44`, TEXA `0x0000008000008080`, TEX1 `0x61`, fog colour 200 on each channel, and SCISSOR 0..639 by 0..223. `mgSetPkFrameBuffer` then resets the scissor to the target's size. `mgInit`'s C-side caches keep retail's values (for example `mgTEXA_1` is `0x100400000`), because only CPU readers see them.
+
+### Projection
+
+`mgRENDER_INFO::SetRenderInfo` still fills the 2048-centred matrices, for CPU readers. `mgPortEyeToClip` maps view space to Vulkan clip, so a point lands on the same logical pixel that retail's screen matrix gives it. It uses `eye`, `aspect_y` and the target's logical mapping. The output is reverse-Z, with near at 1 and far at 0. `mgPortWorldToClip` and `mgPortMeshTransform` are built on it.
+
+GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mgPortGsDepth`).
+
+### Render targets
+
+`mgSetPkFrameBuffer` on the draw buffer's FBP selects the main target. Any other FBP, and any texture passed by pointer, gets a gfx render target keyed by TBP0. A texture's pointer is also recorded against its TBP0. The target is created on first use and recreated on a size or format change. Because it is keyed by TBP0, a texture never holds a destroyed handle.
+
+`mgPortFindTexture(tex0)` resolves the draw buffer's TBP0 to the main target and the display buffer's to the previous frame. Other TBP0 values are looked up as render targets, then by the registry. The texture registry installs its lookups with `mgPortSetTextureLookup`.
+
+### Images
+
+`mgSetPkMoveImage` copies with `gfx::CopyTexture` when given a destination offset, and stretches with `gfx::BlitTexture` (linear) when given a destination rect.
+
+`mgStoreImage` reads the source back and writes the texture's PSM layout linearly, sampling the source at the texture's size. Inside a frame it reads the copy cached at the previous frame's end. 16-bit formats keep one alpha bit.
+
+`mgStoreZBuffImage` fills the rect, rounded down to 8x8, with one depth value. That value is the answer to the previous call's query for the same rect, or 0 when there is none. It is an approximation.
+
+### Shadows
+
+`mgBeginDrawShadow` draws into a `share_main_depth` target, registered under the shadow's frame-buffer address before `mgSetPkFrameBuffer` runs. `mgEndDrawShadow` composites it onto the main target as a quad, with ALPHA `(0 - Cd) * As + Cd`, FIX 64, TEXA AEM set with TA0 48, and an alpha test of `>= 1`.
+
+### Font and headless
+
+`mgInitFont` returns 0 and `mgCloseFont` does nothing. The port keeps no console, because retail never draws it: `font_draw_flag` is never set.
+
+`--frames N` exits after frame N. `--screenshot PATH` writes that frame as a PNG first; a failed write exits with status 1. `--screenshot` without `--frames` is a usage error. `--input SCRIPT` loads the script at start-up. The pump applies it on each tick with `mgPortFrameCount()`, so pad input follows the game's frame count.
+
+Phase 7 replaces the immediate draw path with display lists.
+
 ## Layout
 
 The root `CMakeLists.txt` selects the platform: `PS2` builds `ps2/`, and `PC` enables testing and builds `port/`.

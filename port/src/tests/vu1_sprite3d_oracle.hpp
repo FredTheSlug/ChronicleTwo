@@ -9,6 +9,7 @@
 
 #include "vu1/sprite3d_geom.hpp"
 #include "vu1/vu1_math.hpp"
+#include "vu1_oracle/vu1_pack.hpp"
 
 namespace dc::vu1::sprite3d_oracle {
 

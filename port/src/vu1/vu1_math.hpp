@@ -69,11 +69,6 @@ inline int32_t Ftoi0(float x) {
     return static_cast<int32_t>(x);
 }
 
-// VU FTOI4: 16 * x is exact in binary32, so this is Ftoi0 on the scaled value.
-inline int32_t Ftoi4(float x) {
-    return Ftoi0(16.0f * x);
-}
-
 // Lanes of qw 0x3B, in lane order x, y, z, w.
 struct Fog {
     float offset;

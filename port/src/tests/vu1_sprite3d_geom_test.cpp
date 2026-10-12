@@ -7,6 +7,7 @@
 
 #include "vu1/sprite3d_geom.hpp"
 #include "vu1_sprite3d_oracle.hpp"
+#include "vu1_oracle/vu1_pack.hpp"
 
 namespace {
 

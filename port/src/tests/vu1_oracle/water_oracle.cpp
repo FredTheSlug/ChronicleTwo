@@ -1,4 +1,5 @@
 #include "vu1_oracle/water_oracle.hpp"
+#include "vu1_oracle/vu1_pack.hpp"
 
 #include <algorithm>
 #include <cstddef>

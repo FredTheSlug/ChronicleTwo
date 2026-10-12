@@ -1,4 +1,5 @@
 #include "prog0_cpu.hpp"
+#include "vu1_oracle/vu1_pack.hpp"
 
 #include <cmath>
 #include <cstddef>

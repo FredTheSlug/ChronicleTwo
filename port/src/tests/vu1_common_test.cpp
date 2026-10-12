@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "vu1/vu1_math.hpp"
+#include "vu1_oracle/vu1_pack.hpp"
 
 namespace {
 

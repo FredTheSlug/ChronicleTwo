@@ -1,4 +1,5 @@
 #include "vu1_oracle/sdw_oracle.hpp"
+#include "vu1_oracle/vu1_pack.hpp"
 
 #include <cmath>
 

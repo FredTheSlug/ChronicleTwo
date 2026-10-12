@@ -28,6 +28,10 @@ jobs:
       - name: Test
         run: tools/kazarov/bin/kazarov shell ctest --test-dir port/build/pc --output-on-failure -j4
 
+      # The VU1 programs are native: their packed CPU halves live only in the test oracles.
+      - name: Check that no PS2 packing or VU1 layout helper is in the runtime
+        run: tools/kazarov/bin/kazarov shell python3 scripts/port/native_gate.py --binary port/build/pc/darkchronicle
+
       # A non-PIE link places the game below 4 GiB, where a pointer truncated to 32 bits still works and hides the bug.
       - name: Check that darkchronicle is position-independent
         run: |

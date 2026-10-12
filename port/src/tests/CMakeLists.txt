@@ -21,12 +21,12 @@ kz_port_tests(darkchronicle_tests)
 target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nlohmann_json)
 
 # A case is a unit test: it finishes in milliseconds, and one that does not is cut off. The clock
-# cases measure short sleeps, which the parallel gfx cases skew, so they run on their own. The Vu1Prog0Shader
-# cases compile and run the prog0 pipelines on lavapipe, which takes longer than 5 s under a parallel run, so they get 30 s.
+# cases measure short sleeps, which the parallel gfx cases skew, so they run on their own. The cases that compile
+# pipelines or create a device per case take longer than 5 s under a parallel run, on lavapipe and on Windows, so they get 30 s.
 set(CT_TEST_TIMEOUT 5 CACHE STRING "Seconds a test case may run before it is cut off")
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER -PlatformClock.*:Vu1Prog0Shader.*
+    TEST_FILTER -PlatformClock.*:Vu1Prog0Shader.*:GfxMeshDc2.*:MgTextureGpu.*:MgTanimeGpu.*:GfxMisc.PipelineCache
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT})
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
@@ -34,7 +34,7 @@ gtest_discover_tests(darkchronicle_tests
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT} RUN_SERIAL TRUE)
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER Vu1Prog0Shader.*
+    TEST_FILTER Vu1Prog0Shader.*:GfxMeshDc2.*:MgTextureGpu.*:MgTanimeGpu.*:GfxMisc.PipelineCache
     PROPERTIES TIMEOUT 30)
 
 add_dependencies(darkchronicle_tests darkchronicle)

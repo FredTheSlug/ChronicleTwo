@@ -308,6 +308,32 @@ The title cannot be reached headless yet. On this branch alone the run stops in 
 
 `sndCSeSeqData::LoadSMF` (`ps2/src/snd_seseq.cpp`) casts its SMF pointer through `int` (`(int) smf`). That needs the change to `uptr` before `sndLoadSound` runs above 4 GiB.
 
+## Movies
+
+`port/src/movie.cpp` overrides `CMovie::Load` (the seven-argument overload; the other two forward to it), `Play`, `SwitchThread`, `Term`, `EndCheck` and `IsStarted`. Nothing else reaches the retail player, so its three threads, the VBlank and DMAC channel 2 handlers, the IPU and DMAC channel 3/4 register writes, `setImageTag`'s GIF chains and the IOP transfers have no caller and are dropped by `--gc-sections`, and so are the `libmpeg` stubs. One movie plays at a time, as the retail file-scope statics did.
+
+`MoviePortPath` maps the game's name to `data/movie/<name>` lower-cased, with a device prefix, a leading separator and a `;1` version removed (`L5LOGO.PSS` -> `data/movie/l5logo.pss`). `movie/` is outside the DATA index, so it does not go through `DataReadFind`. A missing or non-MPEG-2 file logs `movie: <name> not found or not an MPEG-2 PSS (<path>)`, `IsStarted` still returns 1 so the callers' busy-waits end, and `EndCheck` returns 1 at once (the PAL disc has no `TUTO`/`TUTO2` manual movies).
+
+The pipeline is in `port/src/video/`. `pss.*` demuxes packs into video (stream 0xE0) and PCM (private stream 1, substream 0xA0) chunks with their PTS. `mpeg2_decoder.*` wraps libavcodec's `mpegvideo` parser and `mpeg2video` decoder, single-threaded, YUV 4:2:0, pictures in display order with 90 kHz PTS (extrapolated by the frame duration where a picture has none), and rejects a stream whose sequence header has no MPEG-2 sequence extension. `yuv.*` converts BT.601 limited range to RGBA with nearest chroma per 2x2 block, as the IPU's colour space conversion did, alpha 0xFF (the renderer's opaque, GS 0x80). `pcm.*` reads the soundtrack. `player.*` ties them together.
+
+There are no threads. The game calls `SwitchThread` once per game frame and `EndCheck` beside it; both advance the player to the movie time elapsed since `Play`, `(ClockTickCount() - tick at Play) * 90000 / ClockTickRate()`. The newest picture whose PTS is due is shown; pictures overtaken after a stall are decoded but not converted. On the default 50 Hz tick with `mgFrameRate` 2 a 25 fps movie shows one picture per game frame; headless runs on the unbounded clock are deterministic.
+
+The picture is uploaded into the texture the game names in `Play` (`"moviework"`), found with `mgTexManager.GetTexture(name, -1)` and `mgPortFindTexture`, with `gfx::UpdateTexture` (recorded into the tick's display list when one is open). That is what the PS2 did: `setImageTag` uploaded into the same texture and the game draws it itself as a 2D quad (the copyright screen's `L5LOGO.PSS`, `RUSH.PSS`, the movie viewer, the event script's `_LOAD_MOVIE`, the manual), so its fades, stretch and letterbox stay the game's, tick-exact.
+
+There is no deinterlacing; fields are woven, as the IPU output them. `L5LOGO.PSS` codes all 150 pictures with `progressive_frame = 0`, every other disc movie with 1. Measured on the luma of the first 1,500 pictures of each of the nine movies, the mean difference between adjacent lines (opposite fields) is at most 0.83 of that between lines two apart (the same field) on `L5LOGO.PSS` and at most 1.008 anywhere: there is no comb, so a blend would only blur.
+
+The soundtrack is 16-bit PCM in private stream 1, substream 0xA0, behind a 4-byte sub-header: `SShd` (type 1, 48,000 Hz, 2 channels, 0x200 bytes per channel block, interleaved left block then right block) then `SSbd` and the body. `Load` reads the whole track before the first picture (`L5LOGO.PSS`: 1,154,048 bytes, 6.01 s), aligns it by the first PCM PTS against the first video PTS, and `Play` hands it to the shared mixer as an `audio::PcmTrack` with `Mixer::SetStream` on port 5 at full port volume (`kMoviePortAudioPort`: `GetCSndPortNo` never maps a game port there). `Term` stops and clears it. The track is read whole because the mixer's existing API plays complete tracks; a streaming channel would replace that. `init_sound` (which reset the PS2 sound driver), the memory pools and the width and height arguments are ignored: the host allocates and the picture size comes from the stream.
+
+The game links only libavcodec and libavutil (plan section 3.9; `port/cmake/movies.cmake`); no libavformat, libswscale or libswresample symbol is referenced. On Windows `darkchronicle.exe` imports `avcodec-61.dll` and `avutil-59.dll` only; `swresample-5.dll` ships beside them because BtbN's `avcodec-61.dll` depends on it.
+
+Tests:
+
+- `video_mpeg2_test`: MPEG-1 and header-less streams are rejected; `L5LOGO.PSS`'s first picture is a 512x416 I-picture at PTS 4758, the black frame the logo fades in from; all 150 pictures decode in increasing PTS order.
+- `video_yuv_test`: hand-computed pixels, limited range, chroma siting, strides.
+- `movie_test`: PCM layout, the player against the clock, `CMovie` through the glue, and a 30-frame play of `L5LOGO.PSS` through the `"moviework"` texture to a PNG compared with the decoded picture.
+
+The `L5LOGO.PSS` cases skip without `data/`, so on Linux they run only in the main checkout.
+
 ## Layout
 
 The root `CMakeLists.txt` selects the platform: `PS2` builds `ps2/`, and `PC` enables testing and builds `port/`.
@@ -435,19 +461,15 @@ Every entry below is a `PORT_OVERRIDE` definition whose body calls `PS2_UNIMPLEM
 | `mg_visual.cpp` | `mgCVisualMDT::CreatePacket` | packet (uncached mirror) |
 | `mg_visual.cpp` | `mgCVisualFixMDT::CreatePacket` | packet (uncached mirror) |
 | `mg_visual.cpp` | `mgCVisualMDT::CreateFacePacket` | packet |
-| `movie.cpp` | `CMovie::Load` | register (DMAC control and status) and SDK (MPEG) |
-| `movie.cpp` | `CMovie::Play` | not yet ported (movie thread) |
-| `movie.cpp` | `CMovie::videoDecFlush` | not yet ported (movie) |
-| `movie.cpp` | `viBufDelete` | register (DMAC channel 4) |
 | `sceneevent.cpp` | `CScene::DrawSky` | not yet ported |
 | `visualmotion.cpp` | `mgCVisualMotionMDT::CreateFaceMotionPacket` | packet |
 | `water.cpp` | `CWater::CreatePacket` | packet (GS `TEXA`) |
 
-The table lists 28 stubs and `main`. The `movie.cpp` entries are the movie path, which the port does not play yet.
+The table lists 24 stubs and `main`.
 
-The executable has 60 `Ps2Unimplemented` call sites, one per function: 28 game-side (the table) and 32 Kazarov SDK. The SDK stubs live in `tools/kazarov/port/sce/stubs` and are listed by family there.
+The executable has 51 `Ps2Unimplemented` call sites, one per function: 24 game-side (the table) and 27 Kazarov SDK. The SDK stubs live in `tools/kazarov/port/sce/stubs` and are listed by family there.
 
-Twelve functions are not linked at all (no caller survives `--gc-sections`). They need a replacement only if a later phase calls them: `mgCVisualMDT::SetMaterialRef`, `mgSendPacket`, `videoCallback`, `setD3_CHCR`, `setD4_CHCR`, `viBufCreate`, `viBufReset`, `viBufAddDMA`, `viBufStopDMA`, `viBufRestartDMA`, `viBufGetTs` and `setImageTag`.
+Two functions are not linked at all (no caller survives `--gc-sections`). They need a replacement only if a later phase calls them: `mgCVisualMDT::SetMaterialRef` and `mgSendPacket`. The retail movie player in `movie.cpp` is not linked either: see "Movies".
 
 To regenerate the count, run:
 
@@ -486,7 +508,7 @@ It gives 137 hits:
 - 105 are constants or names that only look like hardware.
 - 1 is a comment.
 - 21 are packet-tag writes.
-- 10 are real hardware accesses, none of them linked. `mg_visual.cpp`'s `SendDMA` body is under `#ifndef PORT`, and its replacement is empty. In `movie.cpp`, `vblankHandler`, `viBufRestartD3` and `UncAddr` have no surviving caller.
+- 10 are real hardware accesses, none of them linked. `mg_visual.cpp`'s `SendDMA` body is under `#ifndef PORT`, and its replacement is empty. In `movie.cpp`, none of the retail player survives the link (see "Movies").
 
 Scratchpad access goes through `GetScrPad`, a stub. The five `CreateRenderInfoPacket` functions (`mgC3DSprite`, `mgCShadowMDT`, `mgCVisualMDT`, `mgCVisualPrim`, `CWater`) reach it first.
 

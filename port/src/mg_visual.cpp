@@ -591,6 +591,8 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
         if (common == NULL) {
             return 0;
         }
+        // This common packet is empty; its reused address may still hold an earlier face draw.
+        mgPortClearPacketDraw(common);
     }
 
     for (mgFACE_GROUP *group = face_group; group != NULL; group = group->next) {

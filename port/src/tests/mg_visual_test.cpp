@@ -12,6 +12,7 @@
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
 #include "mg_drawprim.hpp"
+#include "mg_drawprim_port.hpp"
 #include "mg_frame.hpp"
 #include "mg_visual.hpp"
 #include "mg_visual_port.hpp"
@@ -503,4 +504,46 @@ TEST(MgVisual, VisibleExtentCullsBoxAtFourThree) {
     SetCamera();
 
     EXPECT_EQ(DrawBoxRecords(), 0u);
+}
+
+TEST(MgVisual, ReusedCommonPacketDoesNotReplayPreviousDraw) {
+    VisualRenderer renderer(640, 480);
+    mgSetBackGround(0.0f, 0.0f, 0.0f, 128.0f);
+    SetCamera();
+    MemoryPool texture_table;
+    mgTexManager.SetTableBuffer(16, 8, &texture_table.memory());
+    mgTexManager.Initialize(0x1000, -1);
+
+    MdtFile file(CentreTriangle(false));
+    MemoryPool model;
+    mgCVisualMDT visual;
+    ASSERT_EQ(visual.DataAssignMDT(file.header(), &model.memory(), nullptr), 1);
+
+    MemoryPool data_a;
+    MemoryPool data_b;
+    MemoryPool buffers;
+    mgSetDataBuffer(&data_a.memory(), &data_b.memory(), 0);
+    mgCFrameAttr attr;
+    attr.no_light = 1;
+    SetColour(attr, {64.0f, 128.0f, 32.0f, 128.0f});
+    float matrix[4][4];
+    Identity(matrix);
+    PrepareObject(attr);
+    int draw_order[2] = {0, -1};
+
+    mgBeginFrame(nullptr);
+    mgBeginDraw(&buffers.memory(), draw_order, nullptr);
+    const void *common = mgDrawManager.data_memory->stGetTop();
+    int stale_draws = 0;
+    // A previous face packet occupied the quadword now reused for an empty common packet.
+    mgPortSetPacketDraw(common, [&stale_draws] { ++stale_draws; });
+    visual.Draw(nullptr, matrix, nullptr);
+    mgPreEndDraw(nullptr);
+    mgEndDrawReloadTexture(0, nullptr);
+    mgEndDraw(0, nullptr);
+    mgEndFrame(nullptr);
+    mgPortClearPacketDraw(common);
+
+    EXPECT_EQ(stale_draws, 0);
+    ExpectCentre(64, 128, 32);
 }

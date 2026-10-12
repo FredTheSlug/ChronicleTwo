@@ -23,10 +23,38 @@ target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nl
 # A case is a unit test: it finishes in milliseconds, and one that does not is cut off. The clock
 # cases measure short sleeps, which the parallel gfx cases skew, so they run on their own. The cases that compile
 # pipelines or create a device per case take longer than 5 s under a parallel run, on lavapipe and on Windows, so they get 30 s.
+# Cases that need a Vulkan device carry the gpu label: hosted runners have none and exclude them with -LE gpu.
 set(CT_TEST_TIMEOUT 5 CACHE STRING "Seconds a test case may run before it is cut off")
+set(CT_GPU_SLOW_TESTS
+    Vu1Prog0Shader.*
+    GfxMeshDc2.*
+    MgTextureGpu.*
+    MgTanimeGpu.*
+    GfxMisc.PipelineCache)
+set(CT_GPU_TESTS
+    MglibAspect.*
+    MglibPresent.*
+    MglibSeam.*
+    MgVisual.*
+    ScreenEffect.*
+    MgShadow.*
+    Water.*
+    MglibFrame.*
+    MglibState.*
+    MglibProjection.*
+    MglibFrameDeathTest.*
+    Photo.*
+    MgDrawPrimRender.*
+    MenuDrawGrab.*
+    GfxMisc.*
+    GfxTim2.UploadRgbaAndIndexed
+    GfxValidation.DeliberateMisuseIsCaught
+    MovieGlue.ThirtyFramesOfL5LogoThroughTheMovieTexture)
+list(JOIN CT_GPU_SLOW_TESTS ":" CT_GPU_SLOW_FILTER)
+list(JOIN CT_GPU_TESTS ":" CT_GPU_FILTER)
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER -PlatformClock.*:Vu1Prog0Shader.*:GfxMeshDc2.*:MgTextureGpu.*:MgTanimeGpu.*:GfxMisc.PipelineCache
+    TEST_FILTER -PlatformClock.*:${CT_GPU_FILTER}:${CT_GPU_SLOW_FILTER}
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT})
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
@@ -34,8 +62,12 @@ gtest_discover_tests(darkchronicle_tests
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT} RUN_SERIAL TRUE)
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER Vu1Prog0Shader.*:GfxMeshDc2.*:MgTextureGpu.*:MgTanimeGpu.*:GfxMisc.PipelineCache
-    PROPERTIES TIMEOUT 30)
+    TEST_FILTER ${CT_GPU_FILTER}-${CT_GPU_SLOW_FILTER}
+    PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT} LABELS gpu)
+gtest_discover_tests(darkchronicle_tests
+    DISCOVERY_MODE PRE_TEST
+    TEST_FILTER ${CT_GPU_SLOW_FILTER}
+    PROPERTIES TIMEOUT 30 LABELS gpu)
 
 add_dependencies(darkchronicle_tests darkchronicle)
 # ctest reports a process that dies by abort() as failed even when PASS_REGULAR_EXPRESSION matches its
@@ -67,7 +99,7 @@ add_test(NAME Smoke.HeadlessFramesScreenshot
 set_tests_properties(Smoke.HeadlessFramesScreenshot PROPERTIES
     PASS_REGULAR_EXPRESSION "SMOKE_OK"
     ENVIRONMENT "DC2_SAVE=${CMAKE_BINARY_DIR}/smoke-save;DC2_DATA=${CMAKE_BINARY_DIR}/smoke-data"
-    TIMEOUT 120 RUN_SERIAL TRUE)
+    TIMEOUT 120 RUN_SERIAL TRUE LABELS gpu)
 
 file(GLOB ct_stream_cmake CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.cmake)
 foreach(f IN LISTS ct_stream_cmake)

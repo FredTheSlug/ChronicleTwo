@@ -5,4 +5,4 @@ add_test(NAME PresentIdentity.DisplayPerTickScreenshot
     COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:darkchronicle> -DWORK=${PRESENT_IDENTITY_WORK}
         -P ${PRESENT_IDENTITY_SCRIPT})
 set_tests_properties(PresentIdentity.DisplayPerTickScreenshot PROPERTIES
-    TIMEOUT 240 RUN_SERIAL TRUE)
+    TIMEOUT 240 RUN_SERIAL TRUE LABELS gpu)

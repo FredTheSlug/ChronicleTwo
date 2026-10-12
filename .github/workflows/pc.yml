@@ -122,9 +122,9 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Copy-Item $env:VULKAN_RUNTIME/vulkan-1.dll port/build/windows-x64-tests
 
-      # The renderer's cases need a Vulkan device, which this runner does not have.
+      # The runner has no Vulkan device, so cases labelled gpu are excluded.
       - name: Test
-        run: ctest --test-dir port/build/windows-x64-tests --output-on-failure -j4 -E '^(GfxMisc|TexDecode)\.'
+        run: ctest --test-dir port/build/windows-x64-tests --output-on-failure -j4 -LE gpu
 
       - name: Package the Windows build
         run: |

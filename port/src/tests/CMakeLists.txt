@@ -21,16 +21,21 @@ kz_port_tests(darkchronicle_tests)
 target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nlohmann_json)
 
 # A case is a unit test: it finishes in milliseconds, and one that does not is cut off. The clock
-# cases measure short sleeps, which the parallel gfx cases skew, so they run on their own.
+# cases measure short sleeps, which the parallel gfx cases skew, so they run on their own. The Vu1Prog0Shader
+# cases compile and run the prog0 pipelines on lavapipe, which takes longer than 5 s under a parallel run, so they get 30 s.
 set(CT_TEST_TIMEOUT 5 CACHE STRING "Seconds a test case may run before it is cut off")
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER -PlatformClock.*
+    TEST_FILTER -PlatformClock.*:Vu1Prog0Shader.*
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT})
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
     TEST_FILTER PlatformClock.*
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT} RUN_SERIAL TRUE)
+gtest_discover_tests(darkchronicle_tests
+    DISCOVERY_MODE PRE_TEST
+    TEST_FILTER Vu1Prog0Shader.*
+    PROPERTIES TIMEOUT 30)
 
 add_dependencies(darkchronicle_tests darkchronicle)
 # ctest reports a process that dies by abort() as failed even when PASS_REGULAR_EXPRESSION matches its

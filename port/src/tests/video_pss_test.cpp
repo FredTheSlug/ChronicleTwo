@@ -176,11 +176,16 @@ private:
     int bit_ = 0;
 };
 
+// ctest runs from the build directory, so PathsDataRoot() does not reach the checkout's data/. Search upward
+// from the test executable instead, as dataread_test.cpp does.
 std::optional<fs::path> MovieFile(const char *name) {
-    std::error_code error;
-    fs::path path = PathsDataRoot() / "movie" / name;
-    if (fs::is_regular_file(path, error)) {
-        return path;
+    fs::path dir = PathsExecutable().parent_path();
+    for (int up = 0; up < 6 && !dir.empty(); up++, dir = dir.parent_path()) {
+        std::error_code error;
+        fs::path path = dir / "data" / "movie" / name;
+        if (fs::is_regular_file(path, error)) {
+            return path;
+        }
     }
     return std::nullopt;
 }
@@ -332,7 +337,7 @@ TEST(VideoPss, ProbeSequenceWithoutHeaderIsEmpty) {
 TEST(VideoPss, L5LogoSequenceFlags) {
     const std::optional<fs::path> path = MovieFile("l5logo.pss");
     if (!path) {
-        GTEST_SKIP() << "no extracted data/movie/l5logo.pss under the data root";
+        GTEST_SKIP() << "no extracted data/movie/l5logo.pss within 6 levels above the test executable";
     }
 
     std::ifstream in(*path, std::ios::binary);

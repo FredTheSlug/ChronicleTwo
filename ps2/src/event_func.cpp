@@ -13972,7 +13972,11 @@ static int _STREAM_OPEN(RS_STACKDATA *stack, int argc) {
             }
         case 3:
             EdEventInfo.stream_source = EVENT_STREAM_VOICE_PACK;
-            CommandStreamOpenFromFPL(EVENT_STREAM_CHANNEL, GetStackString(stack++), GetStackString(stack));
+            {
+                char *name = GetStackString(stack++);
+                char *base = GetStackString(stack);
+                CommandStreamOpenFromFPL(EVENT_STREAM_CHANNEL, name, base);
+            }
             return false;
     }
 

@@ -472,7 +472,8 @@ static int _CHECK_PAUSE(RS_STACKDATA *stack, int argc) {
         return false;
     }
 
-    SetStack(stack, static_cast<int>(pause->pause_flag & GetStackInt(stack++)));
+    int mask = GetStackInt(stack++);
+    SetStack(stack, static_cast<int>(pause->pause_flag & mask));
     return true;
 }
 

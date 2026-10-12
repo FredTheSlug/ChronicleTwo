@@ -933,7 +933,7 @@ mgCFrame *mgCopyFrame(mgCFrame *frame, mgCMemory *memory, int copy_visual) {
     table = frame->frame_list;
 
     if (count > 0 && table != 0) {
-        bytes = count * 4;
+        bytes = count * (s32) sizeof(mgCFrame *);
 
         if (bytes & 0xF) {
             blocks = (bytes >> 4) + 1;
@@ -947,10 +947,10 @@ mgCFrame *mgCopyFrame(mgCFrame *frame, mgCMemory *memory, int copy_visual) {
             return 0;
         }
 
-        if (((u_int) count * 0x110) & 0xF) {
-            blocks = (((u_int) count * 0x110) >> 4) + 1;
+        if (((u_int) count * sizeof(mgCFrame)) & 0xF) {
+            blocks = (((u_int) count * sizeof(mgCFrame)) >> 4) + 1;
         } else {
-            blocks = ((u_int) count * 0x110) >> 4;
+            blocks = ((u_int) count * sizeof(mgCFrame)) >> 4;
         }
 
         copies = new (memory->Alloc(blocks + 2)) mgCFrame[count];

@@ -6,6 +6,6 @@ PORT_OVERRIDE void mgC3DSprite::BeginCreatePacket(int mode, mgCDrawManager *mana
     PS2_UNIMPLEMENTED();
 }
 
-PORT_OVERRIDE u_int mgCSprite::CreatePacket(mgCDrawManager *manager) {
+PORT_OVERRIDE uptr mgCSprite::CreatePacket(mgCDrawManager *manager) {
     PS2_UNIMPLEMENTED();
 }

@@ -6,11 +6,11 @@ PORT_OVERRIDE u_int *GetScrPad() {
     PS2_UNIMPLEMENTED();
 }
 
-PORT_OVERRIDE u_int mgCVisualMDT::CreatePacket(mgCDrawManager *manager) {
+PORT_OVERRIDE uptr mgCVisualMDT::CreatePacket(mgCDrawManager *manager) {
     PS2_UNIMPLEMENTED();
 }
 
-PORT_OVERRIDE u_int mgCVisualFixMDT::CreatePacket(mgCDrawManager *manager) {
+PORT_OVERRIDE uptr mgCVisualFixMDT::CreatePacket(mgCDrawManager *manager) {
     PS2_UNIMPLEMENTED();
 }
 

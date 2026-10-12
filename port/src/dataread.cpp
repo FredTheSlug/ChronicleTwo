@@ -363,8 +363,8 @@ PORT_OVERRIDE void InitReadBG() {
     }
 }
 
-// The read is done when LoadFileBG returns, so the slot it hands out is already finished, as retail's
-// ReadBG leaves a finished request.
+// The copy happens now, but the slot stays pending so callers polling ReadBGSync see retail's issue and
+// complete states.
 PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
     if (out_size) {
         *out_size = 0;
@@ -395,8 +395,8 @@ PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
     std::snprintf(info->name, sizeof info->name, "%s", composed.c_str());
     info->busy = 1;
     info->dev = FILE_DEV_CDROM;
-    info->issued = 1;
-    info->done = 1;
+    info->issued = 0;
+    info->done = 0;
     info->buffer = buffer;
     info->size = size;
     info->sector = 0;
@@ -424,10 +424,24 @@ PORT_OVERRIDE BG_READ_INFO *GetReadBGFile(int index) {
     return bg_slots[index].busy ? &bg_slots[index] : nullptr;
 }
 
-// Nothing is outstanding between LoadFileBG calls, so a vertical sync has nothing to advance.
-PORT_OVERRIDE void ReadBG() {}
+// One state change per call, as retail: a pending slot is issued first and completed on a later call.
+// Callers that poll ReadBGSync rely on observing the issued-but-not-done state.
+PORT_OVERRIDE void ReadBG() {
+    for (BG_READ_INFO &info : bg_slots) {
+        if (!info.busy || info.done) {
+            continue;
+        }
+        if (!info.issued) {
+            info.issued = 1;
+        } else {
+            info.done = 1;
+        }
+        return;
+    }
+}
 
 PORT_OVERRIDE int ReadBGSync() {
+    ReadBG();
     for (const BG_READ_INFO &info : bg_slots) {
         if (info.busy && (!info.issued || !info.done)) {
             return 1;

@@ -14,6 +14,7 @@
 #include "identity.hpp"
 #include "mainloop.hpp"
 #include "mglib_port.hpp"
+#include "present.hpp"
 #include "platform/clock.hpp"
 #include "platform/config.hpp"
 #include "platform/display.hpp"
@@ -23,6 +24,12 @@
 #include "platform/settings.hpp"
 #include "platform/window.hpp"
 #include "sce/threads.hpp"
+
+// The audio branch adds audio_init.hpp; until it lands the port builds without audio.
+#if __has_include("audio_init.hpp")
+#include "audio_init.hpp"
+#define CT_HAVE_AUDIO_INIT 1
+#endif
 
 int VSyncCallBack(int field);
 
@@ -35,14 +42,22 @@ struct Options {
     bool                  headless = false;
     bool                  offscreen = false;
     int                   frames = 0;
+    int                   window_width = 0;
+    int                   window_height = 0;
+    int                   display_per_tick = 0;
+    bool                  show_fps = false;
+    bool                  log_fps = false;
     std::filesystem::path screenshot;
     std::filesystem::path input;
 };
 
+Options g_options;
+
 [[noreturn]] void Usage(const char *program) {
     std::fprintf(stderr,
-                 "usage: %s [--data DIR] [--save DIR] [--headless] [--offscreen] [--frames N]\n"
-                 "          [--screenshot PATH] [--input SCRIPT]\n"
+                 "usage: %s [--data DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n"
+                 "          [--frames N] [--screenshot PATH] [--input SCRIPT] [--display-per-tick N]\n"
+                 "          [--show-fps] [--log-fps]\n"
                  "  --data DIR         the extracted game data (default: DC2_DATA, then ./data, then data/ beside\n"
                  "                     the executable)\n"
                  "  --save DIR         saves and the pipeline cache (default: DC2_SAVE, then ./save, then save/\n"
@@ -51,7 +66,11 @@ struct Options {
                  "  --offscreen        --headless without a Vulkan surface: render to an image only\n"
                  "  --frames N         exit after frame N of the game's main loop (N a positive integer)\n"
                  "  --screenshot PATH  with --frames: write the last frame to PATH as a PNG on exit\n"
-                 "  --input SCRIPT     drive the pads named in SCRIPT from an input script\n",
+                 "  --input SCRIPT     drive the pads named in SCRIPT from an input script\n"
+                 "  --window WxH       window size in pixels (default: config.json, then the monitor's)\n"
+                 "  --display-per-tick N  headless: also render N interpolated display frames per tick (discarded)\n"
+                 "  --show-fps         draw the FPS counter on presented frames, headless too\n"
+                 "  --log-fps          print the FPS counter's text on stderr every second\n",
                  program);
     std::exit(kExitUsage);
 }
@@ -63,14 +82,26 @@ const char *OptionValue(int argc, const char **argv, int &i) {
     return argv[++i];
 }
 
-int ParseFrames(std::string_view text, const char *program) {
-    int         frames = 0;
+int ParsePositive(std::string_view text, const char *program) {
+    int         value = 0;
     const char *last = text.data() + text.size();
-    const auto [end, ec] = std::from_chars(text.data(), last, frames);
-    if (ec != std::errc() || end != last || frames <= 0) {
+    const auto [end, ec] = std::from_chars(text.data(), last, value);
+    if (ec != std::errc() || end != last || value <= 0) {
         Usage(program);
     }
-    return frames;
+    return value;
+}
+
+void ParseWindow(std::string_view text, Options &options, const char *program) {
+    const char *last = text.data() + text.size();
+    const auto [x, width_ec] = std::from_chars(text.data(), last, options.window_width);
+    if (width_ec != std::errc() || x == last || (*x != 'x' && *x != 'X')) {
+        Usage(program);
+    }
+    const auto [end, height_ec] = std::from_chars(x + 1, last, options.window_height);
+    if (height_ec != std::errc() || end != last || options.window_width <= 0 || options.window_height <= 0) {
+        Usage(program);
+    }
 }
 
 Options ParseOptions(int argc, const char **argv) {
@@ -83,7 +114,15 @@ Options ParseOptions(int argc, const char **argv) {
             options.headless = true;
             options.offscreen = true;
         } else if (arg == "--frames") {
-            options.frames = ParseFrames(OptionValue(argc, argv, i), argv[0]);
+            options.frames = ParsePositive(OptionValue(argc, argv, i), argv[0]);
+        } else if (arg == "--window") {
+            ParseWindow(OptionValue(argc, argv, i), options, argv[0]);
+        } else if (arg == "--display-per-tick") {
+            options.display_per_tick = ParsePositive(OptionValue(argc, argv, i), argv[0]);
+        } else if (arg == "--show-fps") {
+            options.show_fps = true;
+        } else if (arg == "--log-fps") {
+            options.log_fps = true;
         } else if (arg == "--screenshot") {
             options.screenshot = PathsFromUtf8(OptionValue(argc, argv, i));
             if (options.screenshot.empty()) {
@@ -128,6 +167,21 @@ gfx::PresentMode PresentMode(ConfigPresentMode mode) {
     }
 }
 
+gfx::FrameLayout Layout(const Config &config) {
+    return {config.aspect == ConfigAspect::Auto ? gfx::AspectMode::Fill : gfx::AspectMode::Letterbox, config.ui_scale};
+}
+
+PresentSettings PresentSettingsFor(const Config &config, const Options &options) {
+    return {
+        .interpolation = config.interpolation,
+        .max_fps = config.max_fps,
+        .display_per_tick = options.display_per_tick,
+        .show_fps = options.show_fps || (config.show_fps && !options.headless),
+        .fps_detail = config.fps_detail,
+        .log_fps = options.log_fps,
+    };
+}
+
 // A closed window ends the process here: the game has no stop request to ask its loop to return.
 void PumpHost() {
     if (!WindowPollEvents()) {
@@ -136,19 +190,35 @@ void PumpHost() {
     DisplayPump();
     InputPoll();
     InputScriptApply(mgPortFrameCount());
+
+    // SetFrameLayout recreates frame targets; it must not run inside a tick's recording.
+    if (!gfx::InFrame()) {
+        const gfx::FrameLayout layout = Layout(ConfigGet());
+        const gfx::FrameLayout current = gfx::CurrentFrameLayout();
+        if (layout.aspect != current.aspect || layout.ui_scale != current.ui_scale) {
+            gfx::SetFrameLayout(layout);
+        }
+    }
 }
 
 void ApplyConfigChange(const HostSettings &before, const HostSettings &after) {
     if (before.tick_rate != after.tick_rate) {
         ClockSetTickRate(after.tick_rate);
     }
+    if (before.present_mode != after.present_mode) {
+        gfx::SetPresentMode(PresentMode(after.present_mode));
+    }
     InputApplyConfig(after);
+    // HostSettings has no interpolation or aspect, so the present settings come from ConfigGet, which
+    // already holds the new values. This also resets an F3 toggle of show_fps to the config's value.
+    PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));
 }
 
 int Run(int argc, const char **argv) {
     GameSetIdentity();
     argc = PathsConsumeArgs(argc, argv);
-    const Options options = ParseOptions(argc, argv);
+    g_options = ParseOptions(argc, argv);
+    const Options &options = g_options;
     InputScript   input_script;
     if (!options.input.empty()) {
         std::string error;
@@ -161,7 +231,7 @@ int Run(int argc, const char **argv) {
     const HostSettings &settings = SettingsGet();
     const bool          offscreen = options.offscreen || (options.headless && !gfx::HeadlessSurfaceAvailable());
 
-    DisplaySetOverrides(0, 0, options.headless);
+    DisplaySetOverrides(options.window_width, options.window_height, options.headless);
     WindowConfig window = DisplayWindowConfig(settings);
     window.vulkan = !offscreen;
     WindowInit(window);
@@ -177,7 +247,13 @@ int Run(int argc, const char **argv) {
     renderer.pipeline_cache = PathsSaveRoot() / "pipeline_cache.bin";
     renderer.progress = ReportPipelineProgress;
     renderer.offscreen = offscreen;
+    renderer.layout = Layout(ConfigGet());
+    renderer.validation = renderer.validation || SettingsEnv("VULKAN_VALIDATION") != nullptr;
     gfx::RendererInit(WindowHandle(), renderer);
+    PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));
+#ifdef CT_HAVE_AUDIO_INIT
+    AudioInit();
+#endif
 
     ClockSetTickRate(settings.tick_rate);
     ClockSetUnbounded(options.headless);
@@ -196,6 +272,9 @@ int Run(int argc, const char **argv) {
     ClockRemovePumpHook(PumpHost);
     ConfigSetChangeHook(nullptr);
     InputShutdown();
+#ifdef CT_HAVE_AUDIO_INIT
+    AudioShutdown();
+#endif
     gfx::RendererShutdown();
     WindowShutdown();
     return kExitOk;

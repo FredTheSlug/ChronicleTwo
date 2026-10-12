@@ -36,6 +36,7 @@ constexpr auto kNonNegative = [](auto value) { return value >= 0; };
 constexpr auto kUnit = [](auto value) { return value >= 0 && value <= 1; };
 
 constexpr const char *kPresentModeNames[] = {"fifo", "mailbox", "immediate"};
+constexpr const char *kAspectNames[] = {"auto", "4:3"};
 constexpr const char *kFpsDetailNames[] = {"fps", "ticks", "all"};
 constexpr const char *kGyroNames[] = {"off", "always", "first_person", "held"};
 constexpr const char *kGlyphDeviceNames[] = {
@@ -172,6 +173,9 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     if (name == "video.present_mode") {
         return ReadEnum(value, kPresentModeNames, s.present_mode);
     }
+    if (name == "video.interpolation") {
+        return ReadBool(value, config.interpolation);
+    }
     if (name == "video.max_fps") {
         return ReadNumber(value, s.max_fps, kNonNegative);
     }
@@ -183,6 +187,12 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     }
     if (name == "video.fullscreen") {
         return ReadBool(value, s.fullscreen);
+    }
+    if (name == "video.aspect") {
+        return ReadEnum(value, kAspectNames, config.aspect);
+    }
+    if (name == "video.ui_scale") {
+        return ReadNumber(value, config.ui_scale, [](float scale) { return scale >= 0.25f && scale <= 4.0f; });
     }
     if (name == "video.show_fps") {
         return ReadBool(value, s.show_fps);
@@ -317,10 +327,13 @@ std::string ConfigSerialize(const Config &config) {
     Json root;
     root["game"]["tick_rate"] = s.tick_rate;
     root["video"]["present_mode"] = kPresentModeNames[static_cast<std::size_t>(s.present_mode)];
+    root["video"]["interpolation"] = config.interpolation;
     root["video"]["max_fps"] = s.max_fps;
     root["video"]["width"] = s.window_width;
     root["video"]["height"] = s.window_height;
     root["video"]["fullscreen"] = s.fullscreen;
+    root["video"]["aspect"] = kAspectNames[static_cast<std::size_t>(config.aspect)];
+    root["video"]["ui_scale"] = Shortest(config.ui_scale);
     root["video"]["show_fps"] = s.show_fps;
     root["video"]["fps_detail"] = kFpsDetailNames[static_cast<std::size_t>(s.fps_detail)];
     root["audio"]["master_volume"] = Shortest(s.master_volume);
@@ -392,10 +405,14 @@ const HostSettings &SettingsGet() {
     return g_config;
 }
 
+const Config &ConfigGet() {
+    return g_config;
+}
+
 // Stored as ConfigParse reads ConfigSerialize's output, so a value out of range is normalised the
 // way a hand-edited file's would be.
 bool SettingsChange(const HostSettings &settings) {
-    Config candidate;
+    Config candidate = g_config;
     static_cast<HostSettings &>(candidate) = settings;
     Config after = ConfigParse(ConfigSerialize(candidate));
     if (after == g_config) {

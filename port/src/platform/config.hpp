@@ -10,8 +10,17 @@ inline constexpr double kConfigTickRateDefault = 50.0;
 inline constexpr double kConfigTickRateMin = 25.0;
 inline constexpr double kConfigTickRateMax = 240.0;
 
+enum class ConfigAspect {
+    Auto,
+    FourThree,
+};
+
 struct Config : HostSettings {
     Config() { tick_rate = kConfigTickRateDefault; }
+
+    bool         interpolation = true;
+    ConfigAspect aspect = ConfigAspect::Auto;
+    float        ui_scale = 1.0f;
 
     bool operator==(const Config &) const = default;
 };
@@ -24,6 +33,8 @@ bool ConfigSave();
 // Called by SettingsChange once a changed value is stored, with the settings before and after it.
 using ConfigChangeHook = void (*)(const HostSettings &before, const HostSettings &after);
 void ConfigSetChangeHook(ConfigChangeHook hook);
+
+const Config &ConfigGet();
 
 // Unknown keys and values of the wrong type or range keep their defaults and are reported on stderr.
 Config      ConfigParse(std::string_view text);

@@ -9,6 +9,7 @@
 #include "gfx/gfx.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
+#include "present.hpp"
 #include "platform/paths.hpp"
 
 #include <algorithm>
@@ -24,8 +25,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
-void WaitVSync(int start, int frames);
 
 namespace {
 
@@ -299,10 +298,6 @@ bool ReadNow(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &wi
     return gfx::ReadbackTexture(target, rgba, width, height);
 }
 
-void PresentTick() {
-    gfx::PresentCanonical();
-}
-
 // Runs after the tick's canonical render, outside a recording, so the readbacks see the finished image.
 void CacheMarkedColors() {
     for (const gfx::TextureHandle target : color_marks) {
@@ -396,6 +391,17 @@ mgPortExtent ExtentOf(float left, float top, float right, float bottom) {
     extent.gs_right = static_cast<float>(mgScreenOffx) + right;
     extent.gs_bottom = static_cast<float>(mgScreenOffy) + bottom;
     return extent;
+}
+
+// Only x and y follow the visible extent; the depth components stay retail's.
+void ApplyVisibleBox(mgRENDER_INFO &info) {
+    const mgPortExtent extent = mgPortVisibleExtent();
+    const float centre_x = 0.5f * static_cast<float>(mgScreenWidth);
+    const float centre_y = 0.5f * static_cast<float>(mgScreenHeight);
+    info.screen_box_min[0] = extent.left - centre_x;
+    info.screen_box_min[1] = extent.top - centre_y;
+    info.screen_box_max[0] = extent.right - centre_x;
+    info.screen_box_max[1] = extent.bottom - centre_y;
 }
 
 } // namespace
@@ -967,6 +973,12 @@ PORT_OVERRIDE mgCMemory *mgGetDataBuffer() {
     return &data_buf[data_id];
 }
 
+PORT_OVERRIDE void mgSetRenderInfo(float fov, float clip_near, float clip_far) {
+    mgRenderInfo.SetRenderInfo(fov, mgScreenWidth, mgScreenHeight, clip_near, clip_far,
+                               mgScreenZDepth, 2096.0f / (3.0f * (float) mgScreenWidth));
+    ApplyVisibleBox(mgRenderInfo);
+}
+
 PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
     if (manager == NULL) {
         manager = &mgDrawManager;
@@ -999,6 +1011,11 @@ PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
     mgBeginPacket(manager);
     mgSetPkTextureRepeat(1);
     mgSetPkFrameBuffer(-1, -1, -1, -1);
+    // The window can change shape between ticks; SetRenderInfo only runs once per scene.
+    if (manager->render_info != NULL) {
+        ApplyVisibleBox(*manager->render_info);
+    }
+
     mgSetPkClearScreen(BackColorByte(0), BackColorByte(1), BackColorByte(2), BackColorByte(3));
 }
 
@@ -1050,7 +1067,7 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
 
         previous_list = std::move(last_list);
         last_list = std::move(list);
-        PresentTick();
+        PresentTickRendered();
 
         CacheMarkedColors();
         AnswerDepthQueries();
@@ -1094,8 +1111,9 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
         std::exit(status);
     }
 
-    WaitVSync(old_vcount, mgFrameRate);
+    PresentWaitFrame(old_vcount, mgFrameRate);
     old_vcount = mgGetVSyncCount();
+    PresentTickEnd();
     mgNowFrameRate = mgTimeFrameFields();
 
     if (!(mgNowFrameRate - (float) mgFrameRate <= 1.0f)) {

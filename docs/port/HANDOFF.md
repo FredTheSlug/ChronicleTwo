@@ -130,3 +130,22 @@ Left:
 - From `docs/port/HANDOFF.md` section 4, still open and not done by `records`: the `event_func` `_SWE_SET_COLOR`/`_SWE_SET_TEXTURE`/`_SWE_START_EFFECT` `(slot << 2)` strides (now W4 `sweep-dungeon`), the `CMenuSystemData::item_cursor` save field and `_SET_INDEXOBJ_SIZE` (only `_GET_INDEXOBJ_SIZE` is indexed), and the `DATA_HEADER` fixup gate (PS2 only; the host index replaces DATA.HD4).
 
 Verify: `./build.sh ps2-pal` then `verify.py -c` (SCES_511.90: OK); Linux gate; `kazarov shell python3 scripts/port/records.py --build port/build/pc --require-clang`; `ctest -R 'Records|Truncations|Uptr'`.
+
+## W4 `present` (s/present, kz/present)
+
+Done:
+- Bone-palette interpolation (Kazarov `port/gfx/displaylist.cpp` `Interpolated`, `BlendProg0Bones`, `MoveProg0`; `Replay` takes a per-record prog0 override). The prog0 block's `model_world`, `clip_or_view`, object-space `eye` and point lights follow the interpolated model and camera. Chronicle records no prog0 block. Tests: `GfxDisplayList.BonesBlendPerBoneAtHalf`, `GfxMeshDc2.SkinnedPaletteInterpolatesInDisplayFrame` (in `port/tests/gfx_displaylist_test.cpp`, suite GfxMeshDc2 for the 30 s budget).
+- HUD anchors: `port/src/dng_status.cpp` (`DrawStatusBord`, top-left), `port/src/automap.cpp` (mini map, top-right). `gfx::UiAnchor::Side(x, y, true)` moves the piece's scissor with it (`GfxMeshDc2.AnchoredScissorMovesWithTheDraw`). DC2 has no town clock HUD.
+- Letterbox (`video.aspect = 4:3`) clips every main-target draw and clear to the frame (the bars held 3D before); frame flanks sample clamped (the 1-px seam at the frame's leading edges is gone). Tests `GfxMeshDc2.LetterboxClipsMeshesAndClearsToTheFrame`, `FillKeepsClearsAcrossTheWindow`.
+- `mgSetPkMoveImage` of the frame (5-argument overloads: `sceneevent.cpp` heat haze, `map.cpp` screen, menu grabs) goes to a frame target as a 1:1 logical copy; draws into a grabbed TBP go to the grab (`FrameGrabAt`). The 6-argument stretch (`screeneffect.cpp`) is unchanged. Test `MglibPresent.MoveImageOfTheFrameUsesAFrameTarget`.
+- `--screenshot-display N` (display frames of the screenshot's frame) and `--screenshot-fps`.
+
+Measured (Windows, RTX 4090, title frame 2500): windowed 2560x1440 immediate, max_fps 0: 215-404 FPS at 420-590 draws, TICK 50.0/50; interpolation off: 50/s at the title, 25/s in the movie. Headless `--display-per-tick 4` byte-identical at 1024x768 and 1280x720; letterbox bars black, centre vs a 960x720 render: 23 px differ by 1. Logical-frame PSNR (4:3 frame, box-resampled to 512x480) against 1024x768: 1280x720 38.5 dB, 3840x2160 40.9, 800x1200 35.0, 800x600 38.4, 960x720 39.7 (the same-aspect floor: 40 dB is not reachable from resolution alone). Title `--screenshot-display 4`: consecutive display frames differ (~16% of pixels, camera).
+
+Left:
+- In-game proof of interpolated skinned poses, and the HUD probe and matrix in the first town and a dungeon: the attract loop is title <-> opening movie (2D, no meshes; the W3 note calling frame 4500 "skinned characters" is wrong), and nothing past START is reachable until the sweep fixes the hang. Re-run with the sweeps' input scripts: `--window WxH --frames N --screenshot X.png --screenshot-display 4`, then compare consecutive display frames.
+- FPS counter in the game's font: not done on purpose (font texture per mode block, `FontTex[0]` dangles across modes; Chronicle made the same choice). It uses the overlay's Compendium font.
+- Audit #14 (render targets keyed by handle instead of TBP0): not started; `FrameGrabAt` adds one more TBP-keyed lookup.
+- Letterbox centre is within 1 of a 960x720 render on 23 pixels, not byte-identical (3D rasterised in a wider viewport).
+- The sweep's report of a 3840x2160 windowed frame offset right with a bar on the left did not reproduce at the language select (3840x2160 client at 0,0 on a 4K panel at 150%, presented frame and canonical image both centred; also 2560x1440 and 1280x720). Need its command line and screen.
+- The matrix scripts used: `<scratchpad>/present/matrix.sh` and `imgcmp.py` (not in the repo; scripts/port is the options stream's).

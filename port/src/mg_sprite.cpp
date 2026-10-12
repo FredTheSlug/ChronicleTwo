@@ -110,6 +110,8 @@ gfx::Vertex2D SpriteVertex(const vu1::Sprite3dVertexF &s, const float *rgba, con
     return out;
 }
 
+// Submitted as depth-tested 2D at the tick's screen corners: a billboard's own motion is not interpolated, as in
+// Chronicle (docs/PC.md "Ticks and display frames").
 void SubmitSpriteBatch(const BillboardBatch &batch, const BillboardSetup &setup) {
     const vu1::Sprite3dParams params{setup.local_screen, setup.vs0, setup.vs1,
                                      setup.fog,         setup.guard_min, setup.guard_max};

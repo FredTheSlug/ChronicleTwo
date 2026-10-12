@@ -2,7 +2,6 @@
 #include "common.h"
 
 #include <algorithm>
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -20,14 +19,9 @@
 
 namespace {
 
-constexpr uint32_t kGifAdc = 0x8000;
-
 struct PrimRun {
     int                        prim_type = MG_PRIM_POINT;
     bool                       packed = false;
-    int                        nreg = 0;
-    int                        next_reg = 0;
-    uint8_t                    regs[16] = {};
     uint8_t                    color[4] = {0xFF, 0xFF, 0xFF, 0xFF};
     uint8_t                    fog = 0xFF;
     float                      q = 1.0f;
@@ -50,11 +44,7 @@ PrimRun *Find(const mgCDrawPrim *self) {
     return it == runs.end() ? nullptr : &it->second;
 }
 
-void FlushBatch(const mgCDrawPrim &self, PrimRun &run) {
-    if (run.batch.empty()) {
-        return;
-    }
-
+void DrawVertices(const mgCDrawPrim &self, gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices) {
     gfx::DrawState state = mgPortDrawState();
     state.blend = self.prim.ABE != 0;
     state.fog = self.prim.FGE != 0;
@@ -66,11 +56,18 @@ void FlushBatch(const mgCDrawPrim &self, PrimRun &run) {
     }
 
     if (prim_sink) {
-        prim_sink(run.batch_primitive, run.batch, binding, state);
+        prim_sink(primitive, vertices, binding, state);
     } else {
-        mgPortDraw2D(run.batch_primitive, run.batch, binding, state);
+        mgPortDraw2D(primitive, vertices, binding, state);
+    }
+}
+
+void FlushBatch(const mgCDrawPrim &self, PrimRun &run) {
+    if (run.batch.empty()) {
+        return;
     }
 
+    DrawVertices(self, run.batch_primitive, run.batch);
     run.batch.clear();
 }
 
@@ -275,14 +272,7 @@ PORT_OVERRIDE void mgCDrawPrim::BeginPrim2(int prim_type, u_int data_a, u_int da
     run.packed = true;
     run.prim_type = prim_type;
     run.q = 1.0f;
-    run.nreg = std::clamp(unit_count, 0, 16);
-    run.next_reg = 0;
     run.queue.clear();
-
-    for (int i = 0; i < run.nreg; ++i) {
-        const u_int word = i < 8 ? data_a : data_b;
-        run.regs[i] = static_cast<uint8_t>((word >> (4 * (i % 8))) & 0xF);
-    }
 }
 
 PORT_OVERRIDE void mgCDrawPrim::EndPrim2() {
@@ -301,52 +291,17 @@ PORT_OVERRIDE void mgCDrawPrim::Data(int *data) {
         write++;
     }
 
-    PrimRun *run = Find(this);
+    const PrimRun *run = Find(this);
 
-    if (run == nullptr || !run->packed || run->nreg <= 0) {
+    if (run == nullptr || !run->packed) {
         return;
     }
 
-    const uint32_t w[4] = {static_cast<uint32_t>(data[0]), static_cast<uint32_t>(data[1]),
-                           static_cast<uint32_t>(data[2]), static_cast<uint32_t>(data[3])};
-    const uint8_t code = run->regs[run->next_reg];
-    run->next_reg = (run->next_reg + 1) % run->nreg;
+    static bool reported = false;
 
-    switch (code) {
-        case 0x1:
-            for (int c = 0; c < 4; ++c) {
-                run->color[c] = static_cast<uint8_t>(w[c] & 0xFF);
-            }
-
-            break;
-        case 0x2:
-            run->s = std::bit_cast<float>(w[0]);
-            run->t = std::bit_cast<float>(w[1]);
-            run->q = std::bit_cast<float>(w[2]);
-            break;
-        case 0x3:
-            run->u = static_cast<float>(w[0] & 0x3FFF) / 16.0f;
-            run->v = static_cast<float>(w[1] & 0x3FFF) / 16.0f;
-            break;
-        case 0x4:
-            run->fog = static_cast<uint8_t>((w[3] >> 4) & 0xFF);
-
-            if ((w[3] & kGifAdc) == 0) {
-                Kick(*this, run, w[0] & 0xFFFF, w[1] & 0xFFFF, (w[2] >> 4) & 0xFFFFFF);
-            }
-
-            break;
-        case 0x5:
-            if ((w[3] & kGifAdc) == 0) {
-                Kick(*this, run, w[0] & 0xFFFF, w[1] & 0xFFFF, w[2]);
-            }
-
-            break;
-        case 0xA:
-            run->fog = static_cast<uint8_t>((w[3] >> 24) & 0xFF);
-            break;
-        default:
-            break;
+    if (!reported) {
+        reported = true;
+        std::fprintf(stderr, "mg_drawprim: packed GIF data ignored; its caller needs a port override\n");
     }
 }
 
@@ -541,4 +496,73 @@ bool mgPortPacketDraw(const void *packet) {
     const std::function<void()> draw = it->second;
     draw();
     return true;
+}
+
+void mgPortPrimSubmit(mgCDrawPrim &prim, gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices) {
+    FlushPending(&prim);
+
+    // A disabled builder never flushes what it would batch, so it draws nothing here either.
+    if (prim.disabled != 0 || vertices.empty()) {
+        return;
+    }
+
+    const std::size_t group = primitive == gfx::Primitive::Lines       ? 2
+                              : primitive == gfx::Primitive::Triangles ? 3
+                                                                       : 0;
+
+    if (prim.prim.IIP != 0 || group == 0) {
+        DrawVertices(prim, primitive, vertices);
+        return;
+    }
+
+    std::vector<gfx::Vertex2D> flat(vertices.begin(), vertices.end());
+
+    for (std::size_t first = 0; first + group <= flat.size(); first += group) {
+        const std::size_t last = first + group - 1;
+
+        for (std::size_t i = first; i < last; ++i) {
+            std::copy_n(flat[last].color, 4, flat[i].color);
+        }
+    }
+
+    DrawVertices(prim, primitive, flat);
+}
+
+void mgPortStripTriangles(std::span<const gfx::Vertex2D> strip, std::vector<gfx::Vertex2D> &out) {
+    for (std::size_t i = 2; i < strip.size(); ++i) {
+        out.push_back(strip[i - 2]);
+        out.push_back(strip[i - 1]);
+        out.push_back(strip[i]);
+    }
+}
+
+void mgPortPrimColor(const mgCDrawPrim &prim, uint8_t rgba[4]) {
+    static constexpr uint8_t kWhite[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    const PrimRun *run = Find(&prim);
+    std::copy_n(run != nullptr ? run->color : kWhite, 4, rgba);
+}
+
+gfx::Vertex2D mgPortPrimVertex(const mgCDrawPrim &prim, float gs_x, float gs_y, float gs_z, float u, float v,
+                               const uint8_t rgba[4], uint8_t fog) {
+    int offset_x = 0;
+    int offset_y = 0;
+    // GetOffset only reads the builder; retail declares it non-const.
+    const_cast<mgCDrawPrim &>(prim).GetOffset(&offset_x, &offset_y);
+
+    const float origin_x = mgPortLogicalX(0);
+    const float origin_y = mgPortLogicalY(0);
+    // The slope comes from the seam, which is affine, rather than from a fixed pixel-to-unit ratio.
+    const float scale_x = mgPortLogicalX(16) - origin_x;
+    const float scale_y = mgPortLogicalY(16) - origin_y;
+
+    gfx::Vertex2D vertex{};
+    vertex.x = origin_x + (gs_x + static_cast<float>(offset_x) / 16.0f) * scale_x;
+    vertex.y = origin_y + (gs_y + static_cast<float>(offset_y) / 16.0f) * scale_y;
+    // 4294967040 is the largest float below 2^32, so the cast to uint32_t is defined for every input.
+    vertex.z = mgPortDepth(static_cast<uint32_t>(std::clamp(gs_z, 0.0f, 4294967040.0f)));
+    vertex.u = u;
+    vertex.v = v;
+    std::copy_n(rgba, 4, vertex.color);
+    vertex.fog = fog;
+    return vertex;
 }

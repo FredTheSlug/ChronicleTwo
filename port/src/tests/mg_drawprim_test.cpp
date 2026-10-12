@@ -225,9 +225,9 @@ TEST(MgDrawPrim, LineStripExpandsToLines) {
     EXPECT_EQ(Rgba(l[3]), (std::array<uint8_t, 4>{0, 0, 255, 255}));
 }
 
-TEST(MgDrawPrim, PackedUvXyzf2Kicks) {
+TEST(MgDrawPrim, PackedDataIsIgnored) {
     PrimRig rig;
-    rig.prim.Begin(MG_PRIM_SPRITE);
+    rig.prim.Begin2();
     rig.prim.BeginPrim2(MG_PRIM_SPRITE, 0x43, 0, 2);
     int uv0[4] = {0, 0, 0, 0};
     int xyz0[4] = {Gs(10.0f), Gs(20.0f), 0, 0};
@@ -240,41 +240,7 @@ TEST(MgDrawPrim, PackedUvXyzf2Kicks) {
     rig.prim.EndPrim2();
     rig.prim.End2();
 
-    ASSERT_EQ(rig.batches.size(), 1u);
-    EXPECT_EQ(rig.batches[0].primitive, gfx::Primitive::Quads);
-    const std::vector<gfx::Vertex2D> &q = rig.batches[0].vertices;
-    ASSERT_EQ(q.size(), 4u);
-    ExpectAt(q[0], 10.0f, 20.0f);
-    ExpectAt(q[2], 42.0f, 36.0f);
-    EXPECT_FLOAT_EQ(q[0].u, 0.0f);
-    EXPECT_FLOAT_EQ(q[0].v, 0.0f);
-    EXPECT_FLOAT_EQ(q[2].u, 32.0f);
-    EXPECT_FLOAT_EQ(q[2].v, 16.0f);
-}
-
-TEST(MgDrawPrim, PackedXyzf2WithAdcDoesNotKick) {
-    PrimRig rig;
-    rig.prim.Begin(MG_PRIM_SPRITE);
-    rig.prim.BeginPrim2(MG_PRIM_SPRITE, 0x43, 0, 2);
-    int uv[4] = {0, 0, 0, 0};
-    int adc_xyz[4] = {Gs(99.0f), Gs(99.0f), 0, 0x8000};
-    int xyz0[4] = {Gs(10.0f), Gs(20.0f), 0, 0};
-    int uv1[4] = {512, 256, 0, 0};
-    int xyz1[4] = {Gs(42.0f), Gs(36.0f), 0, 0};
-    rig.prim.Data(uv);
-    rig.prim.Data(adc_xyz);
-    rig.prim.Data(uv);
-    rig.prim.Data(xyz0);
-    rig.prim.Data(uv1);
-    rig.prim.Data(xyz1);
-    rig.prim.EndPrim2();
-    rig.prim.End2();
-
-    ASSERT_EQ(rig.batches.size(), 1u);
-    const std::vector<gfx::Vertex2D> &q = rig.batches[0].vertices;
-    ASSERT_EQ(q.size(), 4u);
-    ExpectAt(q[0], 10.0f, 20.0f);
-    ExpectAt(q[2], 42.0f, 36.0f);
+    EXPECT_TRUE(rig.batches.empty());
 }
 
 TEST(MgDrawPrim, DirectScissorUpdatesGsState) {
@@ -354,4 +320,151 @@ TEST(MgDrawPrim, DrawManagerReplaysRegisteredPackets) {
     EXPECT_EQ(first_draws, 1);
     EXPECT_TRUE(mgPortPacketDraw(&second_key));
     EXPECT_EQ(second_draws, 2);
+}
+
+TEST(MgDrawPrim, PrimVertexAddsBuilderOffsetAfterGsScale) {
+    PrimRig rig;
+    rig.prim.Coord(1);
+    rig.prim.offset_x = 32;
+    rig.prim.offset_y = 16;
+    const uint8_t rgba[4] = {1, 2, 3, 4};
+
+    const gfx::Vertex2D v = mgPortPrimVertex(rig.prim, 10.0f, 20.0f, 0.0f, 0.0f, 0.0f, rgba);
+    EXPECT_FLOAT_EQ(v.x, mgPortLogicalX(Gs(10.0f) + 32));
+    EXPECT_FLOAT_EQ(v.y, mgPortLogicalY(Gs(20.0f) + 16));
+}
+
+TEST(MgDrawPrim, PrimVertexAtRawCoordinateMatchesLogicalMapping) {
+    PrimRig rig;
+    rig.prim.Coord(1);
+    const uint8_t rgba[4] = {0, 0, 0, 0};
+
+    const gfx::Vertex2D v = mgPortPrimVertex(rig.prim, 10.0f, 20.0f, 0.0f, 0.0f, 0.0f, rgba);
+    EXPECT_FLOAT_EQ(v.x, mgPortLogicalX(Gs(10.0f)));
+    EXPECT_FLOAT_EQ(v.y, mgPortLogicalY(Gs(20.0f)));
+}
+
+TEST(MgDrawPrim, PrimVertexScreenOffsetCancelsInLogicalSpace) {
+    PrimRig rig;
+    const uint8_t rgba[4] = {0, 0, 0, 0};
+
+    const gfx::Vertex2D v = mgPortPrimVertex(rig.prim, 10.0f, 20.0f, 0.0f, 0.0f, 0.0f, rgba);
+    EXPECT_FLOAT_EQ(v.x, 10.0f);
+    EXPECT_FLOAT_EQ(v.y, 20.0f);
+}
+
+TEST(MgDrawPrim, PrimVertexMapsZLikeDepthAndClamps) {
+    PrimRig rig;
+    const uint8_t rgba[4] = {0, 0, 0, 0};
+
+    EXPECT_FLOAT_EQ(mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 1000.0f, 0.0f, 0.0f, rgba).z, mgPortDepth(1000));
+    EXPECT_FLOAT_EQ(mgPortPrimVertex(rig.prim, 0.0f, 0.0f, -5.0f, 0.0f, 0.0f, rgba).z, 0.0f);
+    EXPECT_FLOAT_EQ(mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 1e12f, 0.0f, 0.0f, rgba).z, 1.0f);
+}
+
+TEST(MgDrawPrim, PrimColorReturnsLastColourCall) {
+    PrimRig rig;
+    rig.prim.Begin2();
+    rig.prim.Color(10, 20, 30, 40);
+
+    uint8_t rgba[4] = {};
+    mgPortPrimColor(rig.prim, rgba);
+    EXPECT_EQ(rgba[0], 10);
+    EXPECT_EQ(rgba[1], 20);
+    EXPECT_EQ(rgba[2], 30);
+    EXPECT_EQ(rgba[3], 40);
+}
+
+TEST(MgDrawPrim, PrimSubmitFlushesPendingBatchFirst) {
+    PrimRig rig;
+    rig.prim.Coord(1);
+    rig.prim.Begin(MG_PRIM_POINT);
+    rig.prim.Vertex(10.0f, 10.0f, 0.0f);
+
+    const uint8_t white[4] = {255, 255, 255, 255};
+    const std::vector<gfx::Vertex2D> tri = {
+        mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
+        mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
+        mgPortPrimVertex(rig.prim, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, white),
+    };
+    mgPortPrimSubmit(rig.prim, gfx::Primitive::Triangles, tri);
+
+    ASSERT_EQ(rig.batches.size(), 2u);
+    EXPECT_EQ(rig.batches[0].primitive, gfx::Primitive::Quads);
+    EXPECT_EQ(rig.batches[1].primitive, gfx::Primitive::Triangles);
+    EXPECT_EQ(rig.batches[1].vertices.size(), 3u);
+
+    rig.prim.End2();
+    EXPECT_EQ(rig.batches.size(), 2u);
+}
+
+TEST(MgDrawPrim, PrimSubmitUsesLastColourForFlatTriangles) {
+    PrimRig rig;
+    rig.prim.Begin2();
+    rig.prim.Shading(0);
+
+    const uint8_t red[4] = {255, 0, 0, 255};
+    const uint8_t blue[4] = {0, 0, 255, 255};
+    const std::vector<gfx::Vertex2D> tri = {
+        mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
+        mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
+        mgPortPrimVertex(rig.prim, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, blue),
+    };
+    mgPortPrimSubmit(rig.prim, gfx::Primitive::Triangles, tri);
+    rig.prim.End2();
+
+    ASSERT_EQ(rig.batches.size(), 1u);
+    ASSERT_EQ(rig.batches[0].vertices.size(), 3u);
+    for (const gfx::Vertex2D &v : rig.batches[0].vertices) {
+        EXPECT_EQ(Rgba(v), (std::array<uint8_t, 4>{0, 0, 255, 255}));
+    }
+}
+
+TEST(MgDrawPrim, PrimSubmitKeepsVertexColoursWhenShaded) {
+    PrimRig rig;
+    rig.prim.Begin2();
+    rig.prim.Shading(1);
+
+    const uint8_t red[4] = {255, 0, 0, 255};
+    const uint8_t blue[4] = {0, 0, 255, 255};
+    const std::vector<gfx::Vertex2D> tri = {
+        mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
+        mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
+        mgPortPrimVertex(rig.prim, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, blue),
+    };
+    mgPortPrimSubmit(rig.prim, gfx::Primitive::Triangles, tri);
+    rig.prim.End2();
+
+    ASSERT_EQ(rig.batches.size(), 1u);
+    EXPECT_EQ(Rgba(rig.batches[0].vertices[0]), (std::array<uint8_t, 4>{255, 0, 0, 255}));
+    EXPECT_EQ(Rgba(rig.batches[0].vertices[2]), (std::array<uint8_t, 4>{0, 0, 255, 255}));
+}
+
+TEST(MgDrawPrim, PrimSubmitDrawsNothingWhileDisabled) {
+    PrimRig rig;
+    const uint8_t white[4] = {255, 255, 255, 255};
+    const std::vector<gfx::Vertex2D> tri = {
+        mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
+        mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
+        mgPortPrimVertex(rig.prim, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, white),
+    };
+    mgPortPrimSubmit(rig.prim, gfx::Primitive::Triangles, tri);
+
+    EXPECT_TRUE(rig.batches.empty());
+}
+
+TEST(MgDrawPrim, StripTrianglesFollowAssemblyOrder) {
+    std::vector<gfx::Vertex2D> strip(4);
+    for (std::size_t i = 0; i < strip.size(); ++i) {
+        strip[i].x = static_cast<float>(i);
+    }
+
+    std::vector<gfx::Vertex2D> out;
+    mgPortStripTriangles(strip, out);
+
+    ASSERT_EQ(out.size(), 6u);
+    const float expected[6] = {0.0f, 1.0f, 2.0f, 1.0f, 2.0f, 3.0f};
+    for (std::size_t i = 0; i < out.size(); ++i) {
+        EXPECT_FLOAT_EQ(out[i].x, expected[i]);
+    }
 }

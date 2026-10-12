@@ -32,26 +32,34 @@ gtest_discover_tests(darkchronicle_tests
     TEST_FILTER PlatformClock.*
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT} RUN_SERIAL TRUE)
 
-# ctest reports a process that dies by abort() as failed even when PASS_REGULAR_EXPRESSION matches its
-# output, so the executable runs under a script that only forwards its output and the regex judges that.
-# Its shader compile loads the CPU, so it runs alone with the clock cases.
 add_dependencies(darkchronicle_tests darkchronicle)
-set(SMOKE_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/smoke_launch.cmake)
+# ctest reports a process that dies by abort() as failed even when PASS_REGULAR_EXPRESSION matches its
+# output, so the executable runs under a script that checks the run and the file it writes, and the regex
+# judges the script's verdict. Its shader compile loads the CPU, so it runs alone with the clock cases.
+# The smoke data directory is empty on purpose, so the run stays in the logo fade and reaches frame 3 without game data.
+set(SMOKE_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/smoke_headless.cmake)
 file(WRITE ${SMOKE_SCRIPT} [=[
 file(MAKE_DIRECTORY "$ENV{DC2_DATA}")
-execute_process(COMMAND "${EXE}" --headless --offscreen
-    OUTPUT_VARIABLE out ERROR_VARIABLE err TIMEOUT 120)
+file(MAKE_DIRECTORY "$ENV{DC2_SAVE}")
+file(REMOVE "$ENV{DC2_SAVE}/smoke.png")
+execute_process(COMMAND "${EXE}" --headless --offscreen --frames 3 --screenshot "$ENV{DC2_SAVE}/smoke.png"
+    RESULT_VARIABLE rc OUTPUT_VARIABLE out ERROR_VARIABLE err TIMEOUT 120)
 set(log "${out}${err}")
 message("${log}")
+set(png "$ENV{DC2_SAVE}/smoke.png")
+set(sig "")
+if(EXISTS "${png}")
+    file(READ "${png}" sig LIMIT 8 HEX)
+endif()
 string(FIND "${log}" "dataread: indexed " index_at)
-string(FIND "${log}" "mgInit: PlayStation 2 code is not implemented on PC" abort_at)
-if(index_at GREATER -1 AND abort_at GREATER index_at)
+string(FIND "${log}" "mglib: frame 3 written to" frame_at)
+if(rc EQUAL 0 AND index_at GREATER -1 AND frame_at GREATER -1 AND sig STREQUAL "89504e470d0a1a0a")
     message("SMOKE_OK")
 endif()
 ]=])
-add_test(NAME Smoke.LaunchAbortsAtFirstHardwareCall
+add_test(NAME Smoke.HeadlessFramesScreenshot
     COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:darkchronicle> -P ${SMOKE_SCRIPT})
-set_tests_properties(Smoke.LaunchAbortsAtFirstHardwareCall PROPERTIES
+set_tests_properties(Smoke.HeadlessFramesScreenshot PROPERTIES
     PASS_REGULAR_EXPRESSION "SMOKE_OK"
     ENVIRONMENT "DC2_SAVE=${CMAKE_BINARY_DIR}/smoke-save;DC2_DATA=${CMAKE_BINARY_DIR}/smoke-data"
     TIMEOUT 120 RUN_SERIAL TRUE)

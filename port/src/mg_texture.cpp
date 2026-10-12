@@ -15,6 +15,7 @@
 #include <optional>
 #include <span>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -314,6 +315,43 @@ void ResolveTexture(const mgCTexture *texture, bool palette_changed) {
 void ResolveBlock(const mgCTextureBlock &block) {
     for (const mgCTexture *texture = block.texture; texture != nullptr; texture = texture->next) {
         ResolveTexture(texture, false);
+    }
+}
+
+// Retail uploads RAM images and CLUTs whenever it selects another block, before animating it.
+// Persistent host textures only need that restoration for animation destinations: in particular,
+// the open-eye record copies the face onto itself and relies on the upload undoing the last blink.
+void RestoreAnimatedTextures(const mgCTextureBlock &block, int index) {
+    if (block.anime == nullptr) {
+        return;
+    }
+
+    std::unordered_set<const mgCTexture *> restored;
+    for (int group = 0; group < block.anime->group_num; ++group) {
+        // Disabled groups can have left an expression behind, so include their destinations too.
+        for (auto *node = block.anime->list[group]; node != nullptr; node = node->next) {
+            const mgCTexture *texture = node->data.dest_tex;
+            if (texture == nullptr || texture->block != index || !restored.insert(texture).second) {
+                continue;
+            }
+
+            if (texture->image[0] == nullptr) {
+                // An image-less destination has no RAM pixels to restore, but may have a CLUT.
+                ResolveTexture(texture, true);
+                continue;
+            }
+
+            MgTexturePixelsChanged(texture);
+#ifdef MG_TEXTURE_HAS_SEAM
+            // Sprite animations draw into a registered target rather than the decoded image.
+            // Keep both handles stable, and seed that target again in the recorded draw order.
+            const auto source = MgTextureLookup(texture).texture;
+            const auto target = mgPortFindTexture(texture).texture;
+            if (source != target) {
+                gfx::CopyTexture(source, {0, 0, texture->width, texture->height}, target, 0, 0);
+            }
+#endif
+        }
     }
 }
 
@@ -668,6 +706,7 @@ PORT_OVERRIDE void mgCTextureManager::ReloadTexture(int index, sceVif1Packet *pa
     ResolveBlock(blocks[index]);
 
     if (last_block != index && blocks[index].anime != nullptr) {
+        RestoreAnimatedTextures(blocks[index], index);
         blocks[index].anime->TexAnime(index, packet != nullptr ? packet : mgVif1Packet);
     }
 
@@ -679,6 +718,9 @@ PORT_OVERRIDE int mgCTextureManager::ReloadTexture(int block, u_int *packet) {
 
     if (in_range) {
         ResolveBlock(blocks[block]);
+        if (packet != nullptr && last_block != block) {
+            RestoreAnimatedTextures(blocks[block], block);
+        }
     }
 
     if (packet != nullptr) {

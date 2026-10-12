@@ -257,6 +257,83 @@ TEST_F(MgTanimeGpu, CopyRecordMovesPixels) {
     }
 }
 
+TEST_F(MgTanimeGpu, BlockReloadRestoresOpenEyesBeforeSelfCopy) {
+    StateReset reset;
+    Quads clut = Pack(Clut8());
+    std::vector<uint8_t> original(kSide * kSide);
+    for (size_t i = 0; i < original.size(); ++i) {
+        original[i] = static_cast<uint8_t>(i * 7 + 3);
+    }
+    Quads face_pixels = Pack(original);
+    Quads closed_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x22));
+    Quads half_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x33));
+    mgCTexture *face = Enter(h_, "blink_face", face_pixels.data(), clut.data());
+    mgCTexture *closed = Enter(h_, "blink_closed", closed_pixels.data(), clut.data());
+    mgCTexture *half = Enter(h_, "blink_half", half_pixels.data(), clut.data());
+    ASSERT_NE(face, nullptr);
+    ASSERT_NE(closed, nullptr);
+    ASSERT_NE(half, nullptr);
+    const auto handles = MgTextureLookup(face);
+
+    CList<mgCTexAnimeData> records[3];
+    SetCopy(records[0].data, face, face, 1);
+    // Retail's open-eye record copies the live face region onto itself, after its RAM upload.
+    records[0].data.src_x = records[0].data.dest_x;
+    records[0].data.src_y = records[0].data.dest_y;
+    SetCopy(records[1].data, closed, face, 1);
+    SetCopy(records[2].data, half, face, 1);
+    for (int i = 0; i < 3; ++i) {
+        records[i].data.bug_patch = 1;
+        if (i < 2) {
+            records[i].next = &records[i + 1];
+            records[i + 1].prev = &records[i];
+        }
+    }
+    mgCTextureAnime anime;
+    anime.list[0] = anime.now[0] = records;
+    anime.enable[0] = 1;
+    h_.manager.blocks[0].anime = &anime;
+
+    ClockSetUnbounded(true);
+    mgInit(MG_SCREEN_MODE_512X480, 3);
+    for (int tick = 0; tick < 8; ++tick) {
+        mgBeginFrame(nullptr);
+        h_.manager.ReloadTexture(1, static_cast<sceVif1Packet *>(nullptr));
+        h_.manager.ReloadTexture(0, static_cast<sceVif1Packet *>(nullptr));
+        // Selecting the same block again must neither restore it nor advance the blink.
+        auto *next = anime.now[0];
+        h_.manager.ReloadTexture(0, static_cast<sceVif1Packet *>(nullptr));
+        EXPECT_EQ(anime.now[0], next);
+        mgEndFrame(nullptr);
+
+        std::vector<uint8_t> pixels;
+        uint32_t width = 0, height = 0;
+        ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, pixels, width, height));
+        ASSERT_EQ(pixels.size(), original.size());
+        for (int y = 0; y < kSide; ++y) {
+            for (int x = 0; x < kSide; ++x) {
+                const size_t offset = static_cast<size_t>(y) * kSide + x;
+                const bool inside = x >= kCopyOrigin && x < kCopyOrigin + kCopySide &&
+                                    y >= kCopyOrigin && y < kCopyOrigin + kCopySide;
+                const uint8_t expected = inside && tick % 3 != 0 ? (tick % 3 == 1 ? 0x22 : 0x33) : original[offset];
+                EXPECT_EQ(pixels[offset], expected) << "tick " << tick << " texel " << x << "," << y;
+            }
+        }
+        EXPECT_EQ(MgTextureLookup(face).texture, handles.texture);
+    }
+    // Stopping the group still restores the original RAM image at the next block upload.
+    anime.DisableAll();
+    mgBeginFrame(nullptr);
+    h_.manager.ReloadTexture(1, static_cast<sceVif1Packet *>(nullptr));
+    h_.manager.ReloadTexture(0, static_cast<sceVif1Packet *>(nullptr));
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> pixels;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, pixels, width, height));
+    EXPECT_EQ(pixels, original);
+    h_.manager.blocks[0].anime = nullptr;
+}
+
 TEST_F(MgTanimeGpu, ClutCopyCopiesPalette) {
     StateReset reset;
     Quads      src_clut = Pack(Clut8());

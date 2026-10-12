@@ -149,3 +149,52 @@ Left:
 - Letterbox centre is within 1 of a 960x720 render on 23 pixels, not byte-identical (3D rasterised in a wider viewport).
 - The sweep's report of a 3840x2160 windowed frame offset right with a bar on the left did not reproduce at the language select (3840x2160 client at 0,0 on a 4K panel at 150%, presented frame and canonical image both centred; also 2560x1440 and 1280x720). Need its command line and screen.
 - The matrix scripts used: `<scratchpad>/present/matrix.sh` and `imgcmp.py` (not in the repo; scripts/port is the options stream's).
+
+## W4 sweep
+
+One stream (`s/sweep`, worktree `ChronicleTwo-sweep`), town path first. Runs are Windows headless (`darkchronicle.exe --headless --data data --save port/build/windows-x64/save --input <script> --frames N --screenshot out.png`) and one windowed run with a fresh default config.
+
+Landed:
+- `ac8f518` (pushed): New Game hung, or exited 1 when windowed. `CMenuCostumeSel::LoadMenuData` (`ps2/src/menuchr.cpp:6668`) spins on `do {} while (ReadBGSync() == 0);` until a queued read reports pending, but the port's `LoadFileBG` finished every read on the spot. Now the slot stays pending: `ReadBG` issues it on one call and completes it on the next, and `ReadBGSync` calls `ReadBG` first, as retail does (`port/src/dataread.cpp`). Tests: `DataRead.BackgroundReadCompletesOnTheSecondSync`, `DataRead.CostumeLoaderWaitSeesPendingRead`.
+- `20e9004`: confirming the costume starts the opening (`InitDungeonMain`, floor 20, event 1010), which aborted with an arena overflow, 4543 of 4500 quadwords, under a garbage name, in `SetActionScript` (`ps2/src/actscript.cpp:2613`) <- `LoadActionFile` <- `SetupMainUnit` (`charasetup.cpp:287`). Two causes:
+  - `SetupMainUnit` indexes `stacks[6]` of the 6-element `BaseCharacter`. On the PS2 that slot is `BuffTempData` by link adjacency. Fix: `port/src/dng_main.cpp` overrides the variable as `PORT_OVERRIDE mgCMemory BaseCharacter[CHARA_MEM_STACK_NUM]`; port_override leaves the ps2 copy an extern. Merging the array in `ps2/src` instead is not byte-identical: `__sinit_dng_main_cpp` and `.bss` change.
+  - `mem_table` counted `RS_STACKDATA`/`RS_CALLDATA` at PS2 pointer widths. `CHARA_SCRIPT_RUNTIME_DELTA` in `ps2/src/charasetup.cpp` is 0 on the PS2 and 448 quadwords on PC, added to the script slots (row 0 slots 5 and 6, row 1 slot 4).
+  - `ps2-pal` SCES_511.90 OK, every section including `.bss`. Test: `DngMain.BaseCharacterHoldsTheTempStack`.
+- `c872f4e`: `CRedMarkModel::Draw` and `CLockOnModel::Draw` were stubs only because of the `void` -> `int` header fixup. Now they are the retail bodies returning 0 (`port/src/dng_event.cpp`, `port/src/dng_hud.cpp`). Tests: `DngDraw.RedMarkDrawsOnlyWhenRequested`, `DngDraw.LockOnWithoutPlayerDrawsNothing`.
+- Gates run:
+  - `ac8f518`: Linux build plus `DataRead|Smoke` 22/22; Windows build plus `DataRead|Smoke` 22/22; the windowed run reaches "Confirm Max's costume?".
+  - `20e9004`, before the rebase: Linux full ctest 780/780 (data cases skip in a worktree).
+  - `c872f4e`: Linux build plus `DngDraw|DngMain|DataRead|Smoke` 25/25; Windows `DngDraw|DngMain|Smoke`.
+  - After the rebase onto `79e5d84`: no gate run. The full Windows test gate has not been run on the last two commits.
+
+Furthest point: "Confirm Max's costume?" (`port/build/sweep/t6.png` headless, `port/build/sweep/hf-w.png` windowed at 3840x2160, both in the sweep worktree; the windowed frame sits right of centre with a black bar on the left, already reported to `present`). Selecting YES loads the opening event.
+
+Next blocker: in the opening event, after `---- EVENT LOAD FILE [e50_soldier.chr] ----`, the process dies of a stack overflow (0xc00000fd). `mgCFrame::SearchFrame(name="null39")` (`port/src/mg_frame.cpp:1156`) recurses forever around a cycle of nine frames (0x...97a10 -> 978e0 -> 977b0 -> 97680 -> 97550 -> 945d0 -> 944a0 -> 94370 -> 94240 -> 97a10). The frame tree has a loop: a child or sibling link was written twice, probably while the event's `.chr` frames were attached (`e50_monica.chr`/`e50_soldier.chr`; the search compares against "blade_col_l"). Reproduce: `tools/input/sweep-newgame.input`, then `4450 down/4470 down/4490 down/4520 cross` (costume OK) and `4920 left/4950 cross` (YES); run `--frames 7000` under lldb with `-k "bt 40"`. Look at who links frames on PC (`mgCFrame::SetParent`/`AddChild` in `port/src/mg_frame.cpp` or retail `mg_frame.cpp`, the CHR load in the event code) for a pointer field read or written at a 32-bit stride.
+
+Input scripts: `tools/input/sweep-title.input` (language select -> title -> START, title menu at 2800) and `tools/input/sweep-newgame.input` (+ New Game, costume screen at 4000). The costume and opening lines are above.
+
+Not done:
+- Gyorace (`sgEffectDrawGyoRace` + `sgLoopGyoRace`, still `PS2_UNIMPLEMENTED` in `port/src/gyorace.cpp`).
+- `event_func` `_SWE_SET_COLOR`/`_SWE_SET_TEXTURE`/`_SWE_START_EFFECT` strides.
+- `MenuChapterInit`, `CMenuItemUse::UseItem`.
+
+Debug mode (asked by the user: on by default, documented). Researched, not implemented:
+- Boot (`MainLoop`, retail `ps2/src/mainloop.cpp:508-515`, PC copy `port/src/mainloop.cpp:97-104`): `MasterDebugCode = MASTER_DEBUG_CODE` (0x5D44, `mainloop.hpp:203`) when pad 2 holds L1+L2+R1+R2. Then `DebugFlag = false` and `GamePad__2.DebugKeyLock(1)` locks pad 2. The only consumer is `title.cpp:2377`: pad 2 is unlocked only if `MasterDebugCode` matches and `MasterDebugModeOn` is set. That flag comes from `CMemoryCardManager::CheckDebugCode()` (`memcard.cpp:460`, a save with `debug_code > 0`, `title.cpp:2281`), so retail also needed a developer save.
+- `DebugFlag` (`mainloop.cpp:2112`) is the real switch, toggled by pad 2 Circle (`mainloop.cpp:677`).
+- Pad 2 also drives the following, none of them gated on `DebugFlag`: pause on Select, then Right/pad 1 Circle steps a frame and pad 2 Start stores a frame image (`mainloop.cpp:724-741`, in edit, dungeon and title); L1 toggles the performance meter (`mainloop.cpp:671`); in town, Right/Left scrub the time and R2 toggles rain (`editloop.cpp:1080-1092`, `1879`).
+- With `DebugFlag` on, pad 1 controls:
+  - Title: Start+Select leaves to the `LOOP_MENU` debug menu (`title.cpp:848`). Its top rows are map / dungeon / title / chrview / texview / mapview / sound / movie views, language, items, save edit, `dbg/game%d.cfg`, save convert. Its event select holds chapter starts, sub-games, Palm Brinks, event viewer, boss battle, future map (`mainloop3.cpp:115`), diorama, HDD and extra.
+  - Dungeon: R3 opens the dungeon debug menu (`dng_debug.cpp`: run event, enemy loader, debug camera, skip floor and so on), and Start+Select exits the floor.
+  - Town/georama: R3 opens the edit debug menu (`editdebug.cpp`: camera, event run and reload, georama overlay, sub-game start, map jump). R2 makes materials free; L3/Square moves at 3x.
+  - Menus: R3 toggles `menu_debug_flag`.
+  - Events: Start skips a movie (`event_func.cpp:4776`).
+- PC gaps:
+  - The keyboard feeds only pad 1 (Kazarov `input.cpp` `Compose`), so pad 2 needs a second controller.
+  - The `developer_menu`/`debug_menu` host actions are bound (paddle2/paddle1) but nothing reads them.
+  - Capture/Play on the debug top screen hit the `CGamePad` capture stubs; the GyoRace sub-game hits `sgLoopGyoRace`.
+- Planned implementation, modelled on Chronicle's `game.debug_mode`:
+  - A `game.debug_mode` key, default true, in `port/src/platform/config.*` (parse, serialize).
+  - In the `MainLoop` override, set `MasterDebugCode` when it is on.
+  - Treat the developer save as present: override `CheckDebugCode`, or set `MasterDebugModeOn`.
+  - A pad-1 route to pad 2's toggle (for example L1+L2+R1+R2 held + Circle, as Chronicle's L1+R1+L2+R2+R3).
+  - `docs/DEBUG.md`, and a test that `debug_mode` sets `MasterDebugCode` and false leaves it 0.

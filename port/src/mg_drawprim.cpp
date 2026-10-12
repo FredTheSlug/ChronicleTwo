@@ -566,3 +566,80 @@ gfx::Vertex2D mgPortPrimVertex(const mgCDrawPrim &prim, float gs_x, float gs_y, 
     vertex.fog = fog;
     return vertex;
 }
+
+// Stride fixes: retail sizes the pointer tables at four bytes an entry (n / 4 + 1 quadwords) and clears them as ints.
+namespace {
+
+template <typename T>
+T *AllocTable(mgCMemory *memory, int count) {
+    return reinterpret_cast<T *>(memory->Alloc(static_cast<int>((count * sizeof(T) + 15) / 16) + 1));
+}
+
+}  // namespace
+
+PORT_OVERRIDE void mgCDrawManager::BeginDraw(mgCMemory *new_memory, int *id_list) {
+    memory = new_memory != NULL ? new_memory : packet_memory;
+    group_num = texture_manager->block_max;
+    group_max = group_num;
+    order_index = NULL;
+    draw_order = NULL;
+
+    if (id_list != NULL) {
+        order_index = AllocTable<int>(memory, group_max);
+
+        for (int i = 0; i < group_max; i++) {
+            order_index[i] = -1;
+        }
+
+        int used_count = 0;
+
+        while (id_list[used_count] >= 0) {
+            used_count++;
+        }
+
+        draw_order = AllocTable<int>(memory, used_count + 1);
+
+        for (int i = 0; i < used_count; i++) {
+            draw_order[i] = id_list[i];
+            order_index[draw_order[i]] = i;
+        }
+
+        draw_order[used_count] = -1;
+        group_num = used_count;
+    }
+
+    const int tables = group_num + 1;
+    packet_list = AllocTable<mgSORT_PACKET **>(memory, tables);
+    unk_14 = AllocTable<int>(memory, tables);
+    packet_num = AllocTable<int>(memory, tables);
+    sort_table = AllocTable<mgSORT_PACKET *>(memory, sort_num);
+    ClearTable();
+}
+
+PORT_OVERRIDE void mgCDrawManager::ClearTable() {
+    for (int i = 0; i < group_num; i++) {
+        packet_list[i] = NULL;
+        unk_14[i] = 0;
+        packet_num[i] = 0;
+    }
+
+    for (int i = 0; i < sort_num; i++) {
+        sort_table[i] = NULL;
+    }
+}
+
+PORT_OVERRIDE void mgCDrawManager::PreEndDraw() {
+    packet_cursor = AllocTable<mgSORT_PACKET **>(memory, group_num);
+
+    for (int i = 0; i < group_num; i++) {
+        if (packet_num[i] > 0) {
+            packet_list[i] = AllocTable<mgSORT_PACKET *>(memory, packet_num[i]);
+            packet_cursor[i] = packet_list[i];
+        }
+    }
+
+    // Only the first sort bucket is used.
+    for (mgSORT_PACKET *item = sort_table[0]; item != NULL; item = item->next) {
+        *packet_cursor[item->group]++ = item;
+    }
+}

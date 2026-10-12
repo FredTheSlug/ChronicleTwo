@@ -380,3 +380,34 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
 
     // Retail's epilogue flushes the texture cache and restores nothing, so TEXA stays as set above.
 }
+
+// Stride fix: retail finds list[group] as (group << 2) + this + 0x64, a 4-byte pointer stride.
+PORT_OVERRIDE CList<mgCTexAnimeData> *mgCTextureAnime::NewTexAnimeGroupData(int group, mgCMemory *stack) {
+    if (group < 0 || group >= group_num) {
+        return NULL;
+    }
+
+    CList<mgCTexAnimeData> *node = NewTexAnimeData(stack);
+
+    if (node == NULL || node->pGetData() == NULL) {
+        return NULL;
+    }
+
+    node->Initialize();
+
+    if (list[group] == NULL) {
+        list[group] = node;
+        now[group] = node;
+        return node;
+    }
+
+    CList<mgCTexAnimeData> *tail = list[group];
+
+    while (tail->next != NULL) {
+        tail = tail->next;
+    }
+
+    tail->next = node;
+    node->prev = tail;
+    return node;
+}

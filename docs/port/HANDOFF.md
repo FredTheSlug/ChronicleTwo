@@ -198,3 +198,9 @@ Debug mode (asked by the user: on by default, documented). Researched, not imple
   - Treat the developer save as present: override `CheckDebugCode`, or set `MasterDebugModeOn`.
   - A pad-1 route to pad 2's toggle (for example L1+L2+R1+R2 held + Circle, as Chronicle's L1+R1+L2+R2+R3).
   - `docs/DEBUG.md`, and a test that `debug_mode` sets `MasterDebugCode` and false leaves it 0.
+
+## Stream `text2d` (W4)
+
+- Done: nearest-filtered sprites sample the GS's texels (font bleed, background tile seams), and the `DrawVersatileWin` backings cover the frame opening (a deliberate deviation from retail; see docs/PC.md "Sprites and window backings").
+- Left: the same top-left sampling rule is not applied to textured triangles or to linear-filtered sprites (GS bilinear at 1:1 integer UVs blends the texel before the edge; the shader's footprint already models that, unverified at upscales).
+- Verify: `ctest -R "MgDrawPrim|MesWin"`; costume screen via the sweep New Game script plus `3200 circle`, `3300/3330/3360 down`, `3400 cross` (6-frame presses), `darkchronicle --headless --window 1280x960 --frames 3500 --screenshot out.png`: no dots under glyphs, no black lines at window x 117/757, the dialog's upper section evenly dark.

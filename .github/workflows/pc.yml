@@ -58,6 +58,9 @@ jobs:
           vulkaninfo --summary > artifacts/vulkaninfo.txt 2>&1 || true
           cat artifacts/vulkaninfo.txt
 
+      - name: Build the minimal LGPL FFmpeg
+        run: tools/kazarov/bin/kz-ffmpeg --out .kazarov/ffmpeg/darwin-arm64
+
       - name: Configure
         run: cmake --preset macos-arm64 -DCT_TEST_TIMEOUT=60
 
@@ -121,7 +124,7 @@ jobs:
 
       - name: Package the Windows build
         run: |
-          $files = @('darkchronicle.exe', 'libc++.dll', 'libunwind.dll', 'libwinpthread-1.dll', 'SDL3.dll', 'vulkan-1.dll')
+          $files = @('darkchronicle.exe', 'libc++.dll', 'libunwind.dll', 'libwinpthread-1.dll', 'SDL3.dll', 'vulkan-1.dll', 'avcodec-61.dll', 'avutil-59.dll', 'swresample-5.dll')
           $paths = $files | ForEach-Object { Join-Path 'port/build/windows-x64-tests' $_ }
           Compress-Archive -LiteralPath $paths -DestinationPath chronicletwo-windows-x64.zip
 

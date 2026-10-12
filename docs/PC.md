@@ -244,6 +244,70 @@ Draws are recorded into display lists (see "Ticks and display frames").
 - `--window WxH` sets the window size (headless: the offscreen image's).
 - Config keys: `video.interpolation` (`true`), `video.max_fps` (`0`), `video.present_mode` (`fifo`, `mailbox` or `immediate`), `video.aspect` (`auto` or `4:3`), `video.ui_scale` (`1`), `video.show_fps`, `video.fps_detail`.
 
+## Audio
+
+The sound driver runs on Kazarov's shared audio stack. `CSound` in `port/src/sound.cpp`, with `snd_mngr.cpp`, `ezmidi.cpp` and `ezbgm.cpp`, plays through `audio::DefaultMixer()` (`tools/kazarov/port/audio/mixer.hpp`). The port has no IOP, no SIF RPC and no SPU2 path. The mixer's 48-voice synth stands in for the SPU2.
+
+`AudioInit()` and `AudioShutdown()` (`port/src/audio_init.cpp`) start and stop the output. `DC2_AUDIO=off` starts none, and `DC2_AUDIO_WAV` writes the mix to a file in place of the device (see "darkchronicle").
+
+### Banks and sequences
+
+`sndLoadSound` (`port/src/snd_mngr.cpp`) passes each pack's `hd` and `bd` to `SoundLoadHdBd` and `SoundLoadHdBdAdd`, and each `sq` to `SoundLoadSeq`. They take pointers (`port/src/sound_port.hpp`).
+
+The retail `CSound::LoadHdBd`, `LoadHdBd2`, `LoadHdBdAdd`, `LoadSeq` and `TransHdBd` take addresses in `int`. The port overrides them to refuse and print a line to stderr. The port does not round-trip 32-bit pointers.
+
+Banks are parsed and decoded once, by `audio::Bank::Create`. A port holds up to 16 banks (`MIDI_PORT_BANK_MAX`). Bank 0 is bound with `Mixer::BindBank(port, bank)`. Added banks are bound with `BindBank(port, n, bank)`, and a channel selects one with the bank-select controller that the SE calls send. The port layout (linked ports, dependent ports and `ezmidi_param` attributes) is the table that retail `CSound::Init` loads, kept in `sound.cpp` as `kLayout`. `TransBdState` always reports the transfer complete.
+
+### Sound effects
+
+`SE_Play`, `SE_SetVol`, `SE_SetPan`, `SE_Stop` and `SE_SetPitch` queue the same short and HS messages that retail queued for `libmodmsin`. `CSound::Step` delivers them through `Mixer::ShortMessage` and `Mixer::HsMessage`. The HS pitch message (`FD 02`, 14-bit, centre `0x2000`) bends the effect voice over its split's bend range.
+
+Retail `SE_Play` builds a pitch message and overwrites it before sending. The port sends no pitch message at all.
+
+### Master volume and reverb
+
+`SetMasterVol(core, volume)` clamps `volume` to 0 to `0x3FFF` and sets the core's gain through `Mixer::SetCoreVolume`. `SetReverb` and `set_spu` go through `Mixer::SetReverb`. Retail also resets the core's master volume to full there, and the port does the same. `SndInReverb` has nothing to switch, because stream channels do not enter the effect units.
+
+`sndWaitSema` and `sndSignalSema` are empty. The game's threads are fibers on one OS thread, and nothing in those sections yields (see "Threads and timing").
+
+### Streams
+
+`ezBgm` drives 16 `audio::StreamChannel`s, attached to the mixer on first use. An open reads the SOUND.DAT entry extracted to `data/sound/<name>` (see [SOUND_DAT.md](SOUND_DAT.md)). Names with a device prefix, such as `cdrom0:\VOICE\...WV;1`, go through the data index and fail. Voice packs (`StreamOpenFromFPLFast`) fail too, because those files are not on the PAL disc. Opens are synchronous, so `StreamOpenState` is always 0.
+
+| Command | Effect |
+|---|---|
+| `0x10` | quit: nothing |
+| `0x30` | close the channel |
+| `0x40` | preload: nothing |
+| `0x50` | play |
+| `0x60` | stop, keeping the position (used for pause) |
+| `0x70` | seek to the start |
+| `0x80` | volume, `(left << 16) \| right` |
+| `0x8000` | init: nothing |
+| `0x80B0` | state |
+| `0x80C0` | mode |
+| `0x80D0` | info: bit 0 is stereo |
+| `0x80E0` | level |
+| `0x8020`, `0x80F0`, `0x8A00` | opens, only through `EzBgmOpen` and `EzBgmOpenFromPack`, because their argument is an address |
+
+The state word holds the mode in its low byte, `0x1000` while playing, and `0x8000` when the data runs out. The driver clears `0x8000` once its buffers drain. The port holds `0x8000` for one second of output and then reads 0. A failed open leaves the channel unopened, with state 0, as on retail.
+
+A non-zero low nibble in the mode turns looping on. A looping stream restarts at the start of the data, as described in [SOUND_DAT.md](SOUND_DAT.md).
+
+The level is the raw 16-bit sample pair at the play position, left in the low half and right in the high half. `_STREAM_SILENT_CHECK` (`ps2/src/event_func.cpp`) reads it and treats both halves within 10 of zero as silent.
+
+Without an output (`DC2_AUDIO=off` or no device), nothing renders the mixer. `CSound::Step` then advances the channels by one tick of samples (`EzBgmStep`), so streams still end.
+
+### ezMidi
+
+The retail `CSound::Stop`, `SetVol`, `SetStereoMode` and the stream methods stay as they are. `ezMidi` serves the scalar commands: `0x00` play, `0x20` stop, `0x30` rewind, `0xA0` attribute, `0xB0` volume, `0xC0` stereo (1) or mono (0), `0x8090` is playing and `0x80E0` volume. The commands that carry addresses have no host equivalent. `ezMidi` traces them and returns 0.
+
+### Open
+
+The title cannot be reached headless yet. On this branch alone the run stops in `mgCDrawPrim::Begin2`. With the Wave 3 rendering branches and `uptr` merged on top, it passes the language select and stops in `_DATACOM` (`ps2/src/gamedata.cpp`) on a truncated pointer in `CGameData::LoadData`, before `sndInitMngr` runs; the WAV of those 300 frames is silent because the driver has not started. The end-to-end capture of the title with `DC2_AUDIO_WAV` is therefore pending. The real-data tests `SoundRealData.*` (`port/src/tests/sound_test.cpp`) load `snd2/SY_000.snd`, every `snd2/bgm` pack and a SOUND.DAT entry through the driver instead.
+
+`sndCSeSeqData::LoadSMF` (`ps2/src/snd_seseq.cpp`) casts its SMF pointer through `int` (`(int) smf`). That needs the change to `uptr` before `sndLoadSound` runs above 4 GiB.
+
 ## Layout
 
 The root `CMakeLists.txt` selects the platform: `PS2` builds `ps2/`, and `PC` enables testing and builds `port/`.

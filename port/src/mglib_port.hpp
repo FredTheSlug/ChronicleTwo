@@ -144,6 +144,14 @@ void mgPortDrawMesh(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_c
 void mgPortDrawMeshImmediate(std::span<const gfx::Vertex3D> vertices, std::span<const uint32_t> indices,
                              const gfx::MeshConstants &constants, const gfx::TextureBinding &texture,
                              const gfx::DrawState &state, const gfx::MeshTransform *transform = nullptr);
+void mgPortDrawMeshProg0(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
+                         const gfx::MeshConstants &constants, const gfx::Prog0Constants &prog0,
+                         const gfx::TextureBinding &texture, const gfx::DrawState &state,
+                         const gfx::MeshTransform *transform = nullptr);
+void mgPortDrawMeshImmediateProg0(std::span<const gfx::Vertex3D> vertices, std::span<const uint32_t> indices,
+                                  const gfx::MeshConstants &constants, const gfx::Prog0Constants &prog0,
+                                  const gfx::TextureBinding &texture, const gfx::DrawState &state,
+                                  const gfx::MeshTransform *transform = nullptr);
 // The VU program mgSendVuProg selected last, -1 for none.
 int mgPortVuProg();
 

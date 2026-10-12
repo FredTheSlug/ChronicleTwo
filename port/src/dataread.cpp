@@ -363,10 +363,6 @@ PORT_OVERRIDE void InitReadBG() {
     }
 }
 
-PORT_OVERRIDE void StartReadBG() {
-    InitReadBG();
-}
-
 // The read is done when LoadFileBG returns, so the slot it hands out is already finished, as retail's
 // ReadBG leaves a finished request.
 PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {

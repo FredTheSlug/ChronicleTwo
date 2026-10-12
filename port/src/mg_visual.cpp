@@ -303,11 +303,11 @@ void SubmitFaces(const GroupDraw &group, const std::vector<FaceDraw> &faces) {
         prog0.face = face.face_flags;
 
         if (face.geometry->mesh != gfx::kNullMesh) {
-            gfx::DrawMeshProg0(face.geometry->mesh, 0, face.geometry->index_count, group.mesh, prog0, face.binding,
-                               group.state, &group.transform);
+            mgPortDrawMeshProg0(face.geometry->mesh, 0, face.geometry->index_count, group.mesh, prog0, face.binding,
+                                group.state, &group.transform);
         } else {
-            gfx::DrawMeshImmediateProg0(face.geometry->vertices, face.geometry->indices, group.mesh, prog0,
-                                        face.binding, group.state, &group.transform);
+            mgPortDrawMeshImmediateProg0(face.geometry->vertices, face.geometry->indices, group.mesh, prog0,
+                                         face.binding, group.state, &group.transform);
         }
     }
 }

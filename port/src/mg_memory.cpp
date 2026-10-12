@@ -248,14 +248,6 @@ PORT_OVERRIDE void mgCMemory::SetHeapMem(u_long128 *buffer, int size) {
     ResetPeak(this, true, size);
 }
 
-PORT_OVERRIDE void mgCMemory::ClearHeapMem() {
-    u_long128 *buffer = heap;
-    const int size = static_cast<int>(heap_size);
-
-    Init();
-    SetHeapMem(buffer, size);
-}
-
 PORT_OVERRIDE void mgCMemory::Free(u_long128 *data) {
     if (data == nullptr) {
         return;
@@ -337,23 +329,6 @@ PORT_OVERRIDE u_long128 *mgCMemory::StartStackMode(int mode, int size) {
     stack_size = static_cast<int>(chosen_count - kHeaderQuadwords);
     NotePeak(*this);
     return stack_block->data;
-}
-
-PORT_OVERRIDE void mgCMemory::EndStackMode() {
-    mgMEMORY_BLOCK *block = stack_block;
-
-    if (block != nullptr) {
-        block->size += stack_used;
-        stack_block = nullptr;
-        stack = nullptr;
-        stack_size = 0;
-        stack_used = 0;
-    }
-}
-
-PORT_OVERRIDE u_long128 *mgCMemory::stAlloc64(int size) {
-    stAlign64();
-    return stAlloc(size);
 }
 
 PORT_OVERRIDE u_long128 *mgCMemory::stAllocTest(int size) {

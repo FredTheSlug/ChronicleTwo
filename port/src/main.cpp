@@ -248,11 +248,15 @@ int Run(int argc, const char **argv) {
     renderer.progress = ReportPipelineProgress;
     renderer.offscreen = offscreen;
     renderer.layout = Layout(ConfigGet());
+    renderer.prog0_meshes = true;
     renderer.validation = renderer.validation || SettingsEnv("VULKAN_VALIDATION") != nullptr;
     gfx::RendererInit(WindowHandle(), renderer);
     PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));
 #ifdef CT_HAVE_AUDIO_INIT
     AudioInit();
+    // --frames leaves through std::exit from mgEndFrame: the output must stop before the mixer's statics are destroyed
+    // under the audio thread.
+    std::atexit(AudioShutdown);
 #endif
 
     ClockSetTickRate(settings.tick_rate);

@@ -46,10 +46,6 @@ uint64_t ToRaw(const T &value) {
     return raw;
 }
 
-constexpr int kDefaultPacketQw = 0x10000;
-// Draw reports its size only after writing it, so a cursor with less than this left in the arena
-// is moved to the arena start before the draw.
-constexpr int kDirectHeadroomQw = 0x4000;
 constexpr int kExitScreenshotFailed = 1;
 constexpr uint64_t kClampBoth = 1 | (1 << 2);
 constexpr int kDepthSlotCount = static_cast<int>(gfx::kDepthQueryCount);
@@ -99,13 +95,12 @@ int frame_buf0 = 0;
 int frame_buf1 = 0;
 int dbuff_id = 0;
 
-sceVif1Packet vif_packets[2] = {};
-int packet_qw = 0;
-std::vector<u_long128> default_arena[2];
+// mgCDrawPrim disables primitives when mgVif1Packet is null, so the sentinel must stay addressable.
+sceVif1Packet vif_packet{};
+// Non-null selects the immediate Draw path; NULL selects the deferred one. Nothing on PC writes through it.
+u_int direct_tag[4] = {};
 int data_id = 0;
-mgCMemory packet_buf[2];
 mgCMemory data_buf[2];
-u_int *ddraw_base = nullptr;
 
 int old_vcount = 0;
 int now_prog_id = -1;
@@ -211,16 +206,6 @@ int DrawFbp() {
 
 int DisplayFbp() {
     return dbuff_id == 0 ? frame_buf1 : frame_buf0;
-}
-
-void ResetPacket(sceVif1Packet &packet, u_long128 *buffer) {
-    packet = sceVif1Packet{};
-    packet.pBase = reinterpret_cast<u_int *>(buffer);
-    packet.pCurrent = packet.pBase;
-}
-
-bool HasDirectRoom(const u_int *cursor) {
-    return mgVif1Packet->pBase + packet_qw * 4 - cursor >= kDirectHeadroomQw * 4;
 }
 
 bool VuProgIdValid(int id) {
@@ -802,6 +787,28 @@ void mgPortDrawMeshImmediate(std::span<const gfx::Vertex3D> vertices, std::span<
     gfx::DrawMeshImmediate(vertices, indices, constants, texture, state, transform);
 }
 
+void mgPortDrawMeshProg0(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
+                         const gfx::MeshConstants &constants, const gfx::Prog0Constants &prog0,
+                         const gfx::TextureBinding &texture, const gfx::DrawState &state,
+                         const gfx::MeshTransform *transform) {
+    if (!ready || !gfx_open) {
+        return;
+    }
+
+    gfx::DrawMeshProg0(mesh, first_index, index_count, constants, prog0, texture, state, transform);
+}
+
+void mgPortDrawMeshImmediateProg0(std::span<const gfx::Vertex3D> vertices, std::span<const uint32_t> indices,
+                                  const gfx::MeshConstants &constants, const gfx::Prog0Constants &prog0,
+                                  const gfx::TextureBinding &texture, const gfx::DrawState &state,
+                                  const gfx::MeshTransform *transform) {
+    if (!ready || !gfx_open) {
+        return;
+    }
+
+    gfx::DrawMeshImmediateProg0(vertices, indices, constants, prog0, texture, state, transform);
+}
+
 int mgPortVuProg() {
     return now_prog_id;
 }
@@ -959,16 +966,7 @@ PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
     mgRenderInfo.draw_env[0].zbuf = mgZBUF_1;
     mgRenderInfo.draw_env[1].zbuf = mgZBUF_2;
 
-    if (packet_qw == 0) {
-        packet_qw = kDefaultPacketQw;
-
-        for (int packet = 0; packet < 2; ++packet) {
-            default_arena[packet].resize(kDefaultPacketQw);
-            ResetPacket(vif_packets[packet], default_arena[packet].data());
-        }
-    }
-
-    mgVif1Packet = &vif_packets[0];
+    mgVif1Packet = &vif_packet;
     data_id = 0;
     mgCreateSinTable();
     mgPortResetGs();
@@ -979,19 +977,10 @@ PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
     ready = true;
 }
 
-PORT_OVERRIDE void mgInitVif1Packet(u_long128 *buffer_a, u_long128 *buffer_b, int size) {
-    ResetPacket(vif_packets[0], buffer_a);
-    ResetPacket(vif_packets[1], buffer_b);
-    packet_qw = size;
+PORT_OVERRIDE void mgInitVif1Packet(u_long128 *, u_long128 *, int) {
 }
 
-PORT_OVERRIDE void mgSetPacketBuffer(mgCMemory *pool_a, mgCMemory *pool_b) {
-    packet_buf[0] = *pool_a;
-    packet_buf[1] = *pool_b;
-    packet_buf[0].stack_used = 0;
-    packet_buf[0].lock = 0;
-    packet_buf[1].stack_used = 0;
-    packet_buf[1].lock = 0;
+PORT_OVERRIDE void mgSetPacketBuffer(mgCMemory *, mgCMemory *) {
 }
 
 PORT_OVERRIDE void mgSetDataBuffer(mgCMemory *pool_a, mgCMemory *pool_b, int skip_header) {
@@ -1074,13 +1063,11 @@ PORT_OVERRIDE void mgBeginPacket(mgCDrawManager *manager) {
         manager = &mgDrawManager;
     }
 
-    mgVif1Packet = &vif_packets[data_id];
-    mgVif1Packet->pCurrent = mgVif1Packet->pBase;
-    packet_buf[data_id].stack_used = 0;
-    packet_buf[data_id].lock = 0;
+    mgVif1Packet = &vif_packet;
     data_buf[data_id].stack_used = 0;
     data_buf[data_id].lock = 0;
-    manager->packet_memory = &packet_buf[data_id];
+    // BeginDraw falls back to packet_memory when handed no memory; the PC packet has none of its own.
+    manager->packet_memory = &data_buf[data_id];
     manager->data_memory = &data_buf[data_id];
     manager->SetSortTable(1);
 }
@@ -1192,13 +1179,7 @@ PORT_OVERRIDE int mgDrawDirect(mgCFrame *frame) {
         return 0;
     }
 
-    if (!HasDirectRoom(mgVif1Packet->pCurrent)) {
-        mgVif1Packet->pCurrent = mgVif1Packet->pBase;
-    }
-
-    const int size = frame->Draw(mgVif1Packet->pCurrent);
-    mgVif1Packet->pCurrent += size * 4;
-    return size;
+    return frame->Draw(direct_tag);
 }
 
 PORT_OVERRIDE int mgDrawDirect(mgCVisual *visual, float (*matrix)[4]) {
@@ -1206,18 +1187,10 @@ PORT_OVERRIDE int mgDrawDirect(mgCVisual *visual, float (*matrix)[4]) {
         return 0;
     }
 
-    if (!HasDirectRoom(mgVif1Packet->pCurrent)) {
-        mgVif1Packet->pCurrent = mgVif1Packet->pBase;
-    }
-
-    const int size = visual->Draw(mgVif1Packet->pCurrent, matrix, nullptr);
-    mgVif1Packet->pCurrent += size * 4;
-    return size;
+    return visual->Draw(direct_tag, matrix, nullptr);
 }
 
 PORT_OVERRIDE void mgDrawDirectStart() {
-    u_int *cursor = mgVif1Packet->pCurrent;
-    ddraw_base = HasDirectRoom(cursor) ? cursor : mgVif1Packet->pBase;
     ddraw_size = 0;
 }
 
@@ -1226,20 +1199,12 @@ PORT_OVERRIDE int mgDrawDirect2(mgCFrame *frame) {
         return 0;
     }
 
-    if (!HasDirectRoom(ddraw_base + ddraw_size * 4)) {
-        ddraw_base = mgVif1Packet->pBase;
-        ddraw_size = 0;
-    }
-
-    const int size = frame->Draw(ddraw_base + ddraw_size * 4);
+    const int size = frame->Draw(direct_tag);
     ddraw_size += size;
     return size;
 }
 
 PORT_OVERRIDE void mgDrawDirectEnd() {
-    if (ddraw_size > 0) {
-        mgVif1Packet->pCurrent = ddraw_base + ddraw_size * 4;
-    }
 }
 
 PORT_OVERRIDE void StoreImage(int front_buffer) {

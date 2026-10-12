@@ -12,6 +12,9 @@
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
 #include "libgraph.h"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
@@ -180,6 +183,85 @@ void RecordTicks(int count, const void *object, float first_x) {
         mgEndFrame(nullptr);
     }
 }
+
+using Quads = std::vector<u_long128>;
+
+constexpr int kTextureCount = 64;
+constexpr int kBlockCount = 8;
+constexpr size_t kStorageQuads = 4096;
+
+Quads Pack(const std::vector<uint8_t> &bytes) {
+    Quads quads((bytes.size() + 15) / 16 + 1, 0);
+    std::memcpy(quads.data(), bytes.data(), bytes.size());
+    return quads;
+}
+
+std::vector<uint8_t> Fill(size_t texels, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    std::vector<uint8_t> out(texels * 4);
+    for (size_t t = 0; t < texels; ++t) {
+        out[t * 4 + 0] = r;
+        out[t * 4 + 1] = g;
+        out[t * 4 + 2] = b;
+        out[t * 4 + 3] = a;
+    }
+    return out;
+}
+
+// Entry p is (p, 255 - p, 0x10, 0x80).
+std::vector<uint8_t> Clut8() {
+    std::vector<uint8_t> out(256 * 4);
+    for (size_t p = 0; p < 256; ++p) {
+        out[p * 4 + 0] = static_cast<uint8_t>(p);
+        out[p * 4 + 1] = static_cast<uint8_t>(255 - p);
+        out[p * 4 + 2] = 0x10;
+        out[p * 4 + 3] = 0x80;
+    }
+    return out;
+}
+
+uint64_t Tex0Bits(const mgCTexture *texture) {
+    uint64_t bits = 0;
+    std::memcpy(&bits, &texture->tex0, sizeof bits);
+    return bits;
+}
+
+std::vector<uint8_t> ReadTexture(gfx::TextureHandle texture, uint32_t &width, uint32_t &height) {
+    std::vector<uint8_t> pixels;
+    EXPECT_TRUE(gfx::ReadbackTexture(texture, pixels, width, height));
+    return pixels;
+}
+
+// Registers textures the way the game does: the registry key lands in TBP0 and CBP.
+class Textures {
+public:
+    Textures() {
+        memory_.stSetBuffer(storage_.data(), static_cast<int>(storage_.size()));
+        manager_.SetTableBuffer(kTextureCount, kBlockCount, &memory_);
+        manager_.Initialize(0x1000, -1);
+    }
+
+    ~Textures() {
+        manager_.Initialize(0x1000, -1);
+    }
+
+    Textures(const Textures &) = delete;
+    Textures &operator=(const Textures &) = delete;
+
+    mgCTexture *Enter(const std::string &name, int width, int height, int bpp, u_long128 *image, u_long128 *clut) {
+        std::string owned = name;
+        u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {image};
+        return manager_.EnterTexture(0, owned.data(), levels, width, height, bpp, clut, 0, 0);
+    }
+
+    void Delete(mgCTexture *texture) {
+        manager_.DeleteTexture(texture);
+    }
+
+private:
+    Quads             storage_ = Quads(kStorageQuads, 0);
+    mgCMemory         memory_;
+    mgCTextureManager manager_;
+};
 
 } // namespace
 
@@ -365,4 +447,166 @@ TEST(MglibPresent, DisplayPerTickLeavesCanonicalImage) {
     double centroid = 0.0;
     RedCentroidX(with_display, width, height, centroid);
     EXPECT_EQ(with_display, without_display);
+}
+
+TEST(MglibSeam, CopyPaletteCopiesEntries) {
+    PresentRenderer renderer(640, 480);
+    Textures        textures;
+
+    Quads indices = Pack(std::vector<uint8_t>(16, 1));
+    Quads clut_a = Pack(Clut8());
+    Quads clut_b = Pack(std::vector<uint8_t>(256 * 4, 0x66));
+    mgCTexture *a = textures.Enter("seam_pal_a", 4, 4, 8, indices.data(), clut_a.data());
+    mgCTexture *b = textures.Enter("seam_pal_b", 4, 4, 8, indices.data(), clut_b.data());
+    ASSERT_NE(a, nullptr);
+    ASSERT_NE(b, nullptr);
+
+    const gfx::TextureHandle a_palette = mgPortFindTexture(a).palette;
+    const gfx::TextureHandle b_palette = mgPortFindTexture(b).palette;
+    ASSERT_NE(a_palette, gfx::kNullTexture);
+    ASSERT_NE(b_palette, gfx::kNullTexture);
+
+    uint32_t              width = 0;
+    uint32_t              height = 0;
+    const std::vector<uint8_t> source = ReadTexture(a_palette, width, height);
+    const std::vector<uint8_t> before = ReadTexture(b_palette, width, height);
+    ASSERT_EQ(source.size(), 256u * 4u);
+    ASSERT_NE(before, source);
+
+    mgPortCopyPalette(a, b);
+    EXPECT_EQ(ReadTexture(b_palette, width, height), source);
+}
+
+TEST(MglibSeam, CopyPaletteByTex0CopiesEntries) {
+    PresentRenderer renderer(640, 480);
+    Textures        textures;
+
+    Quads indices = Pack(std::vector<uint8_t>(16, 1));
+    Quads clut_a = Pack(Clut8());
+    Quads clut_b = Pack(std::vector<uint8_t>(256 * 4, 0x66));
+    mgCTexture *a = textures.Enter("seam_tex0_a", 4, 4, 8, indices.data(), clut_a.data());
+    mgCTexture *b = textures.Enter("seam_tex0_b", 4, 4, 8, indices.data(), clut_b.data());
+    ASSERT_NE(a, nullptr);
+    ASSERT_NE(b, nullptr);
+
+    const gfx::TextureHandle a_palette = mgPortFindTexture(a).palette;
+    const gfx::TextureHandle b_palette = mgPortFindTexture(b).palette;
+    ASSERT_NE(a_palette, gfx::kNullTexture);
+    ASSERT_NE(b_palette, gfx::kNullTexture);
+
+    uint32_t                   width = 0;
+    uint32_t                   height = 0;
+    const std::vector<uint8_t> source = ReadTexture(a_palette, width, height);
+    ASSERT_NE(ReadTexture(b_palette, width, height), source);
+
+    mgPortCopyPalette(Tex0Bits(a), Tex0Bits(b));
+    EXPECT_EQ(ReadTexture(b_palette, width, height), source);
+}
+
+TEST(MglibSeam, DrawIntoRegisteredTextureSeedsAndResolves) {
+    PresentRenderer renderer(640, 480);
+    Textures        textures;
+
+    Quads       pixels = Pack(Fill(64 * 64, 0x20, 0x40, 0x80, 0x80));
+    mgCTexture *texture = textures.Enter("seam_draw", 64, 64, 32, pixels.data(), nullptr);
+    ASSERT_NE(texture, nullptr);
+
+    mgBeginFrame(nullptr);
+    mgSetPkFrameBuffer(texture);
+    const std::array<gfx::Vertex2D, 4> quad = {
+        QuadCorner(0.0f, 0.0f),
+        QuadCorner(16.0f, 0.0f),
+        QuadCorner(16.0f, 16.0f),
+        QuadCorner(0.0f, 16.0f),
+    };
+    mgPortDraw2D(gfx::Primitive::Quads, quad, gfx::TextureBinding{}, mgPortDrawState());
+    mgSetPkFrameBuffer(-1, -1, -1, -1);
+    mgEndFrame(nullptr);
+
+    const gfx::TextureHandle target = mgPortFindTexture(texture).texture;
+    ASSERT_NE(target, gfx::kNullTexture);
+    EXPECT_NE(target, gfx::kMainTarget);
+    EXPECT_EQ(mgPortFindTexture(Tex0Bits(texture)).texture, target);
+
+    uint32_t                   width = 0;
+    uint32_t                   height = 0;
+    const std::vector<uint8_t> rgba = ReadTexture(target, width, height);
+    const gfx::LogicalMapping  mapping = gfx::GetLogicalMapping(target);
+
+    const size_t inside = PixelOffset(mapping, width, 8.0f, 8.0f);
+    EXPECT_NEAR(rgba[inside + 0], 255, 1);
+    EXPECT_NEAR(rgba[inside + 1], 255, 1);
+    EXPECT_NEAR(rgba[inside + 2], 255, 1);
+
+    const size_t seeded = PixelOffset(mapping, width, 40.0f, 40.0f);
+    EXPECT_NEAR(rgba[seeded + 0], 0x20, 1);
+    EXPECT_NEAR(rgba[seeded + 1], 0x40, 1);
+    EXPECT_NEAR(rgba[seeded + 2], 0x80, 1);
+}
+
+TEST(MglibSeam, ReloadedTextureDropsItsTarget) {
+    PresentRenderer renderer(640, 480);
+    Textures        textures;
+
+    Quads       pixels = Pack(Fill(64 * 64, 0x20, 0x40, 0x80, 0x80));
+    mgCTexture *texture = textures.Enter("seam_reload", 64, 64, 32, pixels.data(), nullptr);
+    ASSERT_NE(texture, nullptr);
+    const gfx::TextureHandle seeded_image = MgTextureLookup(texture).texture;
+    ASSERT_NE(seeded_image, gfx::kNullTexture);
+
+    mgBeginFrame(nullptr);
+    mgSetPkFrameBuffer(texture);
+    const std::array<gfx::Vertex2D, 4> quad = {
+        QuadCorner(0.0f, 0.0f),
+        QuadCorner(16.0f, 0.0f),
+        QuadCorner(16.0f, 16.0f),
+        QuadCorner(0.0f, 16.0f),
+    };
+    mgPortDraw2D(gfx::Primitive::Quads, quad, gfx::TextureBinding{}, mgPortDrawState());
+    mgSetPkFrameBuffer(-1, -1, -1, -1);
+    mgEndFrame(nullptr);
+
+    const gfx::TextureHandle old_target = mgPortFindTexture(texture).texture;
+    ASSERT_NE(old_target, gfx::kNullTexture);
+    ASSERT_NE(old_target, gfx::kMainTarget);
+
+    // Re-entering a live name takes a new slot, so the old texture is deleted first.
+    textures.Delete(texture);
+    Quads reloaded_pixels = Pack(Fill(64 * 64, 0x90, 0x10, 0x10, 0x80));
+    ASSERT_EQ(textures.Enter("seam_reload", 64, 64, 32, reloaded_pixels.data(), nullptr), texture);
+
+    const gfx::TextureHandle reloaded_image = MgTextureLookup(texture).texture;
+    ASSERT_NE(reloaded_image, gfx::kNullTexture);
+    ASSERT_NE(reloaded_image, seeded_image);
+
+    EXPECT_EQ(mgPortFindTexture(texture).texture, reloaded_image);
+    EXPECT_NE(mgPortFindTexture(texture).texture, old_target);
+}
+
+TEST(MglibSeam, StretchRectIsExclusive) {
+    PresentRenderer renderer(640, 480);
+    Textures        textures;
+
+    Quads       source_px = Pack(Fill(64 * 64, 0x20, 0x40, 0x80, 0x80));
+    Quads       dest_px = Pack(Fill(64 * 64, 0x10, 0x10, 0x10, 0x80));
+    mgCTexture *source = textures.Enter("seam_stretch_src", 64, 64, 32, source_px.data(), nullptr);
+    mgCTexture *dest = textures.Enter("seam_stretch_dst", 64, 64, 32, dest_px.data(), nullptr);
+    ASSERT_NE(source, nullptr);
+    ASSERT_NE(dest, nullptr);
+
+    const mgRect<int> eight_texels(0, 0, 8 * 16, 8 * 16);
+    mgSetPkMoveImage(source, eight_texels, dest, eight_texels, nullptr);
+
+    const gfx::TextureHandle image = mgPortFindTexture(dest).texture;
+    ASSERT_NE(image, gfx::kNullTexture);
+    uint32_t                   width = 0;
+    uint32_t                   height = 0;
+    const std::vector<uint8_t> rgba = ReadTexture(image, width, height);
+
+    const size_t last_inside = (static_cast<size_t>(7) * width + 7) * 4;
+    const size_t first_outside = (static_cast<size_t>(8) * width + 8) * 4;
+    EXPECT_NEAR(rgba[last_inside + 0], 0x20, 1);
+    EXPECT_NEAR(rgba[last_inside + 2], 0x80, 1);
+    EXPECT_NEAR(rgba[first_outside + 0], 0x10, 1);
+    EXPECT_NEAR(rgba[first_outside + 2], 0x10, 1);
 }

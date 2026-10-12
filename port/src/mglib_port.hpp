@@ -119,6 +119,9 @@ mgPortTexture mgPortFindTexture(uint64_t tex0);
 // Current CLAMP and the texture's TEX1/TCC applied.
 gfx::TextureBinding mgPortBinding(const mgCTexture *texture);
 gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1);
+// Retail moves a 16x16 CLUT cell; here the cell is the whole 256-entry palette.
+void mgPortCopyPalette(const mgCTexture *src, const mgCTexture *dst);
+void mgPortCopyPalette(uint64_t src_tex0, uint64_t dst_tex0);
 
 // Render targets
 

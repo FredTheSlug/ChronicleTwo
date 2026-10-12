@@ -24,6 +24,7 @@
 #include "mg_memory.hpp"
 #include "mg_memory_port.hpp"
 #include "mglib.hpp"
+#include "mglib_port.hpp"
 #include "monster.hpp"
 #include "nowload.hpp"
 #include "npccfg.hpp"
@@ -233,6 +234,8 @@ PORT_OVERRIDE void MainLoop() {
         }
 
         printf("##### %d\n", mgGetVSyncCount());
+        // Single entry for every mode change: covers the LOOP_MENU->LOOP_TITLE redirect above and the PortNextLoopNo hand-off below.
+        mgPortCutInterpolation();
         LoopInit[PortLoopNo](InitArg);
         INIT_LOOP_ARG next_arg;
 

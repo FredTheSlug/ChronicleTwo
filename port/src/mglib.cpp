@@ -83,6 +83,14 @@ gfx::TextureHandle current_target = gfx::kMainTarget;
 std::map<uint32_t, RenderTargetEntry> render_targets; // by TBP0
 std::map<const mgCTexture *, uint32_t> texture_targets; // by texture, the TBP0 of its entry
 
+// Seeded from the registry image, which a reload replaces; a recreated target loses its pixels, so
+// its record goes with it.
+struct RegisteredTarget {
+    uint32_t           tbp0;
+    gfx::TextureHandle seeded_from;
+};
+std::map<const mgCTexture *, RegisteredTarget> registered_targets;
+
 mgPortTextureLookup lookup_texture = nullptr;
 mgPortTex0Lookup lookup_tex0 = nullptr;
 
@@ -358,12 +366,13 @@ void StretchInto(gfx::TextureHandle src, const mgRect<int> &src_rect, const sceG
     const gfx::TextureHandle dst = dst_texture != nullptr ? mgPortFindTexture(dst_texture).texture
                                                           : mgPortFindTexture(ToRaw(dst_tex0)).texture;
 
+    // Sprite corners: right and bottom are the far edge, exclusive.
     const auto to_rect = [](const mgRect<int> &rect) {
-        return gfx::Rect{rect.left / 16, rect.top / 16, rect.right / 16 - rect.left / 16 + 1,
-                         rect.bottom / 16 - rect.top / 16 + 1};
+        return gfx::Rect{rect.left / 16, rect.top / 16, rect.right / 16 - rect.left / 16,
+                         rect.bottom / 16 - rect.top / 16};
     };
     const auto is_empty = [](const mgRect<int> &rect) {
-        return rect.right < rect.left || rect.bottom < rect.top;
+        return rect.right <= rect.left || rect.bottom <= rect.top;
     };
 
     if (dst != gfx::kNullTexture && !is_empty(src_rect) && !is_empty(dst_rect)) {
@@ -654,6 +663,14 @@ mgPortTexture mgPortFindTexture(const mgCTexture *texture) {
         return mgPortFindTexture(ToRaw(frame_tex.tex0));
     }
 
+    // A reload is only noticed on lookup: the registry image it left behind no longer seeds this target.
+    if (const auto record = registered_targets.find(texture);
+        record != registered_targets.end() && lookup_texture != nullptr &&
+        lookup_texture(texture).texture != record->second.seeded_from) {
+        registered_targets.erase(record);
+        texture_targets.erase(texture);
+    }
+
     if (const auto it = texture_targets.find(texture); it != texture_targets.end()) {
         if (const gfx::TextureHandle target = RenderTargetHandle(it->second); target != gfx::kNullTexture) {
             return {target, gfx::kNullTexture};
@@ -683,6 +700,22 @@ gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1) {
     return BindingFor(mgPortFindTexture(tex0), tex0, tex1);
 }
 
+void CopyPalette(gfx::TextureHandle src, gfx::TextureHandle dst) {
+    if (src == gfx::kNullTexture || dst == gfx::kNullTexture) {
+        return;
+    }
+
+    gfx::CopyTexture(src, gfx::Rect{0, 0, 256, 1}, dst, 0, 0);
+}
+
+void mgPortCopyPalette(const mgCTexture *src, const mgCTexture *dst) {
+    CopyPalette(mgPortFindTexture(src).palette, mgPortFindTexture(dst).palette);
+}
+
+void mgPortCopyPalette(uint64_t src_tex0, uint64_t dst_tex0) {
+    CopyPalette(mgPortFindTexture(src_tex0).palette, mgPortFindTexture(dst_tex0).palette);
+}
+
 // Render targets
 
 gfx::TextureHandle mgPortCurrentTarget() {
@@ -699,6 +732,7 @@ gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int 
         }
 
         gfx::DestroyTexture(entry.handle);
+        std::erase_if(registered_targets, [tbp0](const auto &record) { return record.second.tbp0 == tbp0; });
     }
 
     const gfx::TextureHandle handle =
@@ -1218,25 +1252,48 @@ PORT_OVERRIDE void mgSetPkTextureRepeat(sceGsClamp clamp) {
     mgPortGs().clamp = ToRaw(clamp);
 }
 
-PORT_OVERRIDE void mgSetPkFrameBuffer(mgCTexture *texture) {
-    if (texture == NULL) {
-        mgSetPkFrameBuffer(-1, -1, -1, -1);
-        return;
+namespace {
+
+gfx::TextureHandle RegisteredFrameTarget(const mgCTexture *texture) {
+    if (lookup_texture == nullptr) {
+        return gfx::kNullTexture;
     }
 
-    mgSetPkFrameBuffer(static_cast<int>(texture->tex0.TBP0 / 32), static_cast<int>(texture->tex0.TBW << 6),
-                       texture->height, static_cast<int>(texture->tex0.PSM));
+    const gfx::TextureHandle image = lookup_texture(texture).texture;
+
+    if (image == gfx::kNullTexture) {
+        return gfx::kNullTexture;
+    }
+
+    const std::optional<gfx::TextureInfo> info = gfx::GetTextureInfo(image);
+
+    if (!info) {
+        return gfx::kNullTexture;
+    }
+
+    if (info->render_target) {
+        return image;
+    }
+
+    if (info->format != gfx::TextureFormat::Rgba8) {
+        return gfx::kNullTexture;
+    }
+
+    const gfx::TextureHandle target = mgPortRenderTarget(texture);
+    const auto record = registered_targets.find(texture);
+
+    if (record == registered_targets.end() || record->second.seeded_from != image) {
+        const gfx::Rect whole{0, 0, texture->width, texture->height};
+        gfx::BlitTexture(image, whole, target, whole, gfx::Filter::Nearest);
+        registered_targets[texture] = RegisteredTarget{static_cast<uint32_t>(texture->tex0.TBP0), image};
+    }
+
+    return target;
 }
 
-PORT_OVERRIDE void mgSetPkFrameBuffer(int fbp, int width, int height, int psm) {
-    if (fbp < 0) {
-        fbp = DrawFbp();
-    }
-
-    if (psm < 0) {
-        psm = SCE_GS_PSMCT32;
-    }
-
+// tbp0 is the frame's key: the frame address shifted up, or a registered texture's full registry key.
+// target_override, when set, is drawn into instead of the target the frame address selects.
+void SetFrameBuffer(uint32_t tbp0, int width, int height, int psm, gfx::TextureHandle target_override) {
     int screen_width = 0;
     int screen_height = 0;
     ScreenSizeForMode(mgScreenMode, &screen_width, &screen_height);
@@ -1260,7 +1317,7 @@ PORT_OVERRIDE void mgSetPkFrameBuffer(int fbp, int width, int height, int psm) {
 
     const int aligned_width = (width + 63) & ~63;
     sceGsFrame frame = FromRaw<sceGsFrame>(0);
-    frame.FBP = fbp;
+    frame.FBP = tbp0 >> 5;
     frame.FBW = aligned_width / 64;
     frame.PSM = psm;
     frame.bits.fbmsk = 0;
@@ -1296,7 +1353,7 @@ PORT_OVERRIDE void mgSetPkFrameBuffer(int fbp, int width, int height, int psm) {
     frame_tex.clut_size = 0;
     frame_tex.image_blocks = frame_tex.vram_size;
     frame_tex.tex0 = FromRaw<sceGsTex0>(0);
-    frame_tex.tex0.TBP0 = fbp << 5;
+    frame_tex.tex0.TBP0 = tbp0;
     frame_tex.tex0.TBW = width / 64;
     frame_tex.tex0.PSM = psm;
     frame_tex.tex0.TW = CeilLog2(width);
@@ -1305,12 +1362,50 @@ PORT_OVERRIDE void mgSetPkFrameBuffer(int fbp, int width, int height, int psm) {
     frame_tex.tex0.TFX = 0;
     frame_tex.tex1 = FromRaw<sceGsTex1>(SCE_GS_SET_TEX1(1, 0, 1, 1, 1, 0, 0));
 
-    current_target = fbp == DrawFbp() ? gfx::kMainTarget
-                                      : mgPortRenderTarget(static_cast<uint32_t>(fbp) << 5, width, height, psm);
+    if (target_override != gfx::kNullTexture) {
+        current_target = target_override;
+    } else if (tbp0 == static_cast<uint32_t>(DrawFbp()) << 5) {
+        current_target = gfx::kMainTarget;
+    } else {
+        current_target = mgPortRenderTarget(tbp0, width, height, psm);
+    }
 
     if (gfx_open) {
         gfx::SetRenderTarget(current_target);
     }
+}
+
+} // namespace
+
+// A registered texture is keyed by its full TBP0; the frame-address key drops the low five bits and
+// would collide with other keys.
+PORT_OVERRIDE void mgSetPkFrameBuffer(mgCTexture *texture) {
+    if (texture == NULL) {
+        mgSetPkFrameBuffer(-1, -1, -1, -1);
+        return;
+    }
+
+    const int psm = static_cast<int>(texture->tex0.PSM);
+
+    if (const gfx::TextureHandle target = RegisteredFrameTarget(texture); target != gfx::kNullTexture) {
+        SetFrameBuffer(static_cast<uint32_t>(texture->tex0.TBP0), texture->width, texture->height, psm, target);
+        return;
+    }
+
+    mgSetPkFrameBuffer(static_cast<int>(texture->tex0.TBP0 / 32), static_cast<int>(texture->tex0.TBW << 6),
+                       texture->height, psm);
+}
+
+PORT_OVERRIDE void mgSetPkFrameBuffer(int fbp, int width, int height, int psm) {
+    if (fbp < 0) {
+        fbp = DrawFbp();
+    }
+
+    if (psm < 0) {
+        psm = SCE_GS_PSMCT32;
+    }
+
+    SetFrameBuffer(static_cast<uint32_t>(fbp) << 5, width, height, psm, gfx::kNullTexture);
 }
 
 PORT_OVERRIDE void mgGetFrameBuffer(mgCTexture *texture) {

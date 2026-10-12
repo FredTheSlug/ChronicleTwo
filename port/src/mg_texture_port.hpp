@@ -14,3 +14,5 @@ inline constexpr uint32_t kMgTextureKeyLast = 0x2800;
 MgTextureHandles MgTextureLookup(const mgCTexture *texture);
 // Image from TBP0's texture, palette from CBP's.
 MgTextureHandles MgTextureLookupTex0(uint64_t tex0);
+// Refreshes CPU images and palette changed in place without changing the registry key.
+void MgTexturePixelsChanged(const mgCTexture *texture);

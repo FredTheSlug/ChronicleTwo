@@ -29,6 +29,7 @@ set(CT_GPU_SLOW_TESTS
     Vu1Prog0Shader.*
     GfxMeshDc2.*
     MgTextureGpu.*
+    MenuIconGpu.*
     MgTanimeGpu.*
     GfxMisc.PipelineCache)
 set(CT_GPU_TESTS

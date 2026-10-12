@@ -343,6 +343,34 @@ void InstallSeam() {}
 
 } // namespace
 
+void MgTexturePixelsChanged(const mgCTexture *texture) {
+    const auto found = Registry().entries.find(texture);
+    if (found == Registry().entries.end()) {
+        return;
+    }
+    Entry &entry = found->second;
+    if (!RendererUp()) {
+        entry.uploaded = false;
+        return;
+    }
+    if (!entry.uploaded || SnapshotChanged(texture, entry) || entry.image == gfx::kNullTexture) {
+        Rebuild(texture, entry);
+        return;
+    }
+    // Retain the handles already referenced by recorded draws. Updates are ordered in the
+    // draw stream, so an equipment change cannot retire an earlier frame's icon texture.
+    if (auto image = gfx::tim2::Decode(BuildSource(texture))) {
+        for (size_t mip = 0; mip < image->levels.size(); ++mip) {
+            const auto &level = image->levels[mip];
+            gfx::UpdateTexture(entry.image, static_cast<uint32_t>(mip), 0, 0, level.width, level.height,
+                               level.pixels.data());
+        }
+        if (entry.palette != gfx::kNullTexture) {
+            gfx::UpdatePalette(entry.palette, image->palette.data(), 0, 256);
+        }
+    }
+}
+
 MgTextureHandles MgTextureLookup(const mgCTexture *texture) {
     if (texture == nullptr) {
         return {};

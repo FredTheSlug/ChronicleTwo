@@ -407,6 +407,29 @@ TEST(MglibPresent, InterpolationOffPresentsOncePerTick) {
     EXPECT_EQ(stats.presented, 3u);
 }
 
+TEST(MglibPresent, ScreenshotDisplayWithInterpolationOffIgnoresAlpha) {
+    PresentRenderer renderer(640, 480);
+    PresentResetStats();
+    PresentSetSettings(PresentSettings{.interpolation = false});
+
+    static int object;
+    mgPortCutInterpolation();
+    RecordTicks(2, &object, 0.0f);
+
+    std::vector<uint8_t> at_zero;
+    std::vector<uint8_t> at_half;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
+    ASSERT_TRUE(PresentScreenshotDisplay(0.0f, at_zero, width, height));
+    ASSERT_TRUE(PresentScreenshotDisplay(0.5f, at_half, width, height));
+    EXPECT_EQ(at_zero, at_half);
+
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    ASSERT_TRUE(PresentScreenshotDisplay(0.0f, at_zero, width, height));
+    ASSERT_TRUE(PresentScreenshotDisplay(0.5f, at_half, width, height));
+    EXPECT_NE(at_zero, at_half);
+}
+
 TEST(MglibPresent, DisplayPerTickRendersAndDiscards) {
     PresentRenderer renderer(640, 480);
     PresentResetStats();

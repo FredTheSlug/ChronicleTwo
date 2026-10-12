@@ -260,6 +260,11 @@ bool PresentScreenshotDisplay(float alpha, std::vector<uint8_t> &rgba, uint32_t 
         return false;
     }
 
+    // Interpolation off presents the canonical image once per tick; alpha must not blend it with the previous tick.
+    if (!settings.interpolation) {
+        return gfx::PresentCanonical() && gfx::ReadbackFrame(rgba, width, height);
+    }
+
     gfx::RenderOptions options;
     options.previous = previous;
     options.present = true;

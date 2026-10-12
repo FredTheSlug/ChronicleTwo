@@ -115,7 +115,7 @@ TEST(MenuDrawGrab, GrabRoundTrip) {
     // Finishes the frame MenuCapture began, which holds the copy.
     mgEndFrame(nullptr);
 
-    const gfx::TextureHandle target = mgPortRenderTarget(MenuFrameTex);
+    const gfx::TextureHandle target = mgPortRenderTarget(MenuFrameTex, true);
     ASSERT_NE(target, gfx::kNullTexture);
     ASSERT_EQ(mgPortFindTexture(MenuFrameTex).texture, target);
 

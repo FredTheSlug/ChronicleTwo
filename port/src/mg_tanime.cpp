@@ -87,16 +87,7 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
 
             if (src->bpp == MG_TEX_ANIME_BPP_INDEXED && data->dest_tex->bpp == MG_TEX_ANIME_BPP_INDEXED &&
                 (data->clut_copy != 0 || (data->src_w == src->width && data->src_h == src->height))) {
-                // The palette is moved as a 16x16 block of its own.
-                sceGsTex0 src_clut;
-                sceGsTex0 dest_clut;
-                src_clut.TBP0 = src->tex0.CBP;
-                src_clut.TBW = 1;
-                src_clut.PSM = data->src_tex->tex0.CPSM;
-                dest_clut.TBP0 = data->dest_tex->tex0.CBP;
-                dest_clut.TBW = 1;
-                dest_clut.PSM = data->dest_tex->tex0.CPSM;
-                mgSetPkMoveImage(&src_clut, mgRect<int>(0, 0, 16 * MG_TEX_ANIME_SUBTEXEL, 16 * MG_TEX_ANIME_SUBTEXEL), &dest_clut, 0, 0, 0);
+                mgPortCopyPalette(src, data->dest_tex);
             }
 
             if (data->type == MG_TEX_ANIME_TYPE_COPY) {
@@ -109,15 +100,7 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
                                                  data->src_y + data->src_h - MG_TEX_ANIME_SUBTEXEL),
                                      &data->dest_tex->tex0, data->dest_x, data->dest_y, 0);
                 } else {
-                    int height = dest->height;
-                    int rem = height % MG_TEX_ANIME_FRAME_ALIGN;
-
-                    if (rem != 0) {
-                        height += MG_TEX_ANIME_FRAME_ALIGN - rem;
-                    }
-
-                    sceGsTex0 *tex = &dest->tex0;
-                    mgSetPkFrameBuffer((int) tex->TBP0 / 32, (int) (tex->TBW * 64), height, dest->tex0.PSM);
+                    mgSetPkFrameBuffer(dest);
                     prim.Begin(MG_PRIM_SPRITE);
                     prim.Texture(data->src_tex);
                     prim.Color(data->r, data->g, data->b, data->a);
@@ -288,16 +271,7 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
                                          data->dest_y, 0);
                     }
                 } else {
-                    mgCTexture *dest = data->dest_tex;
-                    int         height = dest->height;
-                    int         rem = height % MG_TEX_ANIME_FRAME_ALIGN;
-
-                    if (rem != 0) {
-                        height += MG_TEX_ANIME_FRAME_ALIGN - rem;
-                    }
-
-                    sceGsTex0 *tex = &dest->tex0;
-                    mgSetPkFrameBuffer((int) tex->TBP0 / 32, (int) (tex->TBW * 64), height, dest->tex0.PSM);
+                    mgSetPkFrameBuffer(data->dest_tex);
                     prim.Begin(MG_PRIM_SPRITE);
 
                     prim.Texture(data->src_tex);

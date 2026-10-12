@@ -53,9 +53,9 @@ PORT_OVERRIDE int MenuCapture(int block, mgCMemory *stack, int draw) {
     mgBeginFrame(NULL);
 
     if (MenuFrameTex != NULL) {
-        const gfx::TextureHandle target = mgPortRenderTarget(MenuFrameTex);
+        // Frame target: the window's sides past the logical frame are copied in and carried by the full-frame draw.
+        const gfx::TextureHandle target = mgPortRenderTarget(MenuFrameTex, true);
         // Registered before the copy: until a target exists under its TBP0 the texture binds its stack image.
-        // Becomes mgPortRenderTarget(MenuFrameTex, true) once the seam's frame_target flag lands.
         // Linear at 2:1 samples each 2x2 block's midpoint, which is the box filter retail ran on the CPU.
         gfx::BlitTexture(gfx::kPreviousFrame, gfx::Rect{0, 0, mgScreenWidth, mgScreenHeight}, target,
                          gfx::Rect{0, 0, half_w, half_h}, gfx::Filter::Linear);

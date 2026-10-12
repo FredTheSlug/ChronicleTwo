@@ -1,12 +1,17 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstdlib>
 #include <cstdint>
 
 #include "vu1/sprite3d_geom.hpp"
+#include "vu1_sprite3d_oracle.hpp"
 
 namespace {
 
 using namespace dc::vu1;
+namespace oracle = dc::vu1::sprite3d_oracle;
 
 // Section 10 common inputs: near = 1, far = 200, fog {0.5, 1.0, 0.0, 8.0}.
 Sprite3dParams CommonParams() {
@@ -31,11 +36,47 @@ Sprite3dRecord CommonRecord() {
     return r;
 }
 
-void ExpectScreen(const Sprite3dVertex& v, float x, float y, float z, float f) {
+void ExpectScreen(const oracle::Vertex& v, float x, float y, float z, float f) {
     EXPECT_FLOAT_EQ(v.screen.x, x);
     EXPECT_FLOAT_EQ(v.screen.y, y);
     EXPECT_FLOAT_EQ(v.screen.z, z);
     EXPECT_FLOAT_EQ(v.screen.w, f);
+}
+
+// The native path must make the same drawn decision and, after the GS quantisation, land within
+// one LSB of the oracle on every component. Non-finite output is a failure in itself.
+void ExpectNativeAgreesWithOracle(const Sprite3dParams& p, const Sprite3dRecord& r, int mode) {
+    const Sprite3dQuadF n = Sprite3dExpandNative(p, r, mode);
+    const oracle::Quad o = oracle::Expand(p, r, mode);
+
+    EXPECT_EQ(n.drawn, o.drawn);
+    EXPECT_EQ(n.count, o.vertex_count);
+
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_TRUE(std::isfinite(n.rgba[i])) << "colour " << i;
+        EXPECT_LE(std::fabs(std::clamp(n.rgba[i], 0.0f, 255.0f) - static_cast<float>(o.rgba[i])), 1.0f)
+            << "colour " << i;
+    }
+
+    for (int i = 0; i < o.vertex_count; ++i) {
+        const Sprite3dVertexF& nv = n.v[i];
+        const oracle::Vertex& ov = o.v[i];
+
+        EXPECT_TRUE(std::isfinite(nv.x) && std::isfinite(nv.y) && std::isfinite(nv.z)) << "vertex " << i;
+        EXPECT_TRUE(std::isfinite(nv.u) && std::isfinite(nv.v) && std::isfinite(nv.fog)) << "vertex " << i;
+
+        const int16_t dx = static_cast<int16_t>(static_cast<uint16_t>(Ftoi4(nv.x)) - ov.x);
+        const int16_t dy = static_cast<int16_t>(static_cast<uint16_t>(Ftoi4(nv.y)) - ov.y);
+        EXPECT_LE(std::abs(dx), 1) << "vertex " << i << " x";
+        EXPECT_LE(std::abs(dy), 1) << "vertex " << i << " y";
+
+        EXPECT_LE(std::fabs(nv.z - static_cast<float>(ov.z)), 1.0f) << "vertex " << i << " z";
+
+        EXPECT_LE(std::fabs(16.0f * nv.u - static_cast<float>(ov.u)), 1.0f) << "vertex " << i << " u";
+        EXPECT_LE(std::fabs(16.0f * nv.v - static_cast<float>(ov.v)), 1.0f) << "vertex " << i << " v";
+
+        EXPECT_LE(std::abs(std::lround(nv.fog * 255.0f) - static_cast<long>(ov.f)), 1L) << "vertex " << i << " fog";
+    }
 }
 
 }  // namespace
@@ -49,7 +90,7 @@ TEST(Vu1Sprite3dGeom, Case1NonRotatedSpriteAtCentre) {
     EXPECT_FLOAT_EQ(pclip.w, 4.0f);
     EXPECT_FLOAT_EQ(pclip.x * (1.0f / pclip.w), 2048.0f);
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+    const oracle::Quad q = oracle::Expand(p, r, 0);
     EXPECT_EQ(q.vertex_count, 2);
     EXPECT_TRUE(q.drawn);
     EXPECT_EQ(q.rgba[0], 0x80);
@@ -76,6 +117,8 @@ TEST(Vu1Sprite3dGeom, Case1NonRotatedSpriteAtCentre) {
     EXPECT_EQ(q.v[1].z, 10u);
     EXPECT_EQ(q.v[1].w, 0x0010);
     EXPECT_FALSE(q.v[1].adc);
+
+    ExpectNativeAgreesWithOracle(p, r, 0);
 }
 
 // Section 10 case 2: mode 1, sin = 1, cos = 0. A' = (0, 2), B' = (-1.5, 0).
@@ -85,7 +128,7 @@ TEST(Vu1Sprite3dGeom, Case2RotatedStripWithAdcPattern) {
     Sprite3dRecord r = CommonRecord();
     r.size = Vec4{8, 6, 1, 0};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 1);
+    const oracle::Quad q = oracle::Expand(p, r, 1);
     EXPECT_EQ(q.vertex_count, 4);
     EXPECT_TRUE(q.drawn);
     EXPECT_EQ(q.rgba[0], 0x80);
@@ -125,6 +168,8 @@ TEST(Vu1Sprite3dGeom, Case2RotatedStripWithAdcPattern) {
     EXPECT_EQ(q.v[3].y, 0x8020);
     EXPECT_EQ(q.v[3].w, 0x0010);
     EXPECT_FALSE(q.v[3].adc);
+
+    ExpectNativeAgreesWithOracle(p, r, 1);
 }
 
 // Section 10 case 3: Pw = 100, Q = 0.01, far_value = 0.8. Unclamped F = 0.58 would give w word
@@ -135,7 +180,7 @@ TEST(Vu1Sprite3dGeom, Case3FogClampedAtFarValue) {
     Sprite3dRecord r = CommonRecord();
     r.pos = Vec4{0, 0, 0, 25};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+    const oracle::Quad q = oracle::Expand(p, r, 0);
     EXPECT_TRUE(q.drawn);
     EXPECT_EQ(q.v[0].x, 0x7FFE);
     EXPECT_EQ(q.v[0].y, 0x7FFF);
@@ -147,17 +192,21 @@ TEST(Vu1Sprite3dGeom, Case3FogClampedAtFarValue) {
     EXPECT_EQ(q.v[1].x, 0x8001);
     EXPECT_EQ(q.v[1].y, 0x8000);
     EXPECT_EQ(q.v[1].w, 0x000C);
+
+    ExpectNativeAgreesWithOracle(p, r, 0);
 }
 
 // far_value = 2.5 with case 1 geometry: F0 = 2.5, min(F0, near 1.0) = 1.0, max(1.0, 2.5) = 2.5.
 TEST(Vu1Sprite3dGeom, FarValueSubVectorSetsFogByte) {
     Sprite3dParams p = CommonParams();
     p.fog.far_value = 2.5f;
-    const Sprite3dQuad q = Sprite3dExpand(p, CommonRecord(), 0);
+    const oracle::Quad q = oracle::Expand(p, CommonRecord(), 0);
     EXPECT_TRUE(q.drawn);
     EXPECT_EQ(q.v[0].w, 0x0028);
     EXPECT_EQ(q.v[0].f, 2);
     EXPECT_EQ(q.v[1].w, 0x0028);
+
+    ExpectNativeAgreesWithOracle(p, CommonRecord(), 0);
 }
 
 // Pw = 1.1: F0 = 0.5 + 8/1.1 = 7.77, min with near_value 1.0 gives 1.0, so F = 1.0 (w word 0x0010).
@@ -166,10 +215,12 @@ TEST(Vu1Sprite3dGeom, UpperBoundFogClampedAtNearValue) {
     Sprite3dRecord r = CommonRecord();
     r.pos = Vec4{0, 0, 0, 0.275f};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+    const oracle::Quad q = oracle::Expand(p, r, 0);
     EXPECT_TRUE(q.drawn);
     EXPECT_EQ(q.v[0].w, 0x0010);
     EXPECT_EQ(q.v[1].w, 0x0010);
+
+    ExpectNativeAgreesWithOracle(p, r, 0);
 }
 
 // The spec has no vector for the cull; these follow section 7. min.x = 1 exactly must fail
@@ -180,10 +231,12 @@ TEST(Vu1Sprite3dGeom, CullMinXExactlyOneIsRejected) {
     r.pos = Vec4{-4093, 0, 0, 1};
     r.size = Vec4{2, 6, 0, 0};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+    const oracle::Quad q = oracle::Expand(p, r, 0);
     EXPECT_FALSE(q.drawn);
     EXPECT_TRUE(q.v[0].adc);
     EXPECT_TRUE(q.v[1].adc);
+
+    ExpectNativeAgreesWithOracle(p, r, 0);
 }
 
 // max.x = 4096, one past 4095. min.x = 104 passes, so only the upper bound fails.
@@ -193,10 +246,12 @@ TEST(Vu1Sprite3dGeom, CullMaxXOnePastBoundIsRejected) {
     r.pos = Vec4{104, 0, 0, 1};
     r.size = Vec4{7984, 6, 0, 0};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+    const oracle::Quad q = oracle::Expand(p, r, 0);
     EXPECT_FALSE(q.drawn);
     EXPECT_TRUE(q.v[0].adc);
     EXPECT_TRUE(q.v[1].adc);
+
+    ExpectNativeAgreesWithOracle(p, r, 0);
 }
 
 // Q must satisfy 1/far < Q < 1/near strictly. Pw = 200 and Pw = 1 hit the bounds exactly;
@@ -209,10 +264,12 @@ TEST(Vu1Sprite3dGeom, CullWindowIsStrictOnBothSides) {
         Sprite3dRecord r = CommonRecord();
         r.pos = Vec4{0, 0, 0, pos_w[i]};
         ASSERT_FLOAT_EQ(Mul(p.ls, r.pos).w, pw[i]);
-        const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+        const oracle::Quad q = oracle::Expand(p, r, 0);
         EXPECT_FALSE(q.drawn) << "Pw = " << pw[i];
         EXPECT_TRUE(q.v[0].adc);
         EXPECT_TRUE(q.v[1].adc);
+
+        ExpectNativeAgreesWithOracle(p, r, 0);
     }
 }
 
@@ -224,10 +281,14 @@ TEST(Vu1Sprite3dGeom, ZeroPwIsRejectedWithoutNan) {
     r.pos = Vec4{0, 0, 0, 0};
     r.size = Vec4{0, 0, 0, 0};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+    const oracle::Quad q = oracle::Expand(p, r, 0);
     EXPECT_FALSE(q.drawn);
     EXPECT_TRUE(q.v[0].adc);
     EXPECT_TRUE(q.v[1].adc);
+
+    const Sprite3dQuadF n = Sprite3dExpandNative(p, r, 0);
+    EXPECT_FALSE(n.drawn);
+    EXPECT_TRUE(std::isfinite(n.v[0].x) && std::isfinite(n.v[0].y) && std::isfinite(n.v[0].fog));
 }
 
 // Rejected rotated sprite: mode 1 sets ADC on all four vertices. cos = 1, sin = 0 keeps the
@@ -238,12 +299,14 @@ TEST(Vu1Sprite3dGeom, RejectedRotatedSpriteSetsAdcOnAllVertices) {
     r.pos = Vec4{-4093, 0, 0, 1};
     r.size = Vec4{2, 6, 0, 1};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 1);
+    const oracle::Quad q = oracle::Expand(p, r, 1);
     EXPECT_EQ(q.vertex_count, 4);
     EXPECT_FALSE(q.drawn);
     for (int i = 0; i < 4; ++i) {
         EXPECT_TRUE(q.v[i].adc) << "vertex " << i;
     }
+
+    ExpectNativeAgreesWithOracle(p, r, 1);
 }
 
 // Open point 3: the VU branches to the strip path for any nonzero mode, so mode 2 emits the
@@ -253,8 +316,8 @@ TEST(Vu1Sprite3dGeom, ModesOtherThanZeroUseTheStripPath) {
     Sprite3dRecord r = CommonRecord();
     r.size = Vec4{8, 6, 1, 0};
 
-    const Sprite3dQuad q1 = Sprite3dExpand(p, r, 1);
-    const Sprite3dQuad q2 = Sprite3dExpand(p, r, 2);
+    const oracle::Quad q1 = oracle::Expand(p, r, 1);
+    const oracle::Quad q2 = oracle::Expand(p, r, 2);
     EXPECT_EQ(q2.vertex_count, 4);
     EXPECT_EQ(q2.drawn, q1.drawn);
     for (int i = 0; i < 4; ++i) {
@@ -262,25 +325,40 @@ TEST(Vu1Sprite3dGeom, ModesOtherThanZeroUseTheStripPath) {
         EXPECT_EQ(q2.v[i].y, q1.v[i].y);
         EXPECT_EQ(q2.v[i].w, q1.v[i].w);
     }
+
+    const Sprite3dQuadF n1 = Sprite3dExpandNative(p, r, 1);
+    const Sprite3dQuadF n2 = Sprite3dExpandNative(p, r, 2);
+    EXPECT_EQ(n2.count, 4);
+    EXPECT_EQ(n2.drawn, n1.drawn);
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_FLOAT_EQ(n2.v[i].x, n1.v[i].x);
+        EXPECT_FLOAT_EQ(n2.v[i].y, n1.v[i].y);
+        EXPECT_FLOAT_EQ(n2.v[i].fog, n1.v[i].fog);
+    }
 }
 
 // FTOI0 saturates to 16 bits before the low byte is taken (section 5). The spec has no vector
-// for this; the expectation follows the section 5 text.
+// for this; the expectation follows the section 5 text. The native path keeps the colour
+// unclamped and leaves the host saturation to the caller.
 TEST(Vu1Sprite3dGeom, ColourSaturatesTo16BitsBeforeLowByte) {
     const Sprite3dParams p = CommonParams();
     Sprite3dRecord r = CommonRecord();
     r.colour = Vec4{300, 40000, -1, 255};
 
-    const Sprite3dQuad q = Sprite3dExpand(p, r, 0);
+    const oracle::Quad q = oracle::Expand(p, r, 0);
     EXPECT_EQ(q.rgba[0], 300 & 0xFF);
     EXPECT_EQ(q.rgba[1], 0xFF);
     EXPECT_EQ(q.rgba[2], 0xFF);
     EXPECT_EQ(q.rgba[3], 0xFF);
+
+    const Sprite3dQuadF n = Sprite3dExpandNative(p, r, 0);
+    EXPECT_FLOAT_EQ(n.rgba[0], 300.0f);
+    EXPECT_FLOAT_EQ(n.rgba[2], -1.0f);
 }
 
 TEST(Vu1Sprite3dGeom, TagAndPrimConstants) {
-    EXPECT_EQ(Sprite3dTag(1), 0x8001u);
-    EXPECT_EQ(Sprite3dTag(33), 0x8021u);
-    EXPECT_EQ(kSprite3dPrimSprite, 0x5Eu);
-    EXPECT_EQ(kSprite3dPrimStrip, 0x5Cu);
+    EXPECT_EQ(oracle::Tag(1), 0x8001u);
+    EXPECT_EQ(oracle::Tag(33), 0x8021u);
+    EXPECT_EQ(oracle::kPrimSprite, 0x5Eu);
+    EXPECT_EQ(oracle::kPrimStrip, 0x5Cu);
 }

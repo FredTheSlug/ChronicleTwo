@@ -1,5 +1,6 @@
 #include "common.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 #include <unordered_map>
@@ -74,20 +75,38 @@ vu1::Vec4 ScaleSpriteRow(const float *row, float scale) {
     return {row[0] * scale, row[1] * scale, row[2] * scale, row[3]};
 }
 
-gfx::Vertex2D SpriteVertex(uint16_t gs_x, uint16_t gs_y, uint32_t gs_z, int32_t u, int32_t v, uint8_t fog,
-                           const int32_t *rgba) {
+// Affine GS-pixel to logical and depth maps, read from the seam once per batch.
+struct SpriteViewport {
+    float x0, xs;
+    float y0, ys;
+    float z0, zs;
+};
+
+SpriteViewport SpriteViewportFromSeam() {
+    const float x0 = mgPortLogicalX(0);
+    const float y0 = mgPortLogicalY(0);
+    // mgPortDepth clamps to [0, 1], so the slope is sampled at 1 GS Z unit where the clamp is inactive.
+    const float z0 = mgPortDepth(0);
+    return {x0, mgPortLogicalX(16) - x0, y0, mgPortLogicalY(16) - y0, z0, mgPortDepth(1) - z0};
+}
+
+uint8_t ColourByte(float c) {
+    return static_cast<uint8_t>(std::clamp(c, 0.0f, 255.0f));
+}
+
+gfx::Vertex2D SpriteVertex(const vu1::Sprite3dVertexF &s, const float *rgba, const SpriteViewport &vp) {
     gfx::Vertex2D out{};
-    out.x = mgPortLogicalX(gs_x);
-    out.y = mgPortLogicalY(gs_y);
-    out.z = mgPortDepth(gs_z);
-    out.u = static_cast<float>(u & 0x3FFF) / 16.0f;
-    out.v = static_cast<float>(v & 0x3FFF) / 16.0f;
+    out.x = vp.x0 + s.x * vp.xs;
+    out.y = vp.y0 + s.y * vp.ys;
+    out.z = std::clamp(vp.z0 + s.z * vp.zs, 0.0f, 1.0f);
+    out.u = s.u;
+    out.v = s.v;
 
     for (int c = 0; c < 4; ++c) {
-        out.color[c] = static_cast<uint8_t>(rgba[c]);
+        out.color[c] = ColourByte(rgba[c]);
     }
 
-    out.fog = fog;
+    out.fog = static_cast<uint8_t>(std::lround(s.fog * 255.0f));
     return out;
 }
 
@@ -96,10 +115,11 @@ void SubmitSpriteBatch(const BillboardBatch &batch, const BillboardSetup &setup)
                                      setup.fog,         setup.guard_min, setup.guard_max};
     const int geom_mode = batch.rotated ? 1 : 0;
     constexpr int kStrip[6] = {0, 1, 2, 1, 2, 3};
+    const SpriteViewport viewport = SpriteViewportFromSeam();
     std::vector<gfx::Vertex2D> vertices;
 
     for (const vu1::Sprite3dRecord &billboard : batch.billboards) {
-        const vu1::Sprite3dQuad quad = vu1::Sprite3dExpand(params, billboard, geom_mode);
+        const vu1::Sprite3dQuadF quad = vu1::Sprite3dExpandNative(params, billboard, geom_mode);
 
         if (!quad.drawn) {
             continue;
@@ -107,16 +127,20 @@ void SubmitSpriteBatch(const BillboardBatch &batch, const BillboardSetup &setup)
 
         if (batch.rotated) {
             for (const int index : kStrip) {
-                const vu1::Sprite3dVertex &s = quad.v[index];
-                vertices.push_back(SpriteVertex(s.x, s.y, s.z, s.u, s.v, s.f, quad.rgba));
+                vertices.push_back(SpriteVertex(quad.v[index], quad.rgba, viewport));
             }
         } else {
-            const vu1::Sprite3dVertex &lo = quad.v[0];
-            const vu1::Sprite3dVertex &hi = quad.v[1];
-            vertices.push_back(SpriteVertex(lo.x, lo.y, lo.z, lo.u, lo.v, lo.f, quad.rgba));
-            vertices.push_back(SpriteVertex(hi.x, lo.y, lo.z, hi.u, lo.v, lo.f, quad.rgba));
-            vertices.push_back(SpriteVertex(hi.x, hi.y, lo.z, hi.u, hi.v, lo.f, quad.rgba));
-            vertices.push_back(SpriteVertex(lo.x, hi.y, lo.z, lo.u, hi.v, lo.f, quad.rgba));
+            const vu1::Sprite3dVertexF &lo = quad.v[0];
+            const vu1::Sprite3dVertexF &hi = quad.v[1];
+            const vu1::Sprite3dVertexF corners[4] = {
+                {lo.x, lo.y, lo.z, lo.u, lo.v, lo.fog},
+                {hi.x, lo.y, lo.z, hi.u, lo.v, lo.fog},
+                {hi.x, hi.y, lo.z, hi.u, hi.v, lo.fog},
+                {lo.x, hi.y, lo.z, lo.u, hi.v, lo.fog},
+            };
+            for (const vu1::Sprite3dVertexF &corner : corners) {
+                vertices.push_back(SpriteVertex(corner, quad.rgba, viewport));
+            }
         }
     }
 

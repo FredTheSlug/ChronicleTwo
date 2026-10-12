@@ -93,25 +93,21 @@ Debug builds ask for the Khronos validation layer (`gfx::RendererConfig::validat
 
 Exit statuses (`port/src/exitcodes.hpp`): 0 for a normal exit, 2 for a usage error, 4 for a game assertion (retail's `__assert`). A `PS2_UNIMPLEMENTED` stub aborts instead of exiting, so a debugger or a core dump stops at it: SIGABRT on Linux (status 134 from a shell) and `0xC0000409` on Windows.
 
+The test `Smoke.HeadlessFramesScreenshot` (`port/src/tests/CMakeLists.txt`) runs `darkchronicle --headless --offscreen --frames 3 --screenshot` on an empty data directory. It passes when the run exits 0 after a `dataread: indexed` line and writes a PNG. It runs under a generated CMake script, because ctest counts a process killed by `abort()` as failed even when `PASS_REGULAR_EXPRESSION` matches its output; the script checks the exit status and the file.
+
 ## What Phase 1 does
 
 1. `main` (`port/src/main.cpp`) sets the paths and the window identity (`port/src/identity.cpp`), parses the options and opens the window, or the offscreen surface with `--headless`. It then initialises input and the renderer with a logical size of 512x480 at a 4:3 display aspect. The renderer builds every pipeline during `RendererInit`, uses `save/pipeline_cache.bin` as its pipeline cache, and prints `compiling shaders n/total` as it goes.
 2. The game's static constructors run before `main`. The three VU0 helpers they need, `mgUnitMatrix`, `mgZeroMatrix` and `mgZeroVectorW` (`port/src/mg_math.cpp`), are real C++. On the PS2 the constructors run after the IOP set-up inside `mwInit`; on the host `mwInit` is empty (`port/src/runtime.cpp`). An SIF RPC client that no game code has bound yet gets an answer from `sceSifCheckStatRpc` and `sceSifCallRpc` instead of an abort, because the constructors reach the RPC layer before the game binds its clients (`tools/kazarov/port/sce/sifrpc.cpp`).
 3. `main` calls `MainLoop()` (`ps2/src/mainloop.cpp`), which runs the game's own set-up and calls `mgInit`.
-4. `mgInit` (`port/src/mglib.cpp`) is a `PS2_UNIMPLEMENTED` stub. Its retail body writes the DMAC and GS registers. The plan expected the abort to name `sceDmaReset`, but `mgInit` is replaced as a whole, so the abort names `mgInit` before any of its calls would run:
-
-```
-port/src/mglib.cpp:13: mgInit: PlayStation 2 code is not implemented on PC
-```
-
-The test `Smoke.LaunchAbortsAtFirstHardwareCall` (`port/src/tests/CMakeLists.txt`) runs `darkchronicle --headless --offscreen` and passes when a `dataread: indexed` line appears before that line. It runs the executable under a generated CMake script, because ctest counts a process killed by `abort()` as failed even when `PASS_REGULAR_EXPRESSION` matches its output.
+4. In Phase 1 `mgInit` (`port/src/mglib.cpp`) was a `PS2_UNIMPLEMENTED` stub, so the run aborted there. It is implemented now; see "What Phase 2 does" and "Rendering".
 
 ## What Phase 2 does
 
-`darkchronicle --headless [--offscreen] --data data` loads `config.json`, creates the window and renderer (504 pipelines precompiled), sets the clock to `game.tick_rate` (default 50), and indexes `data/`, printing `dataread: indexed N files under <dir>`. The disc's `DATA.DAT` holds 8751 files. It then runs the retail `MainLoop` until its first unported call, `mgInit`, which aborts with:
+`darkchronicle --headless [--offscreen] --data data` loads `config.json`, creates the window and renderer (504 pipelines precompiled), sets the clock to `game.tick_rate` (default 50), and indexes `data/`, printing `dataread: indexed N files under <dir>`. The disc's `DATA.DAT` holds 8751 files. It then runs the retail `MainLoop`, which calls `mgInit` on the shared renderer (see "Rendering"). The first unported call is `mgCDrawPrim::Begin2`, which aborts with:
 
 ```
-mgInit: PlayStation 2 code is not implemented on PC
+port/src/mg_drawprim.cpp:6: Begin2: PlayStation 2 code is not implemented on PC
 ```
 
 ### Config
@@ -124,7 +120,7 @@ The configuration is `<save root>/config.json`, with the sections `game`, `video
 
 `mgCMemory` is replaced whole (`port/src/mg_memory.cpp`). Its pointers are host pointers, and the `mgMEMORY_BLOCK` header is two quadwords on the host. Blocks are 64-byte aligned through `uintptr_t`. Stack and heap modes are tested on arenas mapped above 4 GiB.
 
-`main_buffer` keeps its retail size of 0x1A0000 quadwords. Each arena's high-water mark is tracked, and `MainLoop` logs `mg_memory: <name> peak P of C quadwords (F free)` after every loop exit. The loops cannot run yet, because `mgInit` aborts first. Once they run, this line is how the headroom for 8-byte pointers is measured.
+`main_buffer` keeps its retail size of 0x1A0000 quadwords. Each arena's high-water mark is tracked, and `MainLoop` logs `mg_memory: <name> peak P of C quadwords (F free)` after every loop exit. The loops cannot run yet, because `mgCDrawPrim::Begin2` aborts first. Once they run, this line is how the headroom for 8-byte pointers is measured.
 
 ### MainLoop
 
@@ -256,7 +252,7 @@ The 22 `#ifndef PORT` guards are 21 in the eight `.cpp` files that hold assembly
 
 `port/include/stubs/<unit>.hpp`, when it exists, is included ahead of `ps2/src/<unit>.cpp`, after `port.h` and nothing else. It declares what the port defines in place of code `PORT` leaves out, and it renames or supplies what the unit takes from MWCC or from the PS2 link alone. Only the port's build sees `port/include`.
 
-The stub headers present are `collision`, `dataread`, `dng_main`, `editmap2`, `event_func`, `gameutil`, `mg_frame`, `mg_math` and `mglib`. Their renames are below.
+The stub headers present are `collision`, `dataread`, `dng_main`, `editmap2`, `event_func`, `gameutil`, `mainloop`, `mg_frame`, `mg_math` and `mglib`. Their renames are below.
 
 ## Header fixups
 
@@ -341,22 +337,17 @@ Every entry below is a `PORT_OVERRIDE` definition whose body calls `PS2_UNIMPLEM
 | `mg_visual.cpp` | `mgCVisualMDT::CreatePacket` | packet (uncached mirror) |
 | `mg_visual.cpp` | `mgCVisualFixMDT::CreatePacket` | packet (uncached mirror) |
 | `mg_visual.cpp` | `mgCVisualMDT::CreateFacePacket` | packet |
-| `mglib.cpp` | `mgInit` | register (DMAC, GS) |
-| `mglib.cpp` | `mgBeginFrame` | register (VIF1 packet, GS frame) |
-| `mglib.cpp` | `mgEndFrame` | register (GS store image, DMAC sync) |
-| `mglib.cpp` | `StoreImage` | register (GS store image) |
 | `movie.cpp` | `CMovie::Load` | register (DMAC control and status) and SDK (MPEG) |
 | `movie.cpp` | `CMovie::Play` | not yet ported (movie thread) |
 | `movie.cpp` | `CMovie::videoDecFlush` | not yet ported (movie) |
 | `movie.cpp` | `viBufDelete` | register (DMAC channel 4) |
 | `sceneevent.cpp` | `CScene::DrawSky` | not yet ported |
-| `sceneload.cpp` | `CScene::LoadMapFromMemory` | register (T0, through `timer0_count`) |
 | `visualmotion.cpp` | `mgCVisualMotionMDT::CreateFaceMotionPacket` | packet |
 | `water.cpp` | `CWater::CreatePacket` | packet (GS `TEXA`) |
 
-The table lists 33 stubs and `main`. The `movie.cpp` entries are the movie path, which the port does not play yet.
+The table lists 28 stubs and `main`. The `movie.cpp` entries are the movie path, which the port does not play yet.
 
-The executable has 74 `Ps2Unimplemented` call sites: 34 game-side and 40 Kazarov SDK. The game-side sites are the 33 stubs in the table and `SendDMA` in the asm table below. The 40 SDK stubs live in `tools/kazarov/port/sce/stubs` and are listed by family there.
+The executable has 60 `Ps2Unimplemented` call sites, one per function: 28 game-side (the table) and 32 Kazarov SDK. The SDK stubs live in `tools/kazarov/port/sce/stubs` and are listed by family there.
 
 Twelve functions are not linked at all (no caller survives `--gc-sections`). They need a replacement only if a later phase calls them: `mgCVisualMDT::SetMaterialRef`, `mgSendPacket`, `videoCallback`, `setD3_CHCR`, `setD4_CHCR`, `viBufCreate`, `viBufReset`, `viBufAddDMA`, `viBufStopDMA`, `viBufRestartDMA`, `viBufGetTs` and `setImageTag`.
 
@@ -377,7 +368,7 @@ The asm-replacement files, with their `PS2_UNIMPLEMENTED` counts:
 | `mg_drawprim_asm.cpp` | 0 | all bodies real |
 | `mg_frame_asm.cpp` | 0 | all bodies real |
 | `mg_math.cpp` | 0 | `mgZeroVectorW`, `mgUnitMatrix` and `mgZeroMatrix` are real C++ |
-| `mg_visual_asm.cpp` | 1 | `SendDMA`, the replacement for `mg_visual.cpp`'s `SendDMA`, whose body is under `#ifndef PORT` |
+| `mg_visual_asm.cpp` | 0 | `SendDMA` is empty: packets are bookkeeping and nothing is sent (see "Packets"). It replaces `mg_visual.cpp`'s `SendDMA`, whose body is under `#ifndef PORT` |
 
 The SDK families under `tools/kazarov/port/sce` are real where the PS2's behaviour can be reproduced on the host, and stubs where it cannot:
 
@@ -397,7 +388,7 @@ It gives 137 hits:
 - 105 are constants or names that only look like hardware.
 - 1 is a comment.
 - 21 are packet-tag writes.
-- 10 are real hardware accesses, none of them linked. `mg_visual.cpp`'s `SendDMA` body is under `#ifndef PORT`, and its replacement is the stub. In `movie.cpp`, `vblankHandler`, `viBufRestartD3` and `UncAddr` have no surviving caller.
+- 10 are real hardware accesses, none of them linked. `mg_visual.cpp`'s `SendDMA` body is under `#ifndef PORT`, and its replacement is empty. In `movie.cpp`, `vblankHandler`, `viBufRestartD3` and `UncAddr` have no surviving caller.
 
 Scratchpad access goes through `GetScrPad`, a stub. The five `CreateRenderInfoPacket` functions (`mgC3DSprite`, `mgCShadowMDT`, `mgCVisualMDT`, `mgCVisualPrim`, `CWater`) reach it first.
 

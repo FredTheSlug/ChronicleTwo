@@ -421,7 +421,7 @@ void mgCVisualMDT::CopyMDTDataPointer(MDT_HEADER *header, mgCMemory *memory) {
     normal = (sceVu0FVECTOR *) normal_address;
     colour = (sceVu0FVECTOR *) colour_address;
     uv = (sceVu0FVECTOR *) uv_address;
-    material = (mgMaterial *) memory->Alloc(material_num * 0x30 / 16);
+    material = (mgMaterial *) memory->Alloc(material_num * (int) sizeof(mgMaterial) / 16);
 
     if (material != NULL) {
         for (int i = 0; i < material_num; i++) {

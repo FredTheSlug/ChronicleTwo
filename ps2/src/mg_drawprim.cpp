@@ -748,7 +748,7 @@ void mgCDrawManager::AddPacket(int group, u_long128 *common, u_long128 *packet, 
             }
         }
 
-        node = (mgSORT_PACKET *) memory->Alloc(1);
+        node = (mgSORT_PACKET *) memory->Alloc((sizeof(mgSORT_PACKET) + 15) / 16);
         node->next = *sort_table;
         *sort_table = node;
         node->common = common;

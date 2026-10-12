@@ -5560,7 +5560,7 @@ int _GET_EOH_POS(RS_STACKDATA *stack, int argc) {
  *
  */
 int SetEffectScript(CRunScript *script, char *program, mgCMemory *memory) {
-    RS_STACKDATA *stack = (RS_STACKDATA *) memory->Alloc(0x20);
+    RS_STACKDATA *stack = (RS_STACKDATA *) memory->Alloc((sizeof(RS_STACKDATA) * 0x40 + 15) / 16);
     RS_CALLDATA  *call_data = (RS_CALLDATA *) memory->Alloc(1);
     script->load((RS_PROG_HEADER *) program, stack, 0x40, call_data, 2);
     script->ext_func(ext_func, 0x100);

@@ -4675,8 +4675,8 @@ int _SET_MAPOBJ_SHOW(RS_STACKDATA *stack, int argument_count) {
  */
 int SetMonsterScript(CRunScript *script, char *program, mgCMemory *memory) {
 
-    RS_STACKDATA *value_stack = (RS_STACKDATA *) memory->Alloc(0x40);
-    RS_CALLDATA  *call_stack = (RS_CALLDATA *) memory->Alloc(0x180);
+    RS_STACKDATA *value_stack = (RS_STACKDATA *) memory->Alloc((sizeof(RS_STACKDATA) * 128 + 15) / 16);
+    RS_CALLDATA  *call_stack = (RS_CALLDATA *) memory->Alloc((sizeof(RS_CALLDATA) * 512 + 15) / 16);
     script->load((RS_PROG_HEADER *) program, value_stack, 128, call_stack,
                  512);
     script->ext_func(ext_func, RS_MONSTER_EXT_LIMIT);

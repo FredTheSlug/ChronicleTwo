@@ -38,8 +38,11 @@ FIXUPS = [
 
 # The leading newline anchors each match to its line start: a copy already rewritten fails the exactly-once check
 # instead of gaining a second `inline`.
+# COFF has no inline-vs-strong resolution: map.cpp's out-of-line CMapParts::CMapParts is the single definition,
+# so the identical inline copies in editeff.cpp/editmap.cpp are blanked rather than kept.
 UNIT_FIXUPS = [
-    ("map.cpp", "\nCMapParts::CMapParts() { Initialize(); }", "\ninline CMapParts::CMapParts() { Initialize(); }"),
+    ("editeff.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
+    ("editmap.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     ("dng_debug.cpp", "\nvoid CTreasureBox::Initialize() {", "\ninline void CTreasureBox::Initialize() {"),
 ]
 

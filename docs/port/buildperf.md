@@ -4,6 +4,55 @@ Measured on the development machine (Windows 11, 32 threads, RTX 4090, Docker De
 
 ## Before and after
 
+### Optional Debug optimization and headless input
+
+`CT_DEBUG_OPT` is an opt-in CMake cache option, off by default. When enabled, Debug compiles
+`ct_ps2`, `ct_port` and `ct_host` with `-Og` while retaining `-g`. Test translation units and
+GoogleTest keep their normal Debug flags; other configurations are unaffected. Keeping the option
+off preserves unoptimized stepping and local-variable inspection. After configuring a build, enable it
+with `cmake -S . -B port/build/windows-x64 -DCT_DEBUG_OPT=ON` (use the tests build directory for tests).
+
+Windows, RTX-class GPU, eight compile jobs, 12 October 2026. Times below are medians of three runs,
+except the optimization-only costume run (one run). Clean-build measurements exclude configuration,
+dependency downloads and the preceding clean command, and include `build.bat windows-x64` overhead.
+Every replay starts with a fresh save directory and pipeline cache. Host load adds timing noise.
+
+| Scenario | Unoptimized Debug | Debug with `CT_DEBUG_OPT=ON` | With alignment fix and headless input startup |
+|---|---:|---:|---:|
+| Clean Windows game/tool build | 21.92 s | 23.26 s | 24.17 s |
+| No-op Windows build | 1.07 s | 1.08 s | 0.95 s |
+| `sweep-costume.input`, 4800 frames | 16.06 s | 3.02 s (one run) | 2.65 s |
+| `sweep-prologue.input`, 13000 frames | 85.55 s | Access violation during opening event | 23.10 s |
+
+The first optimized prologue exposed alignment UB in `mgCDrawEnv::operator=`:
+`ps2/src/mg_drawenv.cpp` cast naturally eight-byte-aligned objects to sixteen-byte-aligned
+`u_long128` pointers. The fire-effect path supplied a destination eight bytes past a sixteen-byte
+boundary, and the optimized `movaps` store faulted. `port/src/mg_drawenv.cpp` replaces this operation
+through `PORT_OVERRIDE` with the same 64-byte copy using `memcpy`, including a self-assignment guard.
+The PS2 sources and layouts are unchanged. Copy regressions cover natural alignment, all bytes,
+the returned reference and self-assignment.
+
+Headless startup now applies input configuration without opening physical controllers, window input
+hooks or mouse capture. The shared input polling and scripted-pad path work without those devices.
+Windowed startup still uses the full shared `InputInit`. Game-owned tests check both SDL joystick and
+gamepad subsystems remain off headless, pad-1 and keyboard scripts still work, and windowed startup
+still initializes controllers. No joystick-backend environment variables are required.
+
+Validation: optimized Windows ctest selected 848 cases: 825 passed, 23 skipped, zero failed, 40.92 s.
+All six new input/copy cases passed. Skips cover optional fonts, focus-dependent checks, validation
+layers, absent disc/data fixtures and the matrix's optional Python dependencies. Several existing
+real-data helpers search for a `data/` ancestor instead of consulting `DC2_DATA`, so real-data replay
+coverage is broader than those unit-test results in a checkout without local data.
+
+Image gates: three fresh-save runs of the final rebuilt binary produced costume and prologue PNGs
+byte-identical to the established frame-4800 and frame-13000 references. These runs supply the final
+runtime medians above. Earlier unoptimized prologue captures varied by two pixels and differed from
+the reference in 44 pixels in Max's face; earlier optimized captures differed in five pixels in
+Monica's face. Final-frame tracing found different CPU model transforms for two frames across eight
+submissions, while mesh vertices, indices and bone palettes matched. The final replay gates pass,
+but the earlier transform/image variation remains unexplained and should be checked on future
+rebuilds. Temporary tracing was removed before the final build and identity checks.
+
 | Scenario | Before | After | Note |
 |---|---|---|---|
 | Windows debug, `build.bat windows-x64`, edit one ps2/src unit (map.cpp) | 12.3 s | 4.8 s | One Python process per copy instead of three; the check reparses only the changed unit |

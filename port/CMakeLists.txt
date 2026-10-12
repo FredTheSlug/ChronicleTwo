@@ -184,6 +184,16 @@ target_include_directories(ct_port PRIVATE ${PORT_DIR})
 target_compile_options(ct_port PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-label
     -Wno-overloaded-virtual -Wno-unused-function)
 
+# Opt in for faster replay and test runs while retaining Debug's symbols. Keep the usual
+# unoptimised Debug build available for stepping through every local and statement.
+# PRIVATE options leave the test sources and GoogleTest at their normal Debug settings.
+option(CT_DEBUG_OPT "Optimise game and host code with -Og in Debug builds" OFF)
+if(CT_DEBUG_OPT)
+    foreach(target IN ITEMS ct_ps2 ct_port ct_host)
+        target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-Og>)
+    endforeach()
+endif()
+
 # Shared by the game and its tests. Names the PS2 build tells apart per object are renamed by
 # port/include/stubs, so no symbol is defined twice. The executable is position-independent on every
 # platform: no game object has to sit below 4 GiB, because pointer-to-32-bit casts are widened in port/src.

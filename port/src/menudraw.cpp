@@ -82,3 +82,80 @@ PORT_OVERRIDE int MenuCapture(int block, mgCMemory *stack, int draw) {
 
     return true;
 }
+
+// Largest grid position at or left of -256 that keeps the grid phase. Wide windows show ~171 logical pixels left of the frame.
+float MenuTilePatternFirst(float v, int size) {
+    float k;
+
+    if (size <= 0 || v + 256.0f <= 0.0f) {
+        return v;
+    }
+
+    k = (float) (int) ((v + 256.0f) / (float) size);
+
+    if (k * (float) size < v + 256.0f) {
+        k += 1.0f;
+    }
+
+    return v - k * (float) size;
+}
+
+// Count of grid positions first, first + size, ... that do not pass limit.
+int MenuTilePatternCount(float first, int size, float limit) {
+    int   count = 0;
+    float pos = first;
+
+    if (size <= 0) {
+        return 0;
+    }
+
+    while (pos <= limit) {
+        count++;
+        pos += (float) size;
+    }
+
+    return count;
+}
+
+PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float x, float y, mgRect<int> tex_rect,
+                                       int unused, u8 *rgba) {
+    mgRect<int> dest(0, 0, 0, 0);
+    float       column_first;
+    float       row_first;
+    int         column_count;
+    int         row_count;
+    int         column;
+    int         row;
+
+    if (tex_rect.right <= 0 || tex_rect.bottom <= 0) {
+        return;
+    }
+
+    column_first = MenuTilePatternFirst(x, tex_rect.right);
+    row_first = MenuTilePatternFirst(y - tex_rect.bottom, tex_rect.bottom);
+    column_count = MenuTilePatternCount(column_first, tex_rect.right, (float) mgScreenWidth + 256.0f);
+    // Tall windows show logical y past 480, up to about 695 at 9:16, so rows must run to 480 + 256.
+    row_count = MenuTilePatternCount(row_first, tex_rect.bottom, (float) mgScreenHeight + 256.0f);
+
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
+    prim->Begin(MG_PRIM_SPRITE);
+    prim->Texture(tex);
+
+    if (rgba != NULL) {
+        prim->Color(rgba[0], rgba[1], rgba[2], rgba[3]);
+    } else {
+        prim->Color(0x80, 0x80, 0x80, 0x80);
+    }
+
+    for (column = 0; column < column_count; column++) {
+        dest.Set((int) (column_first + (float) (column * tex_rect.right)), (int) row_first, tex_rect.right,
+                 tex_rect.bottom);
+
+        for (row = 0; row < row_count; row++) {
+            PrimQuad(prim, dest, tex_rect);
+            dest.top += dest.bottom;
+        }
+    }
+
+    prim->End();
+}

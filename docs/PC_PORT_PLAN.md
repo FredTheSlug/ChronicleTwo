@@ -1215,6 +1215,33 @@ Chronicle's `docs/PC.md` shows no `Ps2Unimplemented` caller in `mg*`,
 `water`, `outline`, `screeneffect`, `font`, `menudraw`; PS2 build matches;
 CI green; Chronicle green on the final Kazarov pin. Size: ~100.
 
+**Phase 4 status: in progress.** Local integration (not pushed): ChronicleTwo
+`port/pc` on Kazarov `main` `5314543`.
+- WP4.1 (`mglib`): `mglib_port.hpp` is the seam the Phase-4 units code
+  against; `mgInit`, frame begin/end, render info, render targets, copies,
+  readbacks and the overlay font run on the shared renderer;
+  `--frames N --screenshot PATH --input SCRIPT`. `mglib.cpp`, `sceneload.cpp`
+  and `SendDMA` no longer call `Ps2Unimplemented`.
+- WP4.2 (`textures`): texture registry keyed by texture block with no VRAM
+  window; TIM2 decoding (4/8/16/24/32-bit, mips, CLUT, the GS 8-bit swizzle)
+  in Kazarov `gfx/tim2`.
+- CPU halves of WP4.4b/c, 4.5, 4.6, 4.7 (`vu1-geom`): `port/src/vu1/`
+  (`prog0_cpu`, `sdw_geom`, `sprite3d_geom`, `water_geom`, shared
+  `vu1_math.hpp`) as pure functions, every spec test vector a test case.
+- Memory (`arena`): `mgCMemory` roots live in Kazarov `platform/arena` blocks
+  mapped above 4 GiB with headroom and guard pages, named overflow and
+  placement growth; Chronicle uses the same blocks.
+- Verified: linux-x64 ctest 557/557 (6 skipped: mouse capture and TTF font
+  cases); windows-x64 tests 564/564 (7 skipped: those and the two
+  validation-layer cases, no layer on Windows); 60 functions call
+  `Ps2Unimplemented` (28 game, 32 SDK); the real-data headless run logs
+  `arena: MainBuffer 109051904 bytes at ... (above 4 GiB)` and aborts in
+  `mgCDrawPrim::Begin2` (W3 `draw2d`); with no data it writes the 3-frame
+  screenshot. Chronicle on `5314543`: linux-x64 ctest 336/336, `ps2-pal`
+  100% matched, 3-frame screenshot byte-identical to the `ce459c1` baseline,
+  windows-x64 builds. Kazarov pytest 83 passed, 14 skipped.
+- Open: WP4.3-4.11 (W3 streams); `uptr` (rules 12/13) not yet merged.
+
 Phase 4 parallel groups: {4.1} then {4.2} then {4.3, 4.4, 4.5, 4.6, 4.7}
 then {4.8, 4.9, 4.10} then {4.11}. Phase 5 runs beside phase 4.
 
@@ -1257,6 +1284,18 @@ fail as on the PAL disc. Tests: open/play/stop a synthetic stream.
 Depends: 5.3, 5.1. Size: ~700.
 
 Phase 5 parallel groups: {5.1, 5.3} then {5.2, 5.4}.
+
+**Phase 5 status: WP5.1 and WP5.3 done; WP5.2 and WP5.4 open (W3 `audio-game`).**
+- WP5.1: `port/src/audio_init.{hpp,cpp}` starts and stops the shared mixer
+  (`main.cpp` calls them from W3 on); Kazarov `audio/hsmsg.{hpp,cpp}` decodes
+  and encodes the MODHSYN HS messages (F9 volume/pan, FD key on/off, pitch,
+  id).
+- WP5.3: `docs/SOUND_DAT.md` documents SOUND.HD3 (16-byte records: name
+  offset, size, sector, sector count; a terminator; NUL-terminated names) and
+  SOUND.DAT. `dc2data extract` splits SOUND.DAT into `data/sound/<name>`
+  (3,100 entries, 1 shadowed duplicate) beside the whole-file copies, and
+  fails on a SOUND.HD3 that does not parse. `data/` in the main checkout is
+  re-extracted: `dc2data check data` verifies 11,862 files.
 
 ### Phase 6: movies
 
@@ -1311,6 +1350,20 @@ by PTS against the clock, picture into a texture drawn full-screen, audio
 into a shared mixer stream; threads, handlers and registers gone.
 `movieviewlp.cpp` unchanged. Tests: scripted play of `L5LOGO.PSS` for 30
 frames with a screenshot. Depends: 6.3, 4.3, 5.1. Size: ~800.
+
+**Phase 6 status: WP6.1 and WP6.2 done; WP6.3 and WP6.4 open (W3 `movies`).**
+- WP6.2: FFmpeg 7.1.1 configured for `mpeg2video` only (`--disable-everything
+  ... --enable-decoder=mpeg2video --enable-parser=mpegvideo`), LGPL
+  (`License: LGPL version 2.1 or later`, no `--enable-gpl`/`--enable-nonfree`):
+  built into the Kazarov image at `/opt/kazarov/ffmpeg` on Linux, by
+  `kz-ffmpeg` from the `kz_before_build` hook on macOS (untested here), BtbN's
+  `win64-lgpl-shared` DLLs (`avcodec-61`, `avutil-59`, `swresample-5`) with a
+  pinned SHA-256 on Windows. `kz_ffmpeg()` in `cmake/KazarovFfmpeg.cmake`;
+  Chronicle links none of it. The image also carries the Vulkan validation
+  layers, which the gfx fixture loads on Linux.
+- WP6.1: `port/src/video/pss.{hpp,cpp}` demuxes pack and system headers, PES
+  video stream 0 and private stream 1 PCM into chunks with PTS. `L5LOGO.PSS`:
+  512x416 MPEG-2, `progressive_sequence = 0`, 737 video and 284 PCM chunks.
 
 ### Phase 7: integration, decoupling, options
 

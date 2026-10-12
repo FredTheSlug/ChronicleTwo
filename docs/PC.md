@@ -2,7 +2,7 @@
 
 `PLATFORM=PC` builds the PAL game's code (`SCES_511.90`) as a native x64 program, compiled by clang as C++26, on SDL3 and Vulkan 1.4. ChronicleTwo ships only the PAL release, so PAL is the only region the port builds for. `docs/PC_PORT_PLAN.md` is the plan the port follows and records its phases.
 
-The port is at Phase 2. The executable loads its configuration, opens a window, indexes the game data and runs the game's main loop until its first PS2 hardware call, which aborts. The game does not run past that call. This document describes what is built.
+The port is in Phase 4. The executable loads its configuration, opens a window, indexes the game data, places the game's memory in arenas above 4 GiB, initialises the renderer through `mglib`, and runs the main loop until the first draw call that is not replaced yet (`mgCDrawPrim::Begin2`, from the title's language select), which aborts. Without game data it stays in the SCE logo fade and renders frames. This document describes what is built.
 
 ## Building and running
 

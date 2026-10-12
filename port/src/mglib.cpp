@@ -63,11 +63,17 @@ struct RenderTargetEntry {
     int width;
     int height;
     int psm;
+    bool frame_target;
 };
 
 bool ready = false;
 bool frame_open = false;
 bool gfx_open = false;
+bool recording = false;
+bool cut_next_tick = true;
+bool cut_camera_next_tick = true;
+gfx::DisplayListRef last_list;
+gfx::DisplayListRef previous_list;
 int frame_count = 0;
 int exit_frames = 0;
 std::filesystem::path screenshot_path;
@@ -282,13 +288,26 @@ std::string ShadowName(uint32_t key) {
     return "mglib shadow " + std::to_string(key);
 }
 
-// Runs after gfx::EndFrame, outside the frame, so the readbacks see the finished image.
+// Outside a recording and a frame. After a canonical render kPreviousFrame is the tick's image; the
+// presented frame is only the fallback.
+bool ReadNow(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &width, uint32_t &height) {
+    if (target == gfx::kMainTarget) {
+        return gfx::ReadbackTexture(gfx::kPreviousFrame, rgba, width, height) ||
+               gfx::ReadbackFrame(rgba, width, height);
+    }
+
+    return gfx::ReadbackTexture(target, rgba, width, height);
+}
+
+void PresentTick() {
+    gfx::PresentCanonical();
+}
+
+// Runs after the tick's canonical render, outside a recording, so the readbacks see the finished image.
 void CacheMarkedColors() {
     for (const gfx::TextureHandle target : color_marks) {
         ColorImage image;
-        const bool read = target == gfx::kMainTarget
-                              ? gfx::ReadbackFrame(image.rgba, image.width, image.height)
-                              : gfx::ReadbackTexture(target, image.rgba, image.width, image.height);
+        const bool read = ReadNow(target, image.rgba, image.width, image.height);
 
         if (read) {
             color_cache[target] = std::move(image);
@@ -359,6 +378,24 @@ void StretchInto(gfx::TextureHandle src, const mgRect<int> &src_rect, const sceG
     }
 
     mgSetPkFrameBuffer(-1, -1, -1, -1);
+}
+
+mgPortExtent ExtentOf(float left, float top, float right, float bottom) {
+    const float centre_x = static_cast<float>(mgScreenWidth) / 2.0f;
+    const float centre_y = static_cast<float>(mgScreenHeight) / 2.0f;
+
+    mgPortExtent extent;
+    extent.left = left;
+    extent.top = top;
+    extent.right = right;
+    extent.bottom = bottom;
+    extent.half_width = std::max(centre_x - left, right - centre_x);
+    extent.half_height = std::max(centre_y - top, bottom - centre_y);
+    extent.gs_left = static_cast<float>(mgScreenOffx) + left;
+    extent.gs_top = static_cast<float>(mgScreenOffy) + top;
+    extent.gs_right = static_cast<float>(mgScreenOffx) + right;
+    extent.gs_bottom = static_cast<float>(mgScreenOffy) + bottom;
+    return extent;
 }
 
 } // namespace
@@ -451,6 +488,26 @@ float mgPortLogicalX(int gs_x) {
 
 float mgPortLogicalY(int gs_y) {
     return static_cast<float>(gs_y) / 16.0f - static_cast<float>(mgScreenOffy);
+}
+
+// Visible extent
+
+// mgPortLogicalX/Y are the identity once the screen offset is removed, so renderer logical units are
+// the game's screen units.
+mgPortExtent mgPortVisibleExtent(gfx::TextureHandle target) {
+    if (mgPortRendererReady()) {
+        const gfx::LogicalRect rect = gfx::VisibleLogicalRect(target);
+
+        if (rect.w > 0.0f && rect.h > 0.0f) {
+            return ExtentOf(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
+        }
+    }
+
+    return ExtentOf(0.0f, 0.0f, static_cast<float>(mgScreenWidth), static_cast<float>(mgScreenHeight));
+}
+
+mgPortExtent mgPortVisibleExtent() {
+    return mgPortVisibleExtent(mgPortCurrentTarget());
 }
 
 // GS state
@@ -626,33 +683,36 @@ gfx::TextureHandle mgPortCurrentTarget() {
     return current_target;
 }
 
-gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int psm) {
+gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int psm, bool frame_target) {
     if (const auto it = render_targets.find(tbp0); it != render_targets.end()) {
         const RenderTargetEntry &entry = it->second;
 
-        if (entry.width == width && entry.height == height && entry.psm == psm) {
+        if (entry.width == width && entry.height == height && entry.psm == psm &&
+            entry.frame_target == frame_target) {
             return entry.handle;
         }
 
         gfx::DestroyTexture(entry.handle);
     }
 
-    const gfx::TextureHandle handle = gfx::CreateRenderTarget(
-        static_cast<uint32_t>(width), static_cast<uint32_t>(height), psm != SCE_GS_PSMCT24);
-    render_targets[tbp0] = RenderTargetEntry{handle, width, height, psm};
+    const gfx::TextureHandle handle =
+        gfx::CreateRenderTarget(static_cast<uint32_t>(width), static_cast<uint32_t>(height),
+                                psm != SCE_GS_PSMCT24, false, frame_target);
+    render_targets[tbp0] = RenderTargetEntry{handle, width, height, psm, frame_target};
     return handle;
 }
 
 // Keyed by the texture's TBP0 rather than holding the handle, so a size or format change that
 // recreates the target does not leave the texture with a destroyed handle.
-gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture) {
+gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture, bool frame_target) {
     if (texture == nullptr) {
         return gfx::kNullTexture;
     }
 
     const uint32_t tbp0 = static_cast<uint32_t>(texture->tex0.TBP0);
     texture_targets[texture] = tbp0;
-    return mgPortRenderTarget(tbp0, texture->width, texture->height, static_cast<int>(texture->tex0.PSM));
+    return mgPortRenderTarget(tbp0, texture->width, texture->height, static_cast<int>(texture->tex0.PSM),
+                              frame_target);
 }
 
 // Submission
@@ -690,16 +750,57 @@ int mgPortVuProg() {
     return now_prog_id;
 }
 
+// Display lists
+
+mgPortInterpScope::mgPortInterpScope(const void *object, float teleport_distance, bool blend_vertices,
+                                     bool no_interpolation)
+    : previous_key_(gfx::CurrentInterpKey()), previous_no_interpolation_(gfx::CurrentNoInterpolation()) {
+    gfx::SetInterpKey(static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(object)), no_interpolation,
+                      teleport_distance, blend_vertices);
+}
+
+mgPortInterpScope::~mgPortInterpScope() {
+    gfx::SetInterpKey(previous_key_, previous_no_interpolation_);
+}
+
+void mgPortCutInterpolation() {
+    if (recording) {
+        gfx::CutInterpolation();
+    } else {
+        cut_next_tick = true;
+    }
+}
+
+void mgPortCutCameraInterpolation() {
+    if (recording) {
+        gfx::CutCameraInterpolation();
+    } else {
+        cut_camera_next_tick = true;
+    }
+}
+
+bool mgPortRecording() {
+    return recording;
+}
+
+const gfx::DisplayList *mgPortLastList() {
+    return last_list.get();
+}
+
+const gfx::DisplayList *mgPortPreviousList() {
+    return previous_list.get();
+}
+
 // Readback
 
-bool mgPortReadColor(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &width, uint32_t &height) {
+bool mgPortCanonicalReadColor(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &width,
+                              uint32_t &height) {
     if (!ready || target == gfx::kNullTexture) {
         return false;
     }
 
     if (!frame_open) {
-        return target == gfx::kMainTarget ? gfx::ReadbackFrame(rgba, width, height)
-                                          : gfx::ReadbackTexture(target, rgba, width, height);
+        return ReadNow(target, rgba, width, height);
     }
 
     color_marks.insert(target);
@@ -713,6 +814,10 @@ bool mgPortReadColor(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint
     width = it->second.width;
     height = it->second.height;
     return true;
+}
+
+bool mgPortReadColor(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &width, uint32_t &height) {
+    return mgPortCanonicalReadColor(target, rgba, width, height);
 }
 
 int mgPortQueueDepthRead(float x, float y, float width, float height) {
@@ -813,6 +918,8 @@ PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
     mgPortResetGs();
     ClockSetTickCallback(VSyncCallBack);
     mgSetPkFrameBuffer(-1, -1, -1, -1);
+    cut_next_tick = true;
+    cut_camera_next_tick = true;
     ready = true;
 }
 
@@ -870,7 +977,22 @@ PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
     mgTimeFrameBegin();
 
     if (!frame_open) {
-        gfx_open = gfx::BeginFrame();
+        if (ready && !gfx::InFrame()) {
+            gfx::BeginRecording();
+            recording = true;
+            gfx_open = true;
+
+            if (cut_next_tick) {
+                gfx::CutInterpolation();
+                cut_next_tick = false;
+            }
+
+            if (cut_camera_next_tick) {
+                gfx::CutCameraInterpolation();
+                cut_camera_next_tick = false;
+            }
+        }
+
         frame_open = true;
     }
 
@@ -918,7 +1040,18 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
     }
 
     if (gfx_open) {
-        gfx::EndFrame();
+        gfx::SetRenderTarget(gfx::kMainTarget);
+        gfx::DisplayListRef list = gfx::EndRecording();
+        recording = false;
+
+        if (list) {
+            gfx::RenderList(*list, 1.0f, gfx::RenderOptions{.canonical = true});
+        }
+
+        previous_list = std::move(last_list);
+        last_list = std::move(list);
+        PresentTick();
+
         CacheMarkedColors();
         AnswerDepthQueries();
     }
@@ -945,8 +1078,7 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
             std::vector<uint8_t> rgba;
             uint32_t             width = 0;
             uint32_t             height = 0;
-            bool written = gfx::ReadbackFrame(rgba, width, height) ||
-                           gfx::ReadbackTexture(gfx::kPreviousFrame, rgba, width, height);
+            bool written = ReadNow(gfx::kMainTarget, rgba, width, height);
             written = written && gfx::WritePng(screenshot_path, rgba.data(), width, height);
 
             if (written) {
@@ -1051,7 +1183,7 @@ PORT_OVERRIDE void StoreImage(int front_buffer) {
     uint32_t             width = 0;
     uint32_t             height = 0;
 
-    if (!gfx::ReadbackFrame(rgba, width, height)) {
+    if (!ReadNow(gfx::kMainTarget, rgba, width, height)) {
         return;
     }
 
@@ -1340,7 +1472,7 @@ PORT_OVERRIDE void mgBeginDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
     // target instead of creating a plain render target for the same address.
     shadow_target = gfx::NamedRenderTarget(ShadowName(key), static_cast<uint32_t>(width),
                                            static_cast<uint32_t>(height), false, true);
-    render_targets[key] = RenderTargetEntry{shadow_target, width, height, psm};
+    render_targets[key] = RenderTargetEntry{shadow_target, width, height, psm, false};
     texture_targets[shadow] = key;
     mgSetPkFrameBuffer(fbp, width, height, psm);
     in_shadow = true;

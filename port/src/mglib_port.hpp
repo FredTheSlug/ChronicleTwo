@@ -52,6 +52,28 @@ uint32_t mgPortGsDepth(float depth);
 float mgPortLogicalX(int gs_x);
 float mgPortLogicalY(int gs_y);
 
+// Visible extent
+
+// What the current target shows, in the game's screen units: x/y relative to the top-left of the
+// game's screen (0..mgScreenWidth, 0..mgScreenHeight at 4:3); half_* centred on the screen centre
+// (what retail's 256/240 half extents become); gs_* the 2048-centred GS pixel coordinates
+// (mgScreenOffx + x). Wider than the screen on a wider window under AspectMode::Fill.
+struct mgPortExtent {
+    float left = 0.0f;
+    float top = 0.0f;
+    float right = 0.0f;
+    float bottom = 0.0f;
+    float half_width = 0.0f;
+    float half_height = 0.0f;
+    float gs_left = 0.0f;
+    float gs_top = 0.0f;
+    float gs_right = 0.0f;
+    float gs_bottom = 0.0f;
+};
+
+mgPortExtent mgPortVisibleExtent();
+mgPortExtent mgPortVisibleExtent(gfx::TextureHandle target);
+
 // GS state (context 1) for draws whose packets are replaced
 
 struct mgPortGsState {
@@ -102,8 +124,9 @@ gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1);
 
 gfx::TextureHandle mgPortCurrentTarget();
 // The target mgSetPkFrameBuffer draws into for this texture or frame address; created on first use.
-gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture);
-gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int psm);
+// frame_target: a grab of the frame, as wide as the window under AspectMode::Fill (gfx frame target).
+gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture, bool frame_target = false);
+gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int psm, bool frame_target = false);
 // The share_main_depth target between mgBeginDrawShadow and mgEndDrawShadow.
 gfx::TextureHandle mgPortShadowTarget();
 bool mgPortInShadow();
@@ -121,10 +144,44 @@ void mgPortDrawMeshImmediate(std::span<const gfx::Vertex3D> vertices, std::span<
 // The VU program mgSendVuProg selected last, -1 for none.
 int mgPortVuProg();
 
+// Display lists
+
+// Chronicle's kDraw3DTeleportDistance: an mgCFrame that moved further than this in one tick snaps.
+inline constexpr float kMgPortFrameTeleportDistance = 200.0f;
+
+// Tags the mesh draws made during its lifetime with `object` (the mgCFrame they are drawn under, or
+// the visual's own record outside a frame) so a display frame matches them with the previous tick's;
+// puts back the key it replaced.
+class mgPortInterpScope {
+public:
+    mgPortInterpScope(const void *object, float teleport_distance, bool blend_vertices = false,
+                      bool no_interpolation = false);
+    ~mgPortInterpScope();
+    mgPortInterpScope(const mgPortInterpScope &) = delete;
+    mgPortInterpScope &operator=(const mgPortInterpScope &) = delete;
+
+private:
+    gfx::InterpKey previous_key_;
+    bool           previous_no_interpolation_;
+};
+
+// The tick being recorded (or the next one, outside a tick) is not interpolated from its predecessor.
+void mgPortCutInterpolation();
+// Its camera is not; objects still are.
+void mgPortCutCameraInterpolation();
+// True between mgBeginFrame and mgEndFrame while the tick is recorded as a display list.
+bool mgPortRecording();
+// The tick's list and the one before it (null until two ticks were recorded), for the present driver.
+const gfx::DisplayList *mgPortLastList();
+const gfx::DisplayList *mgPortPreviousList();
+
 // Readback
 
 // Contents of `target` as of the last finished frame.
 bool mgPortReadColor(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &width, uint32_t &height);
+// Contents of `target` as of the last canonical render (the tick's image, never a display frame's).
+bool mgPortCanonicalReadColor(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &width,
+                              uint32_t &height);
 // Farthest depth over a logical rect of the main target, answered at the end of the frame.
 // Returns -1 when no query slot is free; slots 0-3 are mgPickZBuff's.
 int mgPortQueueDepthRead(float x, float y, float width, float height);

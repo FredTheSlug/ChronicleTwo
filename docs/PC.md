@@ -180,9 +180,20 @@ The reason for this design: the retail thread loops (`GamePadStep`, `NowLoadingL
 
 ### Frame
 
-`mgBeginFrame` opens a gfx frame, sets the main target, CLAMP repeat and the default frame buffer, and clears the colour to `mgBackColor` and the depth to far. The game draws immediately between `mgBeginFrame` and `mgEndFrame`. Display lists and interpolation are Phase 7.
+`mgBeginFrame` opens a display-list recording (`gfx::BeginRecording`), not an immediate frame. It sets the main target, CLAMP repeat and the default frame buffer, and clears the colour to `mgBackColor` and the depth to far. The game's draws between `mgBeginFrame` and `mgEndFrame` are recorded into the tick's list. Draws keep going through `mgPortDraw2D`, `mgPortDrawMesh` and `mgPortDrawMeshImmediate`.
 
-`mgEndFrame` queues the four `mgPickZBuff` 8x8 reads. A pick within 4 pixels of the screen edge gets `z` of -1, as retail does. It ends the gfx frame and fills `mgPickZBuff[].z` in GS units. It then waits the tick: `WaitVSync` on the shared clock for `mgFrameRate`. It sets `mgNowFrameRate` from `mgTimeFrameFields()`, with retail's upper clamp of `1 + mgFrameRate`. When the frame count reaches the `--frames` limit, it writes the screenshot and exits before the wait.
+`mgEndFrame` queues the four `mgPickZBuff` 8x8 reads. A pick within 4 pixels of the screen edge gets `z` of -1, as retail does. It seals the list and renders it once, canonically. That render ends the gfx frame and fills `mgPickZBuff[].z` in GS units. `--screenshot`, `mgStoreImage`, `mgPortCanonicalReadColor`, `StoreImage`, `mgPickZBuff` and the depth queries (`mgPortQueueDepthRead`) all read that canonical render, never a display frame. It then waits for the next game frame (see "Ticks and display frames"). It sets `mgNowFrameRate` from `mgTimeFrameFields()`, with retail's upper clamp of `1 + mgFrameRate`. When the frame count reaches the `--frames` limit, it writes the screenshot and exits before the wait.
+
+### Ticks and display frames
+
+- One game frame is one pass of the game's loop, and one recorded list. It spans `mgFrameRate` clock ticks: 2 on the 50 Hz tick, so 25 game frames a second. `mgFrameRate` keeps its meaning.
+- After the canonical render, `mgEndFrame` calls `PresentWaitFrame`. It waits the same tick count `WaitVSync` waited for; the rotating-thread and pump behaviour is unchanged. Meanwhile `present.cpp` renders display frames from the newest list and the one before it. Each display frame's alpha is the elapsed fraction of the game frame: the ticks since the frame began plus the fraction of the current tick, over `mgFrameRate`. An alpha from the clock tick alone would run 0 to 1 twice per game frame at `mgFrameRate` 2. Display frames are presented as fast as `video.present_mode` and `video.max_fps` allow (`max_fps` 0 is unlimited). A game frame whose wait presented nothing presents its canonical image afterwards (`PresentTickEnd`).
+- Interpolated: the models of tagged mesh draws, and the camera (`tools/kazarov/port/gfx/README.md`, "Display lists"). A draw is tagged with `mgPortInterpScope(object, teleport_distance, blend_vertices, no_interpolation)`, keyed by the `mgCFrame` or, outside a frame, the visual's record. `kMgPortFrameTeleportDistance` is 200 units.
+- Not interpolated: 2D without depth (the HUD is tick-exact); 3D sprites' own motion; objects and cameras past the teleport thresholds; the first tick after `mgInit` and after `mgPortCutInterpolation()`, which is a mode change (the call from `MainLoop` is pending in `mainloop.cpp`); skinned poses, until W4 interpolates the bone palette.
+- `video.interpolation = false` presents each canonical image once.
+- Headless, the clock is unbounded: one canonical render and one present per game frame. `--display-per-tick N` also renders N display frames at k/N and discards them. Screenshots are byte-identical with it (`PresentIdentity.DisplayPerTickScreenshot`).
+- Frame grabs: `mgPortRenderTarget(..., frame_target = true)` makes a gfx frame target, which a display render grabs again from its own image.
+- The FPS counter: `video.show_fps` turns it on (F3 and the `fps_toggle` host action flip it; headless only with `--show-fps`). It is drawn with the host's 5x7 font through `OverlayRecord`, as a display render's overlay, so no canonical image or screenshot holds it. Its text is set by `video.fps_detail`; with all fields it reads `FPS 143.9  TICK 50.0/50  DRAWS 412`. TICK counts clock ticks per second, so it reads the tick rate whatever `mgFrameRate` is. DRAWS is the newest list's mesh plus 2D draws. `--log-fps` prints the same text on stderr once a second.
 
 ### Packets
 
@@ -208,7 +219,7 @@ GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mg
 
 `mgSetPkMoveImage` copies with `gfx::CopyTexture` when given a destination offset, and stretches with `gfx::BlitTexture` (linear) when given a destination rect.
 
-`mgStoreImage` reads the source back and writes the texture's PSM layout linearly, sampling the source at the texture's size. Inside a frame it reads the copy cached at the previous frame's end. 16-bit formats keep one alpha bit.
+`mgStoreImage` reads the source back and writes the texture's PSM layout linearly, sampling the source at the texture's size. Inside a frame it reads the copy cached at the previous canonical render. 16-bit formats keep one alpha bit.
 
 `mgStoreZBuffImage` fills the rect, rounded down to 8x8, with one depth value. That value is the answer to the previous call's query for the same rect, or 0 when there is none. It is an approximation.
 
@@ -222,7 +233,16 @@ GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mg
 
 `--frames N` exits after frame N. `--screenshot PATH` writes that frame as a PNG first; a failed write exits with status 1. `--screenshot` without `--frames` is a usage error. `--input SCRIPT` loads the script at start-up. The pump applies it on each tick with `mgPortFrameCount()`, so pad input follows the game's frame count.
 
-Phase 7 replaces the immediate draw path with display lists.
+Draws are recorded into display lists (see "Ticks and display frames").
+
+### Window aspect
+
+- Logical space stays 512x480 (`mgScreenWidth`/`mgScreenHeight`); `mgScreenOffx`/`mgScreenOffy` are the 2048-centred offsets. Nothing in `port/src` outside `platform/` and `mglib.cpp` reads the window's pixel size. The grep gate `grep -rnE "SDL_GetWindowSize|SDL_GetWindowSizeInPixels|\bWindowSize\(|WindowCurrentMode|DisplayShownMode|SDL_GetCurrentDisplayMode" port/src --include=*.cpp --include=*.hpp | grep -vE "^port/src/(platform/|mglib\.cpp)"` prints nothing.
+- `video.aspect` `auto` is `gfx::AspectMode::Fill`. `mgPortEyeToClip` maps retail's projection through the target's logical mapping, so the frame's 480 rows fill the window's height at retail's vertical field of view. A wider window shows more at the sides; a narrower one keeps the width and shows more above and below. `4:3` is `gfx::AspectMode::Letterbox`, byte for byte the letterboxed frame. `video.ui_scale` (0.25 to 4) scales depthless 2D about the centre. HUD anchoring is W4's.
+- Culls: `mgPortVisibleExtent()` (`gfx::VisibleLogicalRect` of the current target, in screen units, with centred half extents and GS coordinates) replaces retail's 256/240 half extents in `mgCFrame::GetDrawRect` (`mg_frame_asm.cpp`). It also replaces them in `mgRENDER_INFO::screen_box_min`/`max`, which retail's `SetRenderInfo` sets from the screen size. `mgSetRenderInfo` is overridden to widen them, and `mgBeginFrame` refreshes them every game frame, since the window can change shape between scenes. `mgCFrame::Draw`'s `mgClipBoxW` reads them. A mesh at logical x = -40 is drawn at 16:9 and culled at 4:3 (`MglibAspect.*`). The GS guard band (2048) is unchanged.
+- A layout change (`video.aspect`, `video.ui_scale`) is applied from the pump outside a recording.
+- `--window WxH` sets the window size (headless: the offscreen image's).
+- Config keys: `video.interpolation` (`true`), `video.max_fps` (`0`), `video.present_mode` (`fifo`, `mailbox` or `immediate`), `video.aspect` (`auto` or `4:3`), `video.ui_scale` (`1`), `video.show_fps`, `video.fps_detail`.
 
 ## Layout
 

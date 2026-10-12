@@ -122,7 +122,7 @@ TEST_F(PlatformConfig, TickRateOutsideItsRangeKeepsTheDefault) {
 TEST_F(PlatformConfig, UnknownKeysAndSectionsAreIgnored) {
     Config config = ConfigParse(R"({
         // comment
-        "game": {"tick_rate": 60, "debug_mode": true, "unknown": 1},
+        "game": {"tick_rate": 60, "debug_menu": true, "unknown": 1},
         "video": {"vsync": false, "width": 1280},
         "audio": {"master_volume": 0.5},
         "extra": {"tick_rate": 30},
@@ -132,7 +132,29 @@ TEST_F(PlatformConfig, UnknownKeysAndSectionsAreIgnored) {
     ASSERT_TRUE(config.window_width == 1280 && config.window_height == 0);
     ASSERT_TRUE(config.master_volume == 0.5f);
     ASSERT_TRUE(config.present_mode == ConfigPresentMode::Fifo);
-    ASSERT_TRUE(ConfigParse(R"({"game": {"debug_mode": true}, "stray": 1})") == Config{});
+    ASSERT_TRUE(ConfigParse(R"({"game": {"debug_menu": false}, "stray": 1})") == Config{});
+}
+
+TEST_F(PlatformConfig, DebugModeParsesBoolsAndDefaultsToOn) {
+    ASSERT_TRUE(Config{}.debug_mode);
+    ASSERT_TRUE(ConfigParse("").debug_mode);
+    ASSERT_FALSE(ConfigParse(R"({"game": {"debug_mode": false}})").debug_mode);
+    ASSERT_TRUE(ConfigParse(R"({"game": {"debug_mode": true}})").debug_mode);
+}
+
+TEST_F(PlatformConfig, DebugModeInvalidValuesKeepTheDefault) {
+    for (const char *value : {"\"yes\"", "1", "null", "\"off\""}) {
+        std::string json = std::string(R"({"game": {"debug_mode": )") + value + "}}";
+        ASSERT_TRUE(ConfigParse(json).debug_mode) << json;
+    }
+}
+
+TEST_F(PlatformConfig, DebugModeRoundTripsThroughSerialize) {
+    Config config;
+    config.debug_mode = false;
+    Config parsed = ConfigParse(ConfigSerialize(config));
+    ASSERT_FALSE(parsed.debug_mode);
+    ASSERT_TRUE(parsed == config);
 }
 
 TEST_F(PlatformConfig, WrongTypesKeepTheDefaults) {

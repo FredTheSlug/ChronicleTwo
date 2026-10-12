@@ -19,6 +19,7 @@ struct Config : HostSettings {
     Config() { tick_rate = kConfigTickRateDefault; }
 
     bool         interpolation = true;
+    bool         debug_mode = true;
     ConfigAspect aspect = ConfigAspect::Auto;
     float        ui_scale = 1.0f;
 

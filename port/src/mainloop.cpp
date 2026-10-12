@@ -9,6 +9,7 @@
 
 #include "arena_root.hpp"
 #include "dataread.hpp"
+#include "debug_mode.hpp"
 #include "editdata.hpp"
 #include "font.hpp"
 #include "gaiji.hpp"
@@ -30,6 +31,7 @@
 #include "npccfg.hpp"
 #include "padcontrol.hpp"
 #include "platform/arena.hpp"
+#include "platform/config.hpp"
 #include "savedata.hpp"
 #include "scene.hpp"
 #include "scenesnd.hpp"
@@ -100,6 +102,7 @@ PORT_OVERRIDE void MainLoop() {
     if (GamePad__2.On2(PAD_R1) && GamePad__2.On2(PAD_R2) && GamePad__2.On2(PAD_L1) && GamePad__2.On2(PAD_L2)) {
         MasterDebugCode = MASTER_DEBUG_CODE;
     }
+    DebugModeBoot(ConfigGet().debug_mode);
 
     GamePad__2.DebugKeyLock(1);
     sceGsSyncV(0);
@@ -269,7 +272,8 @@ PORT_OVERRIDE void MainLoop() {
 
             mgPerformanceMeter(pmeter_flag);
 
-            if (GamePad__2.Down2(PAD_CIRCLE)) {
+            if (GamePad__2.Down2(PAD_CIRCLE) ||
+                (ConfigGet().debug_mode && DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()))) {
                 DebugFlag = !DebugFlag;
             }
 

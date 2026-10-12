@@ -518,7 +518,7 @@ Parameter types never change, because they are part of mangled names. Declaratio
 
 ### Records
 
-Rule 13. Structs read from a file in place keep their 32-bit offsets and never take `uptr`. The inventory is `docs/port/records.md`: 598 structs with a `STATIC_ASSERT`, of which 63 are records and 535 are runtime.
+Rule 13. Structs read from a file in place keep their 32-bit offsets and never take `uptr`. The inventory is `docs/port/records.md`: 598 structs with a `STATIC_ASSERT`, of which 65 are records and 533 are runtime. 57 records keep the disc layout and carry `PORT_RECORD_ASSERT`; `DATA_HEADER` is PS2 only (the host index replaces DATA.HD4); the seven save-image structs that hold `USER_PICTURE_INFO::image` are host layout on PC, sized by sizeof in memcard.cpp. `scripts/port/records.py` checks the table, the asserts, the host sizes and that no asserted record has a pointer member (ctest `Records.Check`).
 
 `PORT_RECORD_ASSERT(expr)` in `port/include/port.h` is a `static_assert` on PC. `ps2/include/common.h` defines it empty for the PS2.
 

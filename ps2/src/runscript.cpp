@@ -87,7 +87,7 @@ void print(RS_STACKDATA *slots, int count) {
             if (slots->type == RS_INT) {
                 printf("%d", slots->val.i);
             } else if (slots->type == RS_STR) {
-                printf("%s", slots->val.i);
+                printf("%s", slots->val.s);
             } else if (slots->type == RS_FLOAT) {
                 printf("%f", slots->val.f);
             }

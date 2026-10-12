@@ -107,3 +107,23 @@ Deferred, with owner:
 - Kazarov pytest only in the container: `tools/kazarov/bin/kazarov shell bash -c "python3 -m venv /tmp/v && /tmp/v/bin/pip -q install pytest && cd tools/kazarov && /tmp/v/bin/python -m pytest tests -q"`.
 - Saves: `--save port/build/<config>/save`, never a `save/` beside the executable.
 - Git policy: author `Adubbz <Adubbz@users.noreply.github.com>`; commit messages `Port:`/`Kazarov:`/`Build:`/`Docs:` with no co-author or tool attribution; pushes fast-forward only, in the order Kazarov `main`, Chronicle `master` (from `Chronicle-phase0`), ChronicleTwo `port/pc:master`, and every pin must exist on Kazarov `main` first. Check upstream Chronicle before pushing it: others push there.
+
+## Stream `records` (W4)
+
+Done (branch `s/records`; details and the per-format notes in `docs/port/records.md`):
+
+- 57 records carry `PORT_RECORD_ASSERT(sizeof(T) == N)` beside their `STATIC_ASSERT`; all hold on PC, and `scripts/port/records.py --build port/build/pc --require-clang` (ctest `Records.Check`) proves sizes and the absence of pointer, `uptr`/`sptr` and vtable members.
+- `funcdata::name` is `u32`: it is zero in every disc script and retail never resolves it, and as `char *` it moved `local`/`arg` to 16/20 on PC. This is the one pointer-typed declaration changed; it is its own commit, so it can be dropped if that rule must hold here, at the price of the misread.
+- `CVillagerMngr::GetAppearVlgr` (port/src/villagermngr.cpp) indexes `place[alternative][time]` and the output arrays; retail's 4-byte strides are kept in ps2/src because the index form changed MWCC's code.
+- `_GET_INDEXOBJ_SIZE` (port/src/runscript_opcodes.cpp) indexes `entry_object`; retail sums the address into an `int`.
+- `SetEffectScript` (ps2/src/effscript.cpp) sizes its call data by `sizeof(RS_CALLDATA) * 2 / 16`, byte-identical on the PS2.
+- memcard.cpp sizes the save, album and omake images by sizeof; `runscript.cpp`'s stack dump prints strings through `val.s`.
+- The 535 runtime structs were rechecked through their 407 cast sites: no new records.
+
+Left:
+
+- `CMenuItemInfo::ExitEnd` (`ps2/src/menusys.cpp:6860`) reads `MenuCommonInfo->cursor` as a `void *` and truncates it; the plain read is not byte-identical, so it needs an override by the menus' owner. The value is right on little-endian hosts.
+- Save images are host layout on PC; `USER_PICTURE_INFO::image` comes back from the card stale until `CInventUserData::ResetAddress` (`ps2/src/inventmn.cpp:843`, called at 6227 and 7079) runs. A reader before menu init would see a stale host address; none was found.
+- `mgCVisualFixMDT::DataAssignMDT` (`ps2/src/mg_visual.cpp:610`) stores an address in `mgCFace::packet_tag_word` (`u_int`), a runtime packet field for the mesh owner.
+
+Verify: `./build.sh ps2-pal` then `verify.py -c` (SCES_511.90: OK); Linux gate; `kazarov shell python3 scripts/port/records.py --build port/build/pc --require-clang`; `ctest -R 'Records|Truncations|Uptr'`.

@@ -164,6 +164,7 @@ struct vmcode_t {
 };
 
 STATIC_ASSERT(sizeof(vmcode_t) == 0xC);
+PORT_RECORD_ASSERT(sizeof(vmcode_t) == 0xC);
 
 /**
  *
@@ -204,6 +205,7 @@ struct RS_PROGDATA {
 };
 
 STATIC_ASSERT(sizeof(RS_PROGDATA) == 0x8);
+PORT_RECORD_ASSERT(sizeof(RS_PROGDATA) == 0x8);
 
 /**
  *

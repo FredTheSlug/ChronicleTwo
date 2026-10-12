@@ -243,6 +243,27 @@ gfx::TextureBinding BindingFor(mgPortTexture found, uint64_t tex0, uint64_t tex1
     return binding;
 }
 
+// The renderer refuses a draw that samples the target it renders into, and the frame moves on within a
+// tick, so a frame sampled into another target is grabbed at the binding: the snapshot is recorded
+// here and holds the frame as it stands at this draw.
+mgPortTexture GrabFrameIfSampled(mgPortTexture found) {
+    if (found.texture != gfx::kMainTarget || current_target == gfx::kMainTarget || !gfx_open) {
+        return found;
+    }
+
+    int width = 0;
+    int height = 0;
+    ScreenSizeForMode(mgScreenMode, &width, &height);
+
+    const gfx::TextureHandle grab = gfx::NamedRenderTarget("mglib frame grab", static_cast<uint32_t>(width),
+                                                           static_cast<uint32_t>(height), false, false, true);
+    if (grab == gfx::kNullTexture || !gfx::SnapshotFrame(grab)) {
+        return found;
+    }
+
+    return {grab, found.palette};
+}
+
 gfx::TextureHandle RenderTargetHandle(uint32_t tbp0) {
     const auto it = render_targets.find(tbp0);
     return it != render_targets.end() ? it->second.handle : gfx::kNullTexture;
@@ -688,11 +709,11 @@ gfx::TextureBinding mgPortBinding(const mgCTexture *texture) {
         return BindingFor({}, 0, 0);
     }
 
-    return BindingFor(mgPortFindTexture(texture), ToRaw(texture->tex0), ToRaw(texture->tex1));
+    return BindingFor(GrabFrameIfSampled(mgPortFindTexture(texture)), ToRaw(texture->tex0), ToRaw(texture->tex1));
 }
 
 gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1) {
-    return BindingFor(mgPortFindTexture(tex0), tex0, tex1);
+    return BindingFor(GrabFrameIfSampled(mgPortFindTexture(tex0)), tex0, tex1);
 }
 
 void CopyPalette(gfx::TextureHandle src, gfx::TextureHandle dst) {

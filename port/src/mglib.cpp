@@ -3,6 +3,7 @@
 
 #include "mglib.hpp"
 #include "mg_math.hpp"
+#include "mg_drawprim_port.hpp"
 #include "stubs/mglib.hpp"
 
 #include "exitcodes.hpp"
@@ -1143,6 +1144,9 @@ PORT_OVERRIDE void mgBeginPacket(mgCDrawManager *manager) {
     }
 
     mgVif1Packet = &vif_packet;
+    // Every manager uses the same per-frame data arena. Reset its callbacks with the packet quadwords,
+    // releasing their face owners before an address can name another mode's packet.
+    mgPortClearPacketDraws();
     data_buf[data_id].stack_used = 0;
     data_buf[data_id].lock = 0;
     // BeginDraw falls back to packet_memory when handed no memory; the PC packet has none of its own.

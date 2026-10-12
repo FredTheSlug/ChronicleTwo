@@ -547,3 +547,89 @@ TEST(MgVisual, ReusedCommonPacketDoesNotReplayPreviousDraw) {
     EXPECT_EQ(stale_draws, 0);
     ExpectCentre(64, 128, 32);
 }
+
+// A mode load reuses the model arena while a draw still owns the previous face's geometry.
+TEST(MgVisual, QueuedFixFaceSurvivesFaceAddressReuse) {
+    VisualRenderer renderer(640, 480);
+    mgSetBackGround(0.0f, 0.0f, 0.0f, 128.0f);
+    SetCamera();
+    MemoryPool texture_table;
+    mgTexManager.SetTableBuffer(16, 8, &texture_table.memory());
+    mgTexManager.Initialize(0x1000, -1);
+
+    MdtFile first_file(CentreTriangle(false, {1.0f, 0.0f, 0.0f, 1.0f}));
+    MdtFile next_file(CentreTriangle(false, {0.0f, 1.0f, 0.0f, 1.0f}));
+    MemoryPool model;
+    mgCVisualFixMDT first;
+    ASSERT_EQ(first.DataAssignMDT(first_file.header(), &model.memory(), nullptr), 1);
+    const mgCFace *face = first.face_group->face;
+    const auto *geometry = mgVisualPortFaceMesh(face);
+    ASSERT_NE(geometry, nullptr);
+    const gfx::MeshHandle previous = geometry->mesh;
+    ASSERT_NE(previous, gfx::kNullMesh);
+
+    MemoryPool data_a;
+    MemoryPool data_b;
+    MemoryPool buffers;
+    mgSetDataBuffer(&data_a.memory(), &data_b.memory(), 0);
+    mgCFrameAttr attr;
+    attr.no_light = 1;
+    SetColour(attr, {128.0f, 128.0f, 128.0f, 128.0f});
+    float matrix[4][4];
+    Identity(matrix);
+    PrepareObject(attr);
+    int draw_order[2] = {0, -1};
+
+    mgBeginFrame(nullptr);
+    mgBeginDraw(&buffers.memory(), draw_order, nullptr);
+    first.Draw(nullptr, matrix, nullptr);
+
+    model.memory().stReset();
+    mgCVisualFixMDT next;
+    ASSERT_EQ(next.DataAssignMDT(next_file.header(), &model.memory(), nullptr), 1);
+    ASSERT_EQ(next.face_group->face, face);
+    ASSERT_NE(mgVisualPortFaceMesh(face)->mesh, previous);
+
+    mgPreEndDraw(nullptr);
+    mgEndDraw(0, nullptr);
+    mgEndFrame(nullptr);
+    ExpectCentre(128, 0, 0);
+
+    DrawTickImmediate(next, attr);
+    ExpectCentre(0, 128, 0);
+}
+
+// Packet quadwords are transient even when their faces were uploaded persistently.
+TEST(MgVisual, BeginPacketDropsPreviousFixFaceDraw) {
+    VisualRenderer renderer(640, 480);
+    SetCamera();
+    MemoryPool texture_table;
+    mgTexManager.SetTableBuffer(16, 8, &texture_table.memory());
+    mgTexManager.Initialize(0x1000, -1);
+    MdtFile file(CentreTriangle(false));
+    MemoryPool model;
+    mgCVisualFixMDT visual;
+    ASSERT_EQ(visual.DataAssignMDT(file.header(), &model.memory(), nullptr), 1);
+
+    MemoryPool data_a;
+    MemoryPool data_b;
+    MemoryPool buffers;
+    mgSetDataBuffer(&data_a.memory(), &data_b.memory(), 0);
+    mgCFrameAttr attr;
+    attr.no_light = 1;
+    float matrix[4][4];
+    Identity(matrix);
+    PrepareObject(attr);
+    int draw_order[2] = {0, -1};
+    mgBeginFrame(nullptr);
+    mgBeginDraw(&buffers.memory(), draw_order, nullptr);
+    const auto *common = mgDrawManager.data_memory->stGetTop();
+    visual.Draw(nullptr, matrix, nullptr);
+    const void *packet = common + 1;
+    ASSERT_TRUE(mgPortPacketDraw(packet));
+    mgEndFrame(nullptr);
+
+    mgBeginFrame(nullptr);
+    EXPECT_FALSE(mgPortPacketDraw(packet));
+    mgEndFrame(nullptr);
+}

@@ -69,7 +69,12 @@ struct PrimRun {
 
 std::unordered_map<const mgCDrawPrim *, PrimRun>        runs;
 std::unordered_set<u_long>                               ignored_direct_registers;
-std::unordered_map<const void *, std::function<void()>> packet_draws;
+// Constructed on first use, so captured mesh owners are released before the renderer's
+// static resource tables at process exit.
+std::unordered_map<const void *, std::function<void()>> &PacketDraws() {
+    static std::unordered_map<const void *, std::function<void()>> draws;
+    return draws;
+}
 mgPortPrimSink                                           prim_sink;
 
 PrimRun *Find(const mgCDrawPrim *self) {
@@ -522,11 +527,15 @@ void mgPortSetPacketDraw(const void *packet, std::function<void()> draw) {
         return;
     }
 
-    packet_draws[packet] = std::move(draw);
+    PacketDraws()[packet] = std::move(draw);
 }
 
 void mgPortClearPacketDraw(const void *packet) {
-    packet_draws.erase(packet);
+    PacketDraws().erase(packet);
+}
+
+void mgPortClearPacketDraws() {
+    PacketDraws().clear();
 }
 
 bool mgPortPacketDraw(const void *packet) {
@@ -534,9 +543,10 @@ bool mgPortPacketDraw(const void *packet) {
         return false;
     }
 
-    const auto it = packet_draws.find(packet);
+    const auto &draws = PacketDraws();
+    const auto it = draws.find(packet);
 
-    if (it == packet_draws.end()) {
+    if (it == draws.end()) {
         return false;
     }
 

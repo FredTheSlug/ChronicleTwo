@@ -18,6 +18,8 @@ void mgPortSetPrimSink(mgPortPrimSink sink);
 void mgPortSetPacketDraw(const void *packet, std::function<void()> draw);
 // Removes the host draw registered for `packet`, if any.
 void mgPortClearPacketDraw(const void *packet);
+// Invalidates all transient host draws when mgBeginPacket resets their shared data arena.
+void mgPortClearPacketDraws();
 // Runs the host draw registered for `packet`; false when there is none, including a null packet.
 bool mgPortPacketDraw(const void *packet);
 

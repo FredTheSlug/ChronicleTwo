@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstring>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -105,9 +106,9 @@ gfx::Vertex3D SkinSlot(const mgVertexWeight &weight) {
 }
 
 struct FaceEntry {
-    mgVisualFaceMesh mesh;
-    bool             persistent = false;
-    int              last_frame = 0;
+    std::shared_ptr<mgVisualFaceMesh> mesh;
+    bool                            persistent = false;
+    int                             last_frame = 0;
 };
 
 std::unordered_map<const mgCFace *, FaceEntry> &FaceTable() {
@@ -125,14 +126,15 @@ void ReleaseMesh(mgVisualFaceMesh &mesh) {
 // Fix and Motion faces are built once during load and cannot be rebuilt, so their CPU copy is kept until the
 // renderer exists rather than being dropped.
 void UploadIfReady(FaceEntry &entry) {
-    if (!entry.persistent || entry.mesh.mesh != gfx::kNullMesh || entry.mesh.indices.empty() ||
+    mgVisualFaceMesh &mesh = *entry.mesh;
+    if (!entry.persistent || mesh.mesh != gfx::kNullMesh || mesh.indices.empty() ||
         !mgPortRendererReady()) {
         return;
     }
 
-    entry.mesh.mesh = gfx::CreateMesh(entry.mesh.vertices, entry.mesh.indices);
-    std::vector<gfx::Vertex3D>().swap(entry.mesh.vertices);
-    std::vector<uint32_t>().swap(entry.mesh.indices);
+    mesh.mesh = gfx::CreateMesh(mesh.vertices, mesh.indices);
+    std::vector<gfx::Vertex3D>().swap(mesh.vertices);
+    std::vector<uint32_t>().swap(mesh.indices);
 }
 
 } // namespace
@@ -193,14 +195,22 @@ void mgVisualPortRefreshFace(mgCVisualMDT *visual, mgCFace *face) {
     // A plain visual is rebuilt on every CreateFacePacket and would churn GPU meshes if uploaded, so it stays
     // on the CPU.
     FaceEntry &entry = FaceTable()[face];
-    ReleaseMesh(entry.mesh);
-    entry.mesh = mgVisualPortBuildFace(*visual, *face, kind == MG_VISUAL_KIND_MOTION_MDT);
+    // Address reuse replaces the table's owner. Queued draws keep the previous geometry alive until their
+    // packet arena is reset; the last owner releases its GPU mesh, including during display-list recording.
+    entry.mesh = std::shared_ptr<mgVisualFaceMesh>(
+        new mgVisualFaceMesh(mgVisualPortBuildFace(*visual, *face, kind == MG_VISUAL_KIND_MOTION_MDT)),
+        [](mgVisualFaceMesh *mesh) {
+            ReleaseMesh(*mesh);
+            delete mesh;
+        });
     entry.persistent = kind == MG_VISUAL_KIND_FIX_MDT || kind == MG_VISUAL_KIND_MOTION_MDT;
     entry.last_frame = mgPortFrameCount();
     UploadIfReady(entry);
 }
 
-const mgVisualFaceMesh *mgVisualPortFaceMesh(const mgCFace *face) {
+namespace {
+
+std::shared_ptr<const mgVisualFaceMesh> FaceMesh(const mgCFace *face) {
     auto &table = FaceTable();
     auto  found = table.find(face);
     if (found == table.end()) {
@@ -211,7 +221,13 @@ const mgVisualFaceMesh *mgVisualPortFaceMesh(const mgCFace *face) {
     entry.last_frame = mgPortFrameCount();
     UploadIfReady(entry);
     mgVisualPortSweep();
-    return &entry.mesh;
+    return entry.mesh;
+}
+
+} // namespace
+
+const mgVisualFaceMesh *mgVisualPortFaceMesh(const mgCFace *face) {
+    return FaceMesh(face).get();
 }
 
 void mgVisualPortSweep() {
@@ -228,7 +244,7 @@ void mgVisualPortSweep() {
             ++it;
             continue;
         }
-        // Plain entries never hold a GPU mesh, so erasing needs no release.
+        // A queued draw may still own this CPU geometry after the table forgets it.
         it = table.erase(it);
     }
 }
@@ -267,18 +283,11 @@ RenderRecord &CurrentRecord() {
 
 const void *current_object = nullptr;
 
-// A face's triangles and the state it is drawn with; geometry points into the face table or into a copy the
-// queued draw owns.
+// A draw owns its immutable geometry independently of the face address in the load arena.
 struct FaceDraw {
-    const mgVisualFaceMesh *geometry;
-    gfx::TextureBinding binding;
-    uint32_t face_flags;
-};
-
-struct OwnedFace {
-    mgVisualFaceMesh geometry;
-    gfx::TextureBinding binding;
-    uint32_t face_flags;
+    std::shared_ptr<const mgVisualFaceMesh> geometry;
+    gfx::TextureBinding                    binding;
+    uint32_t                               face_flags;
 };
 
 struct GroupDraw {
@@ -612,7 +621,7 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
 
         std::vector<FaceDraw> faces;
         for (mgCFace *face = group->face; face != NULL; face = face->next) {
-            const mgVisualFaceMesh *geometry = mgVisualPortFaceMesh(face);
+            const auto geometry = FaceMesh(face);
             if (geometry == NULL || (geometry->mesh == gfx::kNullMesh && geometry->indices.empty())) {
                 continue;
             }
@@ -634,19 +643,8 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
             break;
         }
 
-        std::vector<OwnedFace> owned;
-        owned.reserve(faces.size());
-        for (const FaceDraw &entry : faces) {
-            owned.push_back(OwnedFace{*entry.geometry, entry.binding, entry.face_flags});
-        }
-
-        mgPortSetPacketDraw(packet, [draw, owned = std::move(owned)]() {
-            std::vector<FaceDraw> queued;
-            queued.reserve(owned.size());
-            for (const OwnedFace &face : owned) {
-                queued.push_back(FaceDraw{&face.geometry, face.binding, face.face_flags});
-            }
-            SubmitFaces(draw, queued);
+        mgPortSetPacketDraw(packet, [draw, faces = std::move(faces)]() {
+            SubmitFaces(draw, faces);
         });
 
         const int block = mat->texture != NULL ? mat->texture->block : -1;

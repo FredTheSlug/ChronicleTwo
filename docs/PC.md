@@ -2,7 +2,7 @@
 
 `PLATFORM=PC` builds the PAL game's code (`SCES_511.90`) as a native x64 program, compiled by clang as C++26, on SDL3 and Vulkan 1.4. ChronicleTwo ships only the PAL release, so PAL is the only region the port builds for. `docs/PC_PORT_PLAN.md` is the plan the port follows and records its phases.
 
-The port is in Phase 4. The executable loads its configuration, opens a window, indexes the game data, places the game's memory in arenas above 4 GiB, initialises the renderer through `mglib`, and runs the main loop until the first draw call that is not replaced yet (`mgCDrawPrim::Begin2`, from the title's language select), which aborts. Without game data it stays in the SCE logo fade and renders frames. This document describes what is built.
+The port has Phases 4-6 in: rendering, audio and movies. The executable loads its configuration, opens a window, indexes the game data, places the game's memory in arenas above 4 GiB, and runs the retail main loop on the shared renderer and mixer: the language select, the Level-5 logo movie (`L5LOGO.PSS`) and the copyright screens, the title over its 3D map with the title music, and the title's attract demo (the opening event with skinned characters). Every game frame is a recorded display list rendered once canonically, with interpolated display frames between ticks. Pressing START at the title starts the next mode, after which the run stops advancing frames (Phase 7). This document describes what is built.
 
 ## Building and running
 
@@ -197,7 +197,7 @@ The reason for this design: the retail thread loops (`GamePadStep`, `NowLoadingL
 
 ### Packets
 
-No packet is sent. Packet begin, end, send and wait are bookkeeping on host arenas. `mgInitVif1Packet` supplies the two packet buffers; otherwise an internal default of 0x10000 quadwords each is used. `mgDrawDirect` keeps retail's size arithmetic, and moves the cursor to the buffer start when fewer than 0x4000 quadwords remain. `SendDMA` is empty. `mgSendVuProg` only records the program id, which `mgPortVuProg` returns. VU programs are never uploaded: the `linknames.cpp` symbols are placeholders.
+No packet is built or sent, so there are no packet buffers. `mgInitVif1Packet` and `mgSetPacketBuffer` ignore their buffers. `mgVif1Packet` points at one empty sentinel, because `mgCDrawPrim` disables itself when it is null. `mgDrawDirect` passes every draw the same non-null scratch tag, which selects the immediate path and is never written, and returns the sizes the draws report (0 on PC). The data buffers (`mgSetDataBuffer`, `mgGetDataBuffer`) stay: the draw manager's sort lists and the visuals' per-draw records are allocated from them. `SendDMA` is empty. `mgSendVuProg` only records the program id, which `mgPortVuProg` returns. VU programs are never uploaded: the `linknames.cpp` symbols are placeholders.
 
 ### Initial GS state
 
@@ -304,9 +304,9 @@ The retail `CSound::Stop`, `SetVol`, `SetStereoMode` and the stream methods stay
 
 ### Open
 
-The title cannot be reached headless yet. On this branch alone the run stops in `mgCDrawPrim::Begin2`. With the Wave 3 rendering branches and `uptr` merged on top, it passes the language select and stops in `_DATACOM` (`ps2/src/gamedata.cpp`) on a truncated pointer in `CGameData::LoadData`, before `sndInitMngr` runs; the WAV of those 300 frames is silent because the driver has not started. The end-to-end capture of the title with `DC2_AUDIO_WAV` is therefore pending. The real-data tests `SoundRealData.*` (`port/src/tests/sound_test.cpp`) load `snd2/SY_000.snd`, every `snd2/bgm` pack and a SOUND.DAT entry through the driver instead.
+The title is reached headless. `DC2_AUDIO_WAV=title.wav darkchronicle --headless --input <script> --frames 2500` writes 60 s of 48 kHz stereo: silent through the language select, then the logo and title music (RMS about 750 at the title, peaks near 24,000). The capture is closed cleanly on a `--frames` exit: `main` registers `AudioShutdown` with `atexit`, so the output stops before the mixer's statics are destroyed. The real-data tests `SoundRealData.*` (`port/src/tests/sound_test.cpp`) load `snd2/SY_000.snd`, every `snd2/bgm` pack and a SOUND.DAT entry through the driver.
 
-`sndCSeSeqData::LoadSMF` (`ps2/src/snd_seseq.cpp`) casts its SMF pointer through `int` (`(int) smf`). That needs the change to `uptr` before `sndLoadSound` runs above 4 GiB.
+`sndCSeSeqData::LoadSMF` (`ps2/src/snd_seseq.cpp`) adds the SMF header size to a `uptr` since W2.u.
 
 ## Movies
 
@@ -389,6 +389,7 @@ MWCC accepts a `void Draw()` that hides the base's `int Draw()` and gives it a n
 
 - `nd_meswin.hpp`: `#ifndef MES_WINDOW_OUT_OF_LINE_INIT` becomes `#if 1`, so `ClsMes::Init` is inline in every unit. `dngmenu.cpp`'s out-of-line copy was a strong definition and collided with the COMDAT copies on COFF.
 - `collision.hpp`: `memset` takes `static_cast<void *>`, because `mgVu0FBOX` is not trivially copyable and `-Wnontrivial-memcall` rejects it.
+- `mapload.hpp`: `CFuncPoint` gets a memberwise copy assignment on its constructor's line. `InventData`'s `mgVu0FBOX` makes the union's implicit copy deleted under clang; MWCC generated it, and `CFuncPointMngr::GetLight` and `CMap::GetCharaLight` assign points with it. Retail's bodies then compile unchanged.
 - `sce/eekernel.h`: `CreateThread`, `TerminateThread` and `GetThreadId` get the asm link names `Ps2CreateThread`, `Ps2TerminateThread` and `Ps2GetThreadId`, because kernel32 exports the unprefixed names.
 - MWCC-only `#pragma cpp_extensions ...`, `#pragma push` and `#pragma pop` lines are blanked, keeping the line count. `port/src` builds with `-Wall` and without `-Wno-unknown-pragmas`, so they cannot stay.
 
@@ -439,37 +440,22 @@ Every entry below is a `PORT_OVERRIDE` definition whose body calls `PS2_UNIMPLEM
 
 | File | Function | Reason |
 |---|---|---|
-| `dbg_font.cpp` | `dbgCJISFont::PrintDirect` | not yet ported |
 | `dng_event.cpp` | `CRedMarkModel::Draw` | fixup |
 | `dng_hud.cpp` | `CLockOnModel::Draw` | fixup |
-| `funcpoint.cpp` | `CFuncPointMngr::GetLight` | not yet ported |
 | `gamepad.cpp` | `CGamePad::Capture` | dev kit (`PAD_CAPTURE_BUFFER`) |
 | `gamepad.cpp` | `CGamePad::Play` | dev kit (`PAD_CAPTURE_BUFFER`) |
 | `gamepad.cpp` | `CGamePad::SaveCapture` | dev kit (host file system) |
 | `gamepad.cpp` | `CGamePad::LoadCapture` | dev kit (host file system) |
 | `gyorace.cpp` | `sgLoopGyoRace` | not yet ported |
 | `main.cpp` | `main` | entry point, not a stub |
-| `map.cpp` | `CMap::GetCharaLight` | not yet ported |
 | `menucapt.cpp` | `MenuChapterInit` | not yet ported |
 | `menucls1.cpp` | `CMenuItemUse::UseItem` | not yet ported |
-| `mg_drawprim.cpp` | `mgCDrawPrim::Begin2` | packet (GS `ZBUF`, VIF1 call) |
-| `mg_shadow.cpp` | `mgCShadowMDT::CreateFacePacket` | packet (uncached mirror) |
-| `mg_shadow.cpp` | `mgCShadowMDT::CreatePacket` | packet (uncached mirror) |
-| `mg_sprite.cpp` | `mgC3DSprite::BeginCreatePacket` | packet |
-| `mg_sprite.cpp` | `mgCSprite::CreatePacket` | packet |
-| `mg_visual.cpp` | `GetScrPad` | scratchpad |
-| `mg_visual.cpp` | `mgCVisualMDT::CreatePacket` | packet (uncached mirror) |
-| `mg_visual.cpp` | `mgCVisualFixMDT::CreatePacket` | packet (uncached mirror) |
-| `mg_visual.cpp` | `mgCVisualMDT::CreateFacePacket` | packet |
-| `sceneevent.cpp` | `CScene::DrawSky` | not yet ported |
-| `visualmotion.cpp` | `mgCVisualMotionMDT::CreateFaceMotionPacket` | packet |
-| `water.cpp` | `CWater::CreatePacket` | packet (GS `TEXA`) |
 
-The table lists 24 stubs and `main`.
+The table lists 9 stubs and `main`.
 
-The executable has 51 `Ps2Unimplemented` call sites, one per function: 24 game-side (the table) and 27 Kazarov SDK. The SDK stubs live in `tools/kazarov/port/sce/stubs` and are listed by family there.
+The executable has 14 `Ps2Unimplemented` call sites, one per function: 9 game-side (the table) and 5 Kazarov SDK (`sceCdSearchFile`, `sceCdSeek`, `sceMcRename`, `scePadEnd`, `scePadPortClose`). The SDK stubs live in `tools/kazarov/port/sce/stubs` and are listed by family there. No `mg*`, `water`, `outline`, `screeneffect`, font or `menudraw` function calls it.
 
-Two functions are not linked at all (no caller survives `--gc-sections`). They need a replacement only if a later phase calls them: `mgCVisualMDT::SetMaterialRef` and `mgSendPacket`. The retail movie player in `movie.cpp` is not linked either: see "Movies".
+`mgCVisualMDT::SetMaterialRef` is replaced and returns 0: only the retail packet builders call it, and they are replaced (its body also holds 128-bit GS literals clang cannot represent). `mgSendPacket` only flips the data buffer. The retail movie player in `movie.cpp` is not linked: see "Movies".
 
 To regenerate the count, run:
 
@@ -546,7 +532,9 @@ A hand-written stride is rewritten as indexing only where `verify.py` stays iden
 | `CEditGrid::GetFast` (`&data[x + y * num_x]`) | - | indexed, landed; correct on PC as it stands |
 | `mgCTextureManager::Initialize` (blocks `<< 4`, `hash_table` `<< 2`) | `port/src/mg_texture.cpp` | stride fix; the port override keeps the indexing; in-place rewrite reverted, MWCC code differs |
 | `mgCTextureManager::SetTableBuffer` | `port/src/mg_texture.cpp` | stride fix; the port override keeps the indexing |
-| `mgCTextureAnime::NewTexAnimeGroupData` (`(group << 2) + this + 0x64`) | `port/src/mg_tanime.cpp` | stride fix, owner draw2d; the override is a stride fix, not a widening; in-place rewrite reverted, MWCC code differs |
+| `mgCTextureAnime::NewTexAnimeGroupData` (`(group << 2) + this + 0x64`) | `port/src/mg_tanime.cpp` | stride fix: the override appends to `list[group]`; in-place rewrite reverted, MWCC code differs |
+| `CScene::ClearStack` (`(u8 *) this + 8 + i * 4`) | `port/src/scene.cpp` | stride fix: the override walks `stack[i]`; in-place rewrite reverted, MWCC code differs |
+| `mgCDrawManager::BeginDraw`, `ClearTable`, `PreEndDraw` (pointer tables sized `n / 4 + 1` quadwords and cleared as `int`s) | `port/src/mg_drawprim.cpp` | stride fix: the overrides size the tables by `sizeof` and clear them as pointers |
 | `mgRENDER_INFO::GetPlight` (`index * 0x30 + ... + 0x90`) | - | in-place rewrite reverted, MWCC code differs; correct on PC, since `mgLIGHT_INFO` holds floats only |
 | `CRepairManager::Generate` (`slot * sizeof(mgCMemory)`) | - | in-place rewrite reverted, MWCC code differs; correct on PC as it stands |
 | `CAutoMapGen::CreatTermParts` | - | correct on PC as it stands |
@@ -572,6 +560,8 @@ An address passed through an `int` parameter is fixed by replacing the callee an
 ### Other corrections
 
 `SPI_STACK::operator=` copies `value.string`, the widest member, instead of `value.integer`. String arguments of every cfg script lost their upper half.
+
+`CScriptInterpreter::GetArg` tests `text[(uptr) length - 1]` for a closing quote, where retail wrote `(u32)`. An empty argument makes the index `-1` modulo the address width: `text - 1` on the PS2, but `text + 4 GiB` on PC with `u32`. `uptr` keeps the PS2 code identical (`length - 1` and `(s32) ((u32) length - 1)` do not).
 
 ### What is left
 

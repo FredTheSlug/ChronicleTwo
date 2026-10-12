@@ -69,20 +69,24 @@ orchestrator or reviewed by it before and after.
 
 ## 2. Where the port stands
 
-Phases 0-3 are done, and Phase 4's Kazarov shader half (WP4.4a) landed
-early. `darkchronicle` builds with clang/lld, C++26, SDL3 and Vulkan 1.4 on
-Linux (container) and Windows (llvm-mingw). It opens a window or an offscreen
-surface, builds the shared renderer's 504 pipelines, indexes `data/` (8751
-files) and runs the retail `MainLoop` until `mgInit`'s stub aborts. The PS2
-build still matches, and `docs/PC.md` describes the port.
+Phases 0-6 are done. `darkchronicle` builds with clang/lld, C++26, SDL3 and
+Vulkan 1.4 on Linux (container) and Windows (llvm-mingw), indexes `data/`
+(8751 files), places the game's memory above 4 GiB, and runs the retail
+`MainLoop` on the shared renderer, mixer and movie decoder through the
+language select, the logo movie, the title over its 3D map with its music,
+and the attract demo. Every game frame is a recorded display list rendered
+canonically, with interpolated display frames between ticks. Phase 7 starts
+where START at the title stops advancing frames. The PS2 build still
+matches, and `docs/PC.md` describes the port; `docs/port/HANDOFF.md` is the
+working state and `docs/port/process/` the schedule and wave records.
 
-The Kazarov submodule (pinned at `a7674f4`) has `port_override.py`,
+The Kazarov submodule (pinned at `f1b8e80`) has `port_override.py`,
 `include/kazarov/port.h` (`PORT_INIT/RETURN/FIX`, the empty `PORT_OVERRIDE`
 marker) and a container image with clang/lld 23, SDL3, Vulkan, Mesa
 lavapipe, glslang and GoogleTest. Since Phase 0, Kazarov holds the shared host code in
 `tools/kazarov/port/{gfx,audio,platform,sce,tests}` and
 `cmake/KazarovPort.cmake`, and Chronicle consumes it from there. ChronicleTwo and Chronicle pin Kazarov
-`a7674f4`.
+`f1b8e80`.
 
 Facts from the four surveys that shape the plan:
 
@@ -1215,32 +1219,47 @@ Chronicle's `docs/PC.md` shows no `Ps2Unimplemented` caller in `mg*`,
 `water`, `outline`, `screeneffect`, `font`, `menudraw`; PS2 build matches;
 CI green; Chronicle green on the final Kazarov pin. Size: ~100.
 
-**Phase 4 status: in progress.** Local integration (not pushed): ChronicleTwo
-`port/pc` on Kazarov `main` `5314543`.
-- WP4.1 (`mglib`): `mglib_port.hpp` is the seam the Phase-4 units code
-  against; `mgInit`, frame begin/end, render info, render targets, copies,
-  readbacks and the overlay font run on the shared renderer;
-  `--frames N --screenshot PATH --input SCRIPT`. `mglib.cpp`, `sceneload.cpp`
-  and `SendDMA` no longer call `Ps2Unimplemented`.
-- WP4.2 (`textures`): texture registry keyed by texture block with no VRAM
-  window; TIM2 decoding (4/8/16/24/32-bit, mips, CLUT, the GS 8-bit swizzle)
-  in Kazarov `gfx/tim2`.
-- CPU halves of WP4.4b/c, 4.5, 4.6, 4.7 (`vu1-geom`): `port/src/vu1/`
-  (`prog0_cpu`, `sdw_geom`, `sprite3d_geom`, `water_geom`, shared
-  `vu1_math.hpp`) as pure functions, every spec test vector a test case.
-- Memory (`arena`): `mgCMemory` roots live in Kazarov `platform/arena` blocks
-  mapped above 4 GiB with headroom and guard pages, named overflow and
-  placement growth; Chronicle uses the same blocks.
-- Verified: linux-x64 ctest 557/557 (6 skipped: mouse capture and TTF font
-  cases); windows-x64 tests 564/564 (7 skipped: those and the two
-  validation-layer cases, no layer on Windows); 60 functions call
-  `Ps2Unimplemented` (28 game, 32 SDK); the real-data headless run logs
-  `arena: MainBuffer 109051904 bytes at ... (above 4 GiB)` and aborts in
-  `mgCDrawPrim::Begin2` (W3 `draw2d`); with no data it writes the 3-frame
-  screenshot. Chronicle on `5314543`: linux-x64 ctest 336/336, `ps2-pal`
-  100% matched, 3-frame screenshot byte-identical to the `ce459c1` baseline,
-  windows-x64 builds. Kazarov pytest 83 passed, 14 skipped.
-- Open: WP4.3-4.11 (W3 streams); `uptr` (rules 12/13) not yet merged.
+**Phase 4 status: done (W3, pushed with Phases 5 and 6).** ChronicleTwo
+`master` on Kazarov `main` `f1b8e80`.
+- WP4.1/4.2 (W2): the `mglib_port.hpp` seam, the texture registry, TIM2.
+- Ticks as display lists (`present-core`, rule 14): every game frame is
+  recorded and rendered once canonically; display frames between ticks are
+  interpolated at the elapsed fraction; `--display-per-tick N`, `--window WxH`,
+  `--show-fps`, the `video.*` keys; culls from the visible extent; the 3D
+  field of view follows the window (`AspectMode::Fill`), `aspect = 4:3`
+  letterboxes.
+- WP4.3/4.6/4.8 (`draw2d`): `mgCDrawPrim` as a host primitive builder (no GIF
+  register-list decoding), the draw manager replayed from a host table,
+  sprites and 3D sprites in floats, TexAnime through copies and registered
+  targets, the menu frame grab as a frame target, `PrintDirect`.
+- WP4.4b/c, 4.10 (`prog0`): MDT visuals as GPU meshes through Vu_prog0's
+  pipelines, with its constants in a DC2-only set 2 block (`MeshConstants`
+  back to 400 bytes for Chronicle) and a 32-matrix model-space bone palette
+  per draw; `renderer.prog0_meshes` is on.
+- WP4.5/4.7/4.9 (`fx-shadow`): z-fail stencil shadow volumes, water as a
+  screen-UV mesh over a frame grab, outline, depth of field and lens flare;
+  the VU1 packing maths live only as test oracles (`native_gate.py` keeps
+  them out of the runtime, also in CI).
+- Pointers (`uptr`, W2.u): addresses kept in integers are `uptr` in
+  `ps2/src`; `truncations.py --check` clean (0 open round trips in linked
+  code; 15 narrowing sites in compiled `ps2/` code, each with an owner).
+  Stride fixes found at integration: the draw manager's pointer tables,
+  `CScene::ClearStack`, `mgCTextureAnime::NewTexAnimeGroupData`;
+  `CScriptInterpreter::GetArg` indexes at pointer width; `CFuncPoint`'s copy
+  comes from the header mirror.
+- Verified: linux-x64 ctest 774/774 (one real-data case passed on rerun after
+  a load timeout); windows-x64 tests 780/780; `ps2-pal` `SCES_511.90: OK`;
+  14 `Ps2Unimplemented` callers (9 game, 5 SDK), none in `mg*`, `water`,
+  `outline`, `screeneffect`, font or `menudraw`. Real data, headless, Linux
+  and Windows: 300 frames show the language select; with an input script the
+  title over its 3D map, byte-identical with `--display-per-tick 4`; the
+  attract demo's opening event with skinned characters. Chronicle on
+  `f1b8e80` (rebased on upstream `109c6eff`): ctest 352/352, `ps2-pal` 100%,
+  screenshot byte-identical, Windows builds. Kazarov pytest 93 passed,
+  14 skipped.
+- Not reached (Phase 7): the opening and the first town by `--input`.
+  START at the title enters the next mode, then frames stop advancing.
+  Not run: the 2560x1440 windowed FPS run, the aspect matrix screenshots.
 
 Phase 4 parallel groups: {4.1} then {4.2} then {4.3, 4.4, 4.5, 4.6, 4.7}
 then {4.8, 4.9, 4.10} then {4.11}. Phase 5 runs beside phase 4.
@@ -1285,17 +1304,17 @@ Depends: 5.3, 5.1. Size: ~700.
 
 Phase 5 parallel groups: {5.1, 5.3} then {5.2, 5.4}.
 
-**Phase 5 status: WP5.1 and WP5.3 done; WP5.2 and WP5.4 open (W3 `audio-game`).**
-- WP5.1: `port/src/audio_init.{hpp,cpp}` starts and stops the shared mixer
-  (`main.cpp` calls them from W3 on); Kazarov `audio/hsmsg.{hpp,cpp}` decodes
-  and encodes the MODHSYN HS messages (F9 volume/pan, FD key on/off, pitch,
-  id).
-- WP5.3: `docs/SOUND_DAT.md` documents SOUND.HD3 (16-byte records: name
-  offset, size, sector, sector count; a terminator; NUL-terminated names) and
-  SOUND.DAT. `dc2data extract` splits SOUND.DAT into `data/sound/<name>`
-  (3,100 entries, 1 shadowed duplicate) beside the whole-file copies, and
-  fails on a SOUND.HD3 that does not parse. `data/` in the main checkout is
-  re-extracted: `dc2data check data` verifies 11,862 files.
+**Phase 5 status: done.**
+- WP5.1/5.3 (W2): `audio_init`, `hsmsg`, SOUND.HD3/SOUND.DAT extraction.
+- WP5.2/5.4 (`audio-game`): `CSound`, ezMidi, ezBgm and `sndLoadSound` on
+  the shared mixer (banks selected by CC 0, HS pitch, per-core volume);
+  SOUND.DAT streams on Kazarov's new stream channels (`audio/stream.*`).
+- Verified: `DC2_AUDIO_WAV` at the title is non-silent (RMS about 750, peaks
+  near 24,000); stream open/play/stop tests green; Chronicle's audio tests
+  green on the same Kazarov.
+- Open: end-of-stream state held 1 s as a stand-in for the driver drain;
+  `SndInReverb` is a no-op (streams bypass reverb); movie audio stays on
+  mixer port 5, not a stream channel.
 
 ### Phase 6: movies
 
@@ -1351,19 +1370,16 @@ into a shared mixer stream; threads, handlers and registers gone.
 `movieviewlp.cpp` unchanged. Tests: scripted play of `L5LOGO.PSS` for 30
 frames with a screenshot. Depends: 6.3, 4.3, 5.1. Size: ~800.
 
-**Phase 6 status: WP6.1 and WP6.2 done; WP6.3 and WP6.4 open (W3 `movies`).**
-- WP6.2: FFmpeg 7.1.1 configured for `mpeg2video` only (`--disable-everything
-  ... --enable-decoder=mpeg2video --enable-parser=mpegvideo`), LGPL
-  (`License: LGPL version 2.1 or later`, no `--enable-gpl`/`--enable-nonfree`):
-  built into the Kazarov image at `/opt/kazarov/ffmpeg` on Linux, by
-  `kz-ffmpeg` from the `kz_before_build` hook on macOS (untested here), BtbN's
-  `win64-lgpl-shared` DLLs (`avcodec-61`, `avutil-59`, `swresample-5`) with a
-  pinned SHA-256 on Windows. `kz_ffmpeg()` in `cmake/KazarovFfmpeg.cmake`;
-  Chronicle links none of it. The image also carries the Vulkan validation
-  layers, which the gfx fixture loads on Linux.
-- WP6.1: `port/src/video/pss.{hpp,cpp}` demuxes pack and system headers, PES
-  video stream 0 and private stream 1 PCM into chunks with PTS. `L5LOGO.PSS`:
-  512x416 MPEG-2, `progressive_sequence = 0`, 737 video and 284 PCM chunks.
+**Phase 6 status: done.**
+- WP6.1/6.2 (W2): the PSS demuxer and the minimal LGPL FFmpeg (`mpeg2video`
+  only, `License: LGPL version 2.1 or later`).
+- WP6.3/6.4 (`movies`): `CMovie` on the host: libavcodec's MPEG-2 decoder,
+  BT.601 to RGBA into the game's `moviework` texture, the PCM soundtrack into
+  the mixer, pumped by the game's frames against the clock; no threads,
+  handlers or registers. Only libavcodec and libavutil are linked.
+- Verified: the logo sequence of a real-data headless run shows
+  `L5LOGO.PSS`'s frames (Level-5 logo at frame 540 of the scripted run);
+  `movie_test` plays 30 frames to a PNG.
 
 ### Phase 7: integration, decoupling, options
 

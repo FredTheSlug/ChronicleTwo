@@ -133,10 +133,15 @@ void mgPortCopyPalette(uint64_t src_tex0, uint64_t dst_tex0);
 // Render targets
 
 gfx::TextureHandle mgPortCurrentTarget();
+// Records a grab of the main frame at this point in the draw stream, including Fill's sides.
+// A draw into the main frame must sample this handle rather than the main target itself.
+gfx::TextureHandle mgPortSnapshotFrame();
 // The target mgSetPkFrameBuffer draws into for this texture or frame address; created on first use.
 // frame_target: a grab of the frame, as wide as the window under AspectMode::Fill (gfx frame target).
 gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture, bool frame_target = false);
 gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int psm, bool frame_target = false);
+// Retires any target aliases owned by a released registry key before that key is reused.
+void mgPortReleaseTextureTarget(uint32_t tbp0);
 // The share_main_depth target between mgBeginDrawShadow and mgEndDrawShadow.
 gfx::TextureHandle mgPortShadowTarget();
 bool mgPortInShadow();

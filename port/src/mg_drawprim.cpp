@@ -91,6 +91,12 @@ void DrawVertices(const mgCDrawPrim &self, gfx::Primitive primitive, std::span<c
 
     if (self.prim.TME != 0) {
         binding = mgPortBinding(self.texture.tex0_bits, self.texture.tex1_bits);
+        if (binding.texture == gfx::kMainTarget && mgPortCurrentTarget() == gfx::kMainTarget && mgPortFrameOpen()) {
+            binding.texture = mgPortSnapshotFrame();
+            if (binding.texture == gfx::kNullTexture && !prim_sink) {
+                return;
+            }
+        }
     }
 
     if (prim_sink) {

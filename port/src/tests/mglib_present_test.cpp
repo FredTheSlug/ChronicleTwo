@@ -13,6 +13,7 @@
 #include "gfx_fixture.hpp"
 #include "libgraph.h"
 #include "mg_memory.hpp"
+#include "mg_drawprim.hpp"
 #include "mg_texture.hpp"
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
@@ -675,4 +676,103 @@ TEST(MglibPresent, MoveImageOfTheFrameUsesAFrameTarget) {
     const std::optional<gfx::TextureInfo> plain_info = gfx::GetTextureInfo(mgPortFindTexture(plain_dst).texture);
     ASSERT_TRUE(plain_info.has_value());
     EXPECT_FALSE(plain_info->frame_target);
+}
+
+TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
+    PresentRenderer renderer(1280, 720);
+    mgSetBackGround(16.0f, 32.0f, 48.0f, 128.0f);
+    for (int tick = 0; tick < 2; ++tick) {
+        mgBeginFrame(nullptr);
+        const auto source = [&](uint8_t r, uint8_t g, uint8_t b) {
+            std::array<gfx::Vertex2D, 4> quad = {
+                QuadCorner(0, 324), QuadCorner(512, 324), QuadCorner(512, 384), QuadCorner(0, 384)};
+            for (auto &v : quad) {
+                v.color[0] = r; v.color[1] = g; v.color[2] = b; v.color[3] = 128;
+            }
+            gfx::DrawState state;
+            state.depth_test = gfx::DepthTest::Always;
+            state.depth_write = false;
+            mgPortDraw2D(gfx::Primitive::Quads, quad, {}, state);
+        };
+        source(64, 128, 192);
+        mgCTexture frame;
+        mgGetFrameBuffer(&frame);
+        mgCDrawPrim prim;
+        prim.Initialize(nullptr, nullptr);
+        prim.DepthTestEnable(0);
+        prim.ZMask(MG_Z_MASK_MASKED);
+        prim.AlphaTestEnable(0);
+        prim.AlphaBlendEnable(1);
+        prim.AlphaBlend(MG_ALPHA_BLEND_NORMAL);
+        prim.TextureMapEnable(1);
+        prim.Bilinear(0);
+        prim.Begin(MG_PRIM_SPRITE);
+        prim.Texture(&frame);
+        prim.Color(128, 128, 128, 64);
+        // The logo fade's source and destination bands differ.
+        prim.TextureCrd(0, 324); prim.Vertex(0, 176, 0);
+        prim.TextureCrd(512, 384); prim.Vertex(512, 236, 0);
+        prim.End();
+        source(16, 240, 48);
+        mgEndFrame(nullptr);
+        std::vector<uint8_t> rgba;
+        uint32_t width = 0, height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+        const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+        const size_t x = static_cast<size_t>(256 * mapping.scale_x + mapping.offset_x);
+        const size_t y = static_cast<size_t>(200 * mapping.scale_y + mapping.offset_y);
+        const size_t p = (y * width + x) * 4;
+        EXPECT_NEAR(rgba[p], 40, 1);
+        EXPECT_NEAR(rgba[p + 1], 80, 1);
+        EXPECT_NEAR(rgba[p + 2], 120, 1);
+    }
+}
+
+TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
+    PresentRenderer renderer(1280, 720);
+    gfx::SetFrameLayout({gfx::AspectMode::Letterbox, 1.0f});
+    Textures textures;
+    Quads old_pixels = Pack(Fill(64 * 64, 0, 180, 0, 128));
+    mgCTexture *old = textures.Enter("effect_work", 64, 64, 32, old_pixels.data(), nullptr);
+    ASSERT_NE(old, nullptr);
+    const uint32_t key = static_cast<uint32_t>(old->tex0.TBP0);
+    mgBeginFrame(nullptr);
+    mgSetPkFrameBuffer(old);
+    mgSetPkFrameBuffer(-1, -1, -1, -1);
+    mgEndFrame(nullptr);
+    const gfx::TextureHandle stale = mgPortFindTexture(Tex0Bits(old)).texture;
+    ASSERT_TRUE(gfx::GetTextureInfo(stale)->render_target);
+    textures.Delete(old);
+    Quads glow_pixels = Pack(Fill(64 * 64, 96, 64, 16, 128));
+    mgCTexture *glow = textures.Enter("glow", 64, 64, 32, glow_pixels.data(), nullptr);
+    ASSERT_NE(glow, nullptr);
+    ASSERT_EQ(static_cast<uint32_t>(glow->tex0.TBP0), key);
+    const gfx::TextureHandle native = MgTextureLookup(glow).texture;
+    ASSERT_NE(native, gfx::kNullTexture);
+    EXPECT_EQ(mgPortFindTexture(Tex0Bits(glow)).texture, native);
+    EXPECT_EQ(mgPortFindTexture(glow).texture, native);
+    mgSetBackGround(0, 0, 0, 128);
+    mgBeginFrame(nullptr);
+    mgCDrawPrim prim;
+    prim.Initialize(nullptr, nullptr);
+    prim.DepthTestEnable(0);
+    prim.ZMask(MG_Z_MASK_MASKED);
+    prim.AlphaTestEnable(0);
+    prim.AlphaBlendEnable(1);
+    prim.AlphaBlend(MG_ALPHA_BLEND_ADD);
+    prim.TextureMapEnable(1);
+    prim.Begin(MG_PRIM_SPRITE);
+    prim.Texture(glow);
+    prim.Color(128, 128, 128, 128);
+    prim.TextureCrd(0, 0); prim.Vertex(240, 224, 0);
+    prim.TextureCrd(64, 64); prim.Vertex(272, 256, 0);
+    prim.End();
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> rgba;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+    const size_t p = (static_cast<size_t>(height / 2) * width + width / 2) * 4;
+    EXPECT_NEAR(rgba[p], 96, 1);
+    EXPECT_NEAR(rgba[p + 1], 64, 1);
+    EXPECT_NEAR(rgba[p + 2], 16, 1);
 }

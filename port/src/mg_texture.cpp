@@ -268,6 +268,10 @@ void ReleaseTexture(const mgCTexture *texture) {
     }
 
     Entry &entry = found->second;
+#if MG_TEXTURE_HAS_SEAM
+    // A registry key can immediately name a different texture; its old rendered pixels cannot.
+    mgPortReleaseTextureTarget(entry.key);
+#endif
     DestroyHandle(entry.image);
     DestroyHandle(entry.palette);
 

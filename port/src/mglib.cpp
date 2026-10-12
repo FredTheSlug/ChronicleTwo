@@ -238,13 +238,8 @@ mgPortTexture GrabFrameIfSampled(mgPortTexture found) {
         return found;
     }
 
-    int width = 0;
-    int height = 0;
-    ScreenSizeForMode(mgScreenMode, &width, &height);
-
-    const gfx::TextureHandle grab = gfx::NamedRenderTarget("mglib frame grab", static_cast<uint32_t>(width),
-                                                           static_cast<uint32_t>(height), false, false, true);
-    if (grab == gfx::kNullTexture || !gfx::SnapshotFrame(grab)) {
+    const gfx::TextureHandle grab = mgPortSnapshotFrame();
+    if (grab == gfx::kNullTexture) {
         return found;
     }
 
@@ -799,6 +794,18 @@ void mgPortCopyPalette(uint64_t src_tex0, uint64_t dst_tex0) {
 
 // Render targets
 
+gfx::TextureHandle mgPortSnapshotFrame() {
+    if (!gfx_open) {
+        return gfx::kNullTexture;
+    }
+    int width = 0;
+    int height = 0;
+    ScreenSizeForMode(mgScreenMode, &width, &height);
+    const gfx::TextureHandle grab = gfx::NamedRenderTarget("mglib frame grab", static_cast<uint32_t>(width),
+                                                         static_cast<uint32_t>(height), false, false, true);
+    return grab != gfx::kNullTexture && gfx::SnapshotFrame(grab) ? grab : gfx::kNullTexture;
+}
+
 gfx::TextureHandle mgPortCurrentTarget() {
     return current_target;
 }
@@ -834,6 +841,15 @@ gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture, bool frame_targ
     texture_targets[texture] = tbp0;
     return mgPortRenderTarget(tbp0, texture->width, texture->height, static_cast<int>(texture->tex0.PSM),
                               frame_target);
+}
+
+void mgPortReleaseTextureTarget(uint32_t tbp0) {
+    if (const auto it = render_targets.find(tbp0); it != render_targets.end()) {
+        gfx::DestroyTexture(it->second.handle);
+        render_targets.erase(it);
+    }
+    std::erase_if(texture_targets, [tbp0](const auto &record) { return record.second == tbp0; });
+    std::erase_if(registered_targets, [tbp0](const auto &record) { return record.second.tbp0 == tbp0; });
 }
 
 // Submission

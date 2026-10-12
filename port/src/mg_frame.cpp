@@ -1,5 +1,6 @@
 #include "common.h"
 
+#include <cstring>
 #include <libvu0.h>
 
 #include "mg_drawenv.hpp"
@@ -10,6 +11,13 @@
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "stubs/mg_frame.hpp"
+
+PORT_OVERRIDE void mgCFrame::GetWorldPosition0(float *out_position) {
+    sceVu0FMATRIX world;
+    GetLWMatrix(world);
+    // Callers may store vectors at the natural alignment of host pointers.
+    std::memcpy(out_position, world[3], sizeof(world[3]));
+}
 
 PORT_OVERRIDE int mgCFrame::Draw(unsigned int *packet) {
     mgRENDER_INFO *info = &mgRenderInfo;

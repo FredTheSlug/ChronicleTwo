@@ -9,6 +9,7 @@
 #include "effscript.hpp"
 #include "mg_memory.hpp"
 #include "monster.hpp"
+#include "runscript.hpp"
 #include "scene.hpp"
 
 TEST(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
@@ -24,7 +25,8 @@ TEST(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
         scene->chara[i + MONSTER_ACTIVE_MAX].chara = &monsters[i];
     }
 
-    constexpr int kSlotQuads = 4000;
+    constexpr int kExtraBytes = 128 * (sizeof(RS_STACKDATA) - 8) + 512 * (sizeof(RS_CALLDATA) - 12);
+    constexpr int kSlotQuads = 4000 + (kExtraBytes + 15) / 16;
     std::vector<u_long128> storage(MONSTER_ACTIVE_MAX * (kSlotQuads + 4) + 16);
     mgCMemory parent;
     mgCMemory memory;

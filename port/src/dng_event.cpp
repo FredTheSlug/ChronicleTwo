@@ -1,13 +1,54 @@
 #include "common.h"
 
 #include <cmath>
+#include <cstdio>
 
+#include "dataread.hpp"
 #include "dng_event.hpp"
 #include "dng_main.hpp"
 #include "mg_memory.hpp"
 #include "monster.hpp"
+#include "monster_memory.hpp"
+#include "runscript.hpp"
 #include "scene.hpp"
 #include "snd_mngr.hpp"
+
+void PrepareMonsterMemory(CMonsterMan &manager, mgCMemory &memory) {
+    // Preserve the retail model budget and account for the two script arrays' wider entries.
+    constexpr int extra_bytes = 128 * (sizeof(RS_STACKDATA) - 8) + 512 * (sizeof(RS_CALLDATA) - 12);
+    constexpr int quadwords = 4000 + (extra_bytes + 15) / 16;
+    for (auto &slot : manager.memory) {
+        slot.stSetBuffer(memory.stAlloc64(quadwords), quadwords);
+        slot.stReset();
+        slot.lock = 0;
+    }
+}
+
+PORT_OVERRIDE void LoadMonsterFile() {
+    if (!ActiveMonster) return;
+    ActiveMonster->Initialize(DngMainScene);
+    DngMainScene->AssignStack(3);
+    DngMainScene->ClearStack(3);
+    auto *memory = DngMainScene->GetStack(3);
+    if (!memory) return;
+    PrepareMonsterMemory(*ActiveMonster, *memory);
+    sndInitPort(5);
+    auto &locate = ActiveMonster->locate;
+    locate.num = locate.put_num = locate.put_flag = 0;
+    for (int i = 0; i < MONSTER_LOCATE_MAX; ++i) {
+        locate.param[i] = -1;
+        locate.monster_id[i] = -1;
+    }
+    char path[76];
+    std::snprintf(path, sizeof path, "dungeon/cfg_file/mos_place%d.cfg", DngSaveDataDungeon->stage_id);
+    int size = 0;
+    LoadFile(path, BuffReadData, &size);
+    CreatMonsterFloorInfo(reinterpret_cast<char *>(BuffReadData), size);
+    for (int i = 0; i < locate.num; ++i) {
+        const int id = locate.monster_id[i];
+        if (ActiveMonster->SearchBaseIndex(id) < 0) ActiveMonster->EntryRefer(id, memory);
+    }
+}
 
 PORT_OVERRIDE void LoadMonsterFile(int monster_id, int initialize) {
     CScene *scene = DngMainScene;
@@ -30,10 +71,7 @@ PORT_OVERRIDE void LoadMonsterFile(int monster_id, int initialize) {
 
     if (initialize != 0) {
         // Retail places these at +4 with a 0x30 stride; host pointers enlarge both fields.
-        for (mgCMemory &slot : manager->memory) {
-            slot.stSetBuffer(memory->stAlloc64(0xFA0), 0xFA0);
-            slot.stReset();
-        }
+        PrepareMonsterMemory(*manager, *memory);
         sndInitPort(5);
     }
 

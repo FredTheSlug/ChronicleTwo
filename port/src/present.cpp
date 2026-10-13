@@ -1,8 +1,7 @@
 #include "present.hpp"
+#include "present_timing.hpp"
 
-#include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -33,7 +32,7 @@ struct FpsOverlay {
 PresentSettings settings;
 PresentStats stats;
 bool tick_shown = true;
-Clock::time_point last_present;
+PresentPacer pacer;
 Clock::time_point last_log;
 FpsOverlay overlay;
 std::int64_t counted_tick = 0;
@@ -111,9 +110,9 @@ bool PresentCanonicalFrame() {
         gfx::RenderOptions options;
         options.present = true;
         options.host = true;
-        shown = gfx::RenderList(*overlay_list, 1.0f, options);
+        shown = pacer.Present([&] { return gfx::RenderList(*overlay_list, 1.0f, options); }, Clock::now);
     } else {
-        shown = gfx::PresentCanonical();
+        shown = pacer.Present(gfx::PresentCanonical, Clock::now);
     }
 
     if (shown) {
@@ -129,6 +128,10 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
         return false;
     }
 
+    if (Clock::now() >= next_tick) {
+        return false;
+    }
+
     PollFpsToggle();
 
     if (!settings.interpolation) {
@@ -140,30 +143,22 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
         return false;
     }
 
-    if (settings.max_fps > 0.0) {
-        const Clock::time_point due =
-            last_present + std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1.0 / settings.max_fps));
-        const Clock::time_point now = Clock::now();
-
-        if (now < due) {
-            if (due >= next_tick && tick_shown) {
-                return false;
-            }
-
-            std::this_thread::sleep_until(std::min(due, next_tick));
-            return true;
-        }
+    const auto decision = pacer.Next(Clock::now(), next_tick, settings.max_fps);
+    if (decision.action == PresentPacer::Action::Tick) {
+        return false;
+    }
+    if (decision.action == PresentPacer::Action::Wait) {
+        std::this_thread::sleep_until(decision.deadline);
+        return true;
     }
 
     // A game frame spans mgFrameRate ticks, so alpha is the fraction of the game frame elapsed, not of the tick.
-    const double elapsed = static_cast<double>(ClockTickCount() - wait_start) + fraction;
-    const double alpha = wait_frames > 0 ? elapsed / wait_frames : fraction;
+    const float alpha = PresentFrameAlpha(static_cast<double>(ClockTickCount() - wait_start), fraction, wait_frames);
 
-    if (!DisplayFrame(static_cast<float>(std::clamp(alpha, 0.0, std::nextafter(1.0, 0.0))), true)) {
+    if (!pacer.Present([&] { return DisplayFrame(alpha, true); }, Clock::now)) {
         return false;
     }
 
-    last_present = Clock::now();
     tick_shown = true;
     return true;
 }
@@ -230,7 +225,6 @@ void PresentTickEnd() {
     }
 
     PresentCanonicalFrame();
-    last_present = Clock::now();
     tick_shown = true;
 }
 

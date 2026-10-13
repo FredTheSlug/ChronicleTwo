@@ -16,6 +16,15 @@ file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*_t
 add_executable(darkchronicle_tests ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp ${TEST_SOURCES})
 set_target_properties(darkchronicle_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_include_directories(darkchronicle_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+set(LOCAL_LAYOUT_PROBES ${CMAKE_CURRENT_BINARY_DIR}/local_layout_probes.hpp)
+add_custom_command(OUTPUT ${LOCAL_LAYOUT_PROBES}
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/port/local_layout_probes.py
+        ${CMAKE_SOURCE_DIR} ${LOCAL_LAYOUT_PROBES}
+    DEPENDS ${CMAKE_SOURCE_DIR}/scripts/port/local_layout_probes.py
+        ${CMAKE_SOURCE_DIR}/ps2/src/character.cpp ${CMAKE_SOURCE_DIR}/ps2/src/menusys.cpp
+    VERBATIM)
+target_sources(darkchronicle_tests PRIVATE ${LOCAL_LAYOUT_PROBES})
+target_include_directories(darkchronicle_tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 ct_link_game(darkchronicle_tests)
 kz_port_tests(darkchronicle_tests)
 target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nlohmann_json)

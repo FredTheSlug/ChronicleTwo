@@ -954,7 +954,7 @@ static inline T Ident(T v) { return v; }
 
 int CBaseMenuClass::MenuItemCommandSelect(int select_key, int push_button) {
     CGameDataUsed    *used_data = MenuUserParam.used_data;
-    u_long            target;
+    u_long            target[(sizeof(CItemUseTarget) + sizeof(u_long) - 1) / sizeof(u_long)];
     CUserDataManager *user = GetUserDataMan();
     MenuItemCmdRet.se_no = -1;
     int      decided = false;

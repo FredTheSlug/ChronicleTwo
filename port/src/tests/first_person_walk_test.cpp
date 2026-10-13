@@ -13,6 +13,7 @@
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "photo.hpp"
+#include "map.hpp"
 #include "platform/input_script.hpp"
 #include "stubs/photo.hpp"
 #include "userdata.hpp"
@@ -96,6 +97,83 @@ TEST(FirstPersonWalk, AcceptedDisplacementRestoresThirdPersonEyeAtNewPlayerPosit
         }
         EXPECT_FLOAT_EQ(saved[3], 1);
     }
+}
+
+TEST(FirstPersonWalk, AirborneContinuationKeepsFreshMouseLookAndLocomotion) {
+    RestoreFirstPersonState restore;
+    class EmptyMap : public CMap {
+    public:
+        int GetColPoly(CCPoly *, mgVu0FBOX &, int) override { return 0; }
+    } map;
+    CScene scene;
+    CCameraControl camera;
+    CActionChara chara;
+    CUserDataManager user;
+    scene.AssignMap(0, &map, const_cast<char *>("map"));
+    scene.active_map = 0;
+    scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+    scene.active_camera = scene.event_run = 0;
+    scene.battle_area.script.event_no = -1;
+    scene.battle_area.camera_mode = DNG_CAMERA_FOLLOW;
+    scene.battle_area.pause_flag = 0;
+    scene.battle_area.script.running = 0;
+    scene.battle_area.lock_on_mode = -1;
+    DngMainScene = &scene;
+    BattleAreaScene = &scene.battle_area;
+    MainChara__2 = &chara;
+    DngUserData = &user;
+    user.active_chr_no = USER_CHARA_MAX;
+    PortLoopNo = LOOP_DUNGEON;
+    DngStatus = {};
+    DngStatus.eye_view = 1;
+    PortDungeonDebugPause = GamePad__2.key_lock = DebugInfo.debug_camera = 0;
+    TakePhotoMode = TAKE_PHOTO_OFF;
+    chara.SetPosition(0, 100, 0);
+    chara.velocity[0] = 1;
+    chara.velocity[1] = -1;
+    chara.menu_flag = 1;
+    chara.hold_type = ACTION_HOLD_NONE;
+    chara.lock_on = 0;
+    chara.damage_req = ACTION_DAMAGE_REQ_NONE;
+    camera.FollowOff();
+    camera.ControlOff();
+    camera.SetPos(0, 128, 0);
+    camera.SetRef(0, 128, 10);
+    const auto old_battle = BattleParamater;
+    const float old_yaw = viewAngleH__2, old_pitch = viewAngleV__2;
+    InputResetBindings();
+    InputScript script;
+    std::string error;
+    ASSERT_TRUE(InputScriptParse("0 key:w mouse:10,10\n", script, error));
+    InputScriptInstall(script);
+    viewAngleH__2 = viewAngleV__2 = 0;
+    for (int i = 0; i < 3; ++i) {
+        InputLatchPad(0);
+        const float x = chara.position[0], yaw = viewAngleH__2, pitch = viewAngleV__2;
+        camera.Step(1);
+        EXPECT_EQ(chara.move_check.landed, 0);
+        EXPECT_EQ(chara.menu_flag, 0);
+        EXPECT_GT(chara.position[0], x);
+        EXPECT_LT(viewAngleH__2, yaw);
+        EXPECT_GT(viewAngleV__2, pitch);
+        const float moved = chara.position[0], turned = viewAngleH__2;
+        camera.Step(1);
+        EXPECT_FLOAT_EQ(chara.position[0], moved);
+        EXPECT_FLOAT_EQ(viewAngleH__2, turned);
+    }
+    chara.menu_flag = 1;
+    chara.move_check.landed = 1;
+    EXPECT_TRUE(DungeonFirstPersonOwns(&camera));
+    for (auto *gate : {&scene.event_run, &GamePad__2.key_lock, &PortDungeonDebugPause}) {
+        *gate = 1;
+        EXPECT_FALSE(DungeonFirstPersonOwns(&camera));
+        *gate = 0;
+    }
+    chara.lock_on = 1;
+    EXPECT_FALSE(DungeonFirstPersonOwns(&camera));
+    BattleParamater = old_battle;
+    viewAngleH__2 = old_yaw;
+    viewAngleV__2 = old_pitch;
 }
 
 TEST(FirstPersonWalk, ViewRelativeForwardBackAndStrafePreserveMagnitude) {

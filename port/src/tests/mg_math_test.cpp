@@ -94,6 +94,21 @@ TEST(MgMath, CreateBox8DegenerateBoxHasOneCorner) {
     }
 }
 
+TEST(MgMath, ZeroVectorAcceptsFloatAlignedMembersAndPreservesNeighbors) {
+    struct alignas(16) {
+        float before;
+        float vector[4];
+        float after;
+    } storage{17.0f, {1.0f, -2.0f, 3.0f, -4.0f}, 23.0f};
+
+    mgZeroVector(storage.vector);
+
+    expect_lanes(storage.vector, {0, 0, 0, 0});
+    for (float lane : storage.vector) EXPECT_FALSE(std::signbit(lane));
+    EXPECT_FLOAT_EQ(storage.before, 17.0f);
+    EXPECT_FLOAT_EQ(storage.after, 23.0f);
+}
+
 TEST(MgMath, ZeroVectorWWritesOriginAndUnitW) {
     float v[4] = {9.0f, 9.0f, 9.0f, 9.0f};
     mgZeroVectorW(v);

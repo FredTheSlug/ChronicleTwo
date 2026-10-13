@@ -91,6 +91,14 @@ void mgCreateBox8(float (*corners)[4], float *max, float *min) {
     }
 }
 
+PORT_OVERRIDE void mgZeroVector(float *vector) {
+    // Native class members need only float alignment, not quadword alignment.
+    vector[0] = 0.0f;
+    vector[1] = 0.0f;
+    vector[2] = 0.0f;
+    vector[3] = 0.0f;
+}
+
 void mgZeroVectorW(float *vector) {
     vector[0] = 0.0f;
     vector[1] = 0.0f;

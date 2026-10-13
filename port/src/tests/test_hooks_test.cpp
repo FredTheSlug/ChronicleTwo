@@ -3,34 +3,16 @@
 #include <filesystem>
 #include <format>
 
+#include "debug_fixture.hpp"
 #include "gamepad.hpp"
 #include "nowload.hpp"
 #include "nowload_port.hpp"
 #include "platform/config.hpp"
 #include "platform/input.hpp"
 #include "platform/paths.hpp"
-#include "platform_fixture.hpp"
 #include "test_hooks.hpp"
 
-namespace {
-class GamePadSingleDebug : public testing::Test {
-protected:
-    void SetUp() override {
-        root = std::filesystem::temp_directory_path() / std::format("dc2_debug_{}", dc::test::ProcessId());
-        PathsSetSaveRoot(root);
-        Config config;
-        config.debug_mode = true;
-        ASSERT_TRUE(ConfigChange(config));
-    }
-
-    void TearDown() override {
-        ConfigChange(Config{});
-        std::filesystem::remove_all(root);
-    }
-
-    std::filesystem::path root;
-};
-} // namespace
+using GamePadSingleDebug = dc::test::DebugFixture;
 
 TEST(TestHooks, JumpAcceptsModesAndBounds) {
     GameJump jump;
@@ -148,4 +130,27 @@ TEST(TestHooks, FastLoadingOnlyChangesTheLoadingBarCompletionRate) {
     EXPECT_EQ(PortProgBarCnt, 15);
     EXPECT_FLOAT_EQ(PortProgBarWidthStep, 1.0f);
     GameSetFastLoad(false);
+}
+
+TEST(TestHooks, OrdinaryDefaultsDisableDebugRoutingAndDeveloperChord) {
+    EXPECT_FALSE(Config{}.debug_mode);
+    EXPECT_FALSE(GameDebugEnabled());
+    CGamePad pad{};
+    pad.key_lock2 = 1;
+    pad.pad[0].button = PAD_L2 | PAD_SELECT | PAD_CIRCLE;
+    EXPECT_FALSE(pad.Down2(PAD_CIRCLE));
+    EXPECT_TRUE(pad.Down(PAD_CIRCLE));
+    InputPadState input;
+    input.connected = true;
+    input.buttons = kInputStart | kInputSelect;
+    InputSetOverride(0, &input);
+    EXPECT_FALSE(GameDeveloperMenuRequested(LOOP_EDIT));
+    InputSetOverride(0, nullptr);
+}
+
+TEST(TestHooks, JumpExplicitlyEnablesDebugWithOrdinaryDefaults) {
+    EXPECT_FALSE(Config{}.debug_mode);
+    EXPECT_FALSE(GameDebugEnabled());
+    ASSERT_TRUE(GameSetJump("title"));
+    EXPECT_TRUE(GameDebugEnabled());
 }

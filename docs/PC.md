@@ -126,27 +126,37 @@ Each save is one file under `<save root>/saves/`, named
 first unused number, rechecks it when writing, and never replaces an occupied
 name. Files with unsupported versions, incomplete writes or wrong sizes remain
 visible with their status. Unreadable entries are skipped; occupied disk names
-are still protected from replacement. Listing caches the header, story progress
-and play time by file size and modification time. Loading always rereads the
+on both legacy cards and in the flat folder still reserve their numbers. Listing
+caches the header, story progress
+and play time by file size and modification time, and successful game writes
+invalidate the affected cache entry immediately. The unused-file number is
+computed on each catalog scan, including the scan before publication; drawing
+the row does not query the disk. Loading always rereads the
 complete image and checks the retail digits before changing game state. Files
 are never removed automatically; unrelated names and temporary files are not rows.
 
 On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
 copied byte for byte into `saves/`. The equivalent files from `mc1` get a `.card2`
 suffix and an `(import 2)` label, keeping equal slot numbers distinct. Existing
-flat files take precedence; imports never overwrite them. Original card folders,
+flat files are never overwritten. A collision is considered already imported
+only when the complete files have identical bytes; a different legacy save is
+imported under the first unused number. Original card folders,
 icons and payloads are retained. If an import cannot be written, the original
 entry remains visible and can still be loaded if readable. Back up both the old
 card directories, `saves/` and `.save-imports/` when moving a save root. Durable
-markers in `.save-imports/` record completed imports and older card copies hidden
-by an existing flat save, so deleting a flat save does not bring its card copy back.
+markers in `.save-imports/` record completed imports and byte-identical card
+copies, so deleting a flat save does not bring its card copy back. A failed marker
+write is logged and retried on the next scan; it does not block saving. Until a
+marker can be stored, deleting an imported flat file may cause it to be imported again.
 
 The payload is the existing port save image and its retail header and checksums;
 no PC metadata is added. As before, it uses the host layout of `CSaveData`,
 including its photo records, so this does not add PS2-console save compatibility.
 Older `dc2Ver2` images of the supported port layout are accepted and converted
 with the retail invention-card routine; retail does not check this version's
-digits. Photo album and separate bonus-data storage keep their existing paths.
+digits. Unconverted Ver2 headers do not grant costume/bonus unlocks or debug
+codes and do not participate in newest-save selection. Photo album and separate
+bonus-data storage keep their existing paths.
 
 Save rows, the unused-file row, new-save/overwrite/load prompts, operation failure
 notices and Finny Frenzy confirmations use the disc's retail localized messages.
@@ -324,6 +334,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.mouse_invert_y` | bool | false | | invert the mouse's Y axis |
 | `input.mouse_capture` | bool | true | | capture the mouse |
 | `input.mouse_zoom` | bool | false | | mouse wheel zoom |
+| `input.mouse_fixed_look` | bool | true | | gentle mouse look in fixed-camera town rooms |
 | `input.touchpad` | bool | true | | a DualSense touchpad as the menus' mouse |
 | `input.touchpad_sensitivity` | number | 1.0 | above 0 | touchpad speed |
 | `input.lightbar` | bool | true | | lets the game colour the lightbar; read and saved, nothing sets a colour yet |
@@ -335,7 +346,9 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 
 Opening PC SETTINGS does not write `config.json`. `ConfigChange` stores changed
 settings and merges only those edits into the current file, preserving unknown
-keys and unrelated values edited externally. It calls `DisplayChanged` and a
+keys and unrelated values edited externally. Binding action names are merged
+case-insensitively, so editing or restoring `cross` also replaces or removes a
+hand-written `Cross` override without leaving a duplicate. It calls `DisplayChanged` and a
 change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the tick rate, present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
 
 ### PC SETTINGS
@@ -357,7 +370,7 @@ Resolution changes the windowed size; fullscreen uses the desktop. A command-lin
 
 Confirm on a binding shows **Press a key...**. Press a key or mouse button; Escape cancels and cannot be bound. The opening press is ignored, and the new input must be released before navigation resumes. Square or **Restore binding** removes that action's override and restores its defaults. Controller buttons retain their retail assignments. Glyph style changes the PC page's device-specific button prompts; keyboard prompts use current bindings. Other retail screens keep their original button artwork.
 
-A failed write leaves the change working in the current session and shows a warning. Check the save folder and change a setting or reopen PC SETTINGS to retry. A configuration file that could not be read remains protected against replacement.
+A failed write leaves the change working in the current session and shows a warning. Check the save folder and change a setting to retry. A configuration file that could not be read remains protected against replacement.
 
 `tools/input/pc-settings.input` replays all four tabs, a key rebind, Escape cancellation, and return to retail Options from `--jump town:10 --fast-load`. Its comments give capture frames. `tools/input/pc-settings-mouse.input` exercises clicking and mouse-button capture at `--window 1280x960`. Use fresh save roots and `--screenshot-display 2` for both.
 
@@ -392,6 +405,12 @@ keyboard movement hides the pointer; a stationary pointer does not undo that
 selection. Clicks held while opening or closing a menu do not confirm the next
 screen.
 
+The pointer uses the game's gold hand artwork and follows mouse motion at the
+display rate. The hand is a display overlay and stays out of canonical screenshots
+and game captures. The menu hand shares cursor ownership with the operating-system cursor.
+`input.mouse_capture` configures capture, and `input.mouse_release` selects the
+keys that release it.
+
 Mouse selection covers the town and dungeon root menus, title menu, dungeon
 floor map and Save Adventure action, the flat save/load file lists,
 and the field Use Item popup. Yes/No boxes and dialogue choices use the message
@@ -421,9 +440,13 @@ Continue, a file-row click and its confirmation using a copied flat-save fixture
 `title-mouse-newgame.input` clicks New Game and reaches costume selection.
 File-list clicks wait through the retail cursor-settling delay before confirming.
 
-Shop-specific lists and several secondary destination screens still lack dedicated
-hit regions. The ITEM page and PC SETTINGS use the shared pointer adapters
-described in their sections. Ordinary dialogue choices share the message adapter;
+Shops support hovering and clicking the goods list and bag grid. The wheel moves
+through goods or bag rows; in a buy/sell quantity prompt it changes the quantity
+within the game's limits. The quantity arrows, number panel, and localized Quit
+button accept clicks, and right click cancels. Item popups, stat grids, the ITEM
+page and PC SETTINGS use the shared pointer adapters described below. Some
+secondary destination screens still retain only their existing controls. Ordinary
+dialogue choices share the message adapter;
 the rendered confirmation replays and drawn-message unit tests cover that input
 path, but campaign dialogue choices still need a dedicated replay.
 
@@ -445,8 +468,9 @@ control; lock-on target framing still runs first. The character's menu-eligibili
 flag does not gate the follow camera. Paused player or field control and
 pending/running event scripts retain camera ownership. Town water movement uses
 the walking camera; ladders keep their authored camera for both inputs.
-Fixed, boss and arena views, menus, Georama and
-photo views retain their existing controls. A camera-reset request owns
+Boss and arena views, menus and Georama retain their existing controls. Fixed
+town rooms use the separate fixed-camera look option below; photo view uses
+the direct aiming controls described below. A camera-reset request owns
 its frame; a later mouse yaw cancels an unfinished reset.
 
 Direct motion turns both current and pending camera poses. A fresh bounded
@@ -476,6 +500,14 @@ then applies mouse look only to the established eye-view owner.
 `tools/input/dungeon-mouse-eye.input` and `tools/input/town-mouse-eye.input` enter
 R2 view and exercise mouse look.
 
+### First-person walking
+
+Keyboard movement in normal first-person view (R by default) is always enabled:
+W/S move forward/back and A/D strafe relative to the view, including remapped
+movement keys and normalized diagonals. Movement uses the normal character
+collision and speed rules. Controller sticks retain retail first-person look.
+Photo aiming, fishing, Ridepod, menus and scripted control keep their own controls.
+
 ### Item menu mouse
 
 The town and dungeon main menu's Item page accepts the mouse. Move over a grid
@@ -486,7 +518,10 @@ window stays attached to the item, using the game's own placement and disabled
 commands.
 
 Quantity prompts accept the wheel or clicks on their arrows; click the number
-to continue. Yes/No choices can be selected and confirmed with the mouse.
+to continue. Yes/No choices and build-up choices can be selected and confirmed
+with the mouse. Weapon and fishing-rod stat rows and Ridepod equipment cells accept
+pointer selection. Informational item popups retain their retail confirm/cancel
+flow.
 
 Press Mouse1 on a bag item or an active item, move at least four logical units,
 then release over a cell or active slot to move or swap it. The held icon rides
@@ -850,7 +885,7 @@ The root `CMakeLists.txt` selects the platform: `PS2` builds `ps2/`, and `PC` en
 
 ### The shared-code pin
 
-The submodule is pinned at commit `d1a8ec49fa8e79beb9b3566cdd057fadbe5337d0` (`git ls-tree HEAD tools/kazarov` shows it). Changes to the shared code land in the submodule first, on the shared code's main line. Both games that use it must build and test green on that commit before either one pins it. A game never edits a submodule checkout in place. To move the pin: land the change in `tools/kazarov`, check both games on that commit, then commit the new submodule pointer in this repository.
+The `tools/kazarov` gitlink records the shared renderer, platform, input and mixer dependency. Read its exact revision with `git ls-tree HEAD tools/kazarov`; the checkout must use that revision. Changes to the shared code land in the submodule first, on the shared code's main line. Both games that use it must build and test green on that commit before either one pins it. A game never edits a submodule checkout in place. To move the pin: land the change in `tools/kazarov`, check both games on that commit, then commit the new submodule pointer in this repository.
 
 ## How `port/src` takes precedence
 
@@ -1088,9 +1123,3 @@ After any edit to `ps2/`, run `./build.sh ps2-pal`, then `BUILD_DIR=build/pal py
 `scripts/port/matrix.py` compares logical-frame PSNR across resolutions, plain and `--display-per-tick 4` identity, and letterbox geometry. Below-35 dB PSNR is advisory unless `--psnr-gate` is supplied; run failures, display-per-tick pixel differences and letterbox failures are hard failures. There are no HUD probe claims.
 
 Each fresh run explicitly disables debug in its config and removes `DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` from the launch environment. It records the exact process exit status, duration, binary/input hashes, launch config hash, saved config hash, frame count, window, aspect, data path and display-per-tick mode in `result.json`. `--no-run` requires matching identities and retains a failed or timed-out status even when a PNG exists. Changing extracted data in place is outside this provenance check; use the same verified extraction for comparisons. `Matrix.Title` and `Matrix.Costume` carry `matrix;gpu` labels. `Matrix.Runner` checks the runner synthetically without game data or a device.
-
-Keyboard movement in normal first-person view (R by default) is always enabled:
-W/S move forward/back and A/D strafe relative to the view, including remapped
-movement keys and normalized diagonals. Movement uses the normal character
-collision and speed rules. Controller sticks retain retail first-person look.
-Photo aiming, fishing, Ridepod, menus and scripted control keep their own controls.

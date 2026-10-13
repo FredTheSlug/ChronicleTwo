@@ -243,10 +243,18 @@ bool GameDeveloperMenuRequested(int mode) {
     return pressed && GameDebugEnabled() && mode != LOOP_MENU;
 }
 
+bool GameDebugPauseRequested(CGamePad &pad) {
+    constexpr int modifier = PAD_L2 | PAD_SELECT;
+    const bool chord = GameDebugEnabled() && !pad.key_lock &&
+                       (pad.pad[0].button & modifier) == modifier &&
+                       !(pad.previous_pad[0].button & PAD_SELECT);
+    return chord || pad.Down2(PAD_SELECT);
+}
+
 bool GameDebugPauseResumeRequested(CGamePad &pad) {
     constexpr int modifier = PAD_L2 | PAD_SELECT;
     const bool    single_debug = GameDebugEnabled() && (pad.pad[0].button & modifier) == modifier;
     const int     pad1_pressed = pad.pad[0].button & ~pad.previous_pad[0].button;
     return (!single_debug && !pad.key_lock && (pad1_pressed & PAD_START)) ||
-           pad.Down2(PAD_SELECT);
+           GameDebugPauseRequested(pad);
 }

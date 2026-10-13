@@ -238,6 +238,7 @@ bool Run() {
         if (g_screen.open) {
             return true;
         }
+        if (!g_drain) MenuMousePress(confirm);
     }
     return g_screen.open || g_drain;
 }

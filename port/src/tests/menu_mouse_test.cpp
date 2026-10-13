@@ -418,3 +418,15 @@ TEST_F(MenuMouseInput, OptionsRightClickCancelsRetailPcAndBindingPages) {
     InputSetScriptedDevices({}); Tick(); options::Run();
     LanguageCode = language;
 }
+
+TEST_F(MenuMouseInput, RetailOptionsLeftClickReachesConfirmWhilePcSettingsIsClosed) {
+    const int language = LanguageCode;
+    LanguageCode = LANG_ENGLISH;
+    MenuMouseEnable(true);
+    options::g_screen = {};
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    EXPECT_FALSE(options::Run());
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
+    EXPECT_FALSE(options::g_screen.open);
+    LanguageCode = language;
+}

@@ -1,5 +1,6 @@
 #include "common.h"
 #include "menu_mouse.hpp"
+#include "menu_mouse_shop.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -75,6 +76,7 @@ void TitleMouse() {
 }
 
 PORT_OVERRIDE int CMenuKeyFunc::CheckSelectKey() {
+    if (now_mode == MENU_MODE_SHOP) MenuMouseShopTick(*this);
     if (key_enable) {
         if (now_mode == MENU_MODE_MAIN_TOWN || now_mode == MENU_MODE_MAIN_DUNGEON) RootMouse();
         if (now_mode == MENU_MODE_DNG_TREE_MAP) MenuMouseFloor();

@@ -28,9 +28,9 @@ struct SaveSlot {
 struct SaveSlotList {
     std::vector<SaveSlot> saves;
     // Includes unreadable flat names and unmarked legacy entries from both cards.
-    std::set<int>         occupied;
-    int                   first_free = 0;
-    bool                  read_failed = false;
+    std::set<int> occupied;
+    int           first_free = 0;
+    bool          read_failed = false;
 };
 
 extern SaveSlotList SaveSlots;

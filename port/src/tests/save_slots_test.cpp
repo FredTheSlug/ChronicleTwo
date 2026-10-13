@@ -7,6 +7,12 @@
 #include <vector>
 
 #include "mainloop.hpp"
+#include "gamepad.hpp"
+#include "menuaqua.hpp"
+#include "menucls1.hpp"
+#include "menucommon.hpp"
+#include "menumain.hpp"
+#include "menuop.hpp"
 #include "platform/files.hpp"
 #include "platform/paths.hpp"
 #include "platform_fixture.hpp"
@@ -63,6 +69,62 @@ protected:
         auto name = SaveSlotPath(number).filename();
         return root / (card ? "mc1" : "mc0") / name / name;
     }
+};
+
+struct MenuRig {
+    CSaveMenuClass menu;
+    CMenuKeyFunc common = {};
+    CMenuPosDataManage layout = {};
+    CMenuPosDataForm form = {};
+    CDC2Mes message;
+    CMenuKeyFunc *old_common = MenuCommonInfo;
+    CMenuPosDataManage *old_layout = MenuPosData;
+    CDC2Mes *old_messages[9];
+    CMenuPosDataForm *old_forms[9];
+    int old_language = LanguageCode;
+
+    MenuRig() {
+        LanguageCode = LANG_ENGLISH;
+        common.key_enable = true;
+        MenuCommonInfo = &common;
+        MenuPosData = &layout;
+        for (int i = 0; i < 9; ++i) {
+            old_messages[i] = MenuDCMsg[i];
+            old_forms[i] = MenuMesForm[i];
+            MenuDCMsg[i] = &message;
+            MenuMesForm[i] = &form;
+        }
+        menu.first_step = false;
+        menu.CBaseMenuClass::mode = MENU_ASK_MODE_NONE;
+        menu.mode = SAVE_MENU_MODE_SAVE;
+        menu.step = SAVE_MENU_STEP_READY;
+        menu.page = SAVE_MENU_PAGE_FILE_LIST;
+        menu.phase = SAVE_LIST_PHASE_SELECT;
+        menu.cursor_form = &form;
+        menu.list_form = &form;
+        menu.scrlbar_form = &form;
+        menu.script = const_cast<char *>("");
+        menu.script_size = 0;
+        GamePad__2.key_lock = 0;
+        GamePad__2.previous_pad[0].button = 0;
+        GamePad__2.pad[0].button = 0;
+    }
+    ~MenuRig() {
+        MenuCommonInfo = old_common;
+        MenuPosData = old_layout;
+        LanguageCode = old_language;
+        for (int i = 0; i < 9; ++i) {
+            MenuDCMsg[i] = old_messages[i];
+            MenuMesForm[i] = old_forms[i];
+        }
+        GamePad__2.pad[0].button = 0;
+    }
+    void Press(int button) {
+        GamePad__2.pad[0].button = button;
+        menu.KeyStep();
+        GamePad__2.pad[0].button = 0;
+    }
+    void Idle() { for (int i = 0; i < 10; ++i) menu.KeyStep(); }
 };
 } // namespace
 
@@ -239,4 +301,58 @@ TEST_F(SaveSlotTest, InvalidCatalogRootReportsErrorAndRefusesNewSave) {
     manager.SaveToMc(0);
     EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
     EXPECT_TRUE(fs::is_regular_file(root / "saves"));
+}
+
+TEST_F(SaveSlotTest, CorruptRowUsesRetailOverwriteConfirmationAndNoNeverWrites) {
+    Write(SaveSlotPath(0), 100);
+    auto before = Bytes(SaveSlotPath(0));
+    manager.GetAllSaveFileInfo();
+    MenuRig rig;
+    rig.Idle();
+    rig.Press(PAD_CROSS);
+    EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_CONFIRM_SAVE);
+    EXPECT_EQ(rig.menu.save_kind, SAVE_FILE_OVERWRITE);
+    EXPECT_EQ(rig.message.mes_no, 0xBC4);
+    EXPECT_EQ(rig.message.GetMsgCursor(), 1);
+    rig.Idle();
+    rig.Press(PAD_CROSS);
+    EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_SELECT);
+    EXPECT_EQ(manager.GetFuncNo(), MC_FUNC_IDLE);
+    EXPECT_EQ(Bytes(SaveSlotPath(0)), before);
+}
+
+TEST_F(SaveSlotTest, OverwriteRequiresYesAndRetainsConfirmationInputDelay) {
+    Write(SaveSlotPath(0));
+    manager.GetAllSaveFileInfo();
+    MenuRig rig;
+    rig.Idle();
+    rig.Press(PAD_CROSS);
+    rig.Idle();
+    rig.Press(PAD_LEFT | PAD_CROSS);
+    EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_CONFIRM_SAVE);
+    EXPECT_EQ(rig.message.GetMsgCursor(), 0);
+    EXPECT_EQ(manager.GetFuncNo(), MC_FUNC_IDLE);
+    rig.Idle();
+    rig.Press(PAD_CROSS);
+    EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_SAVING);
+    EXPECT_EQ(manager.GetFuncNo(), MC_FUNC_SAVE);
+    EXPECT_FALSE(SaveSlotNew);
+}
+
+TEST_F(SaveSlotTest, MenuScrollsPastThirteenAndClampsItsVisibleWindow) {
+    for (int i = 0; i < 31; ++i) Write(SaveSlotPath(i));
+    manager.GetAllSaveFileInfo();
+    MenuRig rig;
+    rig.menu.select = 12;
+    rig.menu.top = 10;
+    rig.Idle();
+    rig.Press(PAD_DOWN);
+    EXPECT_EQ(rig.menu.select, 13);
+    EXPECT_EQ(rig.menu.top, 11);
+    rig.menu.select = 31;
+    rig.menu.top = 31;
+    rig.Press(PAD_DOWN);
+    EXPECT_EQ(rig.menu.select, 31);
+    EXPECT_EQ(rig.menu.top, 29);
+    EXPECT_TRUE(SaveSlotIsNew(SaveSlots, rig.menu.select, true));
 }

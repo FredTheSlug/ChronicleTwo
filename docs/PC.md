@@ -109,6 +109,46 @@ A data root is missing when it is not a directory, or has no regular file `manif
 
 `run.sh` with no configuration boots the PS2 build in PCSX2 on Linux, and runs `macos-arm64-release` on macOS. `run.bat` with no configuration runs `windows-x64-release`. A PC configuration name extracts the data first, as described above, and then runs the port.
 
+### Saves
+
+Continue and Save Adventure open the file list directly. There is no memory-card
+selection or formatting step. The save screen lists every existing save and one
+last **New Save** entry; the load screen lists only existing saves. Up/Down moves
+one row and the shoulder buttons move two, as in the retail list. Cancel returns
+to the screen that opened the menu. Replacing a save retains the retail yes/no
+confirmation, with No selected initially. Unusable saves also require this
+confirmation before replacement.
+
+Each save is one file under `<save root>/saves/`, named
+`BESCES-51190dkcl<N>` (File N+1). The list has no 13-file limit. New Save uses the
+first unused number, rechecks it when writing, and never replaces an occupied
+name. Files with unsupported versions, incomplete writes, wrong sizes, read
+errors or failed retail checksums remain visible with their status. They are
+never removed automatically. A file with a valid name reserves that name even
+when it cannot be loaded; unrelated names and temporary files are not list rows.
+
+On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
+copied byte for byte into `saves/`. The equivalent files from `mc1` get a `.card2`
+suffix and an `(import 2)` label, keeping equal slot numbers distinct. Existing
+flat files take precedence; imports never overwrite them. Original card folders,
+icons and payloads are retained. If an import cannot be written, the original
+entry remains visible and can still be loaded if readable. Back up both the old
+card directories and `saves/` when moving a save root.
+
+The payload is the existing port save image and its retail header and checksums;
+no PC metadata is added. As before, it uses the host layout of `CSaveData`,
+including its photo records, so this does not add PS2-console save compatibility.
+Photo album and separate bonus-data storage continue to use their existing paths.
+
+Saving uses Kazarov's `FilesWrite`: an exclusive temporary file beside the target,
+a complete write, flush and close, then a write-through rename on Windows or a
+rename and directory sync on POSIX. Failed writes report an error and leave the
+menu available for retry. A process interrupted before publication leaves the
+previous save and may leave a `<filename>.<hex>.tmp` file; these temporary files
+can be removed while the game is closed. A load reads and validates the complete
+image before changing the live game state. The retail checksum format is retained;
+it is not a cryptographic integrity check.
+
 ### darkchronicle
 
 ```

@@ -2089,7 +2089,7 @@ static int _DIV_VECTOR(RS_STACKDATA *stack, int argument_count) {
  *
  */
 static int _DIST_VECTOR(RS_STACKDATA *stack, int argument_count) {
-    float vector[3];
+    float vector[4];
 
     if (argument_count != 4) {
         return 0;

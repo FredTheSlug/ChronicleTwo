@@ -307,6 +307,10 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
 PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float rotation,
                                   int reverse, int alpha, float scale) {
     if (!texture) return;
+    MenuMouseNoteHand(mgPortBinding(texture),
+                      {float(menu_long_hand.left), float(menu_long_hand.top),
+                       float(menu_long_hand.right), float(menu_long_hand.bottom)},
+                      rotation, reverse, alpha, scale);
     // The canonical image retains the selection hand. A displayed mouse pointer
     // replaces this tagged group without changing screenshots or grab textures.
     gfx::Interp2DScope tag({kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())});
@@ -322,8 +326,11 @@ PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float ro
         const float y = (i & 2 ? 24 : 0) * scale;
         prim->TextureCrd(menu_long_hand.left + (i & 1 ? menu_long_hand.right : 0),
                          menu_long_hand.top + (i & 2 ? menu_long_hand.bottom : 0));
-        prim->Vertex(3 + position[0] + x * c - y * s,
-                     position[1] + x * s + y * c + (i & 1 ? 0 : 3), 0.0f);
+        const float px = i == 0 ? 3.0f + position[0] : 3.0f + (position[0] + (x * c - y * s));
+        const float py = i == 0 ? 3.0f + position[1] :
+                         i & 1 ? position[1] + (x * s + y * c) :
+                                 3.0f + (position[1] + (x * s + y * c));
+        prim->Vertex(px, py, 0.0f);
     }
     prim->End();
 }

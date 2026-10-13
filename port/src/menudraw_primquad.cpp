@@ -9,6 +9,8 @@
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "menu_mouse.hpp"
+#include "mainloop.hpp"
 
 namespace {
 
@@ -74,6 +76,26 @@ void DrawBackdrop(mgCDrawPrim &prim, mgRect<float> rect, mgRect<int> uv, float a
 }
 
 } // namespace
+
+PORT_OVERRIDE void PrimQuad(mgCTexture *texture, float x, float y, mgRect<int> uv,
+                             int alpha, int red, int green, int blue) {
+    // The title and language menus use their own atlas rather than MenuCursorDraw.
+    const bool cursor = GetNowLoopNo() == LOOP_TITLE && uv.right == 40 && uv.bottom == 24 &&
+        ((uv.left == 0 && uv.top == 40 && texture == mgTexManager.GetTexture(const_cast<char *>("moji"), -1)) ||
+         (uv.left == 216 && uv.top == 360));
+    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())} :
+                                   gfx::CurrentInterp2D());
+    if (cursor) MenuMouseNoteHand(mgPortBinding(texture),
+                                 {float(uv.left), float(uv.top), float(uv.right), float(uv.bottom)},
+                                 0, 0, alpha);
+    mgCDrawPrim prim;
+    SetSpriteEnv(&prim, MENU_SPRITE_ENV_TEXTURE);
+    prim.Begin(MG_PRIM_SPRITE);
+    prim.Texture(texture);
+    prim.Color(red, green, blue, alpha);
+    PrimQuad(&prim, x, y, uv);
+    prim.End();
+}
 
 // Host specializations of the rectangle helper declared by menudraw.hpp.
 template <>

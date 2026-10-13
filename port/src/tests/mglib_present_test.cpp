@@ -42,6 +42,7 @@
 #include "platform/paths.hpp"
 #include "menu_mouse.hpp"
 #include "platform/input.hpp"
+#include "platform/mouse.hpp"
 
 using namespace dc::test;
 
@@ -1704,6 +1705,9 @@ TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
     InputResetBindings();
     InputSetScriptedDevices({});
     MenuMouseEnable(true);
+    const auto texture = gfx::CreateTexture({1, 1});
+    const uint8_t white[] = {255, 255, 255, 128};
+    ASSERT_TRUE(gfx::UpdateTexture(texture, 0, 0, 0, 1, 1, white));
     mgSetBackGround(8, 16, 24, 128);
     mgBeginFrame(nullptr);
     mgEndFrame(nullptr);
@@ -1713,6 +1717,7 @@ TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
     InputSetScriptedDevices({.mouse_dx = 30});
     mgBeginFrame(nullptr);
     MenuMouseTake();
+    MenuMouseNoteHand({.texture = texture}, {0, 0, 40, 24});
     mgEndFrame(nullptr);
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
     EXPECT_EQ(canonical, expected);
@@ -1722,14 +1727,66 @@ TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
     ASSERT_GT(gfx::ListStats(*pointer).draws_2d, 0u);
     gfx::RenderOptions options;
     options.overlay = pointer.get();
+    options.present = true;
     ASSERT_TRUE(gfx::RenderList(*mgPortLastList(), 1, options));
     ASSERT_TRUE(gfx::ReadbackFrame(displayed, width, height));
     EXPECT_NE(displayed, canonical);
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, displayed, width, height));
     EXPECT_EQ(displayed, canonical); // --screenshot and pause/crossfade grabs use this image.
+    const auto grab = gfx::CreateTexture({width, height});
+    ASSERT_TRUE(gfx::SnapshotFrame(grab));
+    ASSERT_TRUE(gfx::ReadbackTexture(grab, displayed, width, height));
+    EXPECT_EQ(displayed, canonical);
+    gfx::DestroyTexture(grab);
     ASSERT_TRUE(PresentScreenshotDisplay(1, displayed, width, height));
     EXPECT_EQ(displayed, canonical); // Display captures also omit host pointers.
     MenuMouseEnable(false);
     InputSetScriptedDevices({});
     InputSetMenuMouse(false);
+    gfx::DestroyTexture(texture);
+}
+
+TEST(MglibPresent, HandTipUsesTheHoverMappingAtFourThreeAndWidescreenFill) {
+    const auto settings = InputGetMouseSettings();
+    for (const auto &size : {std::pair{1280, 960}, std::pair{1920, 1080}}) {
+        PresentRenderer renderer(size.first, size.second);
+        gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill});
+        InputResetBindings();
+        InputSetMouseSettings({.capture = false});
+        InputSetScriptedDevices({});
+        MenuMouseEnable(true);
+        MenuMouseTake();
+        const auto before = MenuMouseTake();
+        SDL_Event event{}; event.type = SDL_EVENT_MOUSE_MOTION;
+        event.motion.xrel = 64; event.motion.yrel = -32;
+        InputHandleEvent(event);
+        const auto point = MenuMouseDisplaySample();
+        const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
+        int w = size.first, h = size.second; WindowSize(w, h);
+        EXPECT_FLOAT_EQ(point.x, before.x + 64 * MenuMouseUnits(mapping.scale_x, mapping.pixel_width, w));
+        EXPECT_FLOAT_EQ(point.y, before.y - 32 * MenuMouseUnits(mapping.scale_y, mapping.pixel_height, h));
+        const auto texture = gfx::CreateTexture({1, 1});
+        const uint8_t white[] = {255, 255, 255, 255};
+        ASSERT_TRUE(gfx::UpdateTexture(texture, 0, 0, 0, 1, 1, white));
+        MenuMouseNoteHand({.texture = texture}, {0, 0, 40, 24}, 0.2f, 0, 128);
+        gfx::BeginRecording(); MenuMouseDraw(); const auto list = gfx::EndRecording();
+        ASSERT_EQ(gfx::ListStats(*list).draws_2d, 1u);
+        const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&list->entries.front());
+        ASSERT_NE(draw, nullptr); ASSERT_EQ(draw->vertices.size(), 4u);
+        EXPECT_NEAR((draw->vertices[1].x + draw->vertices[3].x) / 2, point.x, 0.0001f);
+        EXPECT_NEAR((draw->vertices[1].y + draw->vertices[3].y) / 2, point.y, 0.0001f);
+        EXPECT_FLOAT_EQ(MenuMouseTake().x, before.x); // rendering did not select a cell
+        // A second displayed frame in the same game tick follows new motion immediately.
+        InputHandleEvent(event);
+        const auto latest = MenuMouseDisplaySample();
+        gfx::BeginRecording(); MenuMouseDraw(); const auto next = gfx::EndRecording();
+        const auto *moved = std::get_if<gfx::detail::Draw2DEntry>(&next->entries.front());
+        ASSERT_NE(moved, nullptr);
+        EXPECT_NEAR((moved->vertices[1].x + moved->vertices[3].x) / 2, latest.x, 0.0001f);
+        EXPECT_NE(latest.x, point.x);
+        EXPECT_FLOAT_EQ(MenuMouseTake().x, before.x);
+        MenuMouseEnable(false); InputSetMenuMouse(false);
+        gfx::DestroyTexture(texture);
+    }
+    InputSetMouseSettings(settings);
 }

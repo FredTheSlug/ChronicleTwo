@@ -38,6 +38,9 @@ void MenuMouseDelayConfirm(const void *owner, int selected, int target, int tick
 void MenuMouseDraw();
 inline constexpr gfx::InterpKey kMenuMouseHandKey = 0x4d454e5548414e44;
 bool MenuMousePointerVisible();
+MenuMouseSample MenuMouseDisplaySample();
+void MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::LogicalRect uv,
+                       float rotation = 0, int reverse = 0, int alpha = 128, float scale = 1);
 
 // Exclusive adapters translate this sampled frame into retail buttons.
 void MenuMouseSetButtons(int buttons);

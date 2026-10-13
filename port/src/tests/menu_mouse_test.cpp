@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <SDL3/SDL.h>
 
 #include "gamepad.hpp"
 #include "mainloop.hpp"
@@ -17,6 +18,7 @@
 #include "platform/settings.hpp"
 
 #include <limits>
+#include "platform/mouse.hpp"
 
 extern CSaveMenuClass *MouseSave asm("MenuMouse_Save");
 
@@ -429,4 +431,58 @@ TEST_F(MenuMouseInput, RetailOptionsLeftClickReachesConfirmWhilePcSettingsIsClos
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     EXPECT_FALSE(options::g_screen.open);
     LanguageCode = language;
+}
+
+TEST_F(MenuMouseInput, DisplayMotionDoesNotAdvanceHoverOrConsumeTheNextTick) {
+    const auto settings = InputGetMouseSettings();
+    InputSetMouseSettings({.capture = false});
+    MenuMouseEnable(true);
+    const auto before = MenuMouseTake();
+    SDL_Event event{};
+    event.type = SDL_EVENT_MOUSE_MOTION;
+    event.motion.xrel = 30; event.motion.yrel = 12;
+    InputHandleEvent(event);
+    const auto display = MenuMouseDisplaySample();
+    EXPECT_FLOAT_EQ(display.x, before.x + 30);
+    EXPECT_FLOAT_EQ(display.y, before.y + 12);
+    EXPECT_TRUE(display.pointing);
+    EXPECT_FLOAT_EQ(MenuMouseTake().x, before.x);
+    EXPECT_EQ(MenuMouseButtons(), 0);
+    EXPECT_FLOAT_EQ(MenuMouseDisplaySample().x, display.x);
+    InputLatchPad(0); // Motion already latched for logic must still be visible to presentation.
+    EXPECT_FLOAT_EQ(MenuMouseDisplaySample().x, display.x);
+    Tick();
+    EXPECT_FLOAT_EQ(MenuMouseTake().x, display.x);
+    EXPECT_FLOAT_EQ(MenuMouseTake().y, display.y);
+    EXPECT_FLOAT_EQ(MenuMouseDisplaySample().x, display.x); // no double integration
+    InputSetMouseSettings(settings);
+}
+
+TEST_F(MenuMouseInput, DisplayHandsOwnershipFromMouseToPadAndBackOnNewMotion) {
+    const auto settings = InputGetMouseSettings();
+    InputSetMouseSettings({.capture = false});
+    MenuMouseEnable(true);
+    MenuMouseTake();
+    SDL_Event event{}; event.type = SDL_EVENT_MOUSE_MOTION; event.motion.xrel = 10;
+    InputHandleEvent(event);
+    EXPECT_TRUE(MenuMouseDisplaySample().pointing);
+    Tick(); MenuMouseTake();
+    InputPadState pad{.connected = true, .buttons = PAD_DOWN};
+    InputSetOverride(0, &pad);
+    EXPECT_FALSE(MenuMouseDisplaySample().pointing);
+    Tick(); MenuMouseTake();
+    pad.buttons = 0;
+    InputSetOverride(0, &pad);
+    EXPECT_FALSE(MenuMouseDisplaySample().pointing);
+    InputHandleEvent(event);
+    EXPECT_TRUE(MenuMouseDisplaySample().pointing);
+    InputSetOverride(0, nullptr);
+    InputSetMouseSettings(settings);
+}
+
+TEST(MenuMouse, NativeCursorVisibilityFollowsFocusedClientOwnership) {
+    EXPECT_TRUE(MousePointerCursorHidden(true, true, true));
+    EXPECT_FALSE(MousePointerCursorHidden(true, false, true));
+    EXPECT_FALSE(MousePointerCursorHidden(true, true, false));
+    EXPECT_FALSE(MousePointerCursorHidden(false, true, true));
 }

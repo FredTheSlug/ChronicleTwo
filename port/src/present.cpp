@@ -14,6 +14,9 @@
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
 #include "platform/overlay.hpp"
+#include "platform/window.hpp"
+#include "platform/mouse.hpp"
+#include "exitcodes.hpp"
 
 void mgTimeWaitTicks(int start, int frames, ClockWaitHook hook);
 
@@ -25,8 +28,6 @@ struct FpsOverlay {
     bool on = false;
     OverlayRate frames;
     OverlayRate ticks;
-    std::string text;
-    gfx::LogicalMapping mapping{};
     gfx::DisplayListRef list;
 };
 
@@ -47,6 +48,11 @@ void PollFpsToggle() {
 }
 
 const gfx::DisplayList *DisplayOverlayList() {
+    if (MenuMouseActive() && !ClockUnbounded()) {
+        if (!WindowPollEvents()) std::exit(kExitOk);
+        InputPoll();
+    }
+    MouseSetPointerCursor(MenuMousePointerVisible());
     if (!overlay.on && !MenuMousePointerVisible()) return nullptr;
     gfx::BeginRecording();
     if (!gfx::Recording()) return nullptr;
@@ -79,7 +85,7 @@ bool DisplayFrame(float alpha, bool present) {
     }
 
     gfx::RenderOptions options;
-    options.previous = mgPortPreviousList();
+    options.previous = settings.interpolation ? mgPortPreviousList() : nullptr;
     options.present = present;
     options.overlay = present ? DisplayOverlayList() : nullptr;
     options.suppressed_2d_key = present && MenuMousePointerVisible() ? kMenuMouseHandKey : 0;
@@ -134,7 +140,7 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
 
     PollFpsToggle();
 
-    if (!settings.interpolation) {
+    if (!settings.interpolation && !MenuMouseActive()) {
         if (!tick_shown) {
             PresentCanonicalFrame();
             tick_shown = true;

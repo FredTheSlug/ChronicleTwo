@@ -153,4 +153,18 @@ TEST(DngStatus, WarningIconsFollowTheirPanel) {
             EXPECT_EQ(batch.texture, 42u);
         }
     }
+    warning.layout = WARNING_GAGE_LAYOUT_ROBO;
+    for (int i = 0; i < 2; ++i) {
+        rig.batches.clear();
+        warning.warning[0] = warning.warning[1] = warning.warning[2] = 0;
+        warning.warning[i] = 1;
+        warning.rate[i] = 0.1f;
+        warning.Draw();
+        ASSERT_FALSE(rig.batches.empty());
+        for (const auto &batch : rig.batches) {
+            EXPECT_EQ(AnchorX(batch), -1);
+            EXPECT_EQ(batch.anchor.top_until, INFINITY);
+            EXPECT_TRUE(batch.anchor.scissor);
+        }
+    }
 }

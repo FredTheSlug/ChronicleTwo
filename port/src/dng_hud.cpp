@@ -53,7 +53,7 @@ PORT_OVERRIDE void CWarningGage2::Draw() {
         }
         // Warnings are emitted after DrawStatusBord, so they need the same panel's anchor here.
         gfx::UiAnchorScope anchor(human ? gfx::UiAnchor::Side(i == 0 ? -1 : 1, -1, true) :
-                                         gfx::UiAnchor{});
+                                         gfx::UiAnchor::Side(-1, -1, true));
         CPreSprite sprite;
         sprite.Initialize(nullptr, nullptr);
         sprite.Preset2D();

@@ -51,7 +51,6 @@ struct Gesture {
 void MenuMouseUpdate(CMenuKeyFunc &keys);
 void MenuMousePadTick();
 void MenuMouseClose();
-bool MenuMouseDrawPosition(const CMenuPosDataForm *form, int &x, int &y);
 
 bool MenuMouseItemActive();
 void MenuMouseItemOrigin(float &x, float &y);

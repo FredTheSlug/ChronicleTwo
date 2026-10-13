@@ -421,16 +421,6 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
     }
 }
 
-bool MenuMouseDrawPosition(const CMenuPosDataForm *form, int &x, int &y) {
-    if (!menu_open || !MenuMouseActive() || !pointer.pointing || !ItemPage() || !owner || form != owner->cursor_form) return false;
-    // Keep the retail cell frame at the selected target; move the hand and its
-    // carried icon together. The form's cursor0 part locates the hand's base.
-    Point hand = FormPoint(owner->cursor_form, "cursor0");
-    x += static_cast<int>(pointer.pos.x - hand.x - 26);
-    y += static_cast<int>(pointer.pos.y - hand.y - 14);
-    return true;
-}
-
 PORT_OVERRIDE void CMenuKeyFunc::SelDataInit() {
     select_key = 0;
     push_button = 0;

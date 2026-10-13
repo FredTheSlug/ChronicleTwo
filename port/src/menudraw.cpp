@@ -301,6 +301,29 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
     // As soon as it overlaps the frame, draw its complete entering geometry.
     if (MenuPanelOutsideFrame(*this)) return;
     int draw_x = fptosi(x), draw_y = fptosi(y);
-    MenuMouseDrawPosition(this, draw_x, draw_y);
     MenuFormDraw(draw_x, draw_y, state);
+}
+
+PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float rotation,
+                                  int reverse, int alpha, float scale) {
+    if (!texture) return;
+    // The canonical image retains the selection hand. A displayed mouse pointer
+    // replaces this tagged group without changing screenshots or grab textures.
+    gfx::Interp2DScope tag({kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())});
+    auto *prim = GetMenuPrim();
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
+    prim->Bilinear(1);
+    prim->Begin(MG_PRIM_TRIANGLE_STRIP);
+    prim->Texture(texture);
+    prim->Color(128, 128, 128, alpha);
+    const float c = std::cos(rotation), s = std::sin(rotation);
+    for (int i = 0; i < 4; ++i) {
+        const float x = (i & 1 ? 40 : 0) * scale * (reverse ? -1 : 1);
+        const float y = (i & 2 ? 24 : 0) * scale;
+        prim->TextureCrd(menu_long_hand.left + (i & 1 ? menu_long_hand.right : 0),
+                         menu_long_hand.top + (i & 2 ? menu_long_hand.bottom : 0));
+        prim->Vertex(3 + position[0] + x * c - y * s,
+                     position[1] + x * s + y * c + (i & 1 ? 0 : 3), 0.0f);
+    }
+    prim->End();
 }

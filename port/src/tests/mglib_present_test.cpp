@@ -40,6 +40,8 @@
 #include "nd_meswin.hpp"
 #include "mainloop.hpp"
 #include "platform/paths.hpp"
+#include "menu_mouse.hpp"
+#include "platform/input.hpp"
 
 using namespace dc::test;
 
@@ -1694,4 +1696,40 @@ TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     TEX_SystenFrame = saved;
     manager.Initialize(0x1000, -1);
+}
+
+TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = false});
+    InputResetBindings();
+    InputSetScriptedDevices({});
+    MenuMouseEnable(true);
+    mgSetBackGround(8, 16, 24, 128);
+    mgBeginFrame(nullptr);
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> expected, canonical, displayed;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, expected, width, height));
+    InputSetScriptedDevices({.mouse_dx = 30});
+    mgBeginFrame(nullptr);
+    MenuMouseTake();
+    mgEndFrame(nullptr);
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
+    EXPECT_EQ(canonical, expected);
+    gfx::BeginRecording();
+    MenuMouseDraw();
+    const auto pointer = gfx::EndRecording();
+    ASSERT_GT(gfx::ListStats(*pointer).draws_2d, 0u);
+    gfx::RenderOptions options;
+    options.overlay = pointer.get();
+    ASSERT_TRUE(gfx::RenderList(*mgPortLastList(), 1, options));
+    ASSERT_TRUE(gfx::ReadbackFrame(displayed, width, height));
+    EXPECT_NE(displayed, canonical);
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, displayed, width, height));
+    EXPECT_EQ(displayed, canonical); // --screenshot and pause/crossfade grabs use this image.
+    ASSERT_TRUE(PresentScreenshotDisplay(1, displayed, width, height));
+    EXPECT_EQ(displayed, canonical); // Display captures also omit host pointers.
+    MenuMouseEnable(false);
+    InputSetScriptedDevices({});
+    InputSetMenuMouse(false);
 }

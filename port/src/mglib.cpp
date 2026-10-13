@@ -1198,7 +1198,6 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
 
     if (gfx_open) {
         gfx::SetRenderTarget(gfx::kMainTarget);
-        MenuMouseDraw();
         gfx::DisplayListRef list = gfx::EndRecording();
         recording = false;
 

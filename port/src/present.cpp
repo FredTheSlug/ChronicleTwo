@@ -10,6 +10,7 @@
 
 #include "gfx/gfx.hpp"
 #include "mglib_port.hpp"
+#include "menu_mouse.hpp"
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
 #include "platform/overlay.hpp"
@@ -45,25 +46,17 @@ void PollFpsToggle() {
     }
 }
 
-bool SameMapping(const gfx::LogicalMapping &a, const gfx::LogicalMapping &b) {
-    return a.scale_x == b.scale_x && a.scale_y == b.scale_y && a.offset_x == b.offset_x &&
-           a.offset_y == b.offset_y && a.pixel_width == b.pixel_width && a.pixel_height == b.pixel_height;
-}
-
-const gfx::DisplayList *FpsOverlayList() {
-    if (!overlay.on) {
-        return nullptr;
+const gfx::DisplayList *DisplayOverlayList() {
+    if (!overlay.on && !MenuMousePointerVisible()) return nullptr;
+    gfx::BeginRecording();
+    if (!gfx::Recording()) return nullptr;
+    if (overlay.on) {
+        const int pixel = OverlayPixelSize(gfx::GetLogicalMapping(gfx::kMainTarget));
+        OverlayDrawText(PresentFpsText(), gfx::GetUiMapping(gfx::kMainTarget), pixel,
+                        pixel * kOverlayPadding, pixel * kOverlayPadding);
     }
-
-    std::string text = PresentFpsText();
-    const gfx::LogicalMapping mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
-
-    if (!overlay.list || text != overlay.text || !SameMapping(mapping, overlay.mapping)) {
-        overlay.list = OverlayRecord(text);
-        overlay.text = std::move(text);
-        overlay.mapping = mapping;
-    }
-
+    MenuMouseDraw();
+    overlay.list = gfx::EndRecording();
     return overlay.list.get();
 }
 
@@ -88,7 +81,8 @@ bool DisplayFrame(float alpha, bool present) {
     gfx::RenderOptions options;
     options.previous = mgPortPreviousList();
     options.present = present;
-    options.overlay = present ? FpsOverlayList() : nullptr;
+    options.overlay = present ? DisplayOverlayList() : nullptr;
+    options.suppressed_2d_key = present && MenuMousePointerVisible() ? kMenuMouseHandKey : 0;
     const bool shown = gfx::RenderList(*list, alpha, options);
 
     if (shown) {
@@ -103,10 +97,16 @@ bool DisplayFrame(float alpha, bool present) {
 }
 
 bool PresentCanonicalFrame() {
-    const gfx::DisplayList *overlay_list = FpsOverlayList();
+    const gfx::DisplayList *overlay_list = DisplayOverlayList();
     bool shown = false;
 
-    if (overlay_list != nullptr) {
+    if (MenuMousePointerVisible()) {
+        gfx::RenderOptions options;
+        options.present = true;
+        options.overlay = overlay_list;
+        options.suppressed_2d_key = kMenuMouseHandKey;
+        shown = pacer.Present([&] { return gfx::RenderList(*mgPortLastList(), 1.0f, options); }, Clock::now);
+    } else if (overlay_list != nullptr) {
         gfx::RenderOptions options;
         options.present = true;
         options.host = true;

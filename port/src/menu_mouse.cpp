@@ -227,7 +227,7 @@ void MenuMouseDelayConfirm(const void *owner, int selected, int target, int tick
 }
 
 void MenuMouseDraw() {
-    if (!enabled || !sample.pointing || MenuMouseItemActive()) return;
+    if (!MenuMousePointerVisible()) return;
     gfx::DrawState state{};
     state.blend = true;
     const float x = sample.x, y = sample.y;
@@ -241,3 +241,4 @@ void MenuMouseDraw() {
 
 void MenuMouseSetButtons(int mask) { buttons = mask; }
 bool MenuMouseActive() { return enabled; }
+bool MenuMousePointerVisible() { return enabled && sample.pointing; }

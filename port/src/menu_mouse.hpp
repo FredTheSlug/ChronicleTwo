@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <span>
 #include <vector>
+#include "gfx/gfx.hpp"
 
 struct MenuMouseRect {
     float x, y, w, h;
@@ -35,6 +36,8 @@ int MenuMouseRows(std::span<const MenuMouseRect> rows, int selected, int wheel_s
 // Keep a click through a retail list's cursor-settling delay.
 void MenuMouseDelayConfirm(const void *owner, int selected, int target, int ticks);
 void MenuMouseDraw();
+inline constexpr gfx::InterpKey kMenuMouseHandKey = 0x4d454e5548414e44;
+bool MenuMousePointerVisible();
 
 // Exclusive adapters translate this sampled frame into retail buttons.
 void MenuMouseSetButtons(int buttons);

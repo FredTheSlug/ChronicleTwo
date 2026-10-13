@@ -267,7 +267,7 @@ PORT_OVERRIDE unsigned int sndLoadSound(int port_no, unsigned int *pack, mgCMemo
 
         for (i = 0; i < bank->sq_num; i++) {
             bank->sq_name[i] = NULL;
-            SoundLoadSeq(info->sq_port, sq[i], sq_size[i]);
+            SoundLoadSeq(info->sq_port, sq[i], sq_size[i], sq_name[i]);
             bank->sq_name[i] = mgCopyString(sq_name[i], memory);
         }
     }

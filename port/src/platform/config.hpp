@@ -30,6 +30,8 @@ struct Config : HostSettings {
 // be read leaves the defaults in memory and is never written this session. Returns whether it was read.
 bool ConfigLoad();
 bool ConfigSave();
+// Applies and saves both the host settings and the game's presentation fields.
+bool ConfigChange(const Config &config);
 
 // Called by SettingsChange once a changed value is stored, with the settings before and after it.
 using ConfigChangeHook = void (*)(const HostSettings &before, const HostSettings &after);

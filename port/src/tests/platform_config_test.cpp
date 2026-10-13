@@ -213,3 +213,40 @@ TEST_F(PlatformConfig, ChangeHookSeesBeforeAndAfter) {
     ASSERT_TRUE(g_hook_calls == 1);
     ConfigSetChangeHook(nullptr);
 }
+
+TEST_F(PlatformConfig, ConfigChangeStoresPortFieldsAndNotifiesTheLiveHook) {
+    ConfigLoad();
+    g_hook_calls = 0;
+    ConfigSetChangeHook(CaptureChange);
+    Config config = ConfigGet();
+    config.interpolation = false;
+    config.aspect = ConfigAspect::FourThree;
+    config.ui_scale = 0.75f;
+    EXPECT_TRUE(ConfigChange(config));
+    EXPECT_EQ(ConfigGet(), config);
+    EXPECT_EQ(ConfigParse(Read()), config);
+    EXPECT_EQ(g_hook_calls, 1);
+    EXPECT_TRUE(ConfigChange(config));
+    EXPECT_EQ(g_hook_calls, 1);
+    // A later host-only change must retain the port-owned fields.
+    HostSettings host = SettingsGet();
+    host.show_fps = false;
+    EXPECT_TRUE(SettingsChange(host));
+    EXPECT_FALSE(ConfigGet().interpolation);
+    EXPECT_EQ(ConfigGet().aspect, ConfigAspect::FourThree);
+    EXPECT_FLOAT_EQ(ConfigGet().ui_scale, .75f);
+    ConfigSetChangeHook(nullptr);
+}
+
+TEST_F(PlatformConfig, FailedPortChangeKeepsLiveValuesAndRetriesTheSave) {
+    ConfigLoad();
+    fs::remove(Path());
+    fs::create_directory(Path());
+    Config config = ConfigGet();
+    config.interpolation = false;
+    EXPECT_FALSE(ConfigChange(config));
+    EXPECT_FALSE(ConfigGet().interpolation);
+    fs::remove(Path());
+    EXPECT_TRUE(ConfigChange(config));
+    EXPECT_FALSE(ConfigParse(Read()).interpolation);
+}

@@ -418,6 +418,10 @@ const Config &ConfigGet() {
 bool SettingsChange(const HostSettings &settings) {
     Config candidate = g_config;
     static_cast<HostSettings &>(candidate) = settings;
+    return ConfigChange(candidate);
+}
+
+bool ConfigChange(const Config &candidate) {
     Config after = ConfigParse(ConfigSerialize(candidate));
     if (after == g_config) {
         return g_saved || ConfigSave();

@@ -9,6 +9,7 @@
 #include "mainloop.hpp"
 #include "menucommon.hpp"
 #include "mg_memory.hpp"
+#include "platform/arena.hpp"
 #include "scriptinterpreter.hpp"
 
 int _DATACOMINIT(SPI_STACK *, int);
@@ -72,9 +73,9 @@ PORT_OVERRIDE int CGameData::LoadItemSystemMes(int language) {
     // This root is reinitialized on every language load. Cursor rebinding elsewhere
     // must preserve live sound records, so clearing belongs to this owner.
     auto *root = ArenaRoot(&message_root, 0x280, "ItemMessages");
-    std::memset(root, 0, 0x2800);
+    std::memset(root, 0, 0x2800 * kArenaHeadroom);
     mgCMemory memory;
-    memory.stSetBuffer(root, 0x280);
+    memory.stSetBuffer(root, 0x280 * kArenaHeadroom);
     message_memory = &memory;
     alignas(64) u_long128 script_buffer[0x780];
     char path[0x40];

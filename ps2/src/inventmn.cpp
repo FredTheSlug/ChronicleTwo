@@ -6088,7 +6088,10 @@ void MenuInventNetaMemoDraw(float *origin, int &loaded_tex) {
 static int tbl_4782[7] = {
     1, 1, 0, 0, 1, 1, 0};
 
-inline CMenuInvent::CMenuInvent() {
+#ifndef PORT
+inline
+#endif
+CMenuInvent::CMenuInvent() {
     int i;
     card_cursor = card_top = 0;
     item_cursor = item_top = 0;

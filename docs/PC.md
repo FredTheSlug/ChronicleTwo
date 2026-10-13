@@ -227,11 +227,11 @@ To replay a milestone save without changing its source, use:
 
 ```sh
 python scripts/port/run_from_save.py --exe path/to/darkchronicle --data path/to/data \
-  --save-fixture path/to/fixture --input tools/input/continue-dungeon-start.input \
+  --save-fixture path/to/fixture --input tools/input/pc-continue.input \
   --frames 5000 --screenshot loaded.png
 ```
 
-The runner requires a fixture with `mc0/` or `mc1/`, copies it to a temporary
+The runner accepts a fixture with `saves/`, `mc0/` or `mc1/`, copies it to a temporary
 save root, starts at ordinary boot, and removes only that temporary copy after
 the process ends. The screenshot remains at the requested path. Ambient
 `DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` are removed from the child environment.

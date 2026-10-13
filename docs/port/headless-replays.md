@@ -11,5 +11,6 @@ mixed sound through the existing tick-driven WAV capture; only that capture adva
 `DC2_AUDIO=off` suppresses output while headless audio state still advances for game logic.
 
 Compare captures made with the same binary, input script, frame limit and configuration, using a
-fresh save directory for every run. Earlier captures made while headless audio followed the
-playback device's wall clock can show different voice-driven poses or expressions.
+fresh save directory for every run. Mixer ownership affects voice-driven poses and expressions; device-clock and tick-clock captures
+are not interchangeable. Debug-event input fixtures require `game.debug_mode=true` explicitly in
+the fresh replay config; ordinary boot/title/costume fixtures use the default-off configuration.

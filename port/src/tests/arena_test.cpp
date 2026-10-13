@@ -235,3 +235,20 @@ TEST(CtArena, MainBufferLiesAboveFourGiB) {
     EXPECT_TRUE(IsAbove4GiB(base));
 #endif
 }
+
+TEST(CtArena, RootRebindKeepsLoadedContents) {
+    static u_long128 retail[100] = {};
+    mgCMemory memory;
+    memory.stSetBuffer(retail, 100);
+    auto *loaded = memory.Alloc(4);
+    ASSERT_NE(loaded, nullptr);
+    std::memset(loaded, 0x5A, 4 * sizeof(u_long128));
+
+    // A cursor reset must keep data referenced by a loaded sound bank alive.
+    memory.stSetBuffer(retail, 100);
+    EXPECT_EQ(memory.stack_used, 0);
+    EXPECT_EQ(memory.stack, loaded);
+    for (int i = 0; i < 4 * sizeof(u_long128); ++i) {
+        EXPECT_EQ(reinterpret_cast<unsigned char *>(loaded)[i], 0x5A) << i;
+    }
+}

@@ -365,9 +365,7 @@ PORT_OVERRIDE void mgCMemory::Align64() {
 PORT_OVERRIDE void mgCMemory::stSetBuffer(u_long128 *buffer, int size) {
     if (buffer != nullptr && size > 0 && !ArenaContains(buffer)) {
         const NameCopy label = CopyName(name);
-        u_long128     *block = ArenaRoot(buffer, size, label.data());
-        std::memcpy(block, buffer, static_cast<std::size_t>(size) * sizeof(u_long128));
-        buffer = block;
+        buffer = ArenaRootFromBuffer(buffer, size, label.data());
         size *= kArenaHeadroom;
     }
 

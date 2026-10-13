@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 #include "platform/arena.hpp"
@@ -23,4 +24,17 @@ u_long128 *ArenaRoot(const void *key, int quadwords, const char *name) {
     }
 
     return reinterpret_cast<u_long128 *>(base);
+}
+
+u_long128 *ArenaRootFromBuffer(const u_long128 *buffer, int quadwords, const char *name) {
+    u_long128 *base = ArenaRoot(buffer, quadwords, name);
+    static std::vector<const void *> imported;
+
+    // After the first import the game owns the mapped contents. Rebinding a cursor to the
+    // same root must not replace live records with the original static buffer's bytes.
+    if (std::find(imported.begin(), imported.end(), base) == imported.end()) {
+        std::memcpy(base, buffer, static_cast<std::size_t>(quadwords) * sizeof(u_long128));
+        imported.push_back(base);
+    }
+    return base;
 }

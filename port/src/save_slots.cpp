@@ -1,6 +1,7 @@
 #include "save_slots.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstring>
 #include <fstream>
@@ -66,6 +67,34 @@ bool Import(const fs::path &from, const fs::path &to) {
         return false;
     }
     return FilesWrite(to, bytes.data(), bytes.size(), false) == FilesResult::kWritten;
+}
+
+bool SameBytes(const fs::path &left, const fs::path &right) {
+    std::error_code error;
+    if (!fs::is_regular_file(left, error) || !fs::is_regular_file(right, error)) {
+        return false;
+    }
+    const auto size = fs::file_size(left, error);
+    if (error) {
+        return false;
+    }
+    if (size != fs::file_size(right, error) || error) {
+        return false;
+    }
+    std::ifstream a(left, std::ios::binary), b(right, std::ios::binary);
+    if (!a || !b) {
+        return false;
+    }
+    std::array<char, 65536> x, y;
+    for (std::uintmax_t remaining = size; remaining;) {
+        const auto count = static_cast<std::streamsize>(std::min<std::uintmax_t>(remaining, x.size()));
+        if (!a.read(x.data(), count) || !b.read(y.data(), count) ||
+            std::memcmp(x.data(), y.data(), static_cast<std::size_t>(count)) != 0) {
+            return false;
+        }
+        remaining -= count;
+    }
+    return true;
 }
 
 struct CachedHeader {
@@ -184,20 +213,19 @@ int SaveSlotNumber(const std::string &name, bool &second_card) {
 }
 
 int SaveSlotFirstFree(const SaveSlotList &list) {
-    int number = 0;
+    auto occupied = list.occupied;
     for (const auto &slot : list.saves) {
-        if (slot.number == number) {
+        occupied.insert(slot.number);
+    }
+    int number = 0;
+    for (int used : occupied) {
+        if (used == number) {
             ++number;
-        } else if (slot.number > number) {
+        } else if (used > number) {
             break;
         }
     }
-    // Unreadable entries are omitted from the list but still own their names.
-    std::error_code error;
-    while (number < 1000000000 && fs::exists(SaveSlotPath(number), error)) {
-        ++number;
-    }
-    return !error && number < 1000000000 ? number : -1;
+    return !list.read_failed && number < 1000000000 ? number : -1;
 }
 
 int SaveSlotRows(const SaveSlotList &list, bool saving) {
@@ -271,8 +299,10 @@ SaveSlotList SaveSlotScan() {
         int  number = SaveSlotNumber(path.filename().string(), second);
         if (number >= 0) {
             entries[{number, second}] = path;
+            list.occupied.insert(number);
         }
     }
+    std::vector<std::pair<fs::path, bool> > legacy;
     for (int card = 0; card < 2; ++card) {
         paths.clear();
         if (!ListDirectory(PathsSaveRoot() / (card ? "mc1" : "mc0"), paths)) {
@@ -284,25 +314,50 @@ SaveSlotList SaveSlotScan() {
             if (number < 0 || second) {
                 continue;
             }
-            auto            key = std::make_pair(number, card != 0);
             auto            target = SaveSlotPath(number, card != 0);
             std::error_code error;
             if (fs::exists(ImportMarker(target), error)) {
                 continue;
             }
-            if (entries.contains(key)) {
-                if (fs::is_regular_file(target, error) && !RecordImport(target)) {
+            list.occupied.insert(number);
+            legacy.emplace_back(dir, card != 0);
+        }
+    }
+    // Reserve all legacy names before relocating any collision, including names
+    // whose payload is temporarily unavailable.
+    for (const auto &[dir, second_card] : legacy) {
+        bool            second;
+        int             number = SaveSlotNumber(dir.filename().string(), second);
+        auto            key = std::make_pair(number, second_card);
+        auto            target = SaveSlotPath(number, second_card);
+        const auto      marker_target = target;
+        const auto      source = dir / dir.filename();
+        std::error_code error;
+        if (entries.contains(key)) {
+            // A matching number alone does not prove an import. Search flat
+            // files too, so a failed marker write can retry a relocated copy.
+            const bool imported = std::ranges::any_of(entries, [&](const auto &entry) {
+                return entry.second.parent_path() == SaveSlotsRoot() && SameBytes(source, entry.second);
+            });
+            if (imported) {
+                if (!RecordImport(marker_target)) {
                     list.read_failed = true;
                 }
                 continue;
             }
-            auto source = dir / dir.filename();
-            if (Import(source, target) && !RecordImport(target)) {
-                list.read_failed = true;
+            number = SaveSlotFirstFree(list);
+            if (number < 0) {
+                continue;
             }
-            // An incomplete/missing legacy payload still owns a row and a name.
-            entries[key] = fs::exists(target, error) ? target : source;
+            key = {number, second_card};
+            target = SaveSlotPath(number, second_card);
+            list.occupied.insert(number);
         }
+        if (Import(source, target) && !RecordImport(marker_target)) {
+            list.read_failed = true;
+        }
+        // Unreadable payloads are omitted from rows but retain their names.
+        entries[key] = fs::exists(target, error) ? target : source;
     }
     std::set<fs::path> seen;
     for (const auto &[key, path] : entries) {

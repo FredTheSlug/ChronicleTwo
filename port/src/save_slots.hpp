@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,8 @@ struct SaveSlot {
 
 struct SaveSlotList {
     std::vector<SaveSlot> saves;
+    // Includes unreadable flat names and unmarked legacy entries from both cards.
+    std::set<int>         occupied;
     bool                  read_failed = false;
 };
 

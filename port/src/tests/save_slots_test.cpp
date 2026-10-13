@@ -172,19 +172,23 @@ TEST_F(SaveSlotTest, ImportsBothCardsByteExactlyWithoutTouchingOriginals) {
     EXPECT_EQ(SaveSlotScan().saves.size(), 4); // Reopening never duplicates imports.
 }
 
-TEST_F(SaveSlotTest, ExistingFlatFileWinsOverOlderCardCopy) {
+TEST_F(SaveSlotTest, DifferentLegacyCollisionImportsWithoutReplacingFlatFile) {
     Write(Legacy(0, 0));
     image->unique_counter = 42;
     Write(SaveSlotPath(0));
     auto before = Bytes(SaveSlotPath(0));
     auto list = SaveSlotScan();
-    ASSERT_EQ(list.saves.size(), 1);
+    ASSERT_EQ(list.saves.size(), 2);
     EXPECT_EQ(list.saves[0].info.unique_counter, 42);
+    EXPECT_EQ(Bytes(SaveSlotPath(1)), Bytes(Legacy(0, 0)));
+    EXPECT_EQ(SaveSlotScan().saves.size(), 2);
+    fs::remove(SaveSlotPath(1));
+    EXPECT_EQ(SaveSlotScan().saves.size(), 1);
     EXPECT_EQ(Bytes(SaveSlotPath(0)), before);
     EXPECT_NE(Bytes(Legacy(0, 0)), before);
 }
 
-TEST_F(SaveSlotTest, UnusableEntriesStayVisibleAndReserveTheirNames) {
+TEST_F(SaveSlotTest, UnusableEntriesReserveNamesEvenWhenUnreadableRowsAreSkipped) {
     Write(SaveSlotPath(0), 100);
     image->incomplete = 1;
     Write(SaveSlotPath(1));
@@ -206,7 +210,7 @@ TEST_F(SaveSlotTest, UnusableEntriesStayVisibleAndReserveTheirNames) {
     EXPECT_EQ(list.saves[3].state, SaveSlotState::WrongVersion);
     EXPECT_EQ(SaveSlotRows(list, true), 5);
     EXPECT_EQ(SaveSlotRows(list, false), 4);
-    EXPECT_EQ(SaveSlotFirstFree(list), 5);
+    EXPECT_EQ(SaveSlotFirstFree(list), 6);
     EXPECT_EQ(Bytes(SaveSlotPath(2)), before);
 }
 
@@ -389,9 +393,8 @@ TEST_F(SaveSlotTest, DeletedImportsStayDeletedAcrossLaterScans) {
     EXPECT_TRUE(fs::exists(Legacy(1, 0)));
 }
 
-TEST_F(SaveSlotTest, ExistingFlatSaveRetiresItsLegacyCopyBeforeManualDeletion) {
+TEST_F(SaveSlotTest, IdenticalFlatSaveRetiresItsLegacyCopyBeforeManualDeletion) {
     Write(Legacy(0, 3));
-    image->unique_counter = 42;
     Write(SaveSlotPath(3));
     ASSERT_EQ(SaveSlotScan().saves.size(), 1);
     fs::remove(SaveSlotPath(3));
@@ -548,4 +551,28 @@ TEST_F(SaveSlotTest, NoFishAndOperationFailuresUseRetailNotices) {
         EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_NOTICE);
         EXPECT_EQ(rig.message.mes_no, writing ? 0xBC1 : 0xBC6);
     }
+}
+
+TEST_F(SaveSlotTest, LegacyCollisionComparesPayloadBeyondTheHeader) {
+    Write(Legacy(0, 0));
+    image->save_data.map_no = 42;
+    Write(SaveSlotPath(0));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 2);
+    EXPECT_EQ(Bytes(SaveSlotPath(1)), Bytes(Legacy(0, 0)));
+    EXPECT_NE(Bytes(SaveSlotPath(0)), Bytes(SaveSlotPath(1)));
+}
+
+TEST_F(SaveSlotTest, CollisionAllocationReservesUnreadableNamesOnBothCards) {
+    Write(SaveSlotPath(0));
+    image->unique_counter = 2;
+    Write(Legacy(0, 0));
+    fs::create_directories(Legacy(0, 1).parent_path());
+    fs::create_directories(Legacy(1, 2).parent_path());
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 2);
+    EXPECT_EQ(Bytes(SaveSlotPath(3)), Bytes(Legacy(0, 0)));
+    EXPECT_EQ(SaveSlotFirstFree(list), 4);
+    EXPECT_FALSE(fs::exists(root / ".save-imports" / SaveSlotPath(1).filename()));
+    EXPECT_FALSE(fs::exists(root / ".save-imports" / SaveSlotPath(2, true).filename()));
 }

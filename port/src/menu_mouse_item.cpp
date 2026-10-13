@@ -46,32 +46,6 @@ int ScrollTop(int top, int count, int visible_rows, float wheel) {
     return std::clamp(top + (wheel > 0 ? -step : step), 0, std::max(0, (count + 5) / 6 - visible_rows));
 }
 
-float UnitsPerCount(float scale, float target_pixels, float window_pixels) {
-    return scale > 0 && target_pixels > 0 && window_pixels > 0 ? target_pixels / window_pixels / scale : 1;
-}
-
-Take Pointer::Update(const InputMenuMouse &mouse, Point start, Point units, Rect bounds, bool pad) {
-    Take take;
-    take.pressed = mouse.buttons & ~buttons;
-    take.released = buttons & ~mouse.buttons;
-    take.held = mouse.buttons;
-    take.wheel = mouse.wheel;
-    buttons = mouse.buttons;
-    take.moved = mouse.dx != 0 || mouse.dy != 0 || take.pressed != 0 || mouse.wheel != 0;
-    if (pad) {
-        pointing = false;
-        return {};
-    }
-    if (take.moved) {
-        if (!pointing) pos = start;
-        pointing = true;
-        pos.x = std::clamp(pos.x + mouse.dx * units.x, bounds.x, bounds.x + bounds.w);
-        pos.y = std::clamp(pos.y + mouse.dy * units.y, bounds.y, bounds.y + bounds.h);
-    }
-    take.pointing = pointing;
-    return take;
-}
-
 void Gesture::Reset() { *this = {}; }
 
 Action Gesture::Update(const Take &take, Point p, Target hit, bool can_pick_up, bool holding) {
@@ -346,8 +320,6 @@ void MenuMousePadTick() {
     if (menu_open && !ItemPage()) MenuMouseClose();
 
 }
-
-int MenuMouseSyntheticDown() { return synthetic; }
 
 bool MenuMouseItemActive() { return ItemPage(); }
 void MenuMouseItemOrigin(float &x, float &y) {

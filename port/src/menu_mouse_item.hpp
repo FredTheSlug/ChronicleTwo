@@ -25,7 +25,6 @@ struct Target {
 Target GridHit(Point p, Point origin, Rect clip, int count);
 int CommandHit(Point p, Rect text, int count, float line_height);
 int ScrollTop(int top, int count, int visible_rows, float wheel);
-float UnitsPerCount(float scale, float target_pixels, float window_pixels);
 
 struct Take {
     bool pointing = false, moved = false;
@@ -35,8 +34,6 @@ struct Take {
 struct Pointer {
     Point pos;
     bool pointing = false;
-    std::uint32_t buttons = 0;
-    Take Update(const InputMenuMouse &mouse, Point start, Point units, Rect bounds, bool pad);
 };
 
 enum class Action { None, Click, PickUp, Drop, Cancel };
@@ -54,7 +51,6 @@ struct Gesture {
 void MenuMouseUpdate(CMenuKeyFunc &keys);
 void MenuMousePadTick();
 void MenuMouseClose();
-int MenuMouseSyntheticDown();
 bool MenuMouseDrawPosition(const CMenuPosDataForm *form, int &x, int &y);
 
 bool MenuMouseItemActive();

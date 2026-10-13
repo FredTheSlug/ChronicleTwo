@@ -53,40 +53,6 @@ TEST(MenuMouse, WheelClampsToRowsAndPreservesFractionalNotches) {
     EXPECT_EQ(ScrollTop(0, 29, 5, -1), 0);
 }
 
-TEST(MenuMouse, MotionMappingAccountsForUiScaleAndWindowDpi) {
-    EXPECT_FLOAT_EQ(UnitsPerCount(1.875f, 1280, 1280), 1 / 1.875f);
-    EXPECT_FLOAT_EQ(UnitsPerCount(3.75f, 2560, 1280), 1 / 1.875f);
-    EXPECT_FLOAT_EQ(UnitsPerCount(0.9375f, 1280, 1280), 1 / 0.9375f);
-    EXPECT_FLOAT_EQ(UnitsPerCount(0, 0, 0), 1);
-}
-
-TEST(MenuMouse, IdleMouseDoesNotTakeControllerSelection) {
-    Pointer p;
-    EXPECT_FALSE(p.Update({}, {250, 100}, {1, 1}, {0, 0, 512, 480}, false).pointing);
-    InputMenuMouse mouse{10, 5, 0, 0};
-    EXPECT_TRUE(p.Update(mouse, {250, 100}, {0.5f, 1}, {-85, 0, 682, 480}, false).pointing);
-    EXPECT_FLOAT_EQ(p.pos.x, 255);
-    EXPECT_FLOAT_EQ(p.pos.y, 105);
-    EXPECT_FALSE(p.Update(mouse, {}, {1, 1}, {-85, 0, 682, 480}, true).pointing);
-    EXPECT_TRUE(p.Update(mouse, {300, 200}, {1, 1}, {-85, 0, 682, 480}, false).pointing);
-    EXPECT_FLOAT_EQ(p.pos.x, 310);
-}
-
-TEST(MenuMouse, PointerReachesWidescreenMarginsAndClamps) {
-    Pointer p;
-    p.Update({-1000, 1000, 0, 0}, {256, 240}, {1, 1}, {-85, 0, 682, 480}, false);
-    EXPECT_FLOAT_EQ(p.pos.x, -85);
-    EXPECT_FLOAT_EQ(p.pos.y, 480);
-}
-
-TEST(MenuMouse, ButtonsHeldOnEntryRequireReleaseBeforeClick) {
-    Pointer p;
-    p.buttons = 1;
-    EXPECT_EQ(p.Update({0, 0, 0, 1}, {}, {1, 1}, {0, 0, 512, 480}, false).pressed, 0u);
-    EXPECT_EQ(p.Update({}, {}, {1, 1}, {0, 0, 512, 480}, false).released, 1u);
-    EXPECT_EQ(p.Update({0, 0, 0, 1}, {}, {1, 1}, {0, 0, 512, 480}, false).pressed, 1u);
-}
-
 namespace {
 const Target source{ITEM_MENU_PANEL_BAG, 1}, dest{ITEM_MENU_PANEL_BAG, 8};
 const Take press{true, true, 1, 0, 1}, hold{true, true, 0, 0, 1}, release{true, false, 0, 1, 0};
@@ -264,7 +230,7 @@ TEST_F(ItemMouse, HoverUpdatesRetailGridSelectionWithoutPressingAnything) {
     EXPECT_EQ(keys.select_pos[0], 7);
     EXPECT_EQ(keys.key_arg, &layouts[ITEM_MENU_PANEL_BAG]);
     EXPECT_TRUE(keys.CheckKeyInput());
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
 }
 
 TEST_F(ItemMouse, AllActiveAndEquippedSlotsUseTheirDrawnIconPositions) {
@@ -303,16 +269,16 @@ TEST_F(ItemMouse, WheelChangesVisibleRowAndCursorTogether) {
 TEST_F(ItemMouse, DragEmitsRetailPickupThenCrossAtDestination) {
     items[0].item_no = 1;
     Tick(0, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
     Tick(40, 50, 1);
     EXPECT_EQ(keys.cursor, 0); // Pickup still operates on the original item.
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_SQUARE);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_SQUARE);
     keys.have_item.item_no = 1; // The retail key step has picked it up.
     Tick(0, 0, 1);
     EXPECT_EQ(keys.cursor, 7); // Even if the mouse stops moving after pickup.
     Tick();
     EXPECT_EQ(keys.cursor, 7);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     EXPECT_TRUE(GamePad__2.Down(PAD_CROSS));
 }
 
@@ -320,9 +286,9 @@ TEST_F(ItemMouse, ClickAndBackBecomeRetailButtonEdges) {
     items[0].item_no = 1;
     Tick(0, 0, 1);
     Tick();
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     Tick(0, 0, 2);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CIRCLE);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CIRCLE);
     GamePad__2.key_lock = 1;
     EXPECT_FALSE(GamePad__2.Down(PAD_CIRCLE));
 }
@@ -344,17 +310,17 @@ TEST_F(ItemMouse, CommandHoverAndClickUseTheDisplayedMessageRows) {
     EXPECT_EQ(message.GetMsgCursor(), 1);
     EXPECT_EQ(keys.cursor, 0);
     Tick(0, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     Tick(150, 0, 0);
     Tick(0, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
 }
 
 TEST_F(ItemMouse, PadInputAndLockedMenusKeepTheirSelection) {
     GamePad__2.pad[0].button = PAD_RIGHT;
     Tick(80, 0, 1);
     EXPECT_EQ(keys.cursor, 0);
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_RIGHT);
     EXPECT_TRUE(GamePad__2.Down(PAD_RIGHT));
     GamePad__2.pad[0].button = 0;
     keys.key_enable = false;
@@ -386,7 +352,7 @@ TEST_F(ItemMouse, LeavingWhilePressedQuarantinesTheButtonUntilRelease) {
     MenuMouseTake();
     MenuMousePadTick();
     EXPECT_NE(InputApplyKeyboardMouse({}, mouse).buttons, 0);
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
 }
 
 TEST_F(ItemMouse, ConfirmationChoicesUseRetailYesNoState) {
@@ -400,14 +366,14 @@ TEST_F(ItemMouse, ConfirmationChoicesUseRetailYesNoState) {
     message.cursor = 1;
     Tick(0, 30);
     EXPECT_EQ(message.GetMsgCursor(), 0);
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
     Tick(0, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     Tick(100, 0);
     EXPECT_EQ(message.GetMsgCursor(), 1);
     command.draw_flag = false;
     Tick(-100, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
 }
 
 TEST_F(ItemMouse, QuantityBoardWheelAndArrowsUseRetailDirectionKeys) {
@@ -421,12 +387,12 @@ TEST_F(ItemMouse, QuantityBoardWheelAndArrowsUseRetailDirectionKeys) {
     parts[1].name = const_cast<char *>("down");
     parts[1].x = 250; parts[1].y = 110;
     Tick(1, 0, 0, -1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_DOWN);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_DOWN);
     Tick(0, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_UP);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_UP);
     Tick(0, 40);
     Tick(0, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_DOWN);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_DOWN);
 }
 
 TEST_F(ItemMouse, ControllerOnlyItemPageDoesNotMoveTheSharedPointerOrigin) {
@@ -456,7 +422,7 @@ TEST_F(ItemMouse, CommandRowsFollowDrawnLinePositionsAndWidths) {
     message.line_w[2] = 100;
     Tick(65, 100, 1); // (340,212), in the drawn third row, outside text_w.
     EXPECT_EQ(message.GetMsgCursor(), 2);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
 }
 
@@ -485,10 +451,10 @@ TEST_F(ItemMouse, WeaponAndRodStatsHoverBothColumnsUsingMovedForms) {
         Tick(i % 2 ? 110 : -110, i % 2 ? 0 : 24);
         EXPECT_EQ(keys.cursor, i);
         EXPECT_EQ(keys.select_pos[0], i);
-        EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+        EXPECT_EQ(GamePad__2.GetPadDown(), 0);
     }
     Tick(0, 0, 2);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CIRCLE);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CIRCLE);
     menu.view_mode = MENU_ITEM_VIEW_FISHING_ROD;
     menu.view_form[5] = &stat_form;
     for (int i = 0; i < 5; ++i) {
@@ -506,10 +472,10 @@ TEST_F(ItemMouse, UnmappedQuestionClickConfirmsCurrentSelection) {
     class_menu_item_info.step = 1;
     class_menu_item_info.ask_para.mes_no = -1;
     Tick(10, 10, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     EXPECT_EQ(keys.cursor, 0);
     Tick(0, 0, 2);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CIRCLE);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CIRCLE);
 }
 
 TEST_F(ItemMouse, QuantityClickAwayFromArrowsConfirmsInsteadOfDisappearing) {
@@ -520,7 +486,7 @@ TEST_F(ItemMouse, QuantityClickAwayFromArrowsConfirmsInsteadOfDisappearing) {
     parts[0].name = const_cast<char *>("up"); parts[0].x = 250; parts[0].y = 70;
     parts[1].name = const_cast<char *>("down"); parts[1].x = 250; parts[1].y = 110;
     Tick(-150, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
 }
 
 TEST_F(ItemMouse, FollowupYesNoUsesVisibleMessageInsteadOfStaleAskId) {
@@ -535,7 +501,7 @@ TEST_F(ItemMouse, FollowupYesNoUsesVisibleMessageInsteadOfStaleAskId) {
     followup.choice_pos[1][0] = 290; followup.choice_pos[1][1] = 150;
     Tick(40, 85, 1);
     EXPECT_EQ(followup.cursor, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     MenuDCMsg[7] = saved; MenuMesForm[7] = saved_form;
 }
 
@@ -544,9 +510,9 @@ TEST_F(ItemMouse, CommandExplanationStillAcceptsConfirmAndCancel) {
     class_menu_item_info.step = 1;
     class_menu_item_info.ask_para.mes_no = -1;
     Tick(1, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     Tick(0, 0, 2);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CIRCLE);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CIRCLE);
 }
 
 TEST_F(ItemMouse, RidepodSlotsUseTheirMovedFormPositions) {
@@ -559,7 +525,7 @@ TEST_F(ItemMouse, RidepodSlotsUseTheirMovedFormPositions) {
     EXPECT_EQ(keys.cursor, 0);
     Tick(90, 0, 1);
     EXPECT_EQ(keys.cursor, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
 }
 
 TEST_F(ItemMouse, BuildUpListHoverSelectsBeforeClickConfirms) {
@@ -571,9 +537,9 @@ TEST_F(ItemMouse, BuildUpListHoverSelectsBeforeClickConfirms) {
     for (int i = 0; i < 3; ++i) { BuildUpNameXY[i][0] = 220; BuildUpNameXY[i][1] = 100 + 40 * i; }
     Tick(1, 115);
     EXPECT_EQ(BuildUpWeaponInfo.select_no, 2);
-    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
     Tick(0, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     BuildUpWeaponInfo = saved;
     std::copy(&saved_pos[0][0], &saved_pos[0][0] + 6, &BuildUpNameXY[0][0]);
 }
@@ -585,7 +551,7 @@ TEST_F(ItemMouse, CommandMessageIdIsCheckedBeforeIndexingTheMessageTable) {
     for (int id : {-1, 9}) {
         class_menu_item_info.ask_para.mes_no = id;
         Tick(1, 0, 1);
-        EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+        EXPECT_EQ(GamePad__2.GetPadDown(), 0);
         Tick(0, 0);
     }
 }
@@ -601,6 +567,6 @@ TEST_F(ItemMouse, UnselectableFollowupAcceptsClickEvenWhenOriginalCommandIsHidde
     MenuDCMsg[7] = &followup; MenuMesForm[7] = &followup_form;
     followup_form.draw_flag = true; followup.cursor = -1;
     Tick(1, 0, 1);
-    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     MenuDCMsg[7] = saved; MenuMesForm[7] = saved_form;
 }

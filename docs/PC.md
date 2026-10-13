@@ -291,7 +291,7 @@ retail menu navigation also converts that stick into D-pad presses past its
 threshold, including movement between active-item slots. Arrow keys send the
 D-pad directly.
 
-### Mouse camera in towns
+### Mouse follow camera
 
 Mouse motion directly turns the active walking camera around the character. It
 does not deflect the right stick or inherit its dead zone and easing. Vertical
@@ -302,9 +302,11 @@ retain their Cross, Circle and R3 bindings.
 
 `CPadControl::Update` latches one independent mouse sample per logical pad update.
 The `CCameraControl::MoveCamera` port override consumes that sample once, only in
-town walking mode with the active main camera, unlocked input and no scene event
-or subgame. Fixed and scripted views, menus, Georama, first-person/photo views
-and dungeon cameras retain their existing controls. A camera-reset request owns
+town walking mode or dungeon follow/follow-low mode with the active main camera,
+unlocked input and no scene event or subgame. Dungeon lock-on, paused player or
+field control, pending/running event scripts and non-walking character actions
+retain camera ownership. Fixed, boss and arena views, menus, Georama and
+first-person/photo views retain their existing controls. A camera-reset request owns
 its frame; a later mouse yaw cancels an unfinished reset.
 
 Direct motion turns both current and pending camera poses. A fresh bounded
@@ -317,8 +319,10 @@ checks would permit. Explicit MouseX/MouseY stick bindings retain ownership of
 their axes and suppress the independent mouse look on those axes.
 
 `tools/input/town-mouse-camera.input`, with `--jump town:10 --fast-load`, exercises
-yaw, vertical motion and a menu interruption. Mouse menu selection and native
-dungeon/first-person look are not implemented here.
+yaw, vertical motion and a menu interruption. `tools/input/dungeon-mouse-camera.input`,
+with `--jump dungeon:0:1 --fast-load`, enters the first floor and exercises the
+same follow controls. Mouse menu selection and first-person look are not
+implemented here.
 
 ## Decision 1: long64 is kept
 

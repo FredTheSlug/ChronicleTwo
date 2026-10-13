@@ -4,6 +4,7 @@
 #include "scenesnd.hpp"
 #include "map.hpp"
 #include "mapparts.hpp"
+#include "dng_main.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -162,6 +163,18 @@ bool TownMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad
            !scene->event_run && scene->active_camera == 0 && scene->GetCamera(scene->active_camera) == camera &&
            camera->control_on && camera->follow_on && !camera->suspended &&
            !mgCCamera::StopCamera && !(camera->rot_cancel & CAMERA_ROT_CANCEL_ANALOG);
+}
+
+bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
+                           const DNG_STATUS &status, const DNG_BATTLE_AREA *area,
+                           CActionChara *chara, bool subgame, bool locked, bool debug) {
+    return status.mode == DNG_STATUS_FIELD && !status.eye_view && area && chara && !debug &&
+           (area->camera_mode == DNG_CAMERA_FOLLOW || area->camera_mode == DNG_CAMERA_FOLLOW_LOW) &&
+           !(area->pause_flag & (DNG_PAUSE_PLAYER_STEP | DNG_PAUSE_PLAYER_CONTROL |
+                                 DNG_PAUSE_FIELD_STEP | DNG_PAUSE_PAD_RESET)) &&
+           area->script.event_no == -1 && !area->script.running &&
+           !chara->lock_on && chara->damage_req != ACTION_DAMAGE_REQ_DEAD && chara->CheckRunEvent() &&
+           TownMouseCameraOwns(camera, scene, pad, true, subgame, locked);
 }
 
 float MouseCameraYaw(CCameraControl &camera, float yaw, CCPoly *polys, int count) {

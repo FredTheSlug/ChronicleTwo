@@ -5,6 +5,9 @@
 class CCameraControl;
 class CScene;
 class CPadControl;
+class CActionChara;
+struct DNG_STATUS;
+struct DNG_BATTLE_AREA;
 struct CCPoly;
 struct mgVu0FBOX;
 
@@ -15,6 +18,10 @@ int MouseCameraCollectPolys(CScene &scene, mgVu0FBOX &box, CCPoly *out, int capa
 // supplies whether the town loop is running, so other camera modes keep ownership.
 bool TownMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
                         bool walking, bool subgame, bool locked);
+
+bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
+                           const DNG_STATUS &status, const DNG_BATTLE_AREA *area,
+                           CActionChara *chara, bool subgame, bool locked, bool debug);
 
 // Apply the safe prefix of a direct yaw to both current and pending poses.
 // Polygons must cover the entire orbit and follow corridor, not just the old eye.

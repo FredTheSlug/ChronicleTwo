@@ -7,6 +7,7 @@
 #include "camera_mouse.hpp"
 #include "editctrl.hpp"
 #include "editloop.hpp"
+#include "dng_main.hpp"
 #include "gamepad.hpp"
 #include "mainloop.hpp"
 #include "scenesnd.hpp"
@@ -52,9 +53,14 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     if (look.read == consumed_read) return;
     consumed_read = look.read;
     if (control.rot_back) return;
-    CScene *scene = GetMainScene();
+    const bool dungeon = GetNowLoopNo() == LOOP_DUNGEON;
+    CScene *scene = dungeon ? DngMainScene : GetMainScene();
     const bool walking = GetNowLoopNo() == LOOP_EDIT && !IsEditMode() && IsWalkMode();
-    if (!TownMouseCameraOwns(this, scene, pad, walking, SubGameRunning(), GamePad__2.key_lock) ||
+    const bool owns = dungeon ? DungeonMouseCameraOwns(this, scene, pad, DngStatus, BattleAreaScene,
+                              MainChara__2, SubGameRunning(), GamePad__2.key_lock,
+                              DebugInfo.debug_camera != 0) :
+                              TownMouseCameraOwns(this, scene, pad, walking, SubGameRunning(), GamePad__2.key_lock);
+    if (!owns ||
         (look.yaw == 0 && look.pitch == 0) || !std::isfinite(look.yaw) || !std::isfinite(look.pitch)) return;
 
     // The retail collection encloses the old eye and cannot cover a mouse flick.

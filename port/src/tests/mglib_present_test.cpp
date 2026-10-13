@@ -1818,7 +1818,7 @@ TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
     InputSetScriptedDevices({});
     MenuMouseEnable(true);
     EXPECT_FALSE(PresentMouseActive());
-    MouseConfigure(false, {});
+    EXPECT_FALSE(MouseInputLive()); // Headless scripted pointer needs no native capture.
     const auto    texture = gfx::CreateTexture({1, 1});
     const uint8_t white[] = {255, 255, 255, 128};
     ASSERT_TRUE(gfx::UpdateTexture(texture, 0, 0, 0, 1, 1, white));

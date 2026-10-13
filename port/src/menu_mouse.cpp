@@ -85,8 +85,11 @@ namespace {
 bool PadOrFocusOwnsPointer() {
     const auto &pad = InputGetPad(0);
     WindowMode  mode;
-    const bool  unfocused = WindowCurrentMode(mode) && !(SDL_GetWindowFlags(WindowHandle()) & SDL_WINDOW_INPUT_FOCUS);
-    return (WindowHandle() && !MouseInputLive()) || unfocused || pad.buttons || GamePad__2.pad[0].button ||
+    // Headless scripts have no native cursor/capture owner. A real window must
+    // release the pointer immediately when capture or input focus is lost.
+    const bool inactive = WindowCurrentMode(mode) &&
+                          (!MouseInputLive() || !(SDL_GetWindowFlags(WindowHandle()) & SDL_WINDOW_INPUT_FOCUS));
+    return inactive || pad.buttons || GamePad__2.pad[0].button ||
            std::abs(int(pad.left_x) - 128) > 30 || std::abs(int(pad.left_y) - 128) > 30;
 }
 

@@ -38,17 +38,28 @@ bool ListDirectory(const fs::path &path, std::vector<fs::path> &paths) {
     return true;
 }
 
-void Import(const fs::path &from, const fs::path &to) {
+bool Import(const fs::path &from, const fs::path &to) {
     std::error_code error;
-    if (!fs::is_regular_file(from, error)) return;
+    if (!fs::is_regular_file(from, error)) return false;
     auto size = fs::file_size(from, error);
     // Large, unusable files remain visible at their original location. Reading a
     // malformed file must not exhaust memory while opening the menu.
-    if (error || size > 16 * 1024 * 1024) return;
+    if (error || size > 16 * 1024 * 1024) return false;
     std::vector<char> bytes(static_cast<std::size_t>(size));
-    if (FilesRead(from, bytes.data(), bytes.size()) != bytes.size()) return;
-    if (FilesCreateDirectory(SaveSlotsRoot()) == FilesResult::kFailed) return;
-    FilesWrite(to, bytes.data(), bytes.size(), false);
+    if (FilesRead(from, bytes.data(), bytes.size()) != bytes.size()) return false;
+    if (FilesCreateDirectory(SaveSlotsRoot()) == FilesResult::kFailed) return false;
+    return FilesWrite(to, bytes.data(), bytes.size(), false) == FilesResult::kWritten;
+}
+fs::path ImportMarker(const fs::path &target) {
+    return PathsSaveRoot() / ".save-imports" / target.filename();
+}
+
+bool RecordImport(const fs::path &target) {
+    auto marker = ImportMarker(target);
+    if (FilesCreateDirectory(marker.parent_path()) == FilesResult::kFailed) return false;
+    constexpr char imported[] = "imported\n";
+    const auto result = FilesWrite(marker, imported, sizeof(imported) - 1, false);
+    return result == FilesResult::kWritten || result == FilesResult::kExists;
 }
 } // namespace
 
@@ -138,11 +149,15 @@ SaveSlotList SaveSlotScan() {
             int number = SaveSlotNumber(dir.filename().string(), second);
             if (number < 0 || second) continue;
             auto key = std::make_pair(number, card != 0);
-            if (entries.contains(key)) continue;
-            auto source = dir / dir.filename();
             auto target = SaveSlotPath(number, card != 0);
-            Import(source, target);
             std::error_code error;
+            if (fs::exists(ImportMarker(target), error)) continue;
+            if (entries.contains(key)) {
+                if (fs::is_regular_file(target, error) && !RecordImport(target)) list.read_failed = true;
+                continue;
+            }
+            auto source = dir / dir.filename();
+            if (Import(source, target) && !RecordImport(target)) list.read_failed = true;
             // An incomplete/missing legacy payload still owns a row and a name.
             entries[key] = fs::exists(target, error) ? target : source;
         }

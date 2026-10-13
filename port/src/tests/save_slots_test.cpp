@@ -356,3 +356,24 @@ TEST_F(SaveSlotTest, MenuScrollsPastThirteenAndClampsItsVisibleWindow) {
     EXPECT_EQ(rig.menu.top, 29);
     EXPECT_TRUE(SaveSlotIsNew(SaveSlots, rig.menu.select, true));
 }
+
+TEST_F(SaveSlotTest, DeletedImportsStayDeletedAcrossLaterScans) {
+    Write(Legacy(0, 0));
+    Write(Legacy(1, 0));
+    ASSERT_EQ(SaveSlotScan().saves.size(), 2);
+    fs::remove(SaveSlotPath(0));
+    fs::remove(SaveSlotPath(0, true));
+    SaveSlots = {};
+    EXPECT_TRUE(SaveSlotScan().saves.empty());
+    EXPECT_TRUE(fs::exists(Legacy(0, 0)));
+    EXPECT_TRUE(fs::exists(Legacy(1, 0)));
+}
+
+TEST_F(SaveSlotTest, ExistingFlatSaveRetiresItsLegacyCopyBeforeManualDeletion) {
+    Write(Legacy(0, 3));
+    image->unique_counter = 42;
+    Write(SaveSlotPath(3));
+    ASSERT_EQ(SaveSlotScan().saves.size(), 1);
+    fs::remove(SaveSlotPath(3));
+    EXPECT_TRUE(SaveSlotScan().saves.empty());
+}

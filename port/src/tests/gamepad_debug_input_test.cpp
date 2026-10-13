@@ -20,7 +20,7 @@ TEST(GamePadDebugInput, BothModifierOrdersConsumeSelectAndL2FromTheRoutedPad) {
 TEST(GamePadDebugInput, Pad1ConsumesHeldDownUpAndReleaseEdgesOfTheWholeCombo) {
     ASSERT_TRUE(GameSetJump("title"));
     constexpr int consumed = PAD_SELECT | PAD_L2 | PAD_CIRCLE | PAD_CROSS;
-    CGamePad pad{};
+    CGamePad      pad{};
     pad.pad[0].button = consumed | PAD_RIGHT;
     EXPECT_FALSE(pad.On(consumed));
     EXPECT_FALSE(pad.Down(consumed));

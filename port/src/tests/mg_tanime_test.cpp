@@ -312,9 +312,9 @@ TEST_F(MgTanimeGpu, BlockReloadRestoresOpenEyesBeforeSelfCopy) {
         ASSERT_EQ(pixels.size(), original.size());
         for (int y = 0; y < kSide; ++y) {
             for (int x = 0; x < kSide; ++x) {
-                const size_t offset = static_cast<size_t>(y) * kSide + x;
-                const bool   inside = x >= kCopyOrigin && x < kCopyOrigin + kCopySide &&
-                                    y >= kCopyOrigin && y < kCopyOrigin + kCopySide;
+                const size_t  offset = static_cast<size_t>(y) * kSide + x;
+                const bool    inside = x >= kCopyOrigin && x < kCopyOrigin + kCopySide &&
+                                       y >= kCopyOrigin && y < kCopyOrigin + kCopySide;
                 const uint8_t expected = inside && tick % 3 != 0 ? (tick % 3 == 1 ? 0x22 : 0x33) : original[offset];
                 EXPECT_EQ(pixels[offset], expected) << "tick " << tick << " texel " << x << "," << y;
             }

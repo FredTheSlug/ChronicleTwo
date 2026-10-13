@@ -13,10 +13,10 @@
 #include <vector>
 
 #include "dataread.hpp"
-#include "gamedata.hpp"
-#include "mainloop.hpp"
 #include "dataread_port.hpp"
 #include "dc2data.hpp"
+#include "gamedata.hpp"
+#include "mainloop.hpp"
 #include "platform/paths.hpp"
 
 int LoadGameDataAnalyze(char *);
@@ -474,5 +474,7 @@ TEST_F(DataRead, ItemMessageReloadClearsTheLiveArenaWithoutClearingReboundRoots)
     ASSERT_EQ(record->name, live);
     ASSERT_STREQ(live, "B");
     // The old suffix must be cleared even though the original static bytes were already zero.
-    for (int i = 2; i < 29; ++i) EXPECT_EQ(live[i], 0) << i;
+    for (int i = 2; i < 29; ++i) {
+        EXPECT_EQ(live[i], 0) << i;
+    }
 }

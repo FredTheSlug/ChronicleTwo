@@ -97,6 +97,7 @@ TEST(MenuMouse, PopupWheelStepsAnEntireGridRow) {
 class MenuMouseInput : public testing::Test {
 protected:
     int width = mgScreenWidth, height = mgScreenHeight;
+
     void SetUp() override {
         mgScreenWidth = 512;
         mgScreenHeight = 480;
@@ -108,6 +109,7 @@ protected:
         GamePad__2.pad[0].button = GamePad__2.previous_pad[0].button = 0;
         ClockSetUnbounded(true);
     }
+
     void TearDown() override {
         InputSetScriptedDevices({});
         MenuMouseEnable(false);
@@ -118,6 +120,7 @@ protected:
         InputSetOverride(0, nullptr);
         InputResetBindings();
     }
+
     static void Tick() { mgEndFrame(nullptr); }
 };
 

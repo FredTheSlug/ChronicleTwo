@@ -16,16 +16,16 @@
 namespace {
 // Host-only identities keep presentation state out of retail objects and saves.
 struct GaugeEmission {
-    uint64_t life = 0;
-    uint64_t content = 0;
-    uint64_t rage = 0;
+    uint64_t            life = 0;
+    uint64_t            content = 0;
+    uint64_t            rage = 0;
     int                 hp = 0, max_hp = 0, screen = 0;
     char                brackets = 0, label = 0;
     ScreenOverlayAnchor anchor;
 };
 
 struct TargetEmission {
-    CActiveMonster *target = nullptr;
+    CActiveMonster     *target = nullptr;
     int                 slot = -1;
     uint64_t            life = 0, generation = 0;
     bool                locked = false;

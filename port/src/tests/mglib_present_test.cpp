@@ -1899,33 +1899,38 @@ TEST(MglibPresent, HandTipUsesTheHoverMappingAtFourThreeAndWidescreenFill) {
     }
     InputSetMouseSettings(settings);
 }
+
 namespace {
 void CaptureRidepodWarning(bool wide) {
     const char *data = std::getenv("DC2_DATA");
-    if (!data) GTEST_SKIP() << "DC2_DATA supplies the extracted glyph atlas";
-    const auto path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
+    if (!data) {
+        GTEST_SKIP() << "DC2_DATA supplies the extracted glyph atlas";
+    }
+    const auto    path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
     std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file) GTEST_SKIP() << "Extracted system texture archive unavailable";
-    const size_t bytes = static_cast<size_t>(file.tellg());
+    if (!file) {
+        GTEST_SKIP() << "Extracted system texture archive unavailable";
+    }
+    const size_t           bytes = static_cast<size_t>(file.tellg());
     std::vector<u_long128> archive((bytes + 15) / 16);
     file.seekg(0);
     ASSERT_TRUE(file.read(reinterpret_cast<char *>(archive.data()), bytes));
-    int member_size = 0;
-    char member_name[] = "frame_basic.img";
+    int   member_size = 0;
+    char  member_name[] = "frame_basic.img";
     auto *image = GetPackFile(reinterpret_cast<u_int *>(archive.data()), member_name, &member_size);
     ASSERT_NE(image, nullptr);
     PresentRenderer renderer(wide ? 1280 : 640, wide ? 720 : 480);
     gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
     PresentSetSettings(PresentSettings{.interpolation = true});
     std::vector<u_long128> backing(131072);
-    mgCMemory memory;
+    mgCMemory              memory;
     memory.stSetBuffer(backing.data(), static_cast<int>(backing.size()));
     mgCTextureManager manager;
     manager.SetTableBuffer(64, 8, &memory);
     manager.Initialize(0x1000, -1);
     manager.EnterIMGFile(reinterpret_cast<u_char *>(image), 0, &memory, nullptr);
     auto *saved = TEX_SystenFrame;
-    char texture_name[] = "frame";
+    char  texture_name[] = "frame";
     TEX_SystenFrame = manager.GetTexture(texture_name, -1);
     ASSERT_NE(TEX_SystenFrame, nullptr);
     mgSetDataBuffer(&memory, &memory, 0);
@@ -1940,7 +1945,7 @@ void CaptureRidepodWarning(bool wide) {
     warning.Draw();
     mgEndFrame(nullptr);
     std::vector<uint8_t> anchored, old;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, anchored, width, height));
     gfx::BeginRecording();
     for (auto entry : mgPortLastList()->entries) {
@@ -1954,8 +1959,11 @@ void CaptureRidepodWarning(bool wide) {
     auto reference = gfx::EndRecording();
     ASSERT_TRUE(gfx::RenderList(*reference, 1, gfx::RenderOptions{.canonical = true}));
     ASSERT_TRUE(gfx::ReadbackTexture(gfx::kPreviousFrame, old, width, height));
-    if (wide) EXPECT_NE(anchored, old);
-    else EXPECT_EQ(anchored, old); // 4:3 remains byte-identical.
+    if (wide) {
+        EXPECT_NE(anchored, old);
+    } else {
+        EXPECT_EQ(anchored, old); // 4:3 remains byte-identical.
+    }
     if (const char *capture = std::getenv("DC2_CAPTURE_DIR")) {
         std::filesystem::create_directories(capture);
         const auto name = wide ? "ridepod-16x9.png" : "ridepod-4x3.png";
@@ -1965,6 +1973,8 @@ void CaptureRidepodWarning(bool wide) {
     TEX_SystenFrame = saved;
     manager.Initialize(0x1000, -1);
 }
-}
+} // namespace
+
 TEST(MglibPresent, RidepodWarningsAnchorAtSixteenNine) { CaptureRidepodWarning(true); }
+
 TEST(MglibPresent, RidepodWarningsStayIdenticalAtFourThree) { CaptureRidepodWarning(false); }

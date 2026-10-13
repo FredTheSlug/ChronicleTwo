@@ -112,7 +112,7 @@ TEST_F(EffectWorkMemory, SecondaryCharactersSkipTheUndersizedFirstGap) {
 
 TEST_F(EffectWorkMemory, SecondaryCharactersReserveAllCopies) {
     // This gap fits all retail object budgets but not all native copies.
-    u_long128 *barrier = Fragment(EFF_SPT_SUB_CHARA_MAX * 0x68 + 4);
+    u_long128  *barrier = Fragment(EFF_SPT_SUB_CHARA_MAX * 0x68 + 4);
     _EFF_SCRIPT script{};
     script.chara = &character;
     ASSERT_TRUE(manager.AssignCharacter(&script, EFF_SPT_SUB_CHARA_MAX));
@@ -137,5 +137,5 @@ TEST_F(EffectWorkMemory, SecondaryCharacterExhaustionReportsTheNativeBudget) {
     testing::internal::CaptureStdout();
     EXPECT_FALSE(manager.AssignCharacter(&script, 1));
     const auto output = testing::internal::GetCapturedStdout();
-    EXPECT_NE(output.find("es work max!! (assign character[" + std::to_string(required) + "])") , std::string::npos);
+    EXPECT_NE(output.find("es work max!! (assign character[" + std::to_string(required) + "])"), std::string::npos);
 }

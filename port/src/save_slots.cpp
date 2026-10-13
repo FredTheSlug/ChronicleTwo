@@ -284,7 +284,7 @@ SaveSlotList SaveSlotScan() {
             if (number < 0 || second) {
                 continue;
             }
-            auto key = std::make_pair(number, card != 0);
+            auto            key = std::make_pair(number, card != 0);
             auto            target = SaveSlotPath(number, card != 0);
             std::error_code error;
             if (fs::exists(ImportMarker(target), error)) {

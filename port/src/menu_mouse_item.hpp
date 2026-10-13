@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+
 #include "menu_mouse.hpp"
 
 class CMenuKeyFunc;
@@ -12,13 +13,16 @@ namespace menumouse {
 struct Point {
     float x = 0, y = 0;
 };
+
 struct Rect {
     float x = 0, y = 0, w = 0, h = 0;
     bool  Contains(Point p) const;
 };
+
 struct Target {
-    int      panel = -1, cursor = -1;
+    int  panel = -1, cursor = -1;
     bool operator==(const Target &) const = default;
+
     explicit operator bool() const { return panel >= 0 && cursor >= 0; }
 };
 
@@ -33,6 +37,7 @@ struct Take {
     std::uint32_t pressed = 0, released = 0, held = 0;
     float         wheel = 0;
 };
+
 struct Pointer {
     Point pos;
     bool  pointing = false;
@@ -45,6 +50,7 @@ enum class Action {
     Drop,
     Cancel
 };
+
 struct Gesture {
     bool   pending = false, dragging = false, release_pending = false;
     Target source;

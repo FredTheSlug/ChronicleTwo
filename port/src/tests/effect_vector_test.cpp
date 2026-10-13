@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include "vector_scratch_probes.hpp"
-
 #include <cstring>
 #include <memory>
 
@@ -12,6 +10,7 @@
 #include "runscript.hpp"
 #include "sceneseq.hpp"
 #include "scenesnd.hpp"
+#include "vector_scratch_probes.hpp"
 
 namespace {
 RS_STACKDATA Number(float value) {

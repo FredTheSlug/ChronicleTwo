@@ -38,8 +38,8 @@ int _MES_SYS(SPI_STACK *, int);
 int _MES_SYS_SPECTOL(SPI_STACK *, int);
 
 namespace {
-mgCMemory *message_memory;
-char message_root;
+mgCMemory    *message_memory;
+char          message_root;
 SPI_TAG_PARAM message_tags[] = {
     {const_cast<char *>("COMINIT"),    _DATACOMINIT     },
     {const_cast<char *>("COM"),        _DATACOM         },
@@ -65,9 +65,9 @@ SPI_TAG_PARAM message_tags[] = {
     {const_cast<char *>("FISH"),       _DATAFISH        },
     {const_cast<char *>("MES_SYS"),    _MES_SYS         },
     {const_cast<char *>("MES_SYSSPE"), _MES_SYS_SPECTOL },
-    {NULL,         NULL             },
+    {NULL,                             NULL             },
 };
-}
+} // namespace
 
 PORT_OVERRIDE int CGameData::LoadItemSystemMes(int language) {
     // This root is reinitialized on every language load. Cursor rebinding elsewhere
@@ -78,7 +78,7 @@ PORT_OVERRIDE int CGameData::LoadItemSystemMes(int language) {
     memory.stSetBuffer(root, 0x280 * kArenaHeadroom);
     message_memory = &memory;
     alignas(64) u_long128 script_buffer[0x780];
-    char path[0x40];
+    char                  path[0x40];
     std::snprintf(path, sizeof(path), "menu/cfg7/comdatmes%d.cfg", language);
     int size = 0;
     if (LoadFile2(path, script_buffer, &size, 0)) {
@@ -93,8 +93,8 @@ PORT_OVERRIDE int CGameData::LoadItemSystemMes(int language) {
 
 PORT_OVERRIDE int _MES_SYS(SPI_STACK *args, int) {
     const int item = spiGetStackInt(args++);
-    char *text = spiGetStackString(args);
-    auto *record = GameItemDataManage.GetCommonData(item);
+    char     *text = spiGetStackString(args);
+    auto     *record = GameItemDataManage.GetCommonData(item);
     if (record != nullptr && message_memory != nullptr) {
         char converted[0x100]{};
         if (LanguageCode >= 2 && LanguageCode < 6) {

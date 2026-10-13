@@ -401,6 +401,7 @@ void MenuMousePadTick() {
 }
 
 bool MenuMouseItemActive() { return ItemPage(); }
+
 void MenuMouseItemOrigin(float &x, float &y) {
     if (!ItemPage()) {
         return;
@@ -412,6 +413,7 @@ void MenuMouseItemOrigin(float &x, float &y) {
 
 void MenuMouseUpdate(CMenuKeyFunc &keys) {
     synthetic = 0;
+
     // Commit even an empty result: an inventory press may be a pending drag.
     struct CommitButtons {
         ~CommitButtons() { MenuMouseSetButtons(synthetic); }

@@ -1,12 +1,11 @@
 #include <gtest/gtest.h>
 
-#include "vector_scratch_probes.hpp"
-
 #include <cstring>
 #include <memory>
 
 #include "editexception.hpp"
 #include "scenesnd.hpp"
+#include "vector_scratch_probes.hpp"
 
 TEST(ThunderVector, FourBandMapUsesTheCompleteLightingOutput) {
     auto scene = std::make_unique<CScene>();

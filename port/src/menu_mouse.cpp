@@ -28,17 +28,20 @@ struct Hand {
     float               rotation = 0, scale = 1;
     int                 reverse = 0, alpha = 128, seen = -100;
 } hand;
+
 struct Choices {
     const void                *owner = nullptr;
     int                        message = -1, drawn = -100, selected = -1, target = -1, ready = 0;
     bool                       horizontal = false, confirm = false;
     std::vector<MenuMouseRect> rows;
 } choices;
+
 struct ListClick {
     const void *owner = nullptr;
     int         seen = -100, ready = 0, target = -1;
     bool        pending = false;
 } list_click;
+
 void SetCapture(bool on);
 
 } // namespace
@@ -352,4 +355,5 @@ void MenuMouseDraw() {
 }
 
 void MenuMouseSetButtons(int mask) { buttons = mask; }
+
 bool MenuMouseActive() { return enabled; }

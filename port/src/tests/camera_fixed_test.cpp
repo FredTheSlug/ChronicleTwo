@@ -228,3 +228,26 @@ TEST(CameraFixedMouse, RetailTownModesGateBothPointAndPathCameras) {
         *flags[i] = saved[i];
     }
 }
+
+TEST(CameraFixedMouse, CullingConeIncludesRotatedScreenCorners) {
+    const float focal = 400, half_width = 256, half_height = 240;
+    const float radius = MouseFixedCullRadius(focal, focal, half_width, half_height);
+    EXPECT_GT(radius, half_width);
+    for (float yaw : {-15.0f, 0.0f, 15.0f}) {
+        for (float pitch : {-10.0f, 0.0f, 10.0f}) {
+            const float y = yaw * std::numbers::pi_v<float> / 180;
+            const float p = pitch * std::numbers::pi_v<float> / 180;
+            for (float x : {-half_width / focal, half_width / focal}) {
+                for (float v : {-half_height / focal, half_height / focal}) {
+                    const float py = v * std::cos(p) - std::sin(p);
+                    const float pz = v * std::sin(p) + std::cos(p);
+                    const float rx = x * std::cos(y) + pz * std::sin(y);
+                    const float rz = -x * std::sin(y) + pz * std::cos(y);
+                    ASSERT_GT(rz, 0);
+                    EXPECT_LT(std::fabs(focal * rx / rz), radius);
+                    EXPECT_LT(std::fabs(focal * py / rz), radius);
+                }
+            }
+        }
+    }
+}

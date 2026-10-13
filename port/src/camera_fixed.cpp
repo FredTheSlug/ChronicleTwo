@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstring>
 #include <numbers>
+#include <limits>
 
 #include "camera_fixed.hpp"
 #include "cameracontrol.hpp"
@@ -220,19 +221,27 @@ bool MouseFixedActive(double seconds) {
     auto                  &look = display_look;
     static CCameraControl *owner = nullptr;
     static int             map = -1, submap = -1, active_map = -1;
-    const auto            &sample = InputGetMouseLook();
+    const auto sample = InputPeekMouseLookTotal();
+    static InputMouseLookTotal before;
+    static std::uint64_t display_sample = 0;
     auto                  *camera = TownMouseFixedOwner();
     CScene                *scene = camera ? GetMainScene() : nullptr;
     if (owner != camera || (scene && (map != scene->now_map_no || submap != scene->now_sub_map_no ||
                                       active_map != scene->active_map))) {
         look = {};
-        look.read = sample.read;
+        before = sample;
         owner = camera;
         map = scene ? scene->now_map_no : -1;
         submap = scene ? scene->now_sub_map_no : -1;
         active_map = scene ? scene->active_map : -1;
     }
-    look.Update(camera != nullptr, sample.read, sample.yaw, sample.pitch, seconds);
+    if (before.epoch != sample.epoch) {
+        look = {};
+        before = sample;
+    }
+    look.Update(camera != nullptr, ++display_sample, sample.yaw - before.yaw,
+                sample.pitch - before.pitch, seconds);
+    before = sample;
     return look.Active();
 }
 
@@ -252,4 +261,15 @@ bool MouseFixedRender(const gfx::DisplayList &list, float alpha, const gfx::Rend
         render.previous = &previous;
     }
     return gfx::RenderList(turned, alpha, render);
+}
+
+float MouseFixedCullRadius(float focal_x, float focal_y, float half_width, float half_height) {
+    // A cone around the outermost visible corner encloses every combination of
+    // the bounded 15-degree yaw and 10-degree pitch. Keep the original draw pose.
+    const float angle = std::atan(std::hypot(half_width / focal_x, half_height / focal_y)) +
+                        25 * std::numbers::pi_v<float> / 180;
+    if (!(focal_x > 0 && focal_y > 0) || angle >= std::numbers::pi_v<float> / 2) {
+        return std::numeric_limits<float>::max() / 4;
+    }
+    return std::max(focal_x, focal_y) * std::tan(angle);
 }

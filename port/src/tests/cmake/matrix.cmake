@@ -13,7 +13,7 @@ function(matrix_scene name input frame)
             --scene ${label} --work "${CMAKE_BINARY_DIR}/matrix/${label}"
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
     set_tests_properties(Matrix.${name} PROPERTIES
-        SKIP_RETURN_CODE 77 TIMEOUT 900 RUN_SERIAL TRUE LABELS matrix)
+        SKIP_RETURN_CODE 77 TIMEOUT 900 RUN_SERIAL TRUE LABELS "matrix;gpu")
 endfunction()
 
 matrix_scene(Title tools/input/sweep-title.input 2500)

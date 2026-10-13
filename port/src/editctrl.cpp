@@ -7,6 +7,7 @@
 #include "editctrl.hpp"
 #include "editctrl_port.hpp"
 #include "editloop.hpp"
+#include "first_person_walk.hpp"
 #include "mainloop.hpp"
 #include "photo.hpp"
 #include "platform/config.hpp"
@@ -58,7 +59,9 @@ PORT_OVERRIDE int EditControl(CScene *scene, CPadControl *pad) {
     if (PortEditLadderMode != EDIT_LADDER_MODE_NONE) {
         PortEditLadderControl(scene, pad);
     } else {
-        PortEditCharaControl(scene, pad);
+        if (!TownFirstPersonWalk(scene, pad)) {
+            PortEditCharaControl(scene, pad);
+        }
         PortEditCameraControl(scene, scene->event_run ? nullptr : pad);
     }
     TownMouseEyeAfterControl(scene, pad);

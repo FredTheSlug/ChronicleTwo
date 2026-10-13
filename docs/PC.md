@@ -1088,3 +1088,9 @@ After any edit to `ps2/`, run `./build.sh ps2-pal`, then `BUILD_DIR=build/pal py
 `scripts/port/matrix.py` compares logical-frame PSNR across resolutions, plain and `--display-per-tick 4` identity, and letterbox geometry. Below-35 dB PSNR is advisory unless `--psnr-gate` is supplied; run failures, display-per-tick pixel differences and letterbox failures are hard failures. There are no HUD probe claims.
 
 Each fresh run explicitly disables debug in its config and removes `DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` from the launch environment. It records the exact process exit status, duration, binary/input hashes, launch config hash, saved config hash, frame count, window, aspect, data path and display-per-tick mode in `result.json`. `--no-run` requires matching identities and retains a failed or timed-out status even when a PNG exists. Changing extracted data in place is outside this provenance check; use the same verified extraction for comparisons. `Matrix.Title` and `Matrix.Costume` carry `matrix;gpu` labels. `Matrix.Runner` checks the runner synthetically without game data or a device.
+
+Keyboard movement in normal first-person view (R by default) is always enabled:
+W/S move forward/back and A/D strafe relative to the view, including remapped
+movement keys and normalized diagonals. Movement uses the normal character
+collision and speed rules. Controller sticks retain retail first-person look.
+Photo aiming, fishing, Ridepod, menus and scripted control keep their own controls.

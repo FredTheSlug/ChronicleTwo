@@ -1,4 +1,6 @@
 #include "menu_mouse.hpp"
+#include "menu_mouse_item.hpp"
+#include <SDL3/SDL.h>
 
 #include <algorithm>
 #include <cmath>
@@ -111,25 +113,55 @@ const MenuMouseSample &MenuMouseTake() {
         return sample;
     }
     sample.clicked = mouse.buttons & ~held;
+    sample.released = held & ~mouse.buttons;
+    sample.held = mouse.buttons;
     held = mouse.buttons;
     sample.wheel = mouse.wheel;
     sample.moved = mouse.dx != 0 || mouse.dy != 0;
     const auto &pad = InputGetPad(0);
-    if (pad.buttons || std::abs(int(pad.left_x) - 128) > 30 || std::abs(int(pad.left_y) - 128) > 30)
+    WindowMode mode;
+    const bool unfocused = WindowCurrentMode(mode) && !(SDL_GetWindowFlags(WindowHandle()) & SDL_WINDOW_INPUT_FOCUS);
+    const bool pad_active = pad.buttons || GamePad__2.pad[0].button ||
+        std::abs(int(pad.left_x) - 128) > 30 || std::abs(int(pad.left_y) - 128) > 30;
+    if (pad_active || unfocused) {
         sample.pointing = false;
+        sample.clicked = sample.released = 0;
+        sample.wheel = 0;
+        buttons = 0;
+        choices.confirm = false;
+        choices.target = choices.selected;
+        return sample;
+    }
     if (!sample.pointing) {
         choices.confirm = false;
         choices.target = choices.selected;
+        MenuMouseItemOrigin(sample.x, sample.y);
     }
     if (sample.moved || sample.clicked || sample.wheel != 0) sample.pointing = true;
-    const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
-    int width = static_cast<int>(mapping.pixel_width), height = static_cast<int>(mapping.pixel_height);
-    WindowSize(width, height);
     const auto extent = mgPortVisibleExtent(gfx::kMainTarget);
-    if (std::isfinite(mouse.dx)) sample.x += mouse.dx * MenuMouseUnits(mapping.scale_x, mapping.pixel_width, width);
-    if (std::isfinite(mouse.dy)) sample.y += mouse.dy * MenuMouseUnits(mapping.scale_y, mapping.pixel_height, height);
-    sample.x = std::clamp(sample.x, extent.left, extent.right - 1);
-    sample.y = std::clamp(sample.y, extent.top, extent.bottom - 1);
+    float left = extent.left, top = extent.top, right = extent.right, bottom = extent.bottom;
+    float units_x = 1, units_y = 1;
+    if (mgPortRendererReady()) {
+        const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
+        const auto scene = gfx::GetLogicalMapping(gfx::kMainTarget);
+        int width = static_cast<int>(mapping.pixel_width), height = static_cast<int>(mapping.pixel_height);
+        WindowSize(width, height);
+        units_x = MenuMouseUnits(mapping.scale_x, mapping.pixel_width, width);
+        units_y = MenuMouseUnits(mapping.scale_y, mapping.pixel_height, height);
+        left = (extent.left * scene.scale_x + scene.offset_x - mapping.offset_x) / mapping.scale_x;
+        right = (extent.right * scene.scale_x + scene.offset_x - mapping.offset_x) / mapping.scale_x;
+        top = (extent.top * scene.scale_y + scene.offset_y - mapping.offset_y) / mapping.scale_y;
+        bottom = (extent.bottom * scene.scale_y + scene.offset_y - mapping.offset_y) / mapping.scale_y;
+    }
+    if (std::isfinite(mouse.dx)) sample.x += mouse.dx * units_x;
+    if (std::isfinite(mouse.dy)) sample.y += mouse.dy * units_y;
+    sample.x = std::clamp(sample.x, left, right - 1);
+    sample.y = std::clamp(sample.y, top, bottom - 1);
+    if (MenuMouseItemActive()) {
+        buttons = 0;
+        choices.confirm = false;
+        return sample;
+    }
     buttons = (sample.clicked & 1 ? PAD_CROSS : 0) | (sample.clicked & 2 ? PAD_CIRCLE : 0);
     if (choices.drawn >= frame - 1 && !choices.rows.empty()) {
         buttons &= ~PAD_CROSS;
@@ -206,3 +238,6 @@ void MenuMouseDraw() {
     };
     gfx::Draw2D(gfx::Primitive::Triangles, vertices, {}, state);
 }
+
+void MenuMouseSetButtons(int mask) { buttons = mask; }
+bool MenuMouseActive() { return enabled; }

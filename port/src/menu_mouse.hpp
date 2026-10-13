@@ -11,7 +11,7 @@ struct MenuMouseRect {
 struct MenuMouseSample {
     float x = 256, y = 224, wheel = 0;
     bool pointing = false, moved = false;
-    std::uint32_t clicked = 0;
+    std::uint32_t clicked = 0, released = 0, held = 0;
 };
 
 // Relative window pixels map through the same logical extent as the menu art.
@@ -32,3 +32,7 @@ int MenuMouseRows(std::span<const MenuMouseRect> rows, int selected, int wheel_s
 // Keep a click through a retail list's cursor-settling delay.
 void MenuMouseDelayConfirm(const void *owner, int selected, int target, int ticks);
 void MenuMouseDraw();
+
+// Exclusive adapters translate this sampled frame into retail buttons.
+void MenuMouseSetButtons(int buttons);
+bool MenuMouseActive();

@@ -1,4 +1,5 @@
 #include "common.h"
+#include "mw_runtime.h"
 
 #include "menudraw.hpp"
 #include "menumain.hpp"
@@ -8,8 +9,15 @@
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "mw_runtime.h"
+#include "menu_mouse_item.hpp"
 
 extern float PortMenuWakuPosition[2] asm("MenuDraw_WakuPosition");
+
+PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
+    int draw_x = fptosi(x), draw_y = fptosi(y);
+    MenuMouseDrawPosition(this, draw_x, draw_y);
+    MenuFormDraw(draw_x, draw_y, state);
+}
 
 PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
                                     int alpha, int red, int green, int blue) {

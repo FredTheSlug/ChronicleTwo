@@ -373,7 +373,45 @@ entry, exit, menus, events, photo mode and other input owners cannot queue mouse
 motion into it. The town caller preserves its retail movement and ladder helpers,
 then applies mouse look only to the established eye-view owner.
 `tools/input/dungeon-mouse-eye.input` and `tools/input/town-mouse-eye.input` enter
-R2 view and exercise mouse look. Mouse menu selection remains pending.
+R2 view and exercise mouse look.
+
+### Item menu mouse
+
+The town and dungeon main menu's Item page accepts the mouse. Move over a grid
+cell, an active-item slot, an equipped weapon or the character model to move the
+retail selection there. Mouse1 opens the selected item's command list; move over
+a command and click to confirm it. Mouse2 backs out like Circle. The command
+window stays attached to the item, using the game's own placement and disabled
+commands.
+
+Quantity prompts accept the wheel or clicks on their arrows; click the number
+to continue. Yes/No choices can be selected and confirmed with the mouse.
+
+Press Mouse1 on a bag item or an active item, move at least four logical units,
+then release over a cell or active slot to move or swap it. The held icon rides
+the mouse. A short click opens commands on release. Swapped items return to the
+original slot through the retail return animation. Dropping outside a target or
+pressing Mouse2 returns the held item; it does not discard it. Equipment, use,
+stack limits and refusal checks remain the game's own. Wheel notches over the
+grid scroll rows, stopping at the bag's ends.
+
+The pointer starts at the retail selection when the mouse takes over. Controller
+or keyboard button input returns control to the retail cursor. Mouse counts are
+mapped through the window size, UI scale and visible widescreen extent; camera
+sensitivity and inversion do not affect the pointer. Buttons held when entering
+the page must be released before clicking, and a held button cannot become a
+gameplay press when leaving it. Losing window focus cancels the mouse gesture
+without dropping an item. Other inventory submenus retain their existing controls.
+
+`tools/input/item-menu-mouse.input` replays grid hover and commands at 1280x720
+with `--jump town:10 --fast-load`. Capture frame 700 with
+`--screenshot-display 1` to inspect the opened command list.
+The same replay clicks Status by frame 800 and backs out with Mouse2.
+`item-menu-mouse-drag.input` covers held-item rendering (660), grid swaps (800),
+active-slot placement (1100), active-slot moves (1300), and return after a drop
+outside the menu (1550). `item-menu-mouse-dungeon.input` reaches the dungeon's
+Item page and opens Bread's commands by frame 2850. These two scripts also use
+1280x720; scale `mouse:dx,dy` counts with the window dimensions for other sizes.
 
 ## Decision 1: long64 is kept
 

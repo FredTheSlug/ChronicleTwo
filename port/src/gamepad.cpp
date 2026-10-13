@@ -2,6 +2,7 @@
 
 #include "gamepad.hpp"
 #include "menu_mouse.hpp"
+#include "menu_mouse_item.hpp"
 #include "mainloop.hpp"
 #include "test_hooks.hpp"
 #include "platform/input.hpp"
@@ -93,6 +94,7 @@ PORT_OVERRIDE void CGamePad::MenuModeOff() {
     axis_threshold[0] = 0;
     InputSetMenuNavigation(false);
     MenuMouseEnable(false);
+    MenuMouseClose();
 }
 
 PORT_OVERRIDE void CGamePad::CaptureStart() {

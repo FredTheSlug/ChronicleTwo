@@ -11,6 +11,10 @@
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
 #include "mglib.hpp"
+#include "menudraw.hpp"
+#include "mg_drawprim.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
 #include "mainloop_port.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
@@ -250,4 +254,73 @@ TEST(MglibAspect, FrameBorderStaysAtVisibleEdges) {
             EXPECT_GT(rgba[index], 190) << "black seam at " << x + dx;
         }
     }
+}
+
+// The menu backdrop is 704 pixels wide and slides left by 192 pixels for the
+// item page. Its lens at texture x=350 must land at logical x=158, alongside
+// the model, even though the backdrop covers the entire logical frame.
+static void ExpectMenuLensAtRetailPosition(int window_width, int window_height) {
+    AspectRenderer renderer(window_width, window_height);
+    std::vector<u_long128> arena(4096), pixels(1024 * 512 * 4 / 16), ornament(64 * 64 * 4 / 16);
+    mgCMemory memory;
+    memory.stSetBuffer(arena.data(), static_cast<int>(arena.size()));
+    mgTexManager.SetTableBuffer(16, 4, &memory);
+    mgTexManager.Initialize(0x1000, -1);
+    auto *rgba = reinterpret_cast<uint8_t *>(pixels.data());
+    for (int y = 0; y < 416; ++y) {
+        for (int x = 0; x < 704; ++x) {
+            rgba[(y * 1024 + x) * 4 + 3] = 128;
+            if (x >= 702) rgba[(y * 1024 + x) * 4 + 1] = 255;
+        }
+    }
+    for (int y = 204; y < 212; ++y) {
+        for (int x = 346; x < 354; ++x) {
+            rgba[(y * 1024 + x) * 4] = 255;
+            rgba[(y * 1024 + x) * 4 + 3] = 128;
+        }
+    }
+    u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels.data()};
+    char background_name[] = "bg16", ornament_name[] = "mnmain";
+    ASSERT_NE(mgTexManager.EnterTexture(0, background_name, levels, 1024, 512, 32, nullptr, 0, 0), nullptr);
+    levels[0] = ornament.data();
+    ASSERT_NE(mgTexManager.EnterTexture(0, ornament_name, levels, 64, 64, 32, nullptr, 0, 0), nullptr);
+    MenuMainFrameModeSet(MENU_MAIN_FRAME_OPEN, 1);
+    for (int i = 0; i < 30; ++i) MenuMainFrameStep();
+    MenuMainFrameModeSet(MENU_MAIN_FRAME_SLIDE_LEFT, 1);
+    for (int i = 0; i < 30; ++i) MenuMainFrameStep();
+    ASSERT_EQ(MenuMainFrame_PutRect.left, -192);
+
+    mgSetBackGround(0, 0, 0, 128);
+    mgBeginFrame(nullptr);
+    int loaded_texture = -1;
+    MenuMainFrameDraw(loaded_texture, 128);
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> image;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, image, width, height));
+    uint32_t min_x = width, max_x = 0, min_y = height, max_y = 0;
+    for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
+            if (image[(static_cast<size_t>(y) * width + x) * 4] > 200) {
+                min_x = std::min(min_x, x); max_x = std::max(max_x, x);
+                min_y = std::min(min_y, y); max_y = std::max(max_y, y);
+            }
+        }
+    }
+    ASSERT_LE(min_x, max_x);
+    const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    EXPECT_NEAR(((min_x + max_x + 1) * 0.5f - mapping.offset_x) / mapping.scale_x, 158.0f, 1.0f);
+    EXPECT_NEAR(((min_y + max_y + 1) * 0.5f - mapping.offset_y) / mapping.scale_y, 240.0f, 1.0f);
+    // A wide window shows past the authored right edge. The edge texel fills
+    // that flank, while the lens and all interior artwork stay in place.
+    EXPECT_GT(image[(static_cast<size_t>(height / 2) * width + width - 2) * 4 + 1], 200);
+    mgTexManager.Initialize(0x1000, -1);
+}
+
+TEST(MglibAspect, ItemMenuLensStaysWithModelAtSixteenNine) {
+    ExpectMenuLensAtRetailPosition(1920, 1080);
+}
+
+TEST(MglibAspect, ItemMenuLensStaysWithModelAtFourThree) {
+    ExpectMenuLensAtRetailPosition(640, 480);
 }

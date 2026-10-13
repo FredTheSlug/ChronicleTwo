@@ -421,9 +421,13 @@ Continue, a file-row click and its confirmation using a copied flat-save fixture
 `title-mouse-newgame.input` clicks New Game and reaches costume selection.
 File-list clicks wait through the retail cursor-settling delay before confirming.
 
-Shop-specific lists and several secondary destination screens still lack dedicated
-hit regions. The ITEM page and PC SETTINGS use the shared pointer adapters
-described in their sections. Ordinary dialogue choices share the message adapter;
+Shop lists, buy/sell quantities, equipment command popups and stat grids use
+visible hit regions. Retail Options buttons select their row and choice before
+confirming; background clicks do not confirm. Informational popups without
+selectable regions accept a click on the current choice. Fractional wheel input
+accumulates across ticks. The displayed gold hand replaces only its own retail
+cursor, and releasing capture restores the native pointer immediately.
+The ITEM page and PC SETTINGS use the shared pointer adapters described below. Ordinary dialogue choices share the message adapter;
 the rendered confirmation replays and drawn-message unit tests cover that input
 path, but campaign dialogue choices still need a dedicated replay.
 
@@ -520,13 +524,15 @@ Item page and opens Bread's commands by frame 2850. These two scripts also use
 in PC SETTINGS > Controls. In town rooms whose map supplies a fixed point/path
 camera, mouse motion adds a gentle view rotation, limited to 15 degrees horizontally
 and 10 degrees vertically. The view eases back exponentially when the mouse rests;
-the decay advances on every displayed frame, including with interpolation disabled.
+motion and decay advance on every displayed frame, including with interpolation disabled.
+Motion across several logic ticks is retained without applying a sample twice.
 The camera stays at its retail position, and character movement uses the unchanged
 retail camera. Events, dialogue, menus, pause, ladders, Georama, debug cameras and
 user-controllable cameras keep their own view. Turning the option off drops the offset.
 
 An untouched mouse takes the original rendering path. The offset changes only display
-renders; gameplay, scene culling, canonical captures and depth queries retain retail's
+renders; scene culling conservatively includes the permitted view rotation, while
+gameplay, canonical captures and depth queries retain retail's
 view. `tools/input/town-mouse-fixed.input`, with `--jump town:31 --fast-load`, reaches
 Morton's Sundries directly. Use `--display-per-tick 4 --screenshot-display 2` and inspect
 the `-display-*.png` captures at frame 609 for motion and 900 for return. The companion
@@ -850,7 +856,7 @@ The root `CMakeLists.txt` selects the platform: `PS2` builds `ps2/`, and `PC` en
 
 ### The shared-code pin
 
-The submodule is pinned at commit `d1a8ec49fa8e79beb9b3566cdd057fadbe5337d0` (`git ls-tree HEAD tools/kazarov` shows it). Changes to the shared code land in the submodule first, on the shared code's main line. Both games that use it must build and test green on that commit before either one pins it. A game never edits a submodule checkout in place. To move the pin: land the change in `tools/kazarov`, check both games on that commit, then commit the new submodule pointer in this repository.
+Read the exact shared-code pin with `git ls-tree HEAD tools/kazarov`; the gitlink is authoritative. Changes to the shared code land in the submodule first, on the shared code's main line. Both games that use it must build and test green on that commit before either one pins it. A game never edits a submodule checkout in place. To move the pin: land the change in `tools/kazarov`, check both games on that commit, then commit the new submodule pointer in this repository.
 
 ## How `port/src` takes precedence
 
@@ -1092,5 +1098,8 @@ Each fresh run explicitly disables debug in its config and removes `DC2_JUMP`, `
 Keyboard movement in normal first-person view (R by default) is always enabled:
 W/S move forward/back and A/D strafe relative to the view, including remapped
 movement keys and normalized diagonals. Movement uses the normal character
-collision and speed rules. Controller sticks retain retail first-person look.
+collision and speed rules. Arrow keys turn the eye view; controller sticks retain
+retail first-person look. Leaving the view restores the follow camera relative to
+the player's current position. Dungeon trap circles, touch events and GeoStones
+end eye view so the normal field-event path can handle them.
 Photo aiming, fishing, Ridepod, menus and scripted control keep their own controls.

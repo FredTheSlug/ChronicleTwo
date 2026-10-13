@@ -2,7 +2,7 @@
 
 Read [PC.md](../PC.md) for delivered behavior, build/run instructions and source exceptions. The native port and PS2 build live together; native replacements compile through `PORT_OVERRIDE` and build copies.
 
-- Shared-code pin: `d1a8ec49fa8e79beb9b3566cdd057fadbe5337d0` in `tools/kazarov`.
+- Shared-code pin: read `git ls-tree HEAD tools/kazarov` for the exact dependency.
 - Supported bounded checkpoints: boot/title, costume selection, opening, Palm Brinks and the first Underground Channel floor. Campaign completion and all sub-games are not established.
 - Debug defaults off. Config or scene-jump opt-in and controls are described in [DEBUG.md](../DEBUG.md).
 - [Headless replay timing](headless-replays.md) defines deterministic mixer ownership and capture conditions.

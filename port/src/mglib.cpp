@@ -9,6 +9,7 @@
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
 #include "mglib_port.hpp"
+#include "menu_mouse.hpp"
 #include "platform/clock.hpp"
 #include "present.hpp"
 #include "platform/paths.hpp"
@@ -857,12 +858,13 @@ void mgPortReleaseTextureTarget(uint32_t tbp0) {
 // Submission
 
 void mgPortDraw2D(gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices,
-                  const gfx::TextureBinding &texture, const gfx::DrawState &state) {
+                  const gfx::TextureBinding &texture, const gfx::DrawState &state,
+                  const gfx::Presentation2D *presentation) {
     if (!ready || !gfx_open) {
         return;
     }
 
-    gfx::Draw2D(primitive, vertices, texture, state);
+    gfx::Draw2D(primitive, vertices, texture, state, presentation);
 }
 
 void mgPortDrawMesh(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
@@ -1196,6 +1198,7 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
 
     if (gfx_open) {
         gfx::SetRenderTarget(gfx::kMainTarget);
+        MenuMouseDraw();
         gfx::DisplayListRef list = gfx::EndRecording();
         recording = false;
 

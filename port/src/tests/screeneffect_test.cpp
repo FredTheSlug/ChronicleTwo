@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstring>
 #include <cstdlib>
 #include <filesystem>
 #include <string>
@@ -277,4 +278,43 @@ TEST(ScreenEffect, LensFlareOutsideDistanceLimitDoesNothing) {
     const Pixels pixels = ReadMain();
     EXPECT_NEAR(pixels.At(256.0f, 240.0f)[0], 0x40, 0);
     EXPECT_NEAR(pixels.At(40.0f, 40.0f)[0], 0x40, 0);
+}
+
+// Depth of field samples the display's own grab in screen space. A scene camera must not
+// carry that screen-sized depth-tested layer a second time like a world billboard.
+TEST(ScreenEffect, DepthOfFieldDisplayKeepsScreenAligned) {
+    PresentRenderer renderer;
+    mgSetRenderInfo(512.0f, 10.0f, 4000.0f);
+    auto record = [&](float camera_x) {
+        mgBeginFrame(nullptr);
+        DrawStripedScene(DepthOfFieldDepth(500.0f), DepthOfFieldDepth(2000.0f));
+        auto transform = gfx::IdentityMeshTransform();
+        transform.view[12] = camera_x;
+        gfx::MeshConstants constants = {};
+        std::memcpy(constants.mvp, transform.view, sizeof constants.mvp);
+        // An offscreen mesh establishes a moving scene without changing the test image.
+        const gfx::Vertex3D vertices[3] = {
+            {{100, 100, 0.5f}, {}, {}, {}}, {{101, 100, 0.5f}, {}, {}, {}},
+            {{100, 101, 0.5f}, {}, {}, {}}};
+        const uint32_t indices[3] = {0, 1, 2};
+        gfx::SetInterpKey(931);
+        gfx::DrawMeshImmediate(vertices, indices, constants, {}, {}, &transform);
+        mgCTexture work{};
+        float depths[1] = {1000.0f};
+        DepthOfField(1, depths, &work, 1.0f);
+        mgEndFrame(nullptr);
+    };
+    record(0);
+    record(0.4f);
+    auto canonical = ReadMain();
+    ASSERT_TRUE(gfx::RenderList(*mgPortLastList(), 0.5f,
+                               {.previous = mgPortPreviousList(), .present = true}));
+    std::vector<uint8_t> display;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(gfx::ReadbackFrame(display, width, height));
+    ASSERT_EQ(width, canonical.width);
+    ASSERT_EQ(height, canonical.height);
+    size_t different = 0;
+    for (size_t i = 0; i < display.size(); ++i) different += display[i] != canonical.rgba[i];
+    EXPECT_EQ(different, 0u);
 }

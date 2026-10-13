@@ -12,6 +12,7 @@
 #include "scenesnd.hpp"
 #include "userdata.hpp"
 #include "gfx/gfx.hpp"
+#include "dng_target_port.hpp"
 
 PORT_OVERRIDE void CWarningGage2::Draw() {
     if (time < 20 || layout == WARNING_GAGE_LAYOUT_NONE) {
@@ -74,18 +75,21 @@ PORT_OVERRIDE int CLockOnModel::Draw() {
     CActionChara *player = (CActionChara *) scene->GetCharacter(0);
 
     if (player == NULL) {
+        mgPortHideTarget(this);
         return 0;
     }
 
     name = NULL;
 
     if (player->target_no == -1) {
+        mgPortHideTarget(this);
         return 0;
     }
 
     CActiveMonster *target = (CActiveMonster *) scene->GetCharacter(player->target_no);
 
     if (target == NULL) {
+        mgPortHideTarget(this);
         return 0;
     }
 
@@ -93,16 +97,19 @@ PORT_OVERRIDE int CLockOnModel::Draw() {
     float height = target->body_height;
 
     if (!(target->target_dist <= target->clip_dist)) {
+        mgPortHideTarget(this);
         return 0;
     }
 
     if (target->alpha <= 0.0f) {
+        mgPortHideTarget(this);
         return 0;
     }
 
     CHARA_ENTRY_OBJECT *entry = target->GetEntryObjectPos(CHARA_ENTRY_GROUP_TARGET, 0, target_pos);
 
     if (entry == NULL) {
+        mgPortHideTarget(this);
         return 0;
     }
 
@@ -133,6 +140,7 @@ PORT_OVERRIDE int CLockOnModel::Draw() {
         message_no = -1;
     }
 
+    mgPortTrackTarget(this, target, player->target_no, player->lock_on != 0);
     if (player->lock_on == 0) {
         target_pos[1] += 5.0f + 10.0f * size;
         SetRotation(0.0f, angle, 0.0f);
@@ -141,6 +149,7 @@ PORT_OVERRIDE int CLockOnModel::Draw() {
         return 0;
     }
 
+    gfx::Interp2DScope interpolation(mgPortTargetBrackets(this));
     CPreSprite prim;
     prim.Initialize(NULL, NULL);
     prim.Preset2D();

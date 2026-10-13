@@ -7,7 +7,9 @@ class StreamChannel;
 // Retail CSound passes bank and sequence addresses in int parameters; the host loads through these instead.
 void SoundLoadHdBd(int port, const void *hd, int hd_size, const void *bd, int bd_size);
 int  SoundLoadHdBdAdd(int port, const void *hd, int hd_size, const void *bd, int bd_size);
-int  SoundLoadSeq(int port, const void *sq, int size);
+int  SoundLoadSeq(int port, const void *sq, int size, const char *name = nullptr);
+// Config volume is a final gain, independent of retail fades and core volumes.
+void SoundApplySettings();
 
 // ezBgm's open commands carry the name's address in int; these take it as a pointer.
 int EzBgmOpen(int channel, const char *name);

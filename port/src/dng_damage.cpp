@@ -1,0 +1,136 @@
+#include "common.h"
+
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <unordered_map>
+
+#include "dng_hud.hpp"
+#include "gfx/gfx.hpp"
+#include "maintex.hpp"
+#include "mglib.hpp"
+#include "scenesnd.hpp"
+
+namespace {
+// Keep presentation identity outside the retail objects and their serialized layouts.
+std::unordered_map<const void *, uint64_t> generations;
+uint64_t next_generation = 0;
+
+void Emit(const void *score) { generations[score] = ++next_generation; }
+
+gfx::Interp2D Presentation(const void *score) {
+    auto found = generations.find(score);
+    if (found == generations.end()) return {};
+    return {static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(score)), found->second};
+}
+
+void BeginScore(CPreSprite &prim) {
+    prim.Initialize(nullptr, nullptr);
+    prim.Preset2D();
+    prim.Coord(1);
+    prim.Begin(MG_PRIM_SPRITE);
+    prim.Texture(TEX_SystenFrame);
+    prim.AlphaTestEnable(1);
+}
+}
+
+PORT_OVERRIDE void CDamageScore::SetValue(float *position, int value) {
+    Emit(this);
+    sceVu0CopyVector(pos, position);
+    alpha = 0;
+    phase = DAMAGE_SCORE_PHASE_APPEAR;
+    active = true;
+    sprite = false;
+    std::sprintf(text, "%d", value);
+    length = std::strlen(text);
+    for (int i = 0; i < length; ++i) bounce[i] = PI;
+}
+
+PORT_OVERRIDE void CDamageScore::SetSprite(float *position, int u, int v, int width, int height) {
+    Emit(this);
+    sceVu0CopyVector(pos, position);
+    alpha = 0;
+    phase = DAMAGE_SCORE_PHASE_APPEAR;
+    active = true;
+    sprite = true;
+    bounce[0] = PI;
+    sprite_w = width;
+    sprite_h = height;
+    sprite_u = u;
+    sprite_v = v;
+}
+
+PORT_OVERRIDE void CDamageScore::Draw() {
+    if (!active) return;
+    gfx::Interp2DScope interpolation(Presentation(this));
+    CPreSprite prim;
+    int screen[4];
+    BeginScore(prim);
+    pos[3] = 1.0f;
+    if (sprite) {
+        if (mgTransWorldPrim(screen, pos)) {
+            prim.Color(0x80, 0x80, 0x80, alpha);
+            screen[1] += static_cast<int>(12.0f * sinf(bounce[0])) << 4;
+            prim.TextureCrd(sprite_u, sprite_v);
+            prim.Vertex4(screen[0], screen[1], 0);
+            prim.TextureCrd(sprite_u + sprite_w, sprite_v + sprite_h);
+            prim.Vertex4(screen[0] + (sprite_w << 4), screen[1] + (sprite_h << 4), 0);
+        }
+    } else {
+        for (int i = 0; text[i] > 0; ++i) {
+            if (!mgTransWorldPrim(screen, pos)) continue;
+            prim.Color(color[0], color[1], color[2], alpha);
+            screen[0] -= (length * digit_w) << 3;
+            screen[0] += (i * digit_w) << 4;
+            screen[1] += static_cast<int>(48.0f * sinf(bounce[i])) << 4;
+            const int digit = text[i] - '0';
+            prim.TextureCrd(digit_u + digit * digit_w, digit_v);
+            prim.Vertex4(screen[0], screen[1], 0);
+            prim.TextureCrd(digit_w + (digit_u + digit * digit_w), digit_v + digit_h);
+            prim.Vertex4(screen[0] + (digit_w << 4), screen[1] + (digit_h << 4), 0);
+        }
+    }
+    prim.End();
+}
+
+PORT_OVERRIDE void CDamageScore2::SetValue(int slot, int amount, float rise) {
+    Emit(this);
+    chara_no = slot;
+    alpha = 0;
+    value = amount;
+    phase = DAMAGE_SCORE2_PHASE_JUMP;
+    offset_y = 0;
+    height = 2.0f * rise;
+    progress = 0;
+    std::sprintf(text, "%d", value);
+    length = std::strlen(text);
+}
+
+PORT_OVERRIDE void CDamageScore2::Draw(CScene *scene) {
+    if (phase == DAMAGE_SCORE2_PHASE_NONE || length <= 0) return;
+    auto *character = scene->GetCharacter(chara_no);
+    if (!character) return;
+    auto *frame = character->GetFrame();
+    if (!frame) return;
+    gfx::Interp2DScope interpolation(Presentation(this));
+    CPreSprite prim;
+    int screen[4];
+    sceVu0FVECTOR position;
+    BeginScore(prim);
+    frame->GetWorldPosition0(position);
+    position[1] += height;
+    position[3] = 1.0f;
+    for (int i = 0; text[i] > 0; ++i) {
+        if (!mgTransWorldPrim(screen, position)) continue;
+        screen[0] -= (length * 14 / 2) << 4;
+        screen[0] += (i * 14) << 4;
+        screen[1] += static_cast<int>(offset_y) << 4;
+        const int digit = text[i] - '0';
+        prim.Color(220, 96, 96, static_cast<int>(128.0f * alpha));
+        prim.TextureCrd(digit * 12 + 78, 162);
+        prim.Vertex4(screen[0], screen[1], 0);
+        prim.TextureCrd(digit * 12 + 90, 179);
+        prim.Vertex4(screen[0] + 224, screen[1] + 304, 0);
+    }
+    prim.End();
+}

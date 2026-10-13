@@ -22,6 +22,7 @@ struct Config : HostSettings {
     bool         debug_mode = true;
     ConfigAspect aspect = ConfigAspect::Auto;
     float        ui_scale = 1.0f;
+    bool         font_sharp = false;
 
     bool operator==(const Config &) const = default;
 };
@@ -30,6 +31,8 @@ struct Config : HostSettings {
 // be read leaves the defaults in memory and is never written this session. Returns whether it was read.
 bool ConfigLoad();
 bool ConfigSave();
+// Applies and saves both the host settings and the game's presentation fields.
+bool ConfigChange(const Config &config);
 
 // Called by SettingsChange once a changed value is stored, with the settings before and after it.
 using ConfigChangeHook = void (*)(const HostSettings &before, const HostSettings &after);

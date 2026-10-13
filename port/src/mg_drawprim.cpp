@@ -595,6 +595,22 @@ void mgPortPrimSubmit(mgCDrawPrim &prim, gfx::Primitive primitive, std::span<con
     DrawVertices(prim, primitive, flat);
 }
 
+void mgPortPrimSubmitTexture(mgCDrawPrim &prim, std::span<const gfx::Vertex2D> quads,
+                             const gfx::TextureBinding &texture) {
+    FlushPending(&prim);
+    if (prim.disabled != 0 || quads.empty()) {
+        return;
+    }
+    gfx::DrawState state = mgPortDrawState();
+    state.blend = prim.prim.ABE != 0;
+    state.fog = prim.prim.FGE != 0;
+    if (prim_sink) {
+        prim_sink(gfx::Primitive::Quads, quads, texture, state);
+    } else {
+        mgPortDraw2D(gfx::Primitive::Quads, quads, texture, state);
+    }
+}
+
 void mgPortStripTriangles(std::span<const gfx::Vertex2D> strip, std::vector<gfx::Vertex2D> &out) {
     for (std::size_t i = 2; i < strip.size(); ++i) {
         out.push_back(strip[i - 2]);

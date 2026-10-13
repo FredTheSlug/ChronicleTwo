@@ -16,6 +16,8 @@
 #include "mainloop.hpp"
 #include "mglib_port.hpp"
 #include "present.hpp"
+#include "sound_port.hpp"
+#include "audio/soundtrack.hpp"
 #include "platform/clock.hpp"
 #include "platform/config.hpp"
 #include "platform/display.hpp"
@@ -236,6 +238,8 @@ void ApplyConfigChange(const HostSettings &before, const HostSettings &after) {
         gfx::SetPresentMode(PresentMode(after.present_mode));
     }
     InputApplyConfig(after);
+    SoundApplySettings();
+    if (before.soundtrack != after.soundtrack) audio::SoundtrackReload();
     // HostSettings has no interpolation or aspect, so the present settings come from ConfigGet, which
     // already holds the new values. This also resets an F3 toggle of show_fps to the config's value.
     PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));

@@ -135,6 +135,64 @@ void CopyPose(CCameraControl &camera, const CCameraControl &candidate) {
     camera.height = pending.y;
     camera.distance = Length(pending);
 }
+
+bool ClearFollow(Vec eye, Vec target, Vec next_eye, Vec next_target, CCPoly *polys, int count) {
+    if (!Finite(eye) || !Finite(target) || !Finite(next_eye) || !Finite(next_target)) return false;
+    const Vec middle_target = (target + next_target) * 0.5;
+    const double target_radius = Length(next_target - target) * 0.5;
+    const double eye_travel = Length(next_eye - eye);
+    double accepted = 0, step = 1;
+    // The target can ease at a different rate from the eye. Enclose its entire
+    // segment for every eye interval rather than checking synchronized samples.
+    for (int work = 0; work < 256; ++work) {
+        const double end = std::min(1.0, accepted + step);
+        const Vec middle_eye = eye + (next_eye - eye) * ((accepted + end) * 0.5);
+        const double envelope = 4.0 + std::max(target_radius, eye_travel * (end - accepted) * 0.5);
+        bool clear = true;
+        for (int i = 0; i < count; ++i) {
+            if (!(TriangleDistance(middle_target, middle_eye, polys[i]) > envelope)) {
+                clear = false;
+                break;
+            }
+        }
+        if (clear) {
+            if (end == 1) return true;
+            accepted = end;
+            step = 1 - accepted;
+        } else {
+            step *= 0.5;
+            if (step < 0.00001) return false;
+        }
+    }
+    return false;
+}
+}
+
+float MouseCameraClampFollow(CCameraControl &camera, const CCameraControl &candidate, CCPoly *polys, int count) {
+    const Vec eye = Read(camera.pos), target = Read(camera.ref);
+    const Vec next_eye = Read(candidate.next_pos), next_target = Read(candidate.next_ref);
+    Write(camera.next_pos, eye);
+    Write(camera.next_ref, target);
+    if (count < 0 || count >= 512 || (count && !polys) ||
+        !Finite(next_eye) || !Finite(next_target) || !ClearFollow(eye, target, eye, target, polys, count)) return 0;
+    double accepted = 0, rejected = 1;
+    if (ClearFollow(eye, target, next_eye, next_target, polys, count)) {
+        accepted = 1;
+    } else {
+        // Find a safe destination from the actual pose, even when the old
+        // pending pose was blocked. Refused pending motion is never replayed.
+        for (int work = 0; work < 16; ++work) {
+            const double fraction = (accepted + rejected) * 0.5;
+            if (ClearFollow(eye, target, eye + (next_eye - eye) * fraction,
+                            target + (next_target - target) * fraction, polys, count)) accepted = fraction;
+            else rejected = fraction;
+        }
+        const double travel = std::max(Length(next_eye - eye), Length(next_target - target));
+        if (travel > 0) accepted = std::max(0.0, accepted - 0.1 / travel);
+    }
+    Write(camera.next_pos, eye + (next_eye - eye) * accepted);
+    Write(camera.next_ref, target + (next_target - target) * accepted);
+    return accepted;
 }
 
 int MouseCameraCollectPolys(CScene &scene, mgVu0FBOX &box, CCPoly *out, int capacity) {
@@ -178,7 +236,11 @@ bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *
            !(area->pause_flag & (DNG_PAUSE_PLAYER_STEP | DNG_PAUSE_PLAYER_CONTROL |
                                  DNG_PAUSE_FIELD_STEP | DNG_PAUSE_PAD_RESET)) &&
            area->script.event_no == -1 && !area->script.running &&
-           !chara->lock_on && chara->damage_req != ACTION_DAMAGE_REQ_DEAD && chara->CheckRunEvent();
+           chara->damage_req != ACTION_DAMAGE_REQ_DEAD &&
+           // CheckRunEvent gates menus and eye entry, not the retail follow
+           // camera. Carrying, action scripts and lock-on still reach its
+           // MoveCamera call after the automatic target framing.
+           (!eye || (!chara->lock_on && chara->CheckRunEvent()));
 }
 
 bool MouseCameraEye(CCameraControl &camera, float &heading, float &tilt, float yaw, float pitch) {
@@ -238,10 +300,11 @@ float MouseCameraYaw(CCameraControl &camera, float yaw, CCPoly *polys, int count
     return accepted;
 }
 
-float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int count) {
+float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int count, float height_scale) {
     if (!std::isfinite(pitch) || pitch == 0 || count < 0 || count >= 512 || (count && !polys) ||
         !Finite(Read(camera.pos)) || !Finite(Read(camera.ref)) ||
         !Finite(Read(camera.next_pos)) || !Finite(Read(camera.next_ref))) return 0;
+    if (!std::isfinite(height_scale) || height_scale <= 0) return 0;
     CameraCtrlParam *param = camera.GetActiveParam();
     if (!std::isfinite(param->height) || !std::isfinite(param->min_height) ||
         !std::isfinite(param->max_height) || param->min_height > param->max_height) return 0;
@@ -249,8 +312,8 @@ float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int c
     const float distance = std::hypot(pending.x, pending.z);
     if (!(distance > 0)) return 0;
     const float angle = std::clamp(std::atan2(pending.y, distance) - pitch, -1.5, 1.5);
-    const float wanted = param->height + distance * std::tan(angle) - pending.y;
-    const float delta = std::clamp(wanted, param->min_height, param->max_height) - param->height;
+    const float wanted = param->height + (distance * std::tan(angle) - pending.y) / height_scale;
+    const float delta = (std::clamp(wanted, param->min_height, param->max_height) - param->height) * height_scale;
     if (!std::isfinite(delta) || delta == 0 || !ClearRise(camera, 0, 0, polys, count)) return 0;
     float accepted = 0, step = delta;
     for (int work = 0; work < 256 && std::fabs(delta - accepted) > 0.001f; ++work) {
@@ -269,10 +332,10 @@ float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int c
     CCameraControl candidate = camera;
     candidate.pos[1] += accepted;
     candidate.next_pos[1] += accepted;
-    candidate.GetActiveParam()->height += accepted;
+    candidate.GetActiveParam()->height += accepted / height_scale;
     CorrectGroundAndWalls(candidate, polys, count);
     if (!ClearRise(candidate, 0, 0, polys, count)) return 0;
     CopyPose(camera, candidate);
-    param->height += accepted;
+    param->height += accepted / height_scale;
     return accepted;
 }

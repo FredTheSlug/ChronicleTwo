@@ -109,6 +109,46 @@ A data root is missing when it is not a directory, or has no regular file `manif
 
 `run.sh` with no configuration boots the PS2 build in PCSX2 on Linux, and runs `macos-arm64-release` on macOS. `run.bat` with no configuration runs `windows-x64-release`. A PC configuration name extracts the data first, as described above, and then runs the port.
 
+### Saves
+
+Continue and Save Adventure open the file list directly. There is no memory-card
+selection or formatting step. The save screen lists every existing save and one
+last **New Save** entry; the load screen lists only existing saves. Up/Down moves
+one row and the shoulder buttons move two, as in the retail list. Cancel returns
+to the screen that opened the menu. Replacing a save retains the retail yes/no
+confirmation, with No selected initially. Unusable saves also require this
+confirmation before replacement.
+
+Each save is one file under `<save root>/saves/`, named
+`BESCES-51190dkcl<N>` (File N+1). The list has no 13-file limit. New Save uses the
+first unused number, rechecks it when writing, and never replaces an occupied
+name. Files with unsupported versions, incomplete writes, wrong sizes, read
+errors or failed retail checksums remain visible with their status. They are
+never removed automatically. A file with a valid name reserves that name even
+when it cannot be loaded; unrelated names and temporary files are not list rows.
+
+On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
+copied byte for byte into `saves/`. The equivalent files from `mc1` get a `.card2`
+suffix and an `(import 2)` label, keeping equal slot numbers distinct. Existing
+flat files take precedence; imports never overwrite them. Original card folders,
+icons and payloads are retained. If an import cannot be written, the original
+entry remains visible and can still be loaded if readable. Back up both the old
+card directories and `saves/` when moving a save root.
+
+The payload is the existing port save image and its retail header and checksums;
+no PC metadata is added. As before, it uses the host layout of `CSaveData`,
+including its photo records, so this does not add PS2-console save compatibility.
+Photo album and separate bonus-data storage continue to use their existing paths.
+
+Saving uses Kazarov's `FilesWrite`: an exclusive temporary file beside the target,
+a complete write, flush and close, then a write-through rename on Windows or a
+rename and directory sync on POSIX. Failed writes report an error and leave the
+menu available for retry. A process interrupted before publication leaves the
+previous save and may leave a `<filename>.<hex>.tmp` file; these temporary files
+can be removed while the game is closed. A load reads and validates the complete
+image before changing the live game state. The retail checksum format is retained;
+it is not a cryptographic integrity check.
+
 ### darkchronicle
 
 ```
@@ -187,11 +227,11 @@ To replay a milestone save without changing its source, use:
 
 ```sh
 python scripts/port/run_from_save.py --exe path/to/darkchronicle --data path/to/data \
-  --save-fixture path/to/fixture --input tools/input/continue-dungeon-start.input \
+  --save-fixture path/to/fixture --input tools/input/pc-continue.input \
   --frames 5000 --screenshot loaded.png
 ```
 
-The runner requires a fixture with `mc0/` or `mc1/`, copies it to a temporary
+The runner accepts a fixture with `saves/`, `mc0/` or `mc1/`, copies it to a temporary
 save root, starts at ordinary boot, and removes only that temporary copy after
 the process ends. The screenshot remains at the requested path. Ambient
 `DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` are removed from the child environment.
@@ -250,7 +290,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `video.ui_scale` | number | 1 | 0.25 to 4 | 2D UI scale |
 | `video.show_fps` | bool | true | | FPS counter (windowed runs; `--show-fps` forces it headless) |
 | `video.fps_detail` | string | all | fps, ticks, all | FPS counter text |
-| `audio.master_volume` | number | 1 | 0 to 1 | master volume; read and saved, not yet applied |
+| `audio.master_volume` | number | 1 | 0 to 1 | final mixer gain, independent of the game's fades and core volumes; applies live |
 | `audio.sound` | string | stereo | stereo, surround | output layout; read and saved, not yet applied (the output is stereo) |
 | `audio.soundtrack` | string | ps2 | ps2, custom | `custom` plays recordings from `soundtrack/` beside the save root, as named by its `soundtrack.json` |
 | `input.mouse_sensitivity` | number | 0.1 | above 0 | mouse look speed |
@@ -273,7 +313,32 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.mouse_release` | string or array of strings | empty | key names | keys that release the captured mouse |
 | `input.bindings` | object: action to string or array of strings | empty | key names | rebinds actions; action names are lowercased |
 
-`SettingsChange` stores the new settings, saves them, calls `DisplayChanged`, and calls a change hook. Through that hook `main` applies the tick rate, the present mode, `InputApplyConfig` and the present settings.
+`ConfigChange` stores and saves the full configuration, calls `DisplayChanged`, and calls a change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the tick rate, present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
+
+### PC SETTINGS
+
+Open **Options**, then press **SELECT** (Backspace with the default keyboard bindings), or click **PC SETTINGS** above the list. The original Options page still edits the retail save's options. Its confirm, cancel, reset, and L1/R1 page scrolling are unchanged; returning from PC SETTINGS keeps its cursor and choices.
+
+The PC page uses the game's font and Options artwork. L1/R1 changes tabs, Up/Down selects a row, Left/Right changes a value, and confirm advances a choice or opens binding capture. Cancel returns to Options; Japanese retains its reversed confirm/cancel layout. The mouse can click tabs and value arrows, scroll rows, restore a binding, and return to Options. Hit targets follow aspect ratio, UI scale and window DPI.
+
+| Page | Settings |
+|---|---|
+| Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, FPS counter |
+| Audio | Master volume and PS2/custom soundtrack |
+| Controls | Mouse sensitivity, Y inversion and capture; stick sensitivity and X/Y inversion; button symbols and glyph style |
+| Bindings | Keyboard and mouse bindings for pad buttons, movement, look, FPS and debug menu |
+
+Edits apply immediately and save to `config.json`. These settings do not require restarting the game. Soundtrack selection takes effect the next time a song starts, including one whose data is already loaded. Custom recordings use the original `.sq` filename in `soundtrack/soundtrack.json`; an absent or invalid recording falls back to the PS2 sequence. Current music is not restarted by moving the setting.
+
+Resolution changes the windowed size; fullscreen uses the desktop. A command-line `--window` takes precedence. A refused window change is read back and reported on screen. Hand-edited resolutions and numeric values are shown as stored and stay unchanged until that row is edited. The PC UI offers a bounded set of scale presets; the configuration file still accepts the full documented range.
+
+Confirm on a binding shows **Press a key...**. Press a key or mouse button; Escape cancels and cannot be bound. The opening press is ignored, and the new input must be released before navigation resumes. Square or **Restore binding** removes that action's override and restores its defaults. Controller buttons retain their retail assignments. Glyph style changes the PC page's device-specific button prompts; keyboard prompts use current bindings. Other retail screens keep their original button artwork.
+
+A failed write leaves the change working in the current session and shows a warning. Check the save folder and change a setting or reopen PC SETTINGS to retry. A configuration file that could not be read remains protected against replacement.
+
+`tools/input/pc-settings.input` replays all four tabs, a key rebind, Escape cancellation, and return to retail Options from `--jump town:10 --fast-load`. Its comments give capture frames. `tools/input/pc-settings-mouse.input` exercises clicking and mouse-button capture at `--window 1280x960`. Use fresh save roots and `--screenshot-display 2` for both.
+
+`tools/input/pc-settings-display.input` checks fullscreen, return to windowed, and resizing in a real window. Start with a fresh config containing a nonzero window size, omit `--window`, and stop at frame 940. The optional `PcSettingsReplay` CTests run the headless pad and mouse flows and assert the saved configuration when `DC2_DATA` is available.
 
 ### Keyboard menu controls
 
@@ -286,10 +351,58 @@ reverses those two logical buttons.
 
 Triangle opens the field or dungeon main menu. Inside a menu its meaning belongs
 to that screen: the main menu accepts it as OK, while some submenus treat it as
-Cancel. Enter retains the retail pause/resume action. WASD drives the left stick;
-retail menu navigation also converts that stick into D-pad presses past its
-threshold, including movement between active-item slots. Arrow keys send the
-D-pad directly.
+Cancel. Enter retains the retail pause/resume action. WASD (or rebound left-stick
+keys) and a controller's left stick navigate menus through the same retail stick
+threshold, including Item and Character pages. In the field, stick movement does
+not change active-item slots. Arrow keys send the D-pad and can select those slots.
+
+### Mouse menus
+
+Menu pointer input is shared by the inventory, other game menus and PC SETTINGS.
+The Controls page includes **Mouse wheel zoom** (off by default); menu scrolling
+never queues camera zoom. Save/load pointer selection uses the complete flat list,
+with one **New Save** row only when saving.
+
+Move the mouse to show the pointer and hover an option. Left click presses Cross,
+right click presses Circle, and the wheel moves through a list. A controller or
+keyboard movement hides the pointer; a stationary pointer does not undo that
+selection. Clicks held while opening or closing a menu do not confirm the next
+screen.
+
+Mouse selection covers the town and dungeon root menus, title menu, dungeon
+floor map and Save Adventure action, the flat save/load file lists,
+and the field Use Item popup. Yes/No boxes and dialogue choices use the message
+system's drawn choice positions and feed its normal directional input before
+confirming. The pointer follows the renderer's UI mapping, including widescreen
+anchoring and display scaling.
+
+The root and file lists pass their selection through the retail cursor helper,
+so scrolling, help text and background loading follow the same path as a D-pad
+move. The floor map similarly uses its normal next-room transition. The shared
+pointer implementation is `port/src/menu_mouse.cpp`; menu adapters, cursor
+transitions, floor selection and message choices live in separate
+`menu_mouse_*.cpp` files.
+
+Deterministic mouse replays are `tools/input/town-mouse-menu.input` and
+`title-mouse-menu.input` at `--window 1280x960`, and
+`dungeon-mouse-floor.input` and `dungeon-mouse-save.input` at
+`--window 1280x720`. Their comments give jump arguments and capture points.
+`MenuMouse.*` and `MenuMouseInput.*` cover hit testing, display scaling,
+controller handoff, scrolling and confirmation timing.
+
+`town-mouse-menu-wide.input` checks opening and cancelling at 16:9.
+`dungeon-mouse-play.input` enters a floor with the mouse and opens its root menu.
+`dungeon-mouse-item-popup.input` follows the normal dungeon replay to the locked
+gate and selects the Gate Key with the mouse. `title-mouse-load.input` exercises
+Continue, a file-row click and its confirmation using a copied flat-save fixture.
+`title-mouse-newgame.input` clicks New Game and reaches costume selection.
+File-list clicks wait through the retail cursor-settling delay before confirming.
+
+Shop-specific lists and several secondary destination screens still lack dedicated
+hit regions. The ITEM page and PC SETTINGS use the shared pointer adapters
+described in their sections. Ordinary dialogue choices share the message adapter;
+the rendered confirmation replays and drawn-message unit tests cover that input
+path, but campaign dialogue choices still need a dedicated replay.
 
 ### Mouse follow camera
 
@@ -297,15 +410,19 @@ Mouse motion directly turns the active walking camera around the character. It
 does not deflect the right stick or inherit its dead zone and easing. Vertical
 motion changes follow-camera height within the active retail limits, keeping the
 view aimed at the character. `input.mouse_sensitivity` is degrees per mouse
-count; `input.mouse_invert_y` reverses vertical motion. Mouse1, Mouse2 and Mouse3
-retain their Cross, Circle and R3 bindings.
+count; `input.mouse_invert_y` reverses vertical motion. Mouse1 and Mouse2 retain
+their Cross and Circle bindings. Mouse3 retains R3 unless wheel zoom is enabled.
 
 `CPadControl::Update` latches one independent mouse sample per logical pad update.
 The `CCameraControl::MoveCamera` port override consumes that sample once, only in
 town walking mode or dungeon follow/follow-low mode with the active main camera,
-unlocked input and no scene event or subgame. Dungeon lock-on, paused player or
-field control, pending/running event scripts and non-walking character actions
-retain camera ownership. Fixed, boss and arena views, menus, Georama and
+unlocked input and no scene event or subgame. Dungeon carrying, guarding, aiming,
+falling and lock-on keep follow-camera mouse control, just as they keep right-stick
+control; lock-on target framing still runs first. The character's menu-eligibility
+flag does not gate the follow camera. Paused player or field control and
+pending/running event scripts retain camera ownership. Town water movement uses
+the walking camera; ladders keep their authored camera for both inputs.
+Fixed, boss and arena views, menus, Georama and
 photo views retain their existing controls. A camera-reset request owns
 its frame; a later mouse yaw cancels an unfinished reset.
 
@@ -322,6 +439,9 @@ their axes and suppress the independent mouse look on those axes.
 yaw, vertical motion and a menu interruption. `tools/input/dungeon-mouse-camera.input`,
 with `--jump dungeon:0:1 --fast-load`, enters the first floor and exercises the
 same follow controls.
+`tools/input/dungeon-mouse-carry.input`, with `--jump dungeon:4:1 --fast-load`,
+lifts a rock in Mt. Gundor using R1 and Cross, then turns the mouse camera while
+carrying it (capture at frame 2374).
 
 In towns and dungeons, R2 first-person view also accepts direct mouse yaw and pitch. The
 eye stays at the retail character position, pitch stays within the retail
@@ -331,7 +451,85 @@ entry, exit, menus, events, photo mode and other input owners cannot queue mouse
 motion into it. The town caller preserves its retail movement and ladder helpers,
 then applies mouse look only to the established eye-view owner.
 `tools/input/dungeon-mouse-eye.input` and `tools/input/town-mouse-eye.input` enter
-R2 view and exercise mouse look. Mouse menu selection remains pending.
+R2 view and exercise mouse look.
+
+### Item menu mouse
+
+The town and dungeon main menu's Item page accepts the mouse. Move over a grid
+cell, an active-item slot, an equipped weapon or the character model to move the
+retail selection there. Mouse1 opens the selected item's command list; move over
+a command and click to confirm it. Mouse2 backs out like Circle. The command
+window stays attached to the item, using the game's own placement and disabled
+commands.
+
+Quantity prompts accept the wheel or clicks on their arrows; click the number
+to continue. Yes/No choices can be selected and confirmed with the mouse.
+
+Press Mouse1 on a bag item or an active item, move at least four logical units,
+then release over a cell or active slot to move or swap it. The held icon rides
+the mouse. A short click opens commands on release. Swapped items return to the
+original slot through the retail return animation. Dropping outside a target or
+pressing Mouse2 returns the held item; it does not discard it. Equipment, use,
+stack limits and refusal checks remain the game's own. Wheel notches over the
+grid scroll rows, stopping at the bag's ends.
+
+The pointer starts at the retail selection when the mouse takes over. Controller
+or keyboard button input returns control to the retail cursor. Mouse counts are
+mapped through the window size, UI scale and visible widescreen extent; camera
+sensitivity and inversion do not affect the pointer. Buttons held when entering
+the page must be released before clicking, and a held button cannot become a
+gameplay press when leaving it. Losing window focus cancels the mouse gesture
+without dropping an item. Other inventory submenus retain their existing controls.
+
+`tools/input/item-menu-mouse.input` replays grid hover and commands at 1280x720
+with `--jump town:10 --fast-load`. Capture frame 700 with
+`--screenshot-display 1` to inspect the opened command list.
+The same replay clicks Status by frame 800 and backs out with Mouse2.
+`item-menu-mouse-drag.input` covers held-item rendering (660), grid swaps (800),
+active-slot placement (1100), active-slot moves (1300), and return after a drop
+outside the menu (1550). `item-menu-mouse-dungeon.input` reaches the dungeon's
+Item page and opens Bread's commands by frame 2850. These two scripts also use
+1280x720; scale `mouse:dx,dy` counts with the window dimensions for other sizes.
+
+### Mouse wheel zoom
+
+Set `input.mouse_zoom` to `true` in `config.json` to enable wheel zoom in town
+walking and dungeon follow views. The default is `false`, as in Dark Cloud 1.
+Wheel up moves closer; wheel down moves farther, eight world units per notch,
+with a requested range of 30-600 units. The normal camera easing makes the
+transition smooth. The distance stays selected while walking, and collision
+shortens it where walls, floors or ceilings intervene, returning toward the
+requested distance when the path clears.
+Close zoom scales eye height with distance so the view keeps its normal slope;
+mouse pitch uses the same scale and floor/ceiling clearance still takes priority.
+
+`input.bindings.zoom_reset` defaults to `Mouse3` (middle click). It restores the
+active camera's normal minimum follow distance, as far as geometry permits.
+The existing L2/cancel camera reset also restores zoom. Turning the option off
+returns smoothly to the normal range. When enabled, the reset binding owns its
+keyboard/mouse source ahead of conflicting actions; physical controller buttons
+retain their retail actions, including R3's dungeon unit switch.
+
+Zoom only starts after a wheel request. Pad-only play keeps the retail camera
+path even when the option is enabled. Menus, events, lock-on, first-person,
+fixed cameras, photo mode and Georama retain ownership and do not queue wheel
+or reset input. A map or camera-parameter change clears the selected zoom.
+
+Each zoom update collects the generated follow destination and ground query,
+runs the retail floor/wall correction, then validates the entire eased corridor
+with four-unit clearance. Eye and target may ease at different rates; both are
+covered. Uncertain geometry or a full collection holds the actual pose rather
+than sending the camera through an unproved segment. No retail parameter set
+is changed by zoom. This conservative check may shorten motion sooner than
+the retail endpoint checks.
+
+`tools/input/town-mouse-zoom.input` and `tools/input/dungeon-mouse-zoom.input`
+exercise both limits, walking, reset and menu interruptions with the respective
+`--jump town:10 --fast-load` and `--jump dungeon:0:1 --fast-load` hooks. Their
+comments list capture frames; `--screenshot-display` also captures eased
+presentation frames. Enable the option in each replay's save-root config.
+`tools/input/dungeon-mouse-zoom-wall.input` adds a sideways wall approach,
+distance clamping, an inward reversal and reset in the same corridor.
 
 ## Decision 1: long64 is kept
 
@@ -398,11 +596,16 @@ The reason for this design: the retail thread loops (`GamePadStep`, `NowLoadingL
 - One game frame is one pass of the game's loop, and one recorded list. It spans `mgFrameRate` clock ticks: 2 on the 50 Hz tick, so 25 game frames a second. `mgFrameRate` keeps its meaning.
 - After the canonical render, `mgEndFrame` calls `PresentWaitFrame`. It waits the same tick count `WaitVSync` waited for; the rotating-thread and pump behaviour is unchanged. Meanwhile `present.cpp` renders display frames from the newest list and the one before it. Each display frame's alpha is the elapsed fraction of the game frame: the ticks since the frame began plus the fraction of the current tick, over `mgFrameRate`. An alpha from the clock tick alone would run 0 to 1 twice per game frame at `mgFrameRate` 2. Display frames are presented as fast as `video.present_mode` and `video.max_fps` allow (`max_fps` 0 is unlimited). A game frame whose wait presented nothing presents its canonical image afterwards (`PresentTickEnd`).
 - Interpolated: the models of tagged mesh draws, and the camera (`tools/kazarov/port/gfx/README.md`, "Display lists"). A draw is tagged with `mgPortInterpScope(object, teleport_distance, blend_vertices, no_interpolation)`, keyed by the `mgCFrame` or, outside a frame, the visual's record. `kMgPortFrameTeleportDistance` is 200 units. Skinned prog0 draws blend their 32-bone model-space palette (`gfx::Prog0Constants::bones`) per bone: translation lerped, rotation slerped from the Gram-Schmidt rotation, scale and shear lerped in its frame. A bone that moved further than the draw's teleport distance keeps the newest pose. The rest of the per-draw block follows the interpolated model and camera: `model_world` is the interpolated model, `clip_or_view` and the object-space eye are re-based through the tick's and the interpolated object-to-eye transforms, and point lights shift with the object's origin. Dark Cloud 1's port, which shares the renderer, records no prog0 block, so it takes no such path.
-- Not interpolated: 2D without depth (the HUD is tick-exact); 3D sprites' own motion; objects and cameras past the teleport thresholds; the first tick after `mgInit` and after `mgPortCutInterpolation()`, which `mainloop.cpp` calls on every loop change.
+- Depth-tested screen effects set `gfx::DrawState::screen_space` so the depth-of-field layers stay screen-aligned while sampling the display camera's refreshed grabs. World sprites retain camera reprojection.
+- Dungeon pickup sprites (`CPullItem`, including coins, ABS and floating items) opt into keyed world-corner interpolation. `SetItem` starts a new emission generation; matched corners blend in world space under the display camera, including bobbing, glow size and opacity. Atlas animation stays newest. Reused slots, unmatched/incompatible draws, motion beyond 200 units, near-plane crossings and multi-camera lists keep newest own motion. Canonical and alpha-1 rendering remain exact.
+- Enemy anger-counter marks (`CEnemyGekirin`) have independent screen-space keys, so their movement and break-away bounce interpolate even when HP changes or neighbouring marks disappear. `ResetGekirin` starts a new generation for refills and reused monsters. Game steps, rage counts and canonical rendering are unchanged.
+- Not interpolated: ordinary HUD/text without depth; untagged 3D sprites' own motion; objects and cameras past their teleport thresholds; the first tick after `mgInit` and after `mgPortCutInterpolation()`, which `mainloop.cpp` calls on every loop change. Damage scores, lock-on markers, HP bars, anger-counter marks and target names have separate opt-in screen-space presentation paths.
 - `video.interpolation = false` presents each canonical image once.
 - Headless, the clock is unbounded: one canonical render and one present per game frame. `--display-per-tick N` also renders N display frames at k/N and discards them. Screenshots are byte-identical with it (`PresentIdentity.DisplayPerTickScreenshot`).
 - Frame grabs: `mgPortRenderTarget(..., frame_target = true)` makes a gfx frame target, which a display render grabs again from its own image.
 - The FPS counter: `video.show_fps` turns it on (F3 and the `fps_toggle` host action flip it; headless only with `--show-fps`). It is drawn through `OverlayRecord`, as a display render's overlay, in the overlay's own font (the Dark Cloud Compendium Community Font baked into `overlay_font.inc`), so no canonical image holds it. The game's message font is not used: its texture lives only in the current mode's texture block (`ReLoadFontTexture` per mode) and `FontTex[0]` dangles across mode changes, so a badge in it would come and go with the modes. Its text is set by `video.fps_detail`; with all fields it reads `FPS 143.9  TICK 50.0/50  DRAWS 412`. TICK counts clock ticks per second, so it reads the tick rate whatever `mgFrameRate` is. DRAWS is the newest list's mesh plus 2D draws. `--log-fps` prints the same text on stderr once a second.
+- Interpolation diagnostic: set `KZ_INTERPOLATION_TINT=1` to tint draws on the main presentation image (default off). Green is a matched transformed mesh; cyan is an unmatched or pose-excluded mesh carried by the display camera; red is newest-only geometry; blue is flat 2D or a screen effect; yellow is a depth-tested sprite with reprojected corners. Unchanged matched meshes remain green. This classifies geometry, not all its inputs: texture contents, lighting, fog parameters and sprite motion can still be tick-exact. Alpha tests, coverage, depth and blending are retained, so translucent passes can mix tints. Reusable intermediate render targets keep their original colours; their final composites are tinted on the main image. Canonical renders and ordinary screenshots never receive the tint. Use `--screenshot-display 8` to inspect the diagnostic at eight interpolation phases. Optional `KZ_INTERPOLATION_TRACE=<file>` appends per-draw CSV sections at alpha zero, including matching/cut reasons, texture IDs, camera IDs, target IDs, whether a draw is tinted on the main image, and changed fog/material/projection/local inputs. It writes only while tint is enabled; remove both environment variables after diagnosis.
+- Outlined models render into a shared transparent image. Canonical clears and copies retain the retail draw box; presentation clears and composites cover the visible extent because the interpolated model can move outside the newest tick's box. Transparent texels in a depth-writing presentation composite do not write depth. `tools/input/area-dungeon-chest-turn.input` with `--jump dungeon:0:1 --fast-load --frames 2518 --screenshot chest.png --screenshot-display 8` exercises the unopened chest during a camera turn. For multi-part NPCs, use `--input tools/input/repro-town-npc-outline.input --jump town:10 --fast-load --frames 278 --window 1280x720 --screenshot woman.png --screenshot-display 8`; the woman's face must remain visible throughout the turn. `--input tools/input/repro-clown-outline.input --frames 27230 --window 1280x720 --screenshot clown.png --screenshot-display 8` checks the clown's face during the prologue camera move.
 - `--screenshot-display N` writes N display frames of the screenshot's frame, at alpha k/N from the previous list to the last, as `<stem>-display-<k>.png`. `--screenshot-fps` writes the screenshot with the FPS counter drawn into it, at window size, from a presented frame. With `--offscreen`, nothing is presented, and the image is read back from the display image instead. The counter reaches no other written image.
 - Measured on Windows (windowed 2560x1440, `present_mode` immediate, `max_fps` 0, title screen at frame 2500) the counter read 215-404 FPS at 420-590 draws with TICK 50.0/50; with interpolation off, the title presented 50 times a second and the movie 25.
 
@@ -447,6 +650,35 @@ GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mg
 `mgBeginDrawShadow` clears the main target's stencil (when a frame is open) and enters shadow mode. While in shadow, `mgPortShadowTarget()` returns the main target. `mgEndDrawShadow` composites a quad over the visible extent onto the main target: vertex alpha 48, blend `(0 - Cd) * As / 128 + Cd` with FIX `0x80` (128), alpha test off, and stencil test NotEqual 0, which zeroes the count. It then sets TEXA to TA0 0, TA1 128, AEM 1.
 
 ### Font and headless
+
+#### Optional sharp text
+
+`video.text_font` in the save folder's `config.json` is `"original"` by default. Set it to `"sharp"`
+and put a trusted TrueType font at `<save>/lang/font.ttf` to try sharp ASCII dialogue and menu text.
+`lang/font.ttf` beside the executable is the fallback location. Restart after changing the font file.
+No font file is bundled by this feature. A missing or unusable font keeps the original text and reports
+the fallback once on stderr.
+
+This is an experimental painter for the existing text cells: glyph advances, line and page breaks,
+message reveal timing and controller behavior are unchanged. It does not use the font's kerning or
+advances to reposition text. Accented characters, Japanese, symbols, button icons, small-font mode,
+stylized sprite digits and pictures of text retain their original rendering. A different font can
+change the weight and appearance of letters even though their layout stays the same.
+
+Glyphs are rasterized through Kazarov at the target's UI scale, rounded up to eight-pixel em buckets.
+The prototype keeps immutable glyph images for the renderer's lifetime, so recorded frames never
+sample overwritten atlas cells. Its 16 MiB pixel-cache budget and 2048-entry limit fall back to retail
+for new glyph sizes when exhausted; restarting clears the cache. Very large sizes above a 512-pixel
+em also retain the original glyph. Font files are opt-in local inputs, not validated downloads.
+
+`FontPortGpu.SharpDrawingKeepsRetailLayoutAndLineBreaks` exercises the original layout functions and
+the sharp painter with a font named by `DC2_TEST_FONT`. Without that fixture the raster/layout test
+is skipped; mapping, config and native submission tests do not require a font file.
+
+For a repeatable visual comparison, use `--jump dungeon:0:1 --fast-load --input tools/input/font-dialogue.input
+--frames 1050 --screenshot caption.png --screenshot-display 1` with a fresh save folder for each setting.
+The floor menu is visible at frame 400 of the same script. Add `--window 1920x1080` or `--window 3840x2160`
+to compare presentation captures (`caption-display-0.png`) at those resolutions.
 
 `mgInitFont` returns 0 and `mgCloseFont` does nothing. The port keeps no console, because retail never draws it: `font_draw_flag` is never set.
 

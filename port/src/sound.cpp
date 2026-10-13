@@ -17,7 +17,9 @@
 #include "audio/hdbank.hpp"
 #include "audio/mixer.hpp"
 #include "audio/sq.hpp"
+#include "audio/soundtrack.hpp"
 #include "audio/trace.hpp"
+#include "platform/settings.hpp"
 
 namespace {
 
@@ -35,6 +37,7 @@ struct PortState {
     std::array<std::shared_ptr<const audio::Bank>, MIDI_PORT_BANK_MAX> bank{};
     int                                                               bank_count = 0;
     std::vector<std::shared_ptr<const audio::SqFile>>                 sequence;
+    std::vector<std::string>                                         sequence_name;
     std::shared_ptr<const audio::SqFile>                              resident_sequence;
     int                                                               linked_port = -1;
     std::vector<int>                                                  dependent_port;
@@ -161,6 +164,7 @@ void ReleaseSequences(audio::Mixer &mixer, int port) {
     }
 
     state.sequence.clear();
+    state.sequence_name.clear();
 }
 
 void RejectIntAddress(const char *function) {
@@ -168,6 +172,10 @@ void RejectIntAddress(const char *function) {
 }
 
 } // namespace
+
+void SoundApplySettings() {
+    audio::DefaultMixer().SetMasterGain(SettingsGet().master_volume);
+}
 
 PORT_OVERRIDE void set_spu(int mode0, int mode1, int depth0, int depth1) {
     ApplyReverb(0, mode0, depth0);
@@ -194,6 +202,7 @@ PORT_OVERRIDE int CSound::Init(int mode0, int mode1, int depth0, int depth1) {
     ezBgmInit();
     ezMidiInit();
     audio::DefaultMixer().Reset();
+    SoundApplySettings();
     set_spu(mode0, mode1, depth0, depth1);
     ResetHostState();
     initialised = true;
@@ -247,6 +256,11 @@ PORT_OVERRIDE void CSound::SQ_Play(int port, int seq_no, int volume) {
     audio::Mixer &mixer = audio::DefaultMixer();
     mixer.Stop(port);
     mixer.SetSequence(port, state.sequence[seq_no]);
+    // Resolve at playback, so choosing another soundtrack in Options applies to the next song,
+    // including songs whose sequence data was already loaded. Missing recordings keep the PS2 song.
+    if (seq_no < static_cast<int>(state.sequence_name.size()) && !state.sequence_name[seq_no].empty()) {
+        mixer.SetStream(port, audio::SoundtrackFor(state.sequence_name[seq_no]));
+    }
 
     if (volume != audio::kFullPortVolume) {
         volume = static_cast<int>(2.015748f * volume);
@@ -447,7 +461,7 @@ int SoundLoadHdBdAdd(int port, const void *hd, int hd_size, const void *bd, int 
     return 0;
 }
 
-int SoundLoadSeq(int port, const void *sq, int size) {
+int SoundLoadSeq(int port, const void *sq, int size, const char *name) {
     audio::Mixer &mixer = audio::DefaultMixer();
 
     mixer.Stop(port);
@@ -467,6 +481,7 @@ int SoundLoadSeq(int port, const void *sq, int size) {
     }
 
     state.sequence.push_back(file);
+    state.sequence_name.emplace_back(name != nullptr ? name : "");
 
     if (state.sequence.size() > 15) {
         std::fprintf(stderr, "SEQ_MAX OVER PORT=%d\n", port);

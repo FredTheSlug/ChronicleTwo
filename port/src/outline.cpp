@@ -52,7 +52,25 @@ void DrawCopy(const OutlineBox &box, int dx, int dy, const uint8_t (&colour)[4],
     // same texels.
     const gfx::Vertex2D quad[4] = {corner(x0, y0, u0, v0), corner(x1, y0, u1, v0),
                                    corner(x1, y1, u1, v1), corner(x0, y1, u0, v1)};
-    mgPortDraw2D(gfx::Primitive::Quads, quad, binding, state);
+    // The model image is redrawn with the presentation camera, so the newest tick's box
+    // cannot crop it. Sample the visible extent; the matching display clear removes other
+    // objects from this shared target. Texture and screen coordinates retain the edge offset.
+    const mgPortExtent extent = mgPortVisibleExtent();
+    const float ox = static_cast<float>(dx) / kUnitsPerPixel;
+    const float oy = static_cast<float>(dy) / kUnitsPerPixel;
+    const gfx::Vertex2D display_quad[4] = {
+        corner(extent.left + ox, extent.top + oy, extent.left, extent.top),
+        corner(extent.right + ox, extent.top + oy, extent.right, extent.top),
+        corner(extent.right + ox, extent.bottom + oy, extent.right, extent.bottom),
+        corner(extent.left + ox, extent.bottom + oy, extent.left, extent.bottom)};
+    gfx::Presentation2D presentation{display_quad, state};
+    // Empty texels must not stamp the object's constant depth across the enlarged rectangle.
+    if (presentation.state.depth_write) {
+        presentation.state.alpha_test = true;
+        presentation.state.alpha_func = gfx::AlphaFunc::Greater;
+        presentation.state.alpha_ref = 0;
+    }
+    mgPortDraw2D(gfx::Primitive::Quads, quad, binding, state, &presentation);
 }
 
 } // namespace
@@ -188,7 +206,9 @@ PORT_OVERRIDE int COutLineDraw::Draw(float scale, float alpha) {
 
     gfx::SetRenderTarget(outline);
     // Depth is not cleared: the image shares the scene's depth buffer.
-    gfx::Clear(true, clear_colour, false, 0.0f, &clear_rect);
+    const gfx::LogicalRect display_clear = {extent.left, extent.top, extent.right - extent.left,
+                                            extent.bottom - extent.top};
+    gfx::Clear(true, clear_colour, false, 0.0f, &clear_rect, &display_clear);
     result += mgDrawDirect(frame);
     gfx::SetRenderTarget(previous);
 

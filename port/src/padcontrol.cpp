@@ -2,12 +2,16 @@
 #include "padcontrol.hpp"
 #include "mainloop.hpp"
 #include "platform/input.hpp"
+#include "menu_mouse_item.hpp"
 
 PORT_OVERRIDE void CPadControl::Update(CGamePad *pad) {
     // The logical gameplay sample follows the retail pad read once per frame.
     // Latch the independent mouse channel here, including while menus own input,
     // so motion from a paused or scripted camera cannot queue up for gameplay.
-    if (pad == &GamePad__2) InputLatchPad(0);
+    if (pad == &GamePad__2) {
+        InputLatchPad(0);
+        MenuMousePadTick();
+    }
     rx = pad->GetRXf();
     ry = pad->GetRYf();
     lx = pad->GetLXf();

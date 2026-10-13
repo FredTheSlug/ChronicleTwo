@@ -1,6 +1,9 @@
 #include "common.h"
 
 #include "gamepad.hpp"
+#include "menu_mouse.hpp"
+#include "menu_mouse_item.hpp"
+#include "mainloop.hpp"
 #include "test_hooks.hpp"
 #include "platform/input.hpp"
 #include "platform/paths.hpp"
@@ -19,14 +22,73 @@ void Neutral(PAD_STATUS &status) {
 }
 }
 
+int PortReadPad(PAD_STATUS *status, int port, int slot);
+
+PORT_OVERRIDE void CGamePad::UpDate() {
+    // Only the retail menu threshold may turn stick axes into D-pad buttons.
+    // Disable the host fallback so movement keys cannot select field slots.
+    InputSetKeyboardStickNavigation(false);
+    for (int port = 0; port < 2; ++port) {
+        previous_pad[port] = pad[port];
+        PortReadPad(&pad[port], port, 0);
+    }
+
+    const bool playback = capture_mode == PAD_CAPTURE_PLAY;
+    if (capture_mode == PAD_CAPTURE_RECORD) Capture(&pad[0]);
+    if (playback) Play(&pad[0]);
+
+    // Retail applies pad 0's left stick to both configured thresholds, regardless
+    // of which host device supplies each axis. MenuModeOff disables conversion.
+    for (int port = 0; port < 2; ++port) {
+        const int threshold = axis_threshold[port];
+        if (threshold <= 0) continue;
+        const int x = GetLX();
+        const int y = GetLY();
+        if (x > threshold) pad[port].button |= PAD_RIGHT;
+        if (x < -threshold) pad[port].button |= PAD_LEFT;
+        if (y > threshold) pad[port].button |= PAD_DOWN;
+        if (y < -threshold) pad[port].button |= PAD_UP;
+    }
+
+    for (int port = 0; port < 2; ++port) {
+        auto &state = repeat[port];
+        for (int index = 0; index < 32; ++index) {
+            const unsigned bit = 1u << index;
+            if (!(state.enabled & bit)) continue;
+            if (pad[port].button & bit) {
+                ++state.counter[index];
+                if (state.counter[index] >= state.initial_delay[index]) state.active |= bit;
+            } else {
+                state.counter[index] = 0;
+                state.active &= ~bit;
+            }
+            if ((state.active & bit) && state.counter[index] >= state.repeat_delay[index]) {
+                pad[port].button &= ~bit;
+                state.counter[index] = 0;
+            }
+        }
+        for (int pair : {PAD_UP | PAD_DOWN, PAD_LEFT | PAD_RIGHT}) {
+            if ((pad[port].button & pair) == pair) pad[port].button &= ~pair;
+        }
+    }
+    if (key_lock2) {
+        Neutral(pad[1]);
+        Neutral(previous_pad[1]);
+    }
+    SwitchGamePadThread();
+}
+
 PORT_OVERRIDE void CGamePad::MenuModeOn(int threshold) {
     axis_threshold[0] = threshold;
     InputSetMenuNavigation(true);
+    MenuMouseEnable(true);
 }
 
 PORT_OVERRIDE void CGamePad::MenuModeOff() {
     axis_threshold[0] = 0;
     InputSetMenuNavigation(false);
+    MenuMouseEnable(false);
+    MenuMouseClose();
 }
 
 PORT_OVERRIDE void CGamePad::CaptureStart() {
@@ -124,5 +186,12 @@ PORT_OVERRIDE int CGamePad::Down2(int mask) {
 PORT_OVERRIDE int CGamePad::Down(int mask) {
     if (key_lock) return 0;
     if (DebugModifier(*this)) mask &= ~(PAD_CIRCLE | PAD_CROSS);
-    return (mask & pad[0].button & ~previous_pad[0].button) != 0;
+    return (mask & ((pad[0].button & ~previous_pad[0].button) |
+                    (this == &GamePad__2 ? MenuMouseButtons() : 0))) != 0;
+}
+
+PORT_OVERRIDE int CGamePad::GetPadDown() {
+    if (key_lock) return 0;
+    return (pad[0].button & ~previous_pad[0].button) |
+           (this == &GamePad__2 ? MenuMouseButtons() : 0);
 }

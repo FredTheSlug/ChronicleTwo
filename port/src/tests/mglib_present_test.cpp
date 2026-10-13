@@ -2,8 +2,11 @@
 
 #include <array>
 #include <cstdint>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -22,6 +25,21 @@
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
 #include "present.hpp"
+#include "dng_hud.hpp"
+#include "mg_drawprim_port.hpp"
+#include "gfx/displaylist.hpp"
+#include "scenesnd.hpp"
+#include "maintex.hpp"
+#include "dataread.hpp"
+#include "dng_object.hpp"
+#include "dng_pickup_port.hpp"
+#include "actionchara.hpp"
+#include "monster.hpp"
+#include "dng_main.hpp"
+#include "userdata.hpp"
+#include "nd_meswin.hpp"
+#include "mainloop.hpp"
+#include "platform/paths.hpp"
 
 using namespace dc::test;
 
@@ -927,4 +945,753 @@ TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
     EXPECT_NEAR(rgba[p], 96, 1);
     EXPECT_NEAR(rgba[p + 1], 64, 1);
     EXPECT_NEAR(rgba[p + 2], 16, 1);
+}
+
+namespace {
+struct DamagePrimSink {
+    DamagePrimSink() {
+        mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
+                            const gfx::TextureBinding &, const gfx::DrawState &s) { mgPortDraw2D(p, v, {}, s); });
+    }
+    ~DamagePrimSink() { mgPortSetPrimSink({}); }
+};
+
+void DamageProjection(float x) {
+    auto matrix = Identity();
+    matrix[12] = static_cast<float>(mgScreenOffx) + x;
+    matrix[13] = static_cast<float>(mgScreenOffy) + 240.0f;
+    std::memcpy(mgRenderInfo.world_screen, matrix.data(), sizeof(float) * 16);
+    mgRenderInfo.clip_min[2] = 0.0f;
+    mgRenderInfo.clip_max[2] = 100.0f;
+}
+
+std::vector<gfx::Vertex2D> DamageVertices(const gfx::DisplayList &list) {
+    for (const auto &entry : list.entries) {
+        if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) return draw->vertices;
+    }
+    return {};
+}
+}
+
+namespace {
+void CheckDamageBlend(const gfx::DisplayList &list, const std::vector<gfx::Vertex2D> &before,
+                      const std::vector<gfx::Vertex2D> &after, const std::vector<uint8_t> &newest) {
+    std::vector<uint8_t> actual, expected;
+    uint32_t width = 0, height = 0;
+    for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
+        ASSERT_TRUE(PresentScreenshotDisplay(alpha, actual, width, height));
+        gfx::BeginRecording();
+        for (const auto &entry : list.entries) {
+            auto copy = entry;
+            if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&copy)) {
+                ASSERT_EQ(draw->vertices.size(), before.size());
+                for (size_t i = 0; i < draw->vertices.size(); ++i) {
+                    auto &v = draw->vertices[i];
+                    v.x = before[i].x + (after[i].x - before[i].x) * alpha;
+                    v.y = before[i].y + (after[i].y - before[i].y) * alpha;
+                    v.color[3] = static_cast<uint8_t>(std::lround(before[i].color[3] +
+                                                    (float(after[i].color[3]) - before[i].color[3]) * alpha));
+                }
+            }
+            gfx::detail::RecordEntry(std::move(copy));
+        }
+        auto reference = gfx::EndRecording();
+        ASSERT_TRUE(gfx::RenderList(*reference, 1, {}));
+        ASSERT_TRUE(gfx::ReadbackFrame(expected, width, height));
+        EXPECT_EQ(actual, expected) << alpha;
+        if (alpha == 1) EXPECT_EQ(actual, newest);
+    }
+}
+
+void ExpectNewestAtEveryAlpha() {
+    std::vector<uint8_t> canonical, display;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
+    for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
+        ASSERT_TRUE(PresentScreenshotDisplay(alpha, display, width, height));
+        EXPECT_EQ(display, canonical) << alpha;
+    }
+}
+}
+
+TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    CEnemyLifeGage gauge;
+    gauge.Initialize(0);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    float position[4] = {0, 0, 1, 1};
+    auto record = [&](float x, int hp = 75, int screen = 0) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        gauge.Set(position, 100, hp, 0, screen);
+        gauge.Draw(1);
+        mgEndFrame(nullptr);
+    };
+    record(256);
+    auto before = DamageVertices(*mgPortLastList());
+    record(264);
+    auto after = DamageVertices(*mgPortLastList());
+    ASSERT_EQ(before.size(), 12u);
+    ASSERT_EQ(after.size(), before.size());
+    std::vector<uint8_t> newest;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    const auto state = gauge;
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    EXPECT_EQ(std::memcmp(&state, &gauge, sizeof(gauge)), 0);
+    EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    record(280, 25);
+    ExpectNewestAtEveryAlpha(); // HP changes stay tick-exact.
+    gauge.Initialize(0);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    record(296, 25);
+    ExpectNewestAtEveryAlpha(); // A monster slot was reused with identical content.
+    record(304, 25, 1);
+    for (const auto &entry : mgPortLastList()->entries) {
+        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) EXPECT_EQ(draw->interpolation.key, 0u);
+    }
+    ExpectNewestAtEveryAlpha(); // Screen-space boss HUD remains untagged.
+}
+
+TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    auto scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
+    auto user = std::unique_ptr<CUserDataManager, decltype(&std::free)>(static_cast<CUserDataManager *>(std::calloc(1, sizeof(CUserDataManager))), &std::free);
+    auto *saved_user = DngUserData;
+    DngUserData = user.get();
+    user->active_chr_no = USER_CHARA_MAX;
+    CActionChara player;
+    CActiveMonster target;
+    mgCFrame frame;
+    frame.SetPosition(0, 0, 1);
+    target.CObjectFrame::frame = &frame;
+    target.entry_object[0].frame = &frame;
+    target.entry_object[0].group = CHARA_ENTRY_GROUP_TARGET;
+    target.entry_object[0].size = 1;
+    target.tbl = &target.param;
+    std::strcpy(target.param.name, "Clown");
+    target.target_dist = 1;
+    target.clip_dist = 100;
+    target.alpha = 1;
+    target.body_height = 0;
+    target.life_gage.Initialize(0);
+    scene->chara_num = 3;
+    for (int i = 0; i < 3; ++i) scene->chara[i].status = 1;
+    scene->chara[0].chara = &player;
+    scene->chara[1].chara = scene->chara[2].chara = &target;
+    player.target_no = 1;
+    player.lock_on = 1;
+    CLockOnModel lock;
+    lock.Initialize(scene.get());
+    auto record = [&](float x) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        auto view_screen = Identity();
+        std::memcpy(mgRenderInfo.view_screen, view_screen.data(), sizeof(float) * 16);
+        lock.Draw();
+        mgEndFrame(nullptr);
+    };
+    record(256);
+    auto before = DamageVertices(*mgPortLastList());
+    record(264);
+    auto after = DamageVertices(*mgPortLastList());
+    ASSERT_EQ(before.size(), 16u);
+    ASSERT_EQ(after.size(), before.size());
+    std::vector<uint8_t> newest;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    player.target_no = 2; // A different scene identity, even if storage is reused.
+    record(280);
+    ExpectNewestAtEveryAlpha();
+    target.life_gage.Initialize(0);
+    record(296);
+    ExpectNewestAtEveryAlpha();
+    player.target_no = -1;
+    record(296);
+    EXPECT_TRUE(DamageVertices(*mgPortLastList()).empty());
+    player.target_no = 2;
+    record(304);
+    ExpectNewestAtEveryAlpha(); // A new lock emission after hiding.
+    EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    record(304); // Pause, with no game step.
+    ExpectNewestAtEveryAlpha();
+    mgBeginFrame(nullptr);
+    DamageProjection(304);
+    lock.Draw();
+    gfx::CutCameraInterpolation();
+    mgEndFrame(nullptr);
+    ExpectNewestAtEveryAlpha();
+    target.CObjectFrame::frame = nullptr;
+    target.entry_object[0].frame = nullptr;
+    DngUserData = saved_user;
+}
+
+namespace {
+void CheckOverlayBlend(const std::vector<gfx::detail::Entry> &before, const std::vector<gfx::detail::Entry> &after,
+                       const std::vector<uint8_t> &newest) {
+    std::vector<const gfx::detail::Draw2DEntry *> previous;
+    for (const auto &entry : before) {
+        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) previous.push_back(draw);
+    }
+    std::vector<uint8_t> actual, expected;
+    uint32_t width = 0, height = 0;
+    for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
+        ASSERT_TRUE(PresentScreenshotDisplay(alpha, actual, width, height));
+        gfx::BeginRecording();
+        size_t draw_index = 0;
+        for (size_t j = 0; j < after.size(); ++j) {
+            auto copy = after[j];
+            if (auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&copy)) {
+                ASSERT_LT(draw_index, previous.size());
+                const auto *old = previous[draw_index++];
+                ASSERT_EQ(old->vertices.size(), draw->vertices.size());
+                for (size_t i = 0; i < draw->vertices.size(); ++i) {
+                    auto &v = draw->vertices[i];
+                    v.x = old->vertices[i].x + (v.x - old->vertices[i].x) * alpha;
+                    v.y = old->vertices[i].y + (v.y - old->vertices[i].y) * alpha;
+                    v.color[3] = static_cast<uint8_t>(std::lround(old->vertices[i].color[3] +
+                        (float(v.color[3]) - old->vertices[i].color[3]) * alpha));
+                }
+            }
+            gfx::detail::RecordEntry(std::move(copy));
+        }
+        auto reference = gfx::EndRecording();
+        ASSERT_TRUE(gfx::RenderList(*reference, 1, {}));
+        ASSERT_TRUE(gfx::ReadbackFrame(expected, width, height));
+        EXPECT_EQ(actual, expected) << alpha;
+        if (alpha == 1) EXPECT_EQ(actual, newest);
+    }
+}
+}
+
+TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    // Isolate the actual retail marks from the independently keyed HP triangles.
+    mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
+                        const gfx::TextureBinding &, const gfx::DrawState &s) {
+        if (p == gfx::Primitive::Quads) mgPortDraw2D(p, v, {}, s);
+    });
+    CEnemyLifeGage gauge;
+    gauge.Initialize(3);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    float position[4] = {0, 0, 1, 1};
+    auto record = [&](float x, int hp, int count) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        gauge.Set(position, 100, hp, count, 0);
+        gauge.Step();
+        gauge.Draw(0);
+        mgEndFrame(nullptr);
+    };
+    auto check_pair = [&](float x, int hp, int count) {
+        auto before = mgPortLastList()->entries;
+        record(x, hp, count);
+        auto after = mgPortLastList()->entries;
+        std::vector<uint8_t> newest;
+        uint32_t width = 0, height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+        const auto state = gauge;
+        CheckOverlayBlend(before, after, newest);
+        EXPECT_EQ(std::memcmp(&state, &gauge, sizeof(gauge)), 0);
+        EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    };
+    record(256, 100, 3);
+    check_pair(264, 80, 3); // Damage changes the HP generation, not surviving marks.
+    record(272, 60, 2); // A mark begins breaking, with a new additive halo.
+    check_pair(280, 60, 2); // Both the mark and its halo rise between game ticks.
+    gauge.ResetGekirin(3);
+    record(300, 60, 3);
+    ExpectNewestAtEveryAlpha(); // Refilled marks must not inherit the old break trajectory.
+    gauge.Initialize(3);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    record(316, 60, 3);
+    ExpectNewestAtEveryAlpha(); // Same storage, new monster.
+    mgPortSetPrimSink({});
+}
+
+TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    CEnemyLifeGage gauge;
+    gauge.Initialize(3);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    float position[4] = {0, 0, 1, 1};
+    auto record = [&](float x, bool hidden = false) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        gauge.Set(position, 100, 100, 3, 0);
+        const gfx::Interp2D outer{987, 654};
+        gfx::SetInterp2D(outer);
+        gauge.Draw(hidden);
+        EXPECT_EQ(gfx::CurrentInterp2D().key, outer.key);
+        EXPECT_EQ(gfx::CurrentInterp2D().generation, outer.generation);
+        gfx::SetInterp2D({});
+        mgEndFrame(nullptr);
+        std::vector<gfx::detail::Draw2DEntry> marks;
+        for (const auto &entry : mgPortLastList()->entries) {
+            if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry);
+                draw && draw->primitive == gfx::Primitive::Quads) marks.push_back(*draw);
+        }
+        return marks;
+    };
+    auto before = record(256);
+    ASSERT_EQ(before.size(), 3u);
+    for (size_t i = 0; i < before.size(); ++i) {
+        EXPECT_NE(before[i].interpolation.key, 0u);
+        EXPECT_EQ(before[i].occurrence, 0u);
+        for (size_t j = 0; j < i; ++j)
+            EXPECT_NE(before[i].interpolation.key, before[j].interpolation.key);
+    }
+    // Finish one mark's real break animation, leaving its neighbours alive.
+    gauge.gekirin[0].state = GEKIRIN_STATE_BREAK;
+    gauge.gekirin[0].frame = 14;
+    gauge.gekirin[0].Step();
+    ASSERT_EQ(gauge.gekirin[0].state, GEKIRIN_STATE_NONE);
+    auto after = record(272);
+    ASSERT_EQ(after.size(), 2u);
+    std::vector<gfx::Vertex2D> middle;
+    for (size_t i = 0; i < after.size(); ++i) {
+        EXPECT_EQ(after[i].interpolation.key, before[i + 1].interpolation.key);
+        ASSERT_TRUE(gfx::detail::Interpolate2D(before[i + 1], after[i], 0.5f, middle));
+        EXPECT_FLOAT_EQ(middle[0].x, (before[i + 1].vertices[0].x + after[i].vertices[0].x) / 2);
+        EXPECT_FALSE(gfx::detail::Interpolate2D(before[0], after[i], 0.5f, middle));
+    }
+    EXPECT_TRUE(record(280, true).empty());
+    after = record(280);
+    ExpectNewestAtEveryAlpha(); // No marks existed in the preceding list.
+}
+
+TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) GTEST_SKIP() << "DC2_DATA supplies the retail font table";
+    struct RestoreFontData {
+        std::filesystem::path root = PathsDataRoot();
+        int language = LanguageCode;
+        ~RestoreFontData() { PathsSetDataRoot(root); LanguageCode = language; }
+    } restore;
+    PathsSetDataRoot(data);
+    LanguageCode = LANG_ENGLISH;
+    LoadFontTblBin();
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    bool emit = false;
+    mgPortSetPrimSink([&](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
+                           const gfx::TextureBinding &, const gfx::DrawState &state) {
+        if (emit) mgPortDraw2D(p, v, {}, state);
+    });
+    auto scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
+    auto user = std::unique_ptr<CUserDataManager, decltype(&std::free)>(static_cast<CUserDataManager *>(std::calloc(1, sizeof(CUserDataManager))), &std::free);
+    auto *saved_user = DngUserData;
+    DngUserData = user.get();
+    user->active_chr_no = USER_CHARA_MAX;
+    CActionChara player;
+    CActiveMonster target;
+    mgCFrame frame;
+    frame.SetPosition(0, 0, 1);
+    target.CObjectFrame::frame = &frame;
+    target.entry_object[0].frame = &frame;
+    target.entry_object[0].group = CHARA_ENTRY_GROUP_TARGET;
+    target.entry_object[0].size = 1;
+    target.tbl = &target.param;
+    std::strcpy(target.param.name, "Clown");
+    target.target_dist = 1;
+    target.clip_dist = 100;
+    target.alpha = 1;
+    target.body_height = 0;
+    target.life_gage.Initialize(0);
+    scene->chara_num = 3;
+    for (int i = 0; i < 3; ++i) scene->chara[i].status = 1;
+    scene->chara[0].chara = &player;
+    scene->chara[1].chara = scene->chara[2].chara = &target;
+    player.target_no = 1;
+    player.lock_on = 1;
+    CLockOnModel lock;
+    lock.Initialize(scene.get());
+    ClsMes message;
+    message.Preset(2);
+    message.fade = 1;
+    lock.mes = &message;
+    auto record = [&](float x) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        auto view_screen = Identity();
+        std::memcpy(mgRenderInfo.view_screen, view_screen.data(), sizeof(float) * 16);
+        emit = false;
+        lock.Draw();
+        emit = true;
+        lock.DrawMess(88);
+        mgEndFrame(nullptr);
+    };
+    record(256);
+    auto before = mgPortLastList()->entries;
+    record(264);
+    auto after = mgPortLastList()->entries;
+    ASSERT_GT(message.tbl_num, 1);
+    ASSERT_GT(message.reveal_num, 0);
+    ASSERT_NE(message.mes_no, -1);
+    ASSERT_FALSE(DamageVertices(*mgPortLastList()).empty());
+    std::vector<uint8_t> newest;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    const auto message_state = message;
+    CheckOverlayBlend(before, after, newest);
+    EXPECT_EQ(std::memcmp(&message_state, &message, sizeof(message)), 0);
+    EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    player.target_no = 2; // A different scene identity, even if storage is reused.
+    record(280);
+    ExpectNewestAtEveryAlpha();
+    target.life_gage.Initialize(0);
+    record(296);
+    ExpectNewestAtEveryAlpha();
+    record(296); // Pause, with no game step.
+    ExpectNewestAtEveryAlpha();
+    mgBeginFrame(nullptr);
+    DamageProjection(304);
+    emit = false;
+    lock.Draw();
+    emit = true;
+    lock.DrawMess(88);
+    gfx::CutCameraInterpolation();
+    mgEndFrame(nullptr);
+    ExpectNewestAtEveryAlpha();
+    target.CObjectFrame::frame = nullptr;
+    target.entry_object[0].frame = nullptr;
+    DngUserData = saved_user;
+    mgPortSetPrimSink({});
+}
+
+TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    CDamageScore damage;
+    float position[4] = {0, 0, 1, 1};
+    damage.SetValue(position, 123);
+    damage.SetColor(128, 0, 0);
+    damage.digit_w = 12; damage.digit_h = 18; damage.digit_u = 0; damage.digit_v = 0;
+    for (int i = 0; i < 4; i++) damage.Step();
+    std::vector<gfx::Vertex2D> before, after;
+    std::vector<uint8_t> earlier, newest;
+    uint32_t width = 0, height = 0;
+    for (int k = 0; k < 2; k++) {
+        mgBeginFrame(nullptr);
+        DamageProjection(256.0f + 8.0f * k);
+        damage.Step();
+        damage.Draw();
+        mgEndFrame(nullptr);
+        (k == 0 ? before : after) = DamageVertices(*mgPortLastList());
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, k == 0 ? earlier : newest, width, height));
+    }
+    ASSERT_EQ(before.size(), 12u);
+    ASSERT_EQ(after.size(), before.size());
+    ASSERT_NE(earlier, newest);
+    const auto *list = mgPortLastList();
+    const auto state_before = damage;
+    CheckDamageBlend(*list, before, after, newest);
+    EXPECT_EQ(std::memcmp(&damage, &state_before, sizeof(damage)), 0);
+}
+
+TEST(DamagePresentation, RetailLifetimesRemainInGameSteps) {
+    float position[4] = {0, 0, 1, 1};
+    CDamageScore damage;
+    damage.SetValue(position, 123);
+    int steps = 0;
+    while (damage.active && steps < 500) { damage.Step(); ++steps; }
+    EXPECT_EQ(steps, 50);
+    CDamageScore2 other;
+    other.SetValue(0, 123, 20);
+    steps = 0;
+    while (other.phase != DAMAGE_SCORE2_PHASE_NONE && steps < 500) { other.Step(); ++steps; }
+    EXPECT_EQ(steps, 37);
+}
+
+
+TEST(PickupPresentation, EmissionPreservesRetailReuseAndTrailAllocation) {
+    CPullItem pickup{};
+    float position[4] = {4, 5, 6, 1};
+    float velocity[4] = {1, 2, 3, 0};
+    pickup.anim_frame = 13;
+    pickup.wait_time = 77;
+    pickup.exp = 9.0f;
+    pickup.num = 3;
+    for (auto &wire : afterWire) wire.SetMode(true);
+    afterWire[3].SetMode(false);
+    afterWire[7].SetMode(false);
+    pickup.SetItem(position, velocity, PULL_ITEM_WEAPON_EXP);
+    EXPECT_EQ(pickup.wire_index, 3);
+    EXPECT_TRUE(afterWire[3].mode);
+    EXPECT_FALSE(afterWire[7].mode);
+    EXPECT_EQ(pickup.anim_frame, 13); // ABS retains the reused slot's animation frame.
+    EXPECT_EQ(pickup.wait_time, 180);
+    EXPECT_EQ(pickup.exp, 9.0f);
+    EXPECT_EQ(pickup.num, 3);
+    EXPECT_EQ(std::memcmp(pickup.pos, position, sizeof position), 0);
+    EXPECT_EQ(std::memcmp(pickup.velocity, velocity, sizeof velocity), 0);
+    afterWire[7].SetMode(true);
+    pickup.SetItem(position, velocity, PULL_ITEM_WEAPON_EXP);
+    EXPECT_EQ(pickup.wire_index, -1); // Exhaustion does not steal another pickup's trail.
+    pickup.wait_time = 77;
+    pickup.SetItem(position, velocity, PULL_ITEM_GATE_KEY);
+    EXPECT_EQ(pickup.wait_time, 77);
+    EXPECT_EQ(pickup.state, PULL_ITEM_STATE_FLOAT);
+    EXPECT_EQ(pickup.anim_frame, 0);
+    pickup.SetItem(position, velocity, PULL_ITEM_STOLEN);
+    EXPECT_EQ(pickup.wait_time, 77);
+    EXPECT_EQ(pickup.tex_u, 0x61);
+    EXPECT_EQ(pickup.tex_v, 0x21);
+    EXPECT_EQ(pickup.tex_w, 30);
+    EXPECT_EQ(pickup.tex_h, 30);
+    for (auto &wire : afterWire) wire.SetMode(false);
+}
+
+TEST(PickupPresentation, RetailEmissionsTagCoinsAbsAndFloatingItems) {
+    PresentRenderer renderer(640, 480);
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    CPullItem pickup{};
+    float position[4] = {0, 0, 1, 1};
+    float velocity[4] = {1, 2, 3, 0};
+    uint64_t previous_generation = 0;
+    std::vector<gfx::Interp2D> tags;
+    DamagePrimSink sink_reset;
+    mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices,
+                          const gfx::TextureBinding &, const gfx::DrawState &state) {
+        EXPECT_FALSE(vertices.empty());
+        EXPECT_NE(state.depth_test, gfx::DepthTest::Always);
+        EXPECT_FALSE(state.depth_write);
+        tags.push_back(gfx::CurrentInterp2D());
+    });
+    for (int kind : {PULL_ITEM_MONEY, PULL_ITEM_WEAPON_EXP, PULL_ITEM_GATE_KEY,
+                     PULL_ITEM_MONEY_LARGE, PULL_ITEM_ITEM, PULL_ITEM_ITEM2, PULL_ITEM_BADGE, PULL_ITEM_STOLEN}) {
+        pickup.SetItem(position, velocity, kind);
+        const auto retail_state = pickup;
+        gfx::Interp2D tag;
+        {
+            mgPortPickupScope scope(&pickup);
+            tag = gfx::CurrentInterp2D();
+        }
+        EXPECT_EQ(std::memcmp(&pickup, &retail_state, sizeof pickup), 0);
+        EXPECT_EQ(tag.key, reinterpret_cast<uintptr_t>(&pickup));
+        EXPECT_GT(tag.generation, previous_generation);
+        EXPECT_TRUE(tag.world_corners);
+        previous_generation = tag.generation;
+        tags.clear();
+        mgBeginFrame(nullptr);
+        DamageProjection(256);
+        mgRenderInfo.view_screen[0][0] = 16;
+        mgRenderInfo.view_screen[1][1] = 16;
+        pickup.Draw(nullptr);
+        mgEndFrame(nullptr);
+        ASSERT_FALSE(tags.empty()) << kind;
+        for (const auto &draw_tag : tags) {
+            EXPECT_EQ(draw_tag.key, tag.key);
+            EXPECT_EQ(draw_tag.generation, tag.generation);
+            EXPECT_TRUE(draw_tag.world_corners);
+        }
+        EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+        pickup.Clear();
+    }
+    mgPortSetPrimSink({});
+}
+
+
+TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    auto scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
+    CCharacter2 character;
+    mgCFrame frame;
+    frame.SetPosition(0, 0, 1);
+    character.CObjectFrame::frame = &frame;
+    scene->chara_num = 1;
+    scene->chara[0].status = 1;
+    scene->chara[0].chara = &character;
+    CDamageScore2 damage;
+    damage.SetValue(0, 123, 0);
+    std::vector<gfx::Vertex2D> before, after;
+    std::vector<uint8_t> newest;
+    uint32_t width = 0, height = 0;
+    auto record = [&](float x) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        damage.Draw(scene.get());
+        mgEndFrame(nullptr);
+    };
+    mgBeginFrame(nullptr);
+    mgEndFrame(nullptr); // spawn has a predecessor list, but no predecessor draw
+    damage.Step();
+    record(256);
+    ExpectNewestAtEveryAlpha(); // spawn
+    before = DamageVertices(*mgPortLastList());
+    damage.Step();
+    record(264);
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_EQ(after.size(), 12u);
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    auto state = damage;
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    EXPECT_EQ(std::memcmp(&state, &damage, sizeof(damage)), 0);
+    auto previous_generation = std::get<gfx::detail::Draw2DEntry>(mgPortLastList()->entries.back()).interpolation.generation;
+    damage.SetValue(0, 123, 0); // same glyphs and object, distinct emission
+    damage.Step();
+    record(280);
+    EXPECT_NE(std::get<gfx::detail::Draw2DEntry>(mgPortLastList()->entries.back()).interpolation.generation, previous_generation);
+    ExpectNewestAtEveryAlpha();
+    damage.phase = DAMAGE_SCORE2_PHASE_NONE;
+    record(280);
+    EXPECT_TRUE(DamageVertices(*mgPortLastList()).empty());
+    ExpectNewestAtEveryAlpha(); // despawn
+    character.CObjectFrame::frame = nullptr;
+}
+
+TEST(DamagePresentation, SpriteHealClippingAndPause) {
+    PresentRenderer renderer(854, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    CDamageScore damage;
+    float position[4] = {0, 0, 1, 1};
+    damage.SetValue(position, 123);
+    damage.SetColor(64, 128, 64); // healing uses the same glyph path
+    damage.digit_w = 12; damage.digit_h = 17; damage.digit_u = 0; damage.digit_v = 202;
+    auto record = [&](float x, bool clipped = false) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        if (clipped) mgRenderInfo.clip_max[2] = 0;
+        damage.Draw();
+        mgEndFrame(nullptr);
+    };
+    damage.Step(); record(256);
+    auto before = DamageVertices(*mgPortLastList());
+    damage.Step(); record(264);
+    auto after = DamageVertices(*mgPortLastList());
+    std::vector<uint8_t> newest;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    damage.SetSprite(position, 192, 22, 18, 18);
+    damage.Step(); record(280);
+    ASSERT_EQ(DamageVertices(*mgPortLastList()).size(), 4u);
+    ExpectNewestAtEveryAlpha(); // sprite mode/emission changed
+    before = DamageVertices(*mgPortLastList());
+    damage.Step(); record(288);
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    record(288); // paused: no Step or anchor change
+    ExpectNewestAtEveryAlpha();
+    record(288, true);
+    EXPECT_TRUE(DamageVertices(*mgPortLastList()).empty());
+    ExpectNewestAtEveryAlpha();
+    record(288); // newly visible after clipping
+    ExpectNewestAtEveryAlpha();
+    damage.SetValue(position, 1);
+    damage.Step(); record(296);
+    ExpectNewestAtEveryAlpha(); // glyph-count change
+    mgBeginFrame(nullptr);
+    DamageProjection(304);
+    damage.Step();
+    damage.Draw();
+    gfx::CutCameraInterpolation();
+    mgEndFrame(nullptr);
+    ExpectNewestAtEveryAlpha();
+}
+
+TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) GTEST_SKIP() << "DC2_DATA supplies the extracted glyph atlas";
+    const auto path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) GTEST_SKIP() << "Extracted system texture archive unavailable";
+    const size_t bytes = static_cast<size_t>(file.tellg());
+    std::vector<u_long128> archive((bytes + 15) / 16);
+    file.seekg(0);
+    ASSERT_TRUE(file.read(reinterpret_cast<char *>(archive.data()), bytes));
+    int member_size = 0;
+    char member_name[] = "frame_basic.img";
+    auto *image = GetPackFile(reinterpret_cast<u_int *>(archive.data()), member_name, &member_size);
+    ASSERT_NE(image, nullptr);
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    std::vector<u_long128> backing(131072);
+    mgCMemory memory;
+    memory.stSetBuffer(backing.data(), static_cast<int>(backing.size()));
+    mgCTextureManager manager;
+    manager.SetTableBuffer(64, 8, &memory);
+    manager.Initialize(0x1000, -1);
+    manager.EnterIMGFile(reinterpret_cast<u_char *>(image), 0, &memory, nullptr);
+    auto *saved = TEX_SystenFrame;
+    char texture_name[] = "frame";
+    TEX_SystenFrame = manager.GetTexture(texture_name, -1);
+    ASSERT_NE(TEX_SystenFrame, nullptr);
+    mgSetDataBuffer(&memory, &memory, 0);
+    CDamageScore damage;
+    float position[4] = {0, 0, 1, 1};
+    damage.SetValue(position, 123);
+    damage.SetColor(128, 0, 0);
+    damage.digit_w = 12; damage.digit_h = 17; damage.digit_u = 0; damage.digit_v = 202;
+    for (int i = 0; i < 14; ++i) damage.Step();
+    std::vector<gfx::Vertex2D> before, after;
+    std::vector<uint8_t> newest, earlier;
+    uint32_t width = 0, height = 0;
+    for (int k = 0; k < 2; ++k) {
+        mgBeginFrame(nullptr);
+        DamageProjection(256 + 8 * k);
+        damage.Step();
+        damage.Draw();
+        mgEndFrame(nullptr);
+        (k == 0 ? before : after) = DamageVertices(*mgPortLastList());
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, k == 0 ? earlier : newest, width, height));
+    }
+    ASSERT_EQ(after.size(), 12u);
+    EXPECT_NE(earlier, newest);
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    TEX_SystenFrame = saved;
+    manager.Initialize(0x1000, -1);
 }

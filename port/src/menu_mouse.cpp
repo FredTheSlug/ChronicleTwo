@@ -135,7 +135,7 @@ const MenuMouseSample &MenuMouseTake() {
     if (!sample.pointing) {
         choices.confirm = false;
         choices.target = choices.selected;
-        MenuMouseItemOrigin(sample.x, sample.y);
+        if (sample.moved || sample.clicked || sample.wheel != 0) MenuMouseItemOrigin(sample.x, sample.y);
     }
     if (sample.moved || sample.clicked || sample.wheel != 0) sample.pointing = true;
     const auto extent = mgPortVisibleExtent(gfx::kMainTarget);

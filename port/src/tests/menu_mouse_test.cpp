@@ -13,6 +13,7 @@
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
+#include "platform/settings.hpp"
 
 #include <limits>
 
@@ -359,4 +360,27 @@ TEST_F(MenuMouseInput, FlatSaveWheelReachesOnlyTheSingleNewRowBeyondRetailCapaci
     EXPECT_TRUE(SaveSlotIsNew(SaveSlots, save.select, true));
     EXPECT_FALSE(SaveSlotIsNew(SaveSlots, save.select, false));
     SaveSlots = catalog;
+}
+
+TEST_F(MenuMouseInput, MenuWheelCannotZoomOrLeakBackIntoGameplay) {
+    HostSettings config;
+    config.mouse_zoom = true;
+    InputApplyConfig(config);
+    InputPadState pad{.connected = true};
+    InputSetOverride(0, &pad);
+    MenuMouseEnable(true);
+    InputSetScriptedDevices({.mouse_wheel = -4});
+    InputLatchPad(0);
+    EXPECT_FLOAT_EQ(InputGetMouseLook().zoom, 0);
+    EXPECT_FLOAT_EQ(MenuMouseTake().wheel, -4);
+    MenuMouseEnable(false);
+    InputSetScriptedDevices({});
+    Tick();
+    MenuMouseTake();
+    InputLatchPad(0);
+    EXPECT_FLOAT_EQ(InputGetMouseLook().zoom, 0);
+    InputSetScriptedDevices({.mouse_wheel = -1});
+    InputLatchPad(0);
+    EXPECT_FLOAT_EQ(InputGetMouseLook().zoom, -1);
+    InputApplyConfig(HostSettings{});
 }

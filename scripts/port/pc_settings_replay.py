@@ -14,7 +14,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--exe", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
-    parser.add_argument("--case", choices=("pad", "mouse"), required=True)
+    parser.add_argument("--case", choices=("pad", "mouse", "zoom"), required=True)
     args = parser.parse_args()
     data = Path(os.environ.get("DC2_DATA", "data")).resolve()
     if not (data / "manifest.txt").is_file():
@@ -23,12 +23,12 @@ def main() -> int:
     source = Path(__file__).resolve().parents[2]
     args.work.mkdir(parents=True, exist_ok=True)
     run = Path(tempfile.mkdtemp(prefix=args.case + "-", dir=args.work.resolve()))
-    script = "pc-settings.input" if args.case == "pad" else "pc-settings-mouse.input"
+    script = {"pad": "pc-settings.input", "mouse": "pc-settings-mouse.input", "zoom": "pc-settings-zoom.input"}[args.case]
     command = [
         str(args.exe.resolve()), "--headless", "--window", "1280x960",
         "--data", str(data), "--save", str(run / "save"), "--jump", "town:10", "--fast-load",
         "--input", str(source / "tools/input" / script),
-        "--frames", "1850" if args.case == "pad" else "970",
+        "--frames", {"pad": "1850", "mouse": "970", "zoom": "1120"}[args.case],
         "--screenshot", str(run / "screen.png"), "--screenshot-display", "2",
     ]
     env = os.environ.copy()
@@ -51,6 +51,8 @@ def main() -> int:
                       "stick_sensitivity": 1.5, "stick_invert_x": True, "stick_invert_y": True,
                       "glyph_device": "ps3", "bindings": {"cross": ["K"], "circle": ["L"]}},
         })
+    if args.case == "zoom":
+        expected = {"input": {"mouse_zoom": True}}
     for section, entries in expected.items():
         for key, value in entries.items():
             actual = config[section][key]

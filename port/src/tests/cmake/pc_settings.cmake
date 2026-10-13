@@ -1,7 +1,7 @@
 # Optional real-data replay gates: each run gets its own save root and display captures.
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_EXECUTABLE)
-    foreach(case pad mouse)
+    foreach(case pad mouse zoom)
         add_test(NAME PcSettingsReplay.${case}
             COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/scripts/port/pc_settings_replay.py"
                 --exe $<TARGET_FILE:darkchronicle>

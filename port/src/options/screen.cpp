@@ -127,7 +127,7 @@ InputMenuMouse Pointer() {
     // This page handles its own hit regions, so a click must not also reach the
     // underlying retail Options screen through the shared synthetic pad edge.
     MenuMouseSetButtons(0);
-    return {sample.moved ? 1.0f : 0.0f, 0, sample.wheel, sample.held};
+    return {sample.pointing && sample.moved ? 1.0f : 0.0f, 0, sample.wheel, sample.held};
 }
 
 void Track(bool on) {
@@ -148,7 +148,7 @@ void Track(bool on) {
 
 bool Run() {
     auto       mouse = Pointer();
-    const auto pressed_mouse = mouse.buttons & ~g_buttons;
+    const auto pressed_mouse = MenuMouseTake().clicked & ~g_buttons;
     g_buttons = mouse.buttons;
     const auto held = static_cast<std::uint16_t>(GamePad__2.GetPadOn());
     const auto pressed = g_repeat.Step(held);

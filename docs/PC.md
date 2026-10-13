@@ -363,7 +363,6 @@ The Controls page includes **Mouse wheel zoom** (off by default); menu scrolling
 never queues camera zoom. Save/load pointer selection uses the complete flat list,
 with one **New Save** row only when saving.
 
-
 Move the mouse to show the pointer and hover an option. Left click presses Cross,
 right click presses Circle, and the wheel moves through a list. A controller or
 keyboard movement hides the pointer; a stationary pointer does not undo that
@@ -489,7 +488,7 @@ Item page and opens Bread's commands by frame 2850. These two scripts also use
 Set `input.mouse_zoom` to `true` in `config.json` to enable wheel zoom in town
 walking and dungeon follow views. The default is `false`, as in Dark Cloud 1.
 Wheel up moves closer; wheel down moves farther, eight world units per notch,
-with a requested range of 30Ã¢â‚¬â€œ600 units. The normal camera easing makes the
+with a requested range of 30-600 units. The normal camera easing makes the
 transition smooth. The distance stays selected while walking, and collision
 shortens it where walls, floors or ceilings intervene, returning toward the
 requested distance when the path clears.

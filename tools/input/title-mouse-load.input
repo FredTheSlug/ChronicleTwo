@@ -1,5 +1,5 @@
-# --window 1280x960; a copied save root with a valid File 11.
-# Load slots at 4000; file list at 5300; load confirmation at 5900.
+# --window 1280x960; an isolated copy of a save root.
+# Continue opens the flat list directly. Click the first file, Yes, acknowledge.
 300 circle
 306
 320 cross
@@ -16,17 +16,14 @@
 2601
 2650 mouse1
 2651
-4500 mouse:0,-80
-4501
-4600 mouse1
-4601
-5400 wheel:-1
-5401
-5500 mouse1
-5501
-6100 mouse:-60,130
-6101
-6200 mouse1
-6201
-7600 mouse1
-7601
+3500 mouse:0,-80
+3501
+3600 mouse1
+3601
+3800 mouse:-90,140
+3801
+3900 mouse1
+3901
+4400 mouse1
+4401
+# Capture 4700: the selected save has loaded.

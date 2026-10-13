@@ -428,3 +428,14 @@ TEST_F(ItemMouse, QuantityBoardWheelAndArrowsUseRetailDirectionKeys) {
     Tick(0, 0, 1);
     EXPECT_EQ(MenuMouseSyntheticDown(), PAD_DOWN);
 }
+
+TEST_F(ItemMouse, ControllerOnlyItemPageDoesNotMoveTheSharedPointerOrigin) {
+    Tick();
+    EXPECT_FALSE(MenuMouseTake().pointing);
+    EXPECT_FLOAT_EQ(MenuMouseTake().x, 256);
+    EXPECT_FLOAT_EQ(MenuMouseTake().y, 240);
+    keys.now_mode = MENU_MODE_MAIN_TOWN;
+    Tick(10, 0);
+    EXPECT_FLOAT_EQ(MenuMouseTake().x, 266);
+    EXPECT_FLOAT_EQ(MenuMouseTake().y, 240);
+}

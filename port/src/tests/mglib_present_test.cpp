@@ -31,6 +31,8 @@
 #include "scenesnd.hpp"
 #include "maintex.hpp"
 #include "dataread.hpp"
+#include "dng_object.hpp"
+#include "dng_pickup_port.hpp"
 #include "actionchara.hpp"
 #include "monster.hpp"
 #include "dng_main.hpp"
@@ -1303,6 +1305,97 @@ TEST(DamagePresentation, RetailLifetimesRemainInGameSteps) {
     steps = 0;
     while (other.phase != DAMAGE_SCORE2_PHASE_NONE && steps < 500) { other.Step(); ++steps; }
     EXPECT_EQ(steps, 37);
+}
+
+
+TEST(PickupPresentation, EmissionPreservesRetailReuseAndTrailAllocation) {
+    CPullItem pickup{};
+    float position[4] = {4, 5, 6, 1};
+    float velocity[4] = {1, 2, 3, 0};
+    pickup.anim_frame = 13;
+    pickup.wait_time = 77;
+    pickup.exp = 9.0f;
+    pickup.num = 3;
+    for (auto &wire : afterWire) wire.SetMode(true);
+    afterWire[3].SetMode(false);
+    afterWire[7].SetMode(false);
+    pickup.SetItem(position, velocity, PULL_ITEM_WEAPON_EXP);
+    EXPECT_EQ(pickup.wire_index, 3);
+    EXPECT_TRUE(afterWire[3].mode);
+    EXPECT_FALSE(afterWire[7].mode);
+    EXPECT_EQ(pickup.anim_frame, 13); // ABS retains the reused slot's animation frame.
+    EXPECT_EQ(pickup.wait_time, 180);
+    EXPECT_EQ(pickup.exp, 9.0f);
+    EXPECT_EQ(pickup.num, 3);
+    EXPECT_EQ(std::memcmp(pickup.pos, position, sizeof position), 0);
+    EXPECT_EQ(std::memcmp(pickup.velocity, velocity, sizeof velocity), 0);
+    afterWire[7].SetMode(true);
+    pickup.SetItem(position, velocity, PULL_ITEM_WEAPON_EXP);
+    EXPECT_EQ(pickup.wire_index, -1); // Exhaustion does not steal another pickup's trail.
+    pickup.wait_time = 77;
+    pickup.SetItem(position, velocity, PULL_ITEM_GATE_KEY);
+    EXPECT_EQ(pickup.wait_time, 77);
+    EXPECT_EQ(pickup.state, PULL_ITEM_STATE_FLOAT);
+    EXPECT_EQ(pickup.anim_frame, 0);
+    pickup.SetItem(position, velocity, PULL_ITEM_STOLEN);
+    EXPECT_EQ(pickup.wait_time, 77);
+    EXPECT_EQ(pickup.tex_u, 0x61);
+    EXPECT_EQ(pickup.tex_v, 0x21);
+    EXPECT_EQ(pickup.tex_w, 30);
+    EXPECT_EQ(pickup.tex_h, 30);
+    for (auto &wire : afterWire) wire.SetMode(false);
+}
+
+TEST(PickupPresentation, RetailEmissionsTagCoinsAbsAndFloatingItems) {
+    PresentRenderer renderer(640, 480);
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    CPullItem pickup{};
+    float position[4] = {0, 0, 1, 1};
+    float velocity[4] = {1, 2, 3, 0};
+    uint64_t previous_generation = 0;
+    std::vector<gfx::Interp2D> tags;
+    DamagePrimSink sink_reset;
+    mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices,
+                          const gfx::TextureBinding &, const gfx::DrawState &state) {
+        EXPECT_FALSE(vertices.empty());
+        EXPECT_NE(state.depth_test, gfx::DepthTest::Always);
+        EXPECT_FALSE(state.depth_write);
+        tags.push_back(gfx::CurrentInterp2D());
+    });
+    for (int kind : {PULL_ITEM_MONEY, PULL_ITEM_WEAPON_EXP, PULL_ITEM_GATE_KEY,
+                     PULL_ITEM_MONEY_LARGE, PULL_ITEM_ITEM, PULL_ITEM_ITEM2, PULL_ITEM_BADGE, PULL_ITEM_STOLEN}) {
+        pickup.SetItem(position, velocity, kind);
+        const auto retail_state = pickup;
+        gfx::Interp2D tag;
+        {
+            mgPortPickupScope scope(&pickup);
+            tag = gfx::CurrentInterp2D();
+        }
+        EXPECT_EQ(std::memcmp(&pickup, &retail_state, sizeof pickup), 0);
+        EXPECT_EQ(tag.key, reinterpret_cast<uintptr_t>(&pickup));
+        EXPECT_GT(tag.generation, previous_generation);
+        EXPECT_TRUE(tag.world_corners);
+        previous_generation = tag.generation;
+        tags.clear();
+        mgBeginFrame(nullptr);
+        DamageProjection(256);
+        mgRenderInfo.view_screen[0][0] = 16;
+        mgRenderInfo.view_screen[1][1] = 16;
+        pickup.Draw(nullptr);
+        mgEndFrame(nullptr);
+        ASSERT_FALSE(tags.empty()) << kind;
+        for (const auto &draw_tag : tags) {
+            EXPECT_EQ(draw_tag.key, tag.key);
+            EXPECT_EQ(draw_tag.generation, tag.generation);
+            EXPECT_TRUE(draw_tag.world_corners);
+        }
+        EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+        pickup.Clear();
+    }
+    mgPortSetPrimSink({});
 }
 
 

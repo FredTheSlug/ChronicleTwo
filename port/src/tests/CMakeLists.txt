@@ -34,6 +34,7 @@ set(CT_GPU_SLOW_TESTS
     GfxMisc.PipelineCache)
 set(CT_GPU_TESTS
     TargetPresentation.*
+    PickupPresentation.*
     DamagePresentation.RetailDamageInterpolatesProjectedBounceAndOpacity
     DamagePresentation.Score2InterpolatesAndReusedSlotsStayNewest
     DamagePresentation.SpriteHealClippingAndPause

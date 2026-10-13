@@ -4,6 +4,7 @@
 #include "editloop.hpp"
 #include "mainloop.hpp"
 #include "subgame.hpp"
+#include "photo.hpp"
 #include "platform/input.hpp"
 
 #include <cmath>
@@ -22,7 +23,8 @@ void TownMouseEyeAfterControl(CScene *scene, CPadControl *pad) {
     if (look.read == consumed_read) return;
     consumed_read = look.read;
     if (!scene || !pad || GetNowLoopNo() != LOOP_EDIT || IsEditMode() ||
-        PortEditViewMode != EDIT_VIEW_MODE_EYE || PortEditLadderMode != EDIT_LADDER_MODE_NONE ||
+        (PortEditViewMode != EDIT_VIEW_MODE_EYE &&
+         !(PortEditViewMode == EDIT_VIEW_MODE_PHOTO && NowTakePhoto())) || PortEditLadderMode != EDIT_LADDER_MODE_NONE ||
         !EditOnGround() || scene->event_run || scene->active_camera != 0 ||
         GamePad__2.key_lock || SubGameRunning() || DebugInfo.debug_camera || mgCCamera::StopCamera) return;
     mgCCamera *base = scene->GetCamera(0);

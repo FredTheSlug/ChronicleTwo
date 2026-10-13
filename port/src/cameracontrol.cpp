@@ -152,7 +152,7 @@ PORT_OVERRIDE void CCameraControl::Step(int frames) {
     consumed_eye_read = look.read;
     if (!DungeonMouseCameraOwns(this, DngMainScene, &PadCtrl, DngStatus, BattleAreaScene,
                                MainChara__2, SubGameRunning(), GamePad__2.key_lock,
-                               DebugInfo.debug_camera != 0, true) || NowTakePhoto()) return;
+                               DebugInfo.debug_camera != 0, true)) return;
     // InitEyeCamera first disables follow, then the next gameplay update places
     // the eye at the character. Do not turn a leftover follow pose on entry.
     sceVu0FVECTOR eye;

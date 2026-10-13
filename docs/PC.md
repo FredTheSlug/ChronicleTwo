@@ -443,7 +443,7 @@ same follow controls.
 lifts a rock in Mt. Gundor using R1 and Cross, then turns the mouse camera while
 carrying it (capture at frame 2374).
 
-In towns and dungeons, R2 first-person view also accepts direct mouse yaw and pitch. The
+In towns and dungeons, R2 first-person view also accepts direct mouse yaw and pitch. Max's photo view in towns and dungeons uses the same mouse aiming and retail pitch limits. Photo aiming has the retail constant turn scale at every zoom level; the right stick retains photo zoom. The
 eye stays at the retail character position, pitch stays within the retail
 `-1.0` to `0.65` radian limits, and controller look retains its existing behavior.
 The port camera step applies a sample only after the retail eye pose is placed;

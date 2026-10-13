@@ -2,6 +2,8 @@
 #include "editctrl.hpp"
 #include "mainloop.hpp"
 #include "platform/input.hpp"
+#include "photo.hpp"
+#include "stubs/photo.hpp"
 
 extern int PortLoopNo asm("MainLoop_LoopNo");
 extern EditViewMode PortTownViewMode asm("EditCtrl_ViewMode");
@@ -10,7 +12,12 @@ extern float PortTownEyeTilt asm("EditCtrl_EyeTilt");
 extern int PortTownLadderMode asm("EditCtrl_LadderMode");
 void TownMouseEyeAfterControl(CScene *, CPadControl *);
 
-TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion) {
+class TownEyeMouse : public testing::TestWithParam<bool> {};
+
+TEST_P(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion) {
+    const bool photo = GetParam();
+    const unsigned old_photo = TakePhotoMode;
+    TakePhotoMode = photo ? TAKE_PHOTO_AIM : TAKE_PHOTO_OFF;
     const int old_loop = PortLoopNo;
     const auto old_mode = PortTownViewMode;
     const float old_heading = PortTownEyeHeading, old_tilt = PortTownEyeTilt;
@@ -30,7 +37,7 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
     scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
     scene.active_camera = 0;
     PortLoopNo = LOOP_EDIT;
-    PortTownViewMode = EDIT_VIEW_MODE_EYE;
+    PortTownViewMode = photo ? EDIT_VIEW_MODE_PHOTO : EDIT_VIEW_MODE_EYE;
     PortTownLadderMode = EDIT_LADDER_MODE_NONE;
     PortTownEyeHeading = PortTownEyeTilt = 0;
     DebugInfo.debug_camera = GamePad__2.key_lock = 0;
@@ -51,7 +58,8 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
     EXPECT_FLOAT_EQ(PortTownEyeHeading, heading);
     for (int owner = 0; owner < 10; ++owner) {
         PortTownViewMode = owner == 0 ? EDIT_VIEW_MODE_WALK :
-                           owner == 1 ? EDIT_VIEW_MODE_PHOTO : EDIT_VIEW_MODE_EYE;
+                           owner == 1 ? EDIT_VIEW_MODE_PHOTO : (photo ? EDIT_VIEW_MODE_PHOTO : EDIT_VIEW_MODE_EYE);
+        if (owner == 1) TakePhotoMode = TAKE_PHOTO_OFF;
         scene.event_run = owner == 2;
         GamePad__2.key_lock = owner == 3;
         DebugInfo.debug_camera = owner == 4;
@@ -61,7 +69,8 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
         camera.follow_on = owner == 8;
         InputLatchPad(0);
         TownMouseEyeAfterControl(&scene, owner == 9 ? nullptr : &pad);
-        PortTownViewMode = EDIT_VIEW_MODE_EYE;
+        TakePhotoMode = photo ? TAKE_PHOTO_AIM : TAKE_PHOTO_OFF;
+        PortTownViewMode = photo ? EDIT_VIEW_MODE_PHOTO : EDIT_VIEW_MODE_EYE;
         scene.event_run = GamePad__2.key_lock = DebugInfo.debug_camera = 0;
         camera.suspended = camera.follow_on = scene.active_camera = 0;
         PortTownLadderMode = EDIT_LADDER_MODE_NONE;
@@ -81,4 +90,7 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
     GamePad__2.key_lock = old_lock;
     DebugInfo.debug_camera = old_debug;
     PortTownLadderMode = old_ladder;
+    TakePhotoMode = old_photo;
 }
+
+INSTANTIATE_TEST_SUITE_P(EyeAndPhoto, TownEyeMouse, testing::Bool());

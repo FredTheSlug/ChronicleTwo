@@ -107,9 +107,12 @@ TEST_F(EffectWorkMemory, SecondaryCharactersSkipTheUndersizedFirstGap) {
 }
 
 TEST_F(EffectWorkMemory, SecondaryCharactersReserveAllCopies) {
+    // This gap fits all retail object budgets but not all native copies.
+    u_long128 *barrier = Fragment(EFF_SPT_SUB_CHARA_MAX * 0x68 + 4);
     _EFF_SCRIPT script{};
     script.chara = &character;
     ASSERT_TRUE(manager.AssignCharacter(&script, EFF_SPT_SUB_CHARA_MAX));
+    EXPECT_GT(script.sub_chara_work, barrier);
     for (int i = 0; i < EFF_SPT_SUB_CHARA_MAX; ++i) {
         ASSERT_NE(script.sub_chara[i], nullptr);
         if (i != 0) EXPECT_GE(reinterpret_cast<char *>(script.sub_chara[i]) -

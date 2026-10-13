@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "vector_scratch_probes.hpp"
+
 #include <cstring>
 #include <memory>
 
@@ -76,4 +78,8 @@ TEST(EventVector, TreasurePositionIsDecodedBeforeMissingManagerReturns) {
     RS_STACKDATA args[] = {Number(3), Number(4), Number(12), Number(0), Integer(0)};
     EXPECT_EQ(script.ext_func_table[EVENT_EXT_POST_TREASURE_BOX](args, 5), 0);
     EventScene = previous;
+}
+
+TEST(EventVector, ActualScratchDeclarationsHoldEveryWrittenLane) {
+    EXPECT_TRUE(VectorScratchProbe::Event);
 }

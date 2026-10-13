@@ -34,6 +34,13 @@ target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nl
 # pipelines or create a device per case take longer than 5 s under a parallel run, on lavapipe and on Windows, so they get 30 s.
 # Cases that need a Vulkan device carry the gpu label: hosted runners have none and exclude them with -LE gpu.
 set(CT_TEST_TIMEOUT 5 CACHE STRING "Seconds a test case may run before it is cut off")
+# These cases share renderer suites but only inspect CPU data and must run on hosted CI.
+set(CT_CPU_TESTS
+    MgVisual.FaceMeshListAndStrip
+    MglibProjection.DepthRoundTrip
+    ScreenEffect.DepthOfFieldLevelSizesFollowRetailCascade
+    Vu1Prog0Shader.MirrorWordVectors
+    GfxMeshDc2.MeshConstantsKeepChroniclesSize)
 set(CT_GPU_SLOW_TESTS
     FontPortGpu.*
     Vu1Prog0Shader.*
@@ -41,10 +48,12 @@ set(CT_GPU_SLOW_TESTS
     MgTextureGpu.*
     MenuIconGpu.*
     MgTanimeGpu.*
+    GfxDisplayList.Recording*
+    */GfxPresentationOwnership.*
     GfxMisc.PipelineCache)
 set(CT_GPU_TESTS
     TargetPresentation.*
-    PickupPresentation.*
+    PickupPresentation.RetailEmissionsTagCoinsAbsAndFloatingItems
     DamagePresentation.RetailDamageInterpolatesProjectedBounceAndOpacity
     DamagePresentation.Score2InterpolatesAndReusedSlotsStayNewest
     DamagePresentation.SpriteHealClippingAndPause
@@ -69,9 +78,19 @@ set(CT_GPU_TESTS
     MovieGlue.ThirtyFramesOfL5LogoThroughTheMovieTexture)
 list(JOIN CT_GPU_SLOW_TESTS ":" CT_GPU_SLOW_FILTER)
 list(JOIN CT_GPU_TESTS ":" CT_GPU_FILTER)
+list(JOIN CT_CPU_TESTS ":" CT_CPU_FILTER)
+
+# Catch direct device helpers and renderer-owning fixtures in new test suites at configure time.
+execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/port/gpu_test_labels.py
+    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/tools/kazarov/port/tests
+    --filters ${CT_GPU_FILTER}:${CT_GPU_SLOW_FILTER}
+    RESULT_VARIABLE gpu_label_result OUTPUT_VARIABLE gpu_label_output ERROR_VARIABLE gpu_label_error)
+if(NOT gpu_label_result EQUAL 0)
+    message(FATAL_ERROR "${gpu_label_output}${gpu_label_error}")
+endif()
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER -PlatformClock.*:${CT_GPU_FILTER}:${CT_GPU_SLOW_FILTER}
+    TEST_FILTER -PlatformClock.*:${CT_GPU_FILTER}:${CT_GPU_SLOW_FILTER}:${CT_CPU_FILTER}
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT})
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
@@ -79,11 +98,16 @@ gtest_discover_tests(darkchronicle_tests
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT} RUN_SERIAL TRUE)
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER ${CT_GPU_FILTER}-${CT_GPU_SLOW_FILTER}
+    TEST_FILTER ${CT_CPU_FILTER}
+    PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT})
+
+gtest_discover_tests(darkchronicle_tests
+    DISCOVERY_MODE PRE_TEST
+    TEST_FILTER ${CT_GPU_FILTER}-${CT_GPU_SLOW_FILTER}:${CT_CPU_FILTER}
     PROPERTIES TIMEOUT ${CT_TEST_TIMEOUT} LABELS gpu)
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
-    TEST_FILTER ${CT_GPU_SLOW_FILTER}
+    TEST_FILTER ${CT_GPU_SLOW_FILTER}-${CT_CPU_FILTER}
     PROPERTIES TIMEOUT 30 LABELS gpu)
 
 add_dependencies(darkchronicle_tests darkchronicle)

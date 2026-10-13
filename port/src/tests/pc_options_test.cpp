@@ -267,3 +267,11 @@ TEST(PcOptions, PromptsFollowBindingsAndControllerFamilyWithoutChangingPadAction
     config.glyphs_new = false;
     EXPECT_EQ(options::ButtonName("cross", config), "Cross");
 }
+
+TEST(PcOptions, ZoomResetHasAVisibleRebindableRow) {
+    const auto &row = Find("input.bindings.zoom_reset");
+    EXPECT_EQ(row.label, "Zoom reset");
+    EXPECT_EQ(row.action, "zoom_reset");
+    Config config;
+    EXPECT_TRUE(options::SetBinding(config, row.action, "K"));
+}

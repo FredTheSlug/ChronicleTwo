@@ -100,7 +100,7 @@ std::vector<Row> Bindings() {
             continue;
         }
         // These host actions have no game-side consumer in this port.
-        if (info.action == "developer_menu" || info.action == "gyro_hold" || info.action == "zoom_reset") {
+        if (info.action == "developer_menu" || info.action == "gyro_hold") {
             continue;
         }
         std::string      action(info.action);
@@ -130,6 +130,7 @@ std::vector<Row> Bindings() {
             {"rx+",        "Look right"  },
             {"ry-",        "Look up"     },
             {"ry+",        "Look down"   },
+            {"zoom_reset", "Zoom reset"  },
             {"fps_toggle", "Toggle FPS"  },
             {"debug_menu", "Debug menu"  },
         };

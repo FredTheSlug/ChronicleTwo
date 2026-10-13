@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "platform/display.hpp"
+#include "platform/files.hpp"
 #include "platform/paths.hpp"
 
 namespace {
@@ -416,6 +417,7 @@ bool ConfigSave() {
     std::error_code             error;
     std::filesystem::create_directories(path.parent_path(), error);
     Json root = Json::object();
+    bool recovered = false;
     if (std::filesystem::exists(path, error)) {
         // A directory opens as a stream on Linux and only fails when parsed.
         if (!std::filesystem::is_regular_file(path, error)) {
@@ -425,15 +427,38 @@ bool ConfigSave() {
         if (!file) {
             return g_saved = false;
         }
-        root = Json::parse(file, nullptr, false, true);
-        if (!root.is_object()) {
+        std::ostringstream contents;
+        contents << file.rdbuf();
+        if (file.bad()) {
             return g_saved = false;
+        }
+        const auto text = contents.str();
+        root = Json::parse(text, nullptr, false, true);
+        if (!root.is_object()) {
+            // Keep every original byte, including empty files, before recovery.
+            // Exclusive publication also preserves backups from earlier repairs.
+            for (unsigned number = 0;; ++number) {
+                auto backup = path;
+                backup += ".bad";
+                if (number) {
+                    backup += "." + std::to_string(number);
+                }
+                const auto result = FilesWrite(backup, text.data(), text.size(), false);
+                if (result == FilesResult::kExists) {
+                    continue;
+                }
+                if (result != FilesResult::kWritten) {
+                    return g_saved = false;
+                }
+                break;
+            }
+            recovered = true;
         }
     } else if (error) {
         return g_saved = false;
     }
     const Json after = Json::parse(ConfigSerialize(g_config));
-    if (g_have_persisted) {
+    if (g_have_persisted && !recovered) {
         MergeChanges(root, Json::parse(ConfigSerialize(g_persisted)), after);
     } else {
         root = after;

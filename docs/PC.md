@@ -290,8 +290,8 @@ The configuration is `<save root>/config.json`, with the sections `game`, `video
 
 - Missing: the file is written with the defaults.
 - Unreadable (it exists but cannot be read, or is not a regular file): the defaults are used, `config: could not read <path>; using defaults and leaving it untouched` goes to stderr, and the file is not written in that session.
-- Malformed JSON, or a root that is not an object: the defaults are used, `config.json: not valid JSON; using the defaults` (or `expected an object`) goes to stderr, and the file is replaced on the next settings change that alters a value.
-- Empty, or only whitespace: the defaults are used, silently.
+- Malformed JSON, or a root that is not an object: the defaults are used, `config.json: not valid JSON; using the defaults` (or `expected an object`) goes to stderr, and the next settings change that alters a value preserves the original bytes as `config.json.bad` before writing a fresh valid configuration. Existing backups are kept; later repairs use `.bad.1`, `.bad.2`, and so on. If the backup cannot be written, the original stays untouched and the settings change reports a save failure.
+- Empty, or only whitespace: the defaults are used, silently. The next settings change uses the same backup and replacement behavior as malformed JSON.
 - Invalid value, unknown key, or a section that is not an object: that key keeps its default, and `config.json: ignoring <name> = <value>` goes to stderr.
 
 Writes are atomic: the file is written as `config.json.tmp` and renamed over `config.json`. It is written with 4-space indentation.

@@ -206,6 +206,43 @@ TEST_F(PlatformConfig, SettingsChangeStoresAndNormalises) {
     ASSERT_TRUE(ConfigParse(Read()).tick_rate == 120.0);
 }
 
+TEST_F(PlatformConfig, InvalidFilesAreBackedUpAndReplacedOnChange) {
+    int backup_number = 0;
+    for (const std::string text : {"", " \r\n\t", "{broken", "[]", "null", "42"}) {
+        SCOPED_TRACE(text);
+        Write(text);
+        ASSERT_TRUE(ConfigLoad());
+        EXPECT_EQ(Read(), text);
+        Config changed = ConfigGet();
+        changed.master_volume = 0.25f;
+        ASSERT_TRUE(ConfigChange(changed));
+        EXPECT_EQ(ConfigParse(Read()), changed);
+        EXPECT_TRUE(nlohmann::json::parse(Read()).contains("game"));
+        auto backup = Path();
+        backup += ".bad";
+        if (backup_number) {
+            backup += "." + std::to_string(backup_number);
+        }
+        std::ifstream file(backup, std::ios::binary);
+        ASSERT_TRUE(file);
+        EXPECT_EQ(std::string(std::istreambuf_iterator<char>(file), {}), text);
+        ++backup_number;
+    }
+    std::ifstream first(Path().string() + ".bad", std::ios::binary);
+    EXPECT_EQ(std::string(std::istreambuf_iterator<char>(first), {}), "");
+}
+
+TEST_F(PlatformConfig, DirectoryCreatedAfterLoadIsNeverReplaced) {
+    ASSERT_FALSE(ConfigLoad());
+    fs::remove(Path());
+    fs::create_directory(Path());
+    Config changed = ConfigGet();
+    changed.master_volume = 0.25f;
+    EXPECT_FALSE(ConfigChange(changed));
+    EXPECT_TRUE(fs::is_directory(Path()));
+    EXPECT_FALSE(fs::exists(Path().string() + ".bad"));
+}
+
 TEST_F(PlatformConfig, ExistingUnreadableFileIsNeverOverwritten) {
     fs::create_directory(Path());
     ASSERT_FALSE(ConfigLoad());

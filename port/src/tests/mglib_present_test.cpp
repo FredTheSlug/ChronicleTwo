@@ -2,8 +2,11 @@
 
 #include <array>
 #include <cstdint>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -22,6 +25,12 @@
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
 #include "present.hpp"
+#include "dng_hud.hpp"
+#include "mg_drawprim_port.hpp"
+#include "gfx/displaylist.hpp"
+#include "scenesnd.hpp"
+#include "maintex.hpp"
+#include "dataread.hpp"
 
 using namespace dc::test;
 
@@ -903,4 +912,284 @@ TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
     EXPECT_NEAR(rgba[p], 96, 1);
     EXPECT_NEAR(rgba[p + 1], 64, 1);
     EXPECT_NEAR(rgba[p + 2], 16, 1);
+}
+
+namespace {
+struct DamagePrimSink {
+    DamagePrimSink() {
+        mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
+                            const gfx::TextureBinding &, const gfx::DrawState &s) { mgPortDraw2D(p, v, {}, s); });
+    }
+    ~DamagePrimSink() { mgPortSetPrimSink({}); }
+};
+
+void DamageProjection(float x) {
+    auto matrix = Identity();
+    matrix[12] = static_cast<float>(mgScreenOffx) + x;
+    matrix[13] = static_cast<float>(mgScreenOffy) + 240.0f;
+    std::memcpy(mgRenderInfo.world_screen, matrix.data(), sizeof(float) * 16);
+    mgRenderInfo.clip_min[2] = 0.0f;
+    mgRenderInfo.clip_max[2] = 100.0f;
+}
+
+std::vector<gfx::Vertex2D> DamageVertices(const gfx::DisplayList &list) {
+    for (const auto &entry : list.entries) {
+        if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) return draw->vertices;
+    }
+    return {};
+}
+}
+
+namespace {
+void CheckDamageBlend(const gfx::DisplayList &list, const std::vector<gfx::Vertex2D> &before,
+                      const std::vector<gfx::Vertex2D> &after, const std::vector<uint8_t> &newest) {
+    std::vector<uint8_t> actual, expected;
+    uint32_t width = 0, height = 0;
+    for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
+        ASSERT_TRUE(PresentScreenshotDisplay(alpha, actual, width, height));
+        gfx::BeginRecording();
+        for (const auto &entry : list.entries) {
+            auto copy = entry;
+            if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&copy)) {
+                ASSERT_EQ(draw->vertices.size(), before.size());
+                for (size_t i = 0; i < draw->vertices.size(); ++i) {
+                    auto &v = draw->vertices[i];
+                    v.x = before[i].x + (after[i].x - before[i].x) * alpha;
+                    v.y = before[i].y + (after[i].y - before[i].y) * alpha;
+                    v.color[3] = static_cast<uint8_t>(std::lround(before[i].color[3] +
+                                                    (float(after[i].color[3]) - before[i].color[3]) * alpha));
+                }
+            }
+            gfx::detail::RecordEntry(std::move(copy));
+        }
+        auto reference = gfx::EndRecording();
+        ASSERT_TRUE(gfx::RenderList(*reference, 1, {}));
+        ASSERT_TRUE(gfx::ReadbackFrame(expected, width, height));
+        EXPECT_EQ(actual, expected) << alpha;
+        if (alpha == 1) EXPECT_EQ(actual, newest);
+    }
+}
+
+void ExpectNewestAtEveryAlpha() {
+    std::vector<uint8_t> canonical, display;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
+    for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
+        ASSERT_TRUE(PresentScreenshotDisplay(alpha, display, width, height));
+        EXPECT_EQ(display, canonical) << alpha;
+    }
+}
+}
+
+TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    CDamageScore damage;
+    float position[4] = {0, 0, 1, 1};
+    damage.SetValue(position, 123);
+    damage.SetColor(128, 0, 0);
+    damage.digit_w = 12; damage.digit_h = 18; damage.digit_u = 0; damage.digit_v = 0;
+    for (int i = 0; i < 4; i++) damage.Step();
+    std::vector<gfx::Vertex2D> before, after;
+    std::vector<uint8_t> earlier, newest;
+    uint32_t width = 0, height = 0;
+    for (int k = 0; k < 2; k++) {
+        mgBeginFrame(nullptr);
+        DamageProjection(256.0f + 8.0f * k);
+        damage.Step();
+        damage.Draw();
+        mgEndFrame(nullptr);
+        (k == 0 ? before : after) = DamageVertices(*mgPortLastList());
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, k == 0 ? earlier : newest, width, height));
+    }
+    ASSERT_EQ(before.size(), 12u);
+    ASSERT_EQ(after.size(), before.size());
+    ASSERT_NE(earlier, newest);
+    const auto *list = mgPortLastList();
+    const auto state_before = damage;
+    CheckDamageBlend(*list, before, after, newest);
+    EXPECT_EQ(std::memcmp(&damage, &state_before, sizeof(damage)), 0);
+}
+
+TEST(DamagePresentation, RetailLifetimesRemainInGameSteps) {
+    float position[4] = {0, 0, 1, 1};
+    CDamageScore damage;
+    damage.SetValue(position, 123);
+    int steps = 0;
+    while (damage.active && steps < 500) { damage.Step(); ++steps; }
+    EXPECT_EQ(steps, 50);
+    CDamageScore2 other;
+    other.SetValue(0, 123, 20);
+    steps = 0;
+    while (other.phase != DAMAGE_SCORE2_PHASE_NONE && steps < 500) { other.Step(); ++steps; }
+    EXPECT_EQ(steps, 37);
+}
+
+
+TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    auto scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
+    CCharacter2 character;
+    mgCFrame frame;
+    frame.SetPosition(0, 0, 1);
+    character.CObjectFrame::frame = &frame;
+    scene->chara_num = 1;
+    scene->chara[0].status = 1;
+    scene->chara[0].chara = &character;
+    CDamageScore2 damage;
+    damage.SetValue(0, 123, 0);
+    std::vector<gfx::Vertex2D> before, after;
+    std::vector<uint8_t> newest;
+    uint32_t width = 0, height = 0;
+    auto record = [&](float x) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        damage.Draw(scene.get());
+        mgEndFrame(nullptr);
+    };
+    mgBeginFrame(nullptr);
+    mgEndFrame(nullptr); // spawn has a predecessor list, but no predecessor draw
+    damage.Step();
+    record(256);
+    ExpectNewestAtEveryAlpha(); // spawn
+    before = DamageVertices(*mgPortLastList());
+    damage.Step();
+    record(264);
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_EQ(after.size(), 12u);
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    auto state = damage;
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    EXPECT_EQ(std::memcmp(&state, &damage, sizeof(damage)), 0);
+    auto previous_generation = std::get<gfx::detail::Draw2DEntry>(mgPortLastList()->entries.back()).interpolation.generation;
+    damage.SetValue(0, 123, 0); // same glyphs and object, distinct emission
+    damage.Step();
+    record(280);
+    EXPECT_NE(std::get<gfx::detail::Draw2DEntry>(mgPortLastList()->entries.back()).interpolation.generation, previous_generation);
+    ExpectNewestAtEveryAlpha();
+    damage.phase = DAMAGE_SCORE2_PHASE_NONE;
+    record(280);
+    EXPECT_TRUE(DamageVertices(*mgPortLastList()).empty());
+    ExpectNewestAtEveryAlpha(); // despawn
+    character.CObjectFrame::frame = nullptr;
+}
+
+TEST(DamagePresentation, SpriteHealClippingAndPause) {
+    PresentRenderer renderer(854, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    CDamageScore damage;
+    float position[4] = {0, 0, 1, 1};
+    damage.SetValue(position, 123);
+    damage.SetColor(64, 128, 64); // healing uses the same glyph path
+    damage.digit_w = 12; damage.digit_h = 17; damage.digit_u = 0; damage.digit_v = 202;
+    auto record = [&](float x, bool clipped = false) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        if (clipped) mgRenderInfo.clip_max[2] = 0;
+        damage.Draw();
+        mgEndFrame(nullptr);
+    };
+    damage.Step(); record(256);
+    auto before = DamageVertices(*mgPortLastList());
+    damage.Step(); record(264);
+    auto after = DamageVertices(*mgPortLastList());
+    std::vector<uint8_t> newest;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    damage.SetSprite(position, 192, 22, 18, 18);
+    damage.Step(); record(280);
+    ASSERT_EQ(DamageVertices(*mgPortLastList()).size(), 4u);
+    ExpectNewestAtEveryAlpha(); // sprite mode/emission changed
+    before = DamageVertices(*mgPortLastList());
+    damage.Step(); record(288);
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    record(288); // paused: no Step or anchor change
+    ExpectNewestAtEveryAlpha();
+    record(288, true);
+    EXPECT_TRUE(DamageVertices(*mgPortLastList()).empty());
+    ExpectNewestAtEveryAlpha();
+    record(288); // newly visible after clipping
+    ExpectNewestAtEveryAlpha();
+    damage.SetValue(position, 1);
+    damage.Step(); record(296);
+    ExpectNewestAtEveryAlpha(); // glyph-count change
+    mgBeginFrame(nullptr);
+    DamageProjection(304);
+    damage.Step();
+    damage.Draw();
+    gfx::CutCameraInterpolation();
+    mgEndFrame(nullptr);
+    ExpectNewestAtEveryAlpha();
+}
+
+TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) GTEST_SKIP() << "DC2_DATA supplies the extracted glyph atlas";
+    const auto path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) GTEST_SKIP() << "Extracted system texture archive unavailable";
+    const size_t bytes = static_cast<size_t>(file.tellg());
+    std::vector<u_long128> archive((bytes + 15) / 16);
+    file.seekg(0);
+    ASSERT_TRUE(file.read(reinterpret_cast<char *>(archive.data()), bytes));
+    int member_size = 0;
+    char member_name[] = "frame_basic.img";
+    auto *image = GetPackFile(reinterpret_cast<u_int *>(archive.data()), member_name, &member_size);
+    ASSERT_NE(image, nullptr);
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    std::vector<u_long128> backing(131072);
+    mgCMemory memory;
+    memory.stSetBuffer(backing.data(), static_cast<int>(backing.size()));
+    mgCTextureManager manager;
+    manager.SetTableBuffer(64, 8, &memory);
+    manager.Initialize(0x1000, -1);
+    manager.EnterIMGFile(reinterpret_cast<u_char *>(image), 0, &memory, nullptr);
+    auto *saved = TEX_SystenFrame;
+    char texture_name[] = "frame";
+    TEX_SystenFrame = manager.GetTexture(texture_name, -1);
+    ASSERT_NE(TEX_SystenFrame, nullptr);
+    mgSetDataBuffer(&memory, &memory, 0);
+    CDamageScore damage;
+    float position[4] = {0, 0, 1, 1};
+    damage.SetValue(position, 123);
+    damage.SetColor(128, 0, 0);
+    damage.digit_w = 12; damage.digit_h = 17; damage.digit_u = 0; damage.digit_v = 202;
+    for (int i = 0; i < 14; ++i) damage.Step();
+    std::vector<gfx::Vertex2D> before, after;
+    std::vector<uint8_t> newest, earlier;
+    uint32_t width = 0, height = 0;
+    for (int k = 0; k < 2; ++k) {
+        mgBeginFrame(nullptr);
+        DamageProjection(256 + 8 * k);
+        damage.Step();
+        damage.Draw();
+        mgEndFrame(nullptr);
+        (k == 0 ? before : after) = DamageVertices(*mgPortLastList());
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, k == 0 ? earlier : newest, width, height));
+    }
+    ASSERT_EQ(after.size(), 12u);
+    EXPECT_NE(earlier, newest);
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    TEX_SystenFrame = saved;
+    manager.Initialize(0x1000, -1);
 }

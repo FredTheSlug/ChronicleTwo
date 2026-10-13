@@ -33,6 +33,10 @@ set(CT_GPU_SLOW_TESTS
     MgTanimeGpu.*
     GfxMisc.PipelineCache)
 set(CT_GPU_TESTS
+    DamagePresentation.RetailDamageInterpolatesProjectedBounceAndOpacity
+    DamagePresentation.Score2InterpolatesAndReusedSlotsStayNewest
+    DamagePresentation.SpriteHealClippingAndPause
+    DamagePresentation.RealAtlasProjectedEndpoints
     MglibAspect.*
     MglibPresent.*
     MglibSeam.*

@@ -134,4 +134,89 @@ TEST_F(MenuInput, RetailUpdateConvertsLeftStickOnlyPastMenuThreshold) {
     EXPECT_EQ(GamePad__2.pad[0].button & directions, PAD_RIGHT);
 }
 
+TEST_F(MenuInput, KeyboardMovementNeverBecomesDpad) {
+    InputScript script;
+    std::string error;
+    ASSERT_TRUE(InputScriptParse("0 pad1\n0 pad2\n4 key:W\n5 key:S\n6 key:A\n7 key:D\n8 key:Up\n9 key:Down\n10 key:Left\n11 key:Right\n", script, error)) << error;
+    InputScriptInstall(std::move(script));
+    ClockSetUnbounded(true);
+    ClockReset();
+    constexpr int directions = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
+    for (bool menu : {false, true}) {
+        GamePad__2.Init();
+        for (int frame = 0; frame < 4; ++frame) {
+            InputScriptApply(frame);
+            GamePad__2.UpDate();
+        }
+        if (menu) GamePad__2.MenuModeOn(120);
+        for (int frame = 4; frame < 8; ++frame) {
+            InputScriptApply(frame);
+            GamePad__2.UpDate();
+            EXPECT_EQ(GamePad__2.pad[0].button & directions, 0) << "menu=" << menu << " frame=" << frame;
+            EXPECT_NE(frame < 6 ? GamePad__2.GetLY() : GamePad__2.GetLX(), 0);
+        }
+        int frame = 8;
+        for (int direction : {PAD_UP, PAD_DOWN, PAD_LEFT, PAD_RIGHT}) {
+            InputScriptApply(frame++);
+            GamePad__2.UpDate();
+            EXPECT_EQ(GamePad__2.pad[0].button & directions, direction);
+        }
+    }
+}
+
+TEST_F(MenuInput, MixedSourcesConvertOnlyControllerOwnedAxes) {
+    InputScript script;
+    std::string error;
+    ASSERT_TRUE(InputScriptParse("0 pad1\n0 pad2\n4 key:W 255 128 128 128\n5 key:A 128 255 128 128\n6 key:Right key:A\n7 key:W key:D\n8 pad1 128 0 128 128\n", script, error)) << error;
+    InputScriptInstall(std::move(script));
+    ClockSetUnbounded(true);
+    ClockReset();
+    GamePad__2.Init();
+    for (int frame = 0; frame < 4; ++frame) {
+        InputScriptApply(frame);
+        GamePad__2.UpDate();
+    }
+    GamePad__2.MenuModeOn(120);
+    constexpr int directions = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
+    int frame = 4;
+    for (int expected : std::initializer_list<int>{PAD_RIGHT, PAD_DOWN, PAD_RIGHT, 0, PAD_UP}) {
+        InputScriptApply(frame++);
+        GamePad__2.UpDate();
+        EXPECT_EQ(GamePad__2.pad[0].button & directions, expected);
+    }
+}
+
+TEST_F(MenuInput, MovementKeysDoNotSuppressDpadRepeatOrSecondPadLock) {
+    InputScript script;
+    std::string error;
+    ASSERT_TRUE(InputScriptParse("0 pad1\n0 pad2\n4 key:A key:Right\n4 pad2 left\n12\n12 pad2\n", script, error)) << error;
+    InputScriptInstall(std::move(script));
+    ClockSetUnbounded(true);
+    ClockReset();
+    GamePad__2.Init();
+    for (int frame = 0; frame < 4; ++frame) {
+        InputScriptApply(frame);
+        GamePad__2.UpDate();
+    }
+    GamePad__2.MenuModeOn(120);
+    GamePad__2.SetAutoRepeat(PAD_RIGHT, 3, 2);
+    for (int frame = 4; frame < 12; ++frame) {
+        InputScriptApply(frame);
+        GamePad__2.UpDate();
+        EXPECT_EQ(GamePad__2.GetLX(), -128);
+        EXPECT_FALSE(GamePad__2.On(PAD_LEFT));
+        EXPECT_EQ(GamePad__2.Down(PAD_RIGHT) != 0, frame == 4 || frame == 7 || frame == 9 || frame == 11);
+        EXPECT_TRUE(GamePad__2.On2(PAD_LEFT));
+    }
+    GamePad__2.key_lock2 = 1;
+    GamePad__2.UpDate();
+    EXPECT_EQ(GamePad__2.pad[1].button, 0);
+    EXPECT_EQ(GamePad__2.previous_pad[1].button, 0);
+    GamePad__2.key_lock2 = 0;
+    InputScriptApply(12);
+    GamePad__2.UpDate();
+    EXPECT_FALSE(GamePad__2.On(PAD_RIGHT));
+    EXPECT_EQ(GamePad__2.GetLX(), 0);
+}
+
 } // namespace

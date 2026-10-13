@@ -66,6 +66,12 @@ TEST_F(PlatformConfig, DefaultsAreWrittenWhenAbsent) {
     ASSERT_TRUE(SettingsGet() == static_cast<const HostSettings &>(Config{}));
 }
 
+TEST_F(PlatformConfig, TinyFrameCapsClampButZeroRemainsUncapped) {
+    EXPECT_DOUBLE_EQ(ConfigParse(R"({"video":{"max_fps":1e-12}})").max_fps, 1.0);
+    EXPECT_DOUBLE_EQ(ConfigParse(R"({"video":{"max_fps":0.5}})").max_fps, 1.0);
+    EXPECT_DOUBLE_EQ(ConfigParse(R"({"video":{"max_fps":0}})").max_fps, 0.0);
+}
+
 TEST_F(PlatformConfig, FullFileRoundTrips) {
     Config full;
     full.tick_rate = 120.0;

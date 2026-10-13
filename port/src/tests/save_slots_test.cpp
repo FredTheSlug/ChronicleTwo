@@ -1,0 +1,242 @@
+#include <gtest/gtest.h>
+
+#include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <memory>
+#include <vector>
+
+#include "mainloop.hpp"
+#include "platform/files.hpp"
+#include "platform/paths.hpp"
+#include "platform_fixture.hpp"
+#include "save_slots.hpp"
+
+extern CSaveData *PortActiveSaveData asm("MainLoop_ActiveSaveData");
+namespace fs = std::filesystem;
+
+namespace {
+class SaveSlotTest : public testing::Test {
+protected:
+    fs::path root;
+    std::unique_ptr<SAVEDATA_FORMAT> image = std::make_unique<SAVEDATA_FORMAT>();
+    std::unique_ptr<SAVEDATA_FORMAT> buffer = std::make_unique<SAVEDATA_FORMAT>();
+    std::unique_ptr<CSaveData> live = std::make_unique<CSaveData>();
+    CSaveData *previous = PortActiveSaveData;
+    CMemoryCardManager manager;
+
+    void SetUp() override {
+        root = fs::temp_directory_path() / ("dc2_save_slots_" + std::to_string(dc::test::ProcessId()));
+        fs::remove_all(root);
+        fs::create_directories(root / "saves");
+        PathsSetSaveRoot(root);
+        std::memset(image.get(), 0, sizeof(*image));
+        std::strcpy(image->version, "dc2Ver4");
+        image->map_no = 10;
+        image->save_data.map_no = 10;
+        image->save_data.game_progress = 2;
+        image->save_data.play_time = 123456;
+        image->unique_counter = 1;
+        PortActiveSaveData = live.get();
+        manager.save_buffer = buffer.get();
+        manager.InitForMC();
+        SaveSlots = {};
+    }
+    void TearDown() override {
+        manager.FinishForMC();
+        PortActiveSaveData = previous;
+        SaveSlots = {};
+        SaveSlotNew = false;
+        PathsReset();
+        std::error_code error;
+        fs::remove_all(root, error);
+    }
+    void Write(const fs::path &path, std::size_t size = sizeof(SAVEDATA_FORMAT)) {
+        fs::create_directories(path.parent_path());
+        ASSERT_EQ(FilesWrite(path, image.get(), size, false), FilesResult::kWritten);
+    }
+    std::vector<char> Bytes(const fs::path &path) {
+        std::ifstream input(path, std::ios::binary);
+        return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+    }
+    fs::path Legacy(int card, int number) {
+        auto name = SaveSlotPath(number).filename();
+        return root / (card ? "mc1" : "mc0") / name / name;
+    }
+};
+} // namespace
+
+TEST_F(SaveSlotTest, NamesAreCanonicalAndIgnoreTemporaryFiles) {
+    bool second = false;
+    EXPECT_EQ(SaveSlotNumber("BESCES-51190dkcl0", second), 0);
+    EXPECT_FALSE(second);
+    EXPECT_EQ(SaveSlotNumber("BESCES-51190dkcl999999999.card2", second), 999999999);
+    EXPECT_TRUE(second);
+    for (auto *name : {"BESCES-51190dkcl01", "BESCES-51190dkcl-1", "BESCES-51190dkcl1000000000",
+                       "BESCES-51190dkcl0.123.tmp", "BESCES-51190dkcl", "icon.sys", "../BESCES-51190dkcl0"}) {
+        EXPECT_EQ(SaveSlotNumber(name, second), -1) << name;
+    }
+}
+
+TEST_F(SaveSlotTest, ImportsBothCardsByteExactlyWithoutTouchingOriginals) {
+    for (int number = 0; number < 3; ++number) Write(Legacy(0, number));
+    image->unique_counter = 99;
+    Write(Legacy(1, 0));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 4);
+    EXPECT_FALSE(list.read_failed);
+    for (int number = 0; number < 3; ++number) EXPECT_EQ(Bytes(Legacy(0, number)), Bytes(SaveSlotPath(number)));
+    EXPECT_EQ(Bytes(Legacy(1, 0)), Bytes(SaveSlotPath(0, true)));
+    EXPECT_NE(Bytes(SaveSlotPath(0)), Bytes(SaveSlotPath(0, true)));
+    EXPECT_EQ(SaveSlotScan().saves.size(), 4); // Reopening never duplicates imports.
+}
+
+TEST_F(SaveSlotTest, ExistingFlatFileWinsOverOlderCardCopy) {
+    Write(Legacy(0, 0));
+    image->unique_counter = 42;
+    Write(SaveSlotPath(0));
+    auto before = Bytes(SaveSlotPath(0));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 1);
+    EXPECT_EQ(list.saves[0].info.unique_counter, 42);
+    EXPECT_EQ(Bytes(SaveSlotPath(0)), before);
+    EXPECT_NE(Bytes(Legacy(0, 0)), before);
+}
+
+TEST_F(SaveSlotTest, UnusableEntriesStayVisibleAndReserveTheirNames) {
+    Write(SaveSlotPath(0), 100);
+    image->incomplete = 1;
+    Write(SaveSlotPath(1));
+    image->incomplete = 0;
+    image->check_digit = 999999;
+    Write(SaveSlotPath(2));
+    image->check_digit = 0;
+    std::memset(image->version, 'x', sizeof(image->version));
+    Write(SaveSlotPath(3));
+    fs::create_directory(SaveSlotPath(4));
+    fs::create_directories(Legacy(0, 5).parent_path());
+    auto before = Bytes(SaveSlotPath(2));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 6);
+    EXPECT_EQ(list.saves[0].state, SaveSlotState::WrongSize);
+    EXPECT_EQ(list.saves[1].state, SaveSlotState::Incomplete);
+    EXPECT_EQ(list.saves[2].state, SaveSlotState::BadChecksum);
+    EXPECT_EQ(list.saves[3].state, SaveSlotState::WrongVersion);
+    EXPECT_EQ(list.saves[4].state, SaveSlotState::Unreadable);
+    EXPECT_EQ(list.saves[5].state, SaveSlotState::Unreadable);
+    EXPECT_EQ(SaveSlotRows(list, true), 7);
+    EXPECT_EQ(SaveSlotRows(list, false), 6);
+    EXPECT_EQ(SaveSlotFirstFree(list), 6);
+    EXPECT_EQ(Bytes(SaveSlotPath(2)), before);
+}
+
+TEST_F(SaveSlotTest, CatalogHasNoRetailSlotLimitAndOnlyOneNewRow) {
+    for (int number = 0; number < 31; ++number) {
+        image->unique_counter = number + 1;
+        Write(SaveSlotPath(number));
+    }
+    manager.GetAllSaveFileInfo();
+    EXPECT_EQ(manager.CheckDataFileNum(), 31);
+    EXPECT_EQ(manager.GetUpdateFile(), 30);
+    EXPECT_EQ(manager.CheckMaxUniqueCounter(), 31);
+    EXPECT_EQ(SaveSlotRows(SaveSlots, false), 31);
+    EXPECT_EQ(SaveSlotRows(SaveSlots, true), 32);
+    for (int row = -1; row <= 32; ++row) {
+        EXPECT_EQ(SaveSlotIsNew(SaveSlots, row, true), row == 31);
+        EXPECT_FALSE(SaveSlotIsNew(SaveSlots, row, false));
+    }
+    SaveSlotNew = true;
+    manager.SaveToMc(31);
+    ASSERT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_TRUE(fs::is_regular_file(SaveSlotPath(31)));
+    EXPECT_EQ(SaveSlotRows(SaveSlots, true), 33);
+}
+
+TEST_F(SaveSlotTest, NewSaveCannotReplaceAFileCreatedAfterDiscovery) {
+    manager.GetAllSaveFileInfo();
+    Write(SaveSlotPath(0));
+    auto original = Bytes(SaveSlotPath(0));
+    SaveSlotNew = true;
+    manager.SaveToMc(0);
+    ASSERT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(Bytes(SaveSlotPath(0)), original);
+    EXPECT_TRUE(fs::is_regular_file(SaveSlotPath(1)));
+    EXPECT_EQ(manager.file_no, 1);
+}
+
+TEST_F(SaveSlotTest, LoadBeyondRetailLimitRestoresPayloadAndTransition) {
+    image->program_loop_no = LOOP_DUNGEON;
+    image->dungeon_no = 2;
+    image->floor_id = 4;
+    image->dng_tree_flag = 1;
+    Write(SaveSlotPath(81));
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(manager.LoadFromMc(0), MC_STEP_DONE);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(live->map_no, 10);
+    EXPECT_EQ(live->play_time, 123456);
+    EXPECT_EQ(manager.load_program_loop_no, LOOP_DUNGEON);
+    EXPECT_EQ(manager.load_dungeon_no, 2);
+    EXPECT_EQ(manager.load_floor_id, 4);
+    EXPECT_EQ(manager.load_dng_tree_flag, 1);
+}
+
+TEST_F(SaveSlotTest, FailedLoadDoesNotPartiallyReplaceLiveStateOrDeleteFile) {
+    image->check_digit_half = 123456;
+    Write(SaveSlotPath(0));
+    auto before = Bytes(SaveSlotPath(0));
+    live->map_no = 42;
+    live->play_time = 777;
+    manager.GetAllSaveFileInfo();
+    manager.LoadFromMc(0);
+    EXPECT_EQ(manager.error.code, MC_ERROR_LOAD);
+    EXPECT_EQ(live->map_no, 42);
+    EXPECT_EQ(live->play_time, 777);
+    EXPECT_EQ(Bytes(SaveSlotPath(0)), before);
+}
+
+TEST_F(SaveSlotTest, ConfirmedOverwritePublishesCompleteImageAndKeepsLegacyBackup) {
+    Write(Legacy(0, 0));
+    auto original = Bytes(Legacy(0, 0));
+    manager.GetAllSaveFileInfo();
+    live->map_no = 21;
+    live->play_time = 9999;
+    SetDngTreeFlag(1);
+    SaveSlotNew = false; // The menu calls the writer only after its Yes confirmation.
+    manager.SaveToMc(0);
+    ASSERT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(SaveSlotRead(SaveSlotPath(0), *image), SaveSlotState::Ready);
+    EXPECT_EQ(image->save_data.map_no, 21);
+    EXPECT_EQ(image->save_data.play_time, 9999);
+    EXPECT_EQ(image->incomplete, 0);
+    EXPECT_EQ(image->dng_tree_flag, 1);
+    EXPECT_EQ(Bytes(Legacy(0, 0)), original);
+    int files = 0;
+    for (const auto &entry : fs::directory_iterator(SaveSlotsRoot())) {
+        EXPECT_FALSE(entry.path().string().ends_with(".tmp"));
+        ++files;
+    }
+    EXPECT_EQ(files, 1);
+}
+
+TEST_F(SaveSlotTest, FailedPublicationPreservesOccupiedNameAndReportsError) {
+    fs::create_directory(SaveSlotPath(0));
+    std::ofstream(SaveSlotPath(0) / "keep.txt") << "keep";
+    manager.GetAllSaveFileInfo();
+    SaveSlotNew = false;
+    manager.SaveToMc(0);
+    EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
+    EXPECT_TRUE(fs::exists(SaveSlotPath(0) / "keep.txt"));
+    EXPECT_EQ(SaveSlotScan().saves.size(), 1);
+}
+
+TEST_F(SaveSlotTest, InvalidCatalogRootReportsErrorAndRefusesNewSave) {
+    fs::remove(root / "saves");
+    std::ofstream(root / "saves") << "occupied";
+    manager.GetAllSaveFileInfo();
+    EXPECT_TRUE(SaveSlots.read_failed);
+    SaveSlotNew = true;
+    manager.SaveToMc(0);
+    EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
+    EXPECT_TRUE(fs::is_regular_file(root / "saves"));
+}

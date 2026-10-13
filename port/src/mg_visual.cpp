@@ -10,6 +10,7 @@
 #include "mg_drawprim_port.hpp"
 #include "mg_math.hpp"
 #include "mg_visual.hpp"
+#include "mg_texture.hpp"
 #include "mg_visual_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
@@ -606,7 +607,13 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
 
     for (mgFACE_GROUP *group = face_group; group != NULL; group = group->next) {
         mgMaterial *mat = material + group->material;
-        const gfx::TextureBinding binding = mgPortBinding(mat->texture);
+        gfx::TextureBinding binding = mgPortBinding(mat->texture);
+        // Retail SetMaterialRef writes this texture's CLAMP for every material.
+        // Record it with the mesh instead of inheriting another draw's wrap state.
+        if (mat->texture != nullptr) {
+            binding.wrap_u = mgPortWrapU(mat->texture->clamp_bits);
+            binding.wrap_v = mgPortWrapV(mat->texture->clamp_bits);
+        }
 
         GroupDraw draw;
         draw.mesh = record.mesh;

@@ -15,6 +15,7 @@
 #include "mg_drawprim_port.hpp"
 #include "mg_frame.hpp"
 #include "mg_visual.hpp"
+#include "mg_texture.hpp"
 #include "mg_visual_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
@@ -633,3 +634,78 @@ TEST(MgVisual, BeginPacketDropsPreviousFixFaceDraw) {
     EXPECT_FALSE(mgPortPacketDraw(packet));
     mgEndFrame(nullptr);
 }
+
+namespace {
+void CheckMaterialWrap(bool queued) {
+    VisualRenderer renderer(640, 480);
+    SetCamera();
+    MemoryPool table;
+    mgTexManager.SetTableBuffer(16, 8, &table.memory());
+    mgTexManager.Initialize(0x1000, -1);
+    // Repeating (1.25, 1.25) samples green; clamping it samples red.
+    alignas(16) uint8_t pixels[16] = {0, 255, 0, 128, 0, 0, 255, 128,
+                                     0, 0, 255, 128, 255, 0, 0, 128};
+    u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {reinterpret_cast<u_long128 *>(pixels)};
+    char name[] = "material_wrap";
+    auto *texture = mgTexManager.EnterTexture(0, name, levels, 2, 2, 32, nullptr, 0, 0);
+    ASSERT_NE(texture, nullptr);
+    texture->Bilinear(0);
+    float positions[3][4] = {{-50, -50, 100, 1}, {150, -50, 100, 1}, {-50, 150, 100, 1}};
+    float uv[1][4] = {{1.25f, 1.25f, 0, 0}};
+    int indices[] = {0, 0, 1, 0, 2, 0};
+    mgCFace face{};
+    face.type = static_cast<u_int>(MG_PRIM_TRIANGLE) | MG_FACE_NO_NORMAL;
+    face.vertex_num = 3;
+    face.index_stride = 2;
+    face.index_num = 6;
+    face.index = indices;
+    mgFACE_GROUP group{};
+    group.face = &face;
+    mgMaterial material{};
+    material.texture = texture;
+    for (float &component : material.diffuse) component = 1.0f;
+    mgCVisualMDT visual;
+    visual.vertex = positions;
+    visual.vertex_num = 3;
+    visual.uv = uv;
+    visual.uv_num = 1;
+    visual.face_group = &group;
+    visual.material = &material;
+    visual.material_num = 1;
+    mgCFrameAttr attr;
+    attr.no_light = 1;
+    SetColour(attr, {128, 128, 128, 128});
+    MemoryPool data_a, data_b, packets;
+    mgSetDataBuffer(&data_a.memory(), &data_b.memory(), 0);
+    for (int repeat = 0; repeat < 2; ++repeat) {
+        texture->clamp.WMS = texture->clamp.WMT = repeat ? 0 : 1;
+        mgPortGs().clamp = repeat ? 5 : 0; // The preceding draw uses the opposite wrap.
+        float matrix[4][4];
+        Identity(matrix);
+        PrepareObject(attr);
+        mgBeginFrame(nullptr);
+        u_int tag[4]{};
+        int order[2] = {0, -1};
+        if (queued) mgBeginDraw(&packets.memory(), order, nullptr);
+        visual.Draw(queued ? nullptr : tag, matrix, nullptr);
+        if (queued) {
+            // A subsequent draw changes global state before the mesh packet executes.
+            mgPortGs().clamp = repeat ? 5 : 0;
+            mgPreEndDraw(nullptr);
+            mgEndDraw(0, nullptr);
+        }
+        mgEndFrame(nullptr);
+        const auto *list = mgPortLastList();
+        ASSERT_NE(list, nullptr);
+        ASSERT_EQ(list->records.size(), 1u);
+        const auto &mesh = std::get<gfx::detail::MeshEntry>(list->entries[list->records[0].entry]);
+        EXPECT_EQ(mesh.binding.wrap_u, repeat ? gfx::Wrap::Repeat : gfx::Wrap::Clamp);
+        EXPECT_EQ(mesh.binding.wrap_v, repeat ? gfx::Wrap::Repeat : gfx::Wrap::Clamp);
+        ExpectCentre(repeat ? 0 : 255, repeat ? 255 : 0, 0);
+    }
+    mgPortGs().clamp = 0;
+}
+} // namespace
+
+TEST(MgVisual, DirectMaterialUsesItsOwnTextureWrap) { CheckMaterialWrap(false); }
+TEST(MgVisual, QueuedMaterialRetainsItsOwnTextureWrap) { CheckMaterialWrap(true); }

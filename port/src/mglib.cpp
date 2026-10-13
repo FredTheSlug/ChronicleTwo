@@ -306,7 +306,7 @@ bool ReadNow(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &wi
 }
 
 bool WriteScreenshotDisplayFrames() {
-    if (mgPortPreviousList() == nullptr) {
+    if (PresentGetSettings().interpolation && mgPortPreviousList() == nullptr) {
         std::fprintf(stderr, "mglib: frame %d has no previous list, display frames skipped\n", frame_count);
         return true;
     }

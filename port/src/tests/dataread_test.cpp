@@ -13,6 +13,8 @@
 #include <vector>
 
 #include "dataread.hpp"
+#include "gamedata.hpp"
+#include "mainloop.hpp"
 #include "dataread_port.hpp"
 #include "dc2data.hpp"
 #include "platform/paths.hpp"
@@ -446,4 +448,29 @@ TEST_F(DataRead, ShiftJisNameFindsItsPercentEncodedFile) {
     std::optional<fs::path> found = DataReadFind(game.c_str());
     ASSERT_TRUE(found.has_value());
     EXPECT_TRUE(fs::equivalent(*found, disk));
+}
+
+TEST_F(DataRead, ItemMessageReloadClearsTheLiveArenaWithoutClearingReboundRoots) {
+    auto write = [&](const char *name, const char *text) {
+        fs::create_directories(root_ / "menu/cfg7");
+        std::ofstream(root_ / "menu/cfg7" / name) << text;
+    };
+    write("common.cfg", "COMINIT 1; COM 11,0,0,0,0,0,0,0,0,\"x\",0;");
+    write("comdatmes0.cfg", "MES_SYS 11,\"A long previous language name\";");
+    write("comdatmes1.cfg", "MES_SYS 11,\"B\";");
+    DataReadIndex(root_);
+    GameItemDataManage.Initialize();
+    char common[] = "common.cfg";
+    ASSERT_TRUE(LoadGameDataAnalyze(common));
+    LanguageCode = 0;
+    ASSERT_TRUE(GameItemDataManage.LoadItemSystemMes(0));
+    auto *record = GameItemDataManage.GetCommonData(11);
+    ASSERT_NE(record, nullptr);
+    ASSERT_STREQ(record->name, "A long previous language name");
+    char *live = record->name;
+    ASSERT_TRUE(GameItemDataManage.LoadItemSystemMes(1));
+    ASSERT_EQ(record->name, live);
+    ASSERT_STREQ(live, "B");
+    // The old suffix must be cleared even though the original static bytes were already zero.
+    for (int i = 2; i < 29; ++i) EXPECT_EQ(live[i], 0) << i;
 }

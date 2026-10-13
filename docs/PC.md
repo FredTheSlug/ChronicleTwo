@@ -290,7 +290,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `video.ui_scale` | number | 1 | 0.25 to 4 | 2D UI scale |
 | `video.show_fps` | bool | true | | FPS counter (windowed runs; `--show-fps` forces it headless) |
 | `video.fps_detail` | string | all | fps, ticks, all | FPS counter text |
-| `audio.master_volume` | number | 1 | 0 to 1 | master volume; read and saved, not yet applied |
+| `audio.master_volume` | number | 1 | 0 to 1 | final mixer gain, independent of the game's fades and core volumes; applies live |
 | `audio.sound` | string | stereo | stereo, surround | output layout; read and saved, not yet applied (the output is stereo) |
 | `audio.soundtrack` | string | ps2 | ps2, custom | `custom` plays recordings from `soundtrack/` beside the save root, as named by its `soundtrack.json` |
 | `input.mouse_sensitivity` | number | 0.1 | above 0 | mouse look speed |
@@ -313,7 +313,32 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.mouse_release` | string or array of strings | empty | key names | keys that release the captured mouse |
 | `input.bindings` | object: action to string or array of strings | empty | key names | rebinds actions; action names are lowercased |
 
-`SettingsChange` stores the new settings, saves them, calls `DisplayChanged`, and calls a change hook. Through that hook `main` applies the tick rate, the present mode, `InputApplyConfig` and the present settings.
+`ConfigChange` stores and saves the full configuration, calls `DisplayChanged`, and calls a change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the tick rate, present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
+
+### PC SETTINGS
+
+Open **Options**, then press **SELECT** (Backspace with the default keyboard bindings), or click **PC SETTINGS** above the list. The original Options page still edits the retail save's options. Its confirm, cancel, reset, and L1/R1 page scrolling are unchanged; returning from PC SETTINGS keeps its cursor and choices.
+
+The PC page uses the game's font and Options artwork. L1/R1 changes tabs, Up/Down selects a row, Left/Right changes a value, and confirm advances a choice or opens binding capture. Cancel returns to Options; Japanese retains its reversed confirm/cancel layout. The mouse can click tabs and value arrows, scroll rows, restore a binding, and return to Options. Hit targets follow aspect ratio, UI scale and window DPI.
+
+| Page | Settings |
+|---|---|
+| Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, FPS counter |
+| Audio | Master volume and PS2/custom soundtrack |
+| Controls | Mouse sensitivity, Y inversion and capture; stick sensitivity and X/Y inversion; button symbols and glyph style |
+| Bindings | Keyboard and mouse bindings for pad buttons, movement, look, FPS and debug menu |
+
+Edits apply immediately and save to `config.json`. These settings do not require restarting the game. Soundtrack selection takes effect the next time a song starts, including one whose data is already loaded. Custom recordings use the original `.sq` filename in `soundtrack/soundtrack.json`; an absent or invalid recording falls back to the PS2 sequence. Current music is not restarted by moving the setting.
+
+Resolution changes the windowed size; fullscreen uses the desktop. A command-line `--window` takes precedence. A refused window change is read back and reported on screen. Hand-edited resolutions and numeric values are shown as stored and stay unchanged until that row is edited. The PC UI offers a bounded set of scale presets; the configuration file still accepts the full documented range.
+
+Confirm on a binding shows **Press a key...**. Press a key or mouse button; Escape cancels and cannot be bound. The opening press is ignored, and the new input must be released before navigation resumes. Square or **Restore binding** removes that action's override and restores its defaults. Controller buttons retain their retail assignments. Glyph style changes the PC page's device-specific button prompts; keyboard prompts use current bindings. Other retail screens keep their original button artwork.
+
+A failed write leaves the change working in the current session and shows a warning. Check the save folder and change a setting or reopen PC SETTINGS to retry. A configuration file that could not be read remains protected against replacement.
+
+`tools/input/pc-settings.input` replays all four tabs, a key rebind, Escape cancellation, and return to retail Options from `--jump town:10 --fast-load`. Its comments give capture frames. `tools/input/pc-settings-mouse.input` exercises clicking and mouse-button capture at `--window 1280x960`. Use fresh save roots and `--screenshot-display 2` for both.
+
+`tools/input/pc-settings-display.input` checks fullscreen, return to windowed, and resizing in a real window. Start with a fresh config containing a nonzero window size, omit `--window`, and stop at frame 940. The optional `PcSettingsReplay` CTests run the headless pad and mouse flows and assert the saved configuration when `DC2_DATA` is available.
 
 ### Keyboard menu controls
 

@@ -11,6 +11,59 @@
 #include "prespr.hpp"
 #include "scenesnd.hpp"
 #include "userdata.hpp"
+#include "gfx/gfx.hpp"
+
+PORT_OVERRIDE void CWarningGage2::Draw() {
+    if (time < 20 || layout == WARNING_GAGE_LAYOUT_NONE) {
+        return;
+    }
+
+    struct WarningIcon {
+        int x, y, width, height, u, v;
+    };
+    constexpr WarningIcon human_label[] = {
+        {183, 41, 68, 20, 316, 236}, {274, 64, 68, 20, 316, 236},
+        {411, 73, 68, 20, 316, 236}
+    };
+    constexpr WarningIcon human_icon[] = {
+        {170, 16, 28, 36, 210, 226}, {302, 15, 26, 54, 290, 202},
+        {439, 56, 26, 22, 238, 234}
+    };
+    constexpr WarningIcon robot_label[] = {
+        {146, 38, 68, 20, 316, 236}, {320, 33, 68, 20, 316, 236}
+    };
+    constexpr WarningIcon robot_icon[] = {
+        {133, 13, 28, 36, 210, 226}, {348, 16, 26, 22, 238, 234}
+    };
+    const bool human = layout == WARNING_GAGE_LAYOUT_MAIN;
+    if (!human && layout != WARNING_GAGE_LAYOUT_ROBO) {
+        return;
+    }
+    for (int i = 0; i < (human ? 3 : 2); ++i) {
+        if (!warning[i] || (!human && i == 0 && rate[i] == 0.0f)) {
+            continue;
+        }
+        auto label = human ? human_label[i] : robot_label[i];
+        auto icon = human ? human_icon[i] : robot_icon[i];
+        if (i != 0 && rate[i] == 0.0f) {
+            label.v = 216;
+            icon.u = human && i == 1 ? 264 : 238;
+            icon.v = human && i == 1 ? 202 : 212;
+        }
+        // Warnings are emitted after DrawStatusBord, so they need the same panel's anchor here.
+        gfx::UiAnchorScope anchor(human ? gfx::UiAnchor::Side(i == 0 ? -1 : 1, -1, true) :
+                                         gfx::UiAnchor{});
+        CPreSprite sprite;
+        sprite.Initialize(nullptr, nullptr);
+        sprite.Preset2D();
+        sprite.Begin(MG_PRIM_SPRITE);
+        sprite.Texture(TEX_SystenFrame);
+        sprite.Color(0x80, 0x80, 0x80, 0x80);
+        sprite.SetIRect(label.x, label.y, label.width, label.height, label.u, label.v);
+        sprite.SetIRect(icon.x, icon.y, icon.width, icon.height, icon.u, icon.v);
+        sprite.End();
+    }
+}
 
 // Retail's definition returns void against the fixed-up declaration (scripts/port/header_fixups.py).
 PORT_OVERRIDE int CLockOnModel::Draw() {

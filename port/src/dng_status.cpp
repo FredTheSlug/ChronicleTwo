@@ -23,9 +23,13 @@ PORT_OVERRIDE void DrawStatusBord() {
 
     switch (chara) {
         case USER_CHARA_MAX:
-        case USER_CHARA_MONICA:
+        case USER_CHARA_MONICA: {
+            // Retail batches each human panel separately: HP/items are left of the midpoint;
+            // both weapon panels and the magic-sword charges are right of it. Move each draw whole.
+            gfx::UiAnchorScope panels({256.0f, 256.0f, INFINITY, -INFINITY, true});
             DrawMainUnitStatusBord(rate);
             break;
+        }
         case USER_CHARA_ROBO:
             DrawRoboUnitStatusBord(rate);
             break;

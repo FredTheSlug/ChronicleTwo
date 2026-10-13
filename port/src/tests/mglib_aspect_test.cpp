@@ -16,6 +16,7 @@
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mainloop_port.hpp"
+#include "menumain.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
@@ -323,4 +324,74 @@ TEST(MglibAspect, ItemMenuLensStaysWithModelAtSixteenNine) {
 
 TEST(MglibAspect, ItemMenuLensStaysWithModelAtFourThree) {
     ExpectMenuLensAtRetailPosition(640, 480);
+}
+
+TEST(MglibAspect, MenuFormsClipParkedStatsAndKeepActivePanel) {
+    AspectRenderer renderer(1920, 1080);
+    CMenuPosDataManage layout{};
+    auto *saved_layout = MenuPosData;
+    MenuPosData = &layout;
+    MENU_BASETEXINFO texture_info{};
+    layout.tex_info = &texture_info;
+    layout.tex_info_num = 1;
+    MENU_PARTS_EFFECT_STRUCT1 fill{};
+    fill.param[0] = 20; fill.param[1] = 220; fill.param[2] = 30; fill.param[3] = 128;
+    MENUFORMPARTS_TYPE part{};
+    part.active = part.draw_flag = 1;
+    part.dtype = MENUFORMPARTS_DTYPE_SQ_BETA;
+    // Retail SPECHECK comparison panel is 236x164, parked at -260 and shown at 7.
+    part.w = 236; part.h = 164;
+    part.effect = &fill;
+    CMenuPosDataForm form{};
+    form.active = form.draw_flag = 1;
+    form.rgba[3] = 128;
+    form.dtype = MENUFORM_DTYPE_NORMAL;
+    form.y = 296;
+    form.parts = &part;
+    form.parts_num = 1;
+    const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    for (float x : {-260.0f, -80.0f, 7.0f}) {
+        form.x = x;
+        mgSetBackGround(200, 150, 100, 128);
+        mgBeginFrame(nullptr);
+        int state = -1;
+        form.MenuFormDraw(state);
+        // A following independent draw must still reach the wide flank.
+        auto a = QuadCorner(-75, 50), b = QuadCorner(-50, 50);
+        auto c = QuadCorner(-50, 75), d = QuadCorner(-75, 75);
+        const std::array outside{a, b, c, d};
+        gfx::DrawState outside_state{};
+        outside_state.depth_test = gfx::DepthTest::Always;
+        outside_state.depth_write = false;
+        mgPortDraw2D(gfx::Primitive::Quads, outside, {}, outside_state);
+        mgEndFrame(nullptr);
+        std::vector<uint8_t> rgba;
+        uint32_t width = 0, height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+        const auto pixel = [&](float px, float py, int channel) {
+            const int sx = static_cast<int>(mapping.offset_x + px * mapping.scale_x);
+            const int sy = static_cast<int>(mapping.offset_y + py * mapping.scale_y);
+            return rgba[(static_cast<size_t>(sy) * width + sx) * 4 + channel];
+        };
+        EXPECT_GT(pixel(-50, 350, 0), 190) << "parked panel leaks at x=" << x;
+        if (x >= -80) EXPECT_GT(pixel(40, 350, 1), 200) << "active/entering panel lost";
+        if (x == 7) {
+            EXPECT_GT(pixel(8, 350, 1), 200);
+            EXPECT_GT(pixel(242, 350, 1), 200);
+        }
+        EXPECT_GT(pixel(-60, 60, 0), 240) << "form clip leaked to following draw";
+    }
+    // The same form mechanism also carries full-screen fills: those still cover Fill's sides.
+    form.x = form.y = 0;
+    part.w = 512; part.h = 480;
+    mgSetBackGround(200, 150, 100, 128);
+    mgBeginFrame(nullptr);
+    int state = -1;
+    form.MenuFormDraw(state);
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> rgba;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+    EXPECT_GT(rgba[(static_cast<size_t>(height / 2) * width + 100) * 4 + 1], 200);
+    MenuPosData = saved_layout;
 }

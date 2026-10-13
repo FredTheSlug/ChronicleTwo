@@ -7,6 +7,7 @@
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "mw_runtime.h"
 
 extern float PortMenuWakuPosition[2] asm("MenuDraw_WakuPosition");
 
@@ -224,4 +225,15 @@ PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float
     }
 
     prim->End();
+}
+
+PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
+    bool clip_form = dtype == MENUFORM_DTYPE_NORMAL || dtype == MENUFORM_DTYPE_LIST;
+    // Full-screen fills and frame grabs are composition layers, not sliding panels.
+    for (int i = 0; clip_form && i < parts_num; ++i) {
+        const auto &part = parts[i];
+        if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) clip_form = false;
+    }
+    mgPortScreenClipScope clip(clip_form);
+    MenuFormDraw(fptosi(x), fptosi(y), state);
 }

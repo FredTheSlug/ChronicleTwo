@@ -81,6 +81,18 @@ struct mgPortExtent {
 mgPortExtent mgPortVisibleExtent();
 mgPortExtent mgPortVisibleExtent(gfx::TextureHandle target);
 
+// Retain the retail screen boundary for a composed UI form while allowing its
+// background and captured-frame draws to cover the wider target.
+class mgPortScreenClipScope {
+public:
+    explicit mgPortScreenClipScope(bool enabled);
+    ~mgPortScreenClipScope();
+    mgPortScreenClipScope(const mgPortScreenClipScope &) = delete;
+    mgPortScreenClipScope &operator=(const mgPortScreenClipScope &) = delete;
+private:
+    bool saved_;
+};
+
 // GS state (context 1) for draws whose packets are replaced
 
 struct mgPortGsState {

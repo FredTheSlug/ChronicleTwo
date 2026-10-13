@@ -25,7 +25,7 @@ struct PresentStats {
     std::uint32_t last_draws = 0;
 };
 
-bool PresentMouseActive();
+bool                   PresentMouseActive();
 void PresentSetSettings(const PresentSettings &settings);
 const PresentSettings &PresentGetSettings();
 PresentStats PresentGetStats();

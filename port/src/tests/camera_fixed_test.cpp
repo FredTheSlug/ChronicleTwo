@@ -16,7 +16,6 @@
 #include "platform/input.hpp"
 #include "platform/mouse.hpp"
 #include "present.hpp"
-
 #include "scenesnd.hpp"
 
 TEST(CameraFixedMouse, BoundsDecayAndDisplayRateIndependence) {

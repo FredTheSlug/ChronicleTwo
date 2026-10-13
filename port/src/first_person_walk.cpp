@@ -128,8 +128,8 @@ bool TownFirstPersonWalk(CScene *scene, CPadControl *pad) {
     if (keys.x == 0 && keys.y == 0) {
         return false;
     }
-    auto       *camera = static_cast<CCameraControl *>(scene->GetCamera(0));
-    auto       *chara = scene->GetCharacter(scene->player_chara);
+    auto         *camera = static_cast<CCameraControl *>(scene->GetCamera(0));
+    auto         *chara = scene->GetCharacter(scene->player_chara);
     sceVu0FVECTOR before, after;
     chara->GetPosition(before);
     const auto  stick = FirstPersonWalkStick(keys, PortEditEyeHeading, camera->GetAngle());

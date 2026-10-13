@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <numbers>
 #include <limits>
+#include <numbers>
 
 #include "camera_fixed.hpp"
 #include "cameracontrol.hpp"
@@ -218,14 +218,14 @@ FixedMouseLook display_look;
 }
 
 bool MouseFixedActive(double seconds) {
-    auto                  &look = display_look;
-    static CCameraControl *owner = nullptr;
-    static int             map = -1, submap = -1, active_map = -1;
-    const auto sample = InputPeekMouseLookTotal();
+    auto                      &look = display_look;
+    static CCameraControl     *owner = nullptr;
+    static int                 map = -1, submap = -1, active_map = -1;
+    const auto                 sample = InputPeekMouseLookTotal();
     static InputMouseLookTotal before;
-    static std::uint64_t display_sample = 0;
-    auto                  *camera = TownMouseFixedOwner();
-    CScene                *scene = camera ? GetMainScene() : nullptr;
+    static std::uint64_t       display_sample = 0;
+    auto                      *camera = TownMouseFixedOwner();
+    CScene                    *scene = camera ? GetMainScene() : nullptr;
     if (owner != camera || (scene && (map != scene->now_map_no || submap != scene->now_sub_map_no ||
                                       active_map != scene->active_map))) {
         look = {};

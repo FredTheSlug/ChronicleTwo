@@ -245,9 +245,9 @@ bool GameDeveloperMenuRequested(int mode) {
 
 bool GameDebugPauseRequested(CGamePad &pad) {
     constexpr int modifier = PAD_L2 | PAD_SELECT;
-    const bool chord = GameDebugEnabled() && !pad.key_lock &&
-                       (pad.pad[0].button & modifier) == modifier &&
-                       !(pad.previous_pad[0].button & PAD_SELECT);
+    const bool    chord = GameDebugEnabled() && !pad.key_lock &&
+                          (pad.pad[0].button & modifier) == modifier &&
+                          !(pad.previous_pad[0].button & PAD_SELECT);
     return chord || pad.Down2(PAD_SELECT);
 }
 

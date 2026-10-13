@@ -21,12 +21,12 @@ int             frame = -1, buttons = 0, rows_frame = -1;
 std::uint32_t   held = 0;
 MenuMouseSample sample;
 bool            navigation = false;
-double wheel_remainder = 0;
-int hand_frame = -1;
-unsigned hand_index = 0;
+double          wheel_remainder = 0;
+int             hand_frame = -1;
+unsigned        hand_index = 0;
 
 struct Hand {
-    gfx::InterpKey key = 0;
+    gfx::InterpKey      key = 0;
     gfx::TextureBinding texture;
     gfx::LogicalRect    uv{};
     float               rotation = 0, scale = 1;
@@ -187,7 +187,9 @@ const MenuMouseSample &MenuMouseTake() {
     sample.released = held & ~mouse.buttons;
     sample.held = mouse.buttons;
     held = mouse.buttons;
-    if (std::isfinite(mouse.wheel)) wheel_remainder += mouse.wheel;
+    if (std::isfinite(mouse.wheel)) {
+        wheel_remainder += mouse.wheel;
+    }
     wheel_remainder = std::clamp(wheel_remainder, -32.0, 32.0);
     sample.wheel = std::trunc(wheel_remainder);
     wheel_remainder -= sample.wheel;
@@ -227,7 +229,7 @@ const MenuMouseSample &MenuMouseTake() {
                 choices.target = hit;
             }
             if (sample.wheel != 0 && std::isfinite(sample.wheel)) {
-                int target = choices.selected + - static_cast<int>(sample.wheel);
+                int target = choices.selected + -static_cast<int>(sample.wheel);
                 if (target >= 0 && target < static_cast<int>(choices.rows.size()) && choices.rows[target].w > 0) {
                     choices.target = target;
                 }
@@ -331,11 +333,15 @@ gfx::InterpKey MenuMouseNextHandKey() {
 gfx::InterpKey MenuMouseReplacedHandKey() { return MenuMousePointerVisible() ? hand.key : 0; }
 
 gfx::InterpKey MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::LogicalRect uv,
-                       float rotation, int reverse, int alpha, float scale) {
-    if (texture.texture == gfx::kNullTexture) return 0;
+                                 float rotation, int reverse, int alpha, float scale) {
+    if (texture.texture == gfx::kNullTexture) {
+        return 0;
+    }
     const auto key = MenuMouseNextHandKey();
     ++hand_index;
-    if (enabled) hand = {key, texture, uv, rotation, scale, reverse, alpha, mgPortFrameCount()};
+    if (enabled) {
+        hand = {key, texture, uv, rotation, scale, reverse, alpha, mgPortFrameCount()};
+    }
     return key;
 }
 

@@ -6,7 +6,7 @@
 // distance: a continuous mouse turn can move an anchor across the whole view.
 struct ScreenOverlayAnchor {
     unsigned long long generation = 0;
-    bool valid = false;
+    bool               valid = false;
 
     bool Update(int, int) {
         const auto next = mgPortCameraGeneration();

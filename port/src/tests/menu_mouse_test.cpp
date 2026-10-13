@@ -545,13 +545,19 @@ TEST_F(MenuMouseInput, FractionalWheelAccumulatesOncePerLogicalSample) {
 
 TEST_F(MenuMouseInput, RetailOptionsHitUsesVisibleButtonAndSelectsItsChoice) {
     MenuMouseEnable(true);
-    CMenuOption menu;
-    CMenuPosDataForm form{};
+    CMenuOption        menu;
+    CMenuPosDataForm   form{};
     MENUFORMPARTS_TYPE button{};
     form.draw_flag = button.draw_flag = true;
-    form.x = 100; form.y = 40;
-    button.x = 140; button.y = 190; button.w = 40; button.h = 25;
-    menu.top = 0; menu.select = 0; menu.choice = 0;
+    form.x = 100;
+    form.y = 40;
+    button.x = 140;
+    button.y = 190;
+    button.w = 40;
+    button.h = 25;
+    menu.top = 0;
+    menu.select = 0;
+    menu.choice = 0;
     menu.choice_num[2] = 2;
     menu.button[2][1] = &button;
     InputSetScriptedDevices({.mouse_buttons = 1});
@@ -569,8 +575,8 @@ TEST_F(MenuMouseInput, MultipleHandsKeepDistinctReplacementKeys) {
     InputSetScriptedDevices({.mouse_dx = 1});
     MenuMouseTake();
     gfx::TextureBinding texture{.texture = 123};
-    const auto first = MenuMouseNoteHand(texture, {0,0,40,24});
-    const auto second = MenuMouseNoteHand(texture, {0,0,40,24});
+    const auto          first = MenuMouseNoteHand(texture, {0, 0, 40, 24});
+    const auto          second = MenuMouseNoteHand(texture, {0, 0, 40, 24});
     EXPECT_NE(first, second);
     EXPECT_EQ(MenuMouseReplacedHandKey(), second);
 }

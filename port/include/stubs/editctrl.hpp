@@ -4,13 +4,13 @@
 
 // Give the native caller access to the retail eye state and static control
 // helpers, using the same linkage seam as the main-loop port stubs.
-extern int          FixCameraFlag asm("EditCtrl_FixedCamera");
-extern int          LadderMode asm("EditCtrl_LadderMode");
-extern EditViewMode ViewMode asm("EditCtrl_ViewMode");
-extern float        viewAngleH asm("EditCtrl_EyeHeading");
-extern float        viewAngleV asm("EditCtrl_EyeTilt");
+extern int           FixCameraFlag asm("EditCtrl_FixedCamera");
+extern int           LadderMode asm("EditCtrl_LadderMode");
+extern EditViewMode  ViewMode asm("EditCtrl_ViewMode");
+extern float         viewAngleH asm("EditCtrl_EyeHeading");
+extern float         viewAngleV asm("EditCtrl_EyeTilt");
 extern sceVu0FVECTOR OldCameraPos asm("EditCtrl_SavedEye");
-extern int InitEyeViewFlag asm("EditCtrl_EyeInitialized");
+extern int           InitEyeViewFlag asm("EditCtrl_EyeInitialized");
 
 static void LadderControl(CScene *scene, CPadControl *pad);
 static void CharaControl(CScene *scene, CPadControl *pad);

@@ -6,6 +6,6 @@
 #define BuffWorkData BuffWorkData__2
 #define EventCamera EventCamera__2
 
-extern int DebugPause asm("DngMain_DebugPause");
+extern int           DebugPause asm("DngMain_DebugPause");
 extern sceVu0FVECTOR backup_pos asm("DngMain_SavedEye");
-extern int init_camera asm("DngMain_EyeInitialized");
+extern int           init_camera asm("DngMain_EyeInitialized");

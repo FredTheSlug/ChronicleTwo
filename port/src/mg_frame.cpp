@@ -2,12 +2,12 @@
 
 #include <libvu0.h>
 
-#include <cstring>
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
-#include "mg_drawenv.hpp"
 #include "camera_fixed.hpp"
+#include "mg_drawenv.hpp"
 #include "mg_frame.hpp"
 #include "mg_math.hpp"
 #include "mg_visual.hpp"
@@ -76,9 +76,9 @@ PORT_OVERRIDE int mgCFrame::Draw(unsigned int *packet) {
 
                 if (TownMouseFixedOwner()) {
                     const float radius = MouseFixedCullRadius(info->projection,
-                        info->projection * std::fabs(info->aspect[1][1]),
-                        std::max(std::fabs(visible_min[0]), std::fabs(visible_max[0])),
-                        std::max(std::fabs(visible_min[1]), std::fabs(visible_max[1])));
+                                                              info->projection * std::fabs(info->aspect[1][1]),
+                                                              std::max(std::fabs(visible_min[0]), std::fabs(visible_max[0])),
+                                                              std::max(std::fabs(visible_min[1]), std::fabs(visible_max[1])));
                     visible_min[0] = visible_min[1] = -radius;
                     visible_max[0] = visible_max[1] = radius;
                 }

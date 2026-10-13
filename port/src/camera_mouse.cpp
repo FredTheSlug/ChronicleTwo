@@ -296,10 +296,11 @@ float MouseCameraYaw(CCameraControl &camera, float yaw, CCPoly *polys, int count
     return accepted;
 }
 
-float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int count) {
+float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int count, float height_scale) {
     if (!std::isfinite(pitch) || pitch == 0 || count < 0 || count >= 512 || (count && !polys) ||
         !Finite(Read(camera.pos)) || !Finite(Read(camera.ref)) ||
         !Finite(Read(camera.next_pos)) || !Finite(Read(camera.next_ref))) return 0;
+    if (!std::isfinite(height_scale) || height_scale <= 0) return 0;
     CameraCtrlParam *param = camera.GetActiveParam();
     if (!std::isfinite(param->height) || !std::isfinite(param->min_height) ||
         !std::isfinite(param->max_height) || param->min_height > param->max_height) return 0;
@@ -307,8 +308,8 @@ float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int c
     const float distance = std::hypot(pending.x, pending.z);
     if (!(distance > 0)) return 0;
     const float angle = std::clamp(std::atan2(pending.y, distance) - pitch, -1.5, 1.5);
-    const float wanted = param->height + distance * std::tan(angle) - pending.y;
-    const float delta = std::clamp(wanted, param->min_height, param->max_height) - param->height;
+    const float wanted = param->height + (distance * std::tan(angle) - pending.y) / height_scale;
+    const float delta = (std::clamp(wanted, param->min_height, param->max_height) - param->height) * height_scale;
     if (!std::isfinite(delta) || delta == 0 || !ClearRise(camera, 0, 0, polys, count)) return 0;
     float accepted = 0, step = delta;
     for (int work = 0; work < 256 && std::fabs(delta - accepted) > 0.001f; ++work) {
@@ -327,10 +328,10 @@ float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int c
     CCameraControl candidate = camera;
     candidate.pos[1] += accepted;
     candidate.next_pos[1] += accepted;
-    candidate.GetActiveParam()->height += accepted;
+    candidate.GetActiveParam()->height += accepted / height_scale;
     CorrectGroundAndWalls(candidate, polys, count);
     if (!ClearRise(candidate, 0, 0, polys, count)) return 0;
     CopyPose(camera, candidate);
-    param->height += accepted;
+    param->height += accepted / height_scale;
     return accepted;
 }

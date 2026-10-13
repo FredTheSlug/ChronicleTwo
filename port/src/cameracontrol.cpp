@@ -78,14 +78,21 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     static CCameraControl *zoom_camera = nullptr;
     static CScene *zoom_scene = nullptr;
     static int zoom_map = -1, zoom_submap = -1, zoom_param = -1;
+    static const DNG_FLOOR_SAVE *zoom_floor = nullptr;
+    static int zoom_visit = -1;
+    const auto *floor = dungeon ? NowFloorInfoPtr : nullptr;
+    const int visit = floor ? floor->visit_count : -1;
     if (scene && (zoom_camera != this || zoom_scene != scene || zoom_map != scene->now_map_no ||
-                  zoom_submap != scene->now_sub_map_no || zoom_param != active_param)) {
+                  zoom_submap != scene->now_sub_map_no || zoom_param != active_param ||
+                  zoom_floor != floor || zoom_visit != visit)) {
         zoom = {};
         zoom_camera = this;
         zoom_scene = scene;
         zoom_map = scene->now_map_no;
         zoom_submap = scene->now_sub_map_no;
         zoom_param = active_param;
+        zoom_floor = floor;
+        zoom_visit = visit;
     }
     if (owns) {
         zoom.Read(*this, fresh ? look.zoom : 0,
@@ -123,7 +130,7 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     // A full collector cannot prove that the corridor contains every polygon.
     if (count < 0 || count >= 512) return;
     if (MouseCameraYaw(*this, look.yaw, orbit_polys, count) != 0) CancelRotBack();
-    MouseCameraPitch(*this, look.pitch, orbit_polys, count);
+    MouseCameraPitch(*this, look.pitch, orbit_polys, count, zoom.HeightScale(*this));
 }
 
 PORT_OVERRIDE void CCameraControl::Step(int frames) {

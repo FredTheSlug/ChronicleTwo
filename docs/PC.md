@@ -462,6 +462,8 @@ with a requested range of 30–600 units. The normal camera easing makes the
 transition smooth. The distance stays selected while walking, and collision
 shortens it where walls, floors or ceilings intervene, returning toward the
 requested distance when the path clears.
+Close zoom scales eye height with distance so the view keeps its normal slope;
+mouse pitch uses the same scale and floor/ceiling clearance still takes priority.
 
 `input.bindings.zoom_reset` defaults to `Mouse3` (middle click). It restores the
 active camera's normal minimum follow distance, as far as geometry permits.

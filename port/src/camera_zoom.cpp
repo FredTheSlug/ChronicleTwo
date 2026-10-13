@@ -16,6 +16,10 @@ void Copy(float *to, const float *from) {
 }
 }
 
+float CameraZoom::HeightScale(CCameraControl &camera) const {
+    return active ? std::clamp(requested / std::max(1.0f, camera.GetActiveParam()->min_dist), 0.05f, 1.0f) : 1.0f;
+}
+
 void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enabled) {
     if (!enabled || reset) {
         if (active) {
@@ -53,6 +57,10 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     // geometry is collected below, including the new distance and follow point.
     param.no_check = 1;
     candidate.MoveCamera(&control, rotation, nullptr, 0);
+    // Close zoom preserves the normal viewing slope, instead of turning the
+    // same retail eye height into an overhead view. Ground clearance still wins.
+    candidate.next_pos[1] = candidate.next_ref[1] +
+                           (candidate.next_pos[1] - candidate.next_ref[1]) * HeightScale(camera);
     const float height = param.height;
     param = retail;
     param.height = height;
@@ -66,6 +74,17 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     // Include the full vertical query used by CheckGround, not only the eye.
     bounds.min[1] = std::min(bounds.min[1], candidate.next_ref[1] + param.min_height - param.ground_space - 8);
     bounds.max[1] = std::max(bounds.max[1], candidate.next_ref[1] + param.max_height + 28);
+    if (candidate.check_ref_on) {
+        for (int i = 0; i < 3; ++i) {
+            const float target = candidate.check_ref[i] + (i == 1 ? candidate.follow_offset[1] : 0);
+            bounds.min[i] = std::min(bounds.min[i], target - 8);
+            bounds.max[i] = std::max(bounds.max[i], target + 8);
+            if (i == 1) {
+                bounds.min[i] = std::min(bounds.min[i], target + param.min_height - param.ground_space - 8);
+                bounds.max[i] = std::max(bounds.max[i], target + param.max_height + 28);
+            }
+        }
+    }
     bounds.min[3] = bounds.max[3] = 1;
     CCPoly polys[512];
     const int count = MouseCameraCollectPolys(scene, bounds, polys, 512);

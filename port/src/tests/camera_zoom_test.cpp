@@ -124,6 +124,118 @@ TEST(CameraZoom, ResetAndDisableReturnSmoothlyToRetailDistance) {
     }
 }
 
+TEST(CameraZoom, CloseZoomKeepsViewingSlopeAndMousePitchDoesNotSpringBack) {
+    auto camera = Camera();
+    camera.GetActiveParam()->height = 20;
+    CameraZoom zoom;
+    CScene scene;
+    CCameraControl::Control control{};
+    float rotation[4]{};
+    zoom.Read(camera, 100, false, true);
+    for (int i = 0; i < 60; ++i) { zoom.Move(camera, scene, control, rotation); camera.Step(1); }
+    EXPECT_NEAR(Distance(camera), 30, 0.1f);
+    EXPECT_NEAR(camera.pos[1] - camera.ref[1], 11.4f, 0.1f);
+    EXPECT_FLOAT_EQ(camera.GetActiveParam()->height, 20);
+    EXPECT_LT(MouseCameraPitch(camera, 0.1f, nullptr, 0, zoom.HeightScale(camera)), 0);
+    const float tilted = camera.next_pos[1];
+    zoom.Move(camera, scene, control, rotation);
+    EXPECT_NEAR(camera.next_pos[1], tilted, 0.01f);
+}
+
+TEST(CameraZoom, PadOnlyCameraRemainsRetailWithOptionOffOrOn) {
+    for (bool enabled : {false, true}) {
+        auto camera = Camera();
+        auto retail = camera;
+        CScene &scene = *GetMainScene();
+        scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+        scene.active_camera = 0;
+        PortLoopNo = LOOP_EDIT;
+        GamePad__2.key_lock = scene.event_run = 0;
+        const_cast<Config &>(ConfigGet()).mouse_zoom = enabled;
+        InputResetBindings();
+        InputPadState input{.connected = true};
+        InputSetOverride(0, &input);
+        CPadControl pad{};
+        pad.Initialize();
+        CCameraControl::Control control{};
+        float rotation[4]{};
+        for (int frame = 0; frame < 60; ++frame) {
+            camera.SetFollow(frame, 10, frame * 0.5f);
+            retail.SetFollow(frame, 10, frame * 0.5f);
+            InputLatchPad(0);
+            camera.MoveCamera(&pad, rotation, nullptr, 0);
+            retail.MoveCamera(&control, rotation, nullptr, 0);
+            camera.Step(1);
+            retail.Step(1);
+            for (int axis = 0; axis < 3; ++axis) {
+                EXPECT_FLOAT_EQ(camera.pos[axis], retail.pos[axis]);
+                EXPECT_FLOAT_EQ(camera.ref[axis], retail.ref[axis]);
+                EXPECT_FLOAT_EQ(camera.next_pos[axis], retail.next_pos[axis]);
+            }
+        }
+        InputSetOverride(0, nullptr);
+    }
+}
+
+TEST(CameraZoom, DungeonMenusEventsLockOnAndEyeViewOwnWheelAndReset) {
+    CScene scene;
+    DNG_BATTLE_AREA area{};
+    CActionChara chara;
+    chara.menu_flag = 1;
+    chara.hold_type = ACTION_HOLD_NONE;
+    chara.lock_on = 0;
+    chara.damage_req = ACTION_DAMAGE_REQ_NONE;
+    area.script.event_no = -1;
+    DngMainScene = &scene;
+    BattleAreaScene = &area;
+    MainChara__2 = &chara;
+    DngStatus = {};
+    NowFloorInfoPtr = nullptr;
+    DebugFlag = DebugInfo.debug_camera = 0;
+    PortLoopNo = LOOP_DUNGEON;
+    const_cast<Config &>(ConfigGet()).mouse_zoom = true;
+    HostSettings settings;
+    settings.mouse_zoom = true;
+    InputResetBindings();
+    InputApplyConfig(settings);
+    InputPadState input{.connected = true};
+    InputSetOverride(0, &input);
+    CPadControl pad{};
+    pad.Initialize();
+    auto camera = Camera();
+    scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+    scene.active_camera = 0;
+    area.camera_mode = DNG_CAMERA_FOLLOW;
+    float rotation[4]{};
+    InputSetScriptedDevices({.mouse_wheel = -10});
+    InputLatchPad(0);
+    camera.MoveCamera(&pad, rotation, nullptr, 0);
+    const float distance = camera.next_pos[2];
+    EXPECT_GT(distance, 160);
+    for (int owner = 0; owner < 5; ++owner) {
+        DngStatus.mode = owner == 0 ? DNG_STATUS_MENU : DNG_STATUS_FIELD;
+        area.script.running = owner == 1;
+        chara.lock_on = owner == 2;
+        DngStatus.eye_view = owner == 3;
+        area.pause_flag = owner == 4 ? DNG_PAUSE_PLAYER_CONTROL : 0;
+        InputSetScriptedDevices({.mouse_buttons = 1u << 2, .mouse_wheel = 100});
+        InputLatchPad(0);
+        camera.MoveCamera(&pad, rotation, nullptr, 0);
+        EXPECT_LE(camera.next_pos[2], camera.GetActiveParam()->max_dist + 0.1f);
+        DngStatus.mode = DNG_STATUS_FIELD;
+        area.script.running = chara.lock_on = DngStatus.eye_view = area.pause_flag = 0;
+        camera.MoveCamera(&pad, rotation, nullptr, 0);
+        EXPECT_NEAR(camera.next_pos[2], distance, 0.02f) << owner;
+    }
+    // A new map discards the old preference without a wheel event.
+    InputSetScriptedDevices({});
+    InputLatchPad(0);
+    ++scene.now_map_no;
+    camera.MoveCamera(&pad, rotation, nullptr, 0);
+    EXPECT_LE(camera.next_pos[2], camera.GetActiveParam()->max_dist + 0.1f);
+    InputSetOverride(0, nullptr);
+}
+
 TEST(CameraZoom, ContinuousCorridorClampsBeforeThinWallAndCanReverse) {
     auto camera = Camera();
     auto candidate = camera;

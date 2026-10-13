@@ -258,7 +258,7 @@ PORT_OVERRIDE void CSound::SQ_Play(int port, int seq_no, int volume) {
     // Resolve at playback, so choosing another soundtrack in Options applies to the next song,
     // including songs whose sequence data was already loaded. Missing recordings keep the PS2 song.
     if (seq_no < static_cast<int>(state.sequence_name.size()) && !state.sequence_name[seq_no].empty()) {
-        mixer.SetStream(port, audio::SoundtrackFor(state.sequence_name[seq_no]));
+        mixer.SetPendingStream(port, audio::SoundtrackRequestFor(state.sequence_name[seq_no]));
     }
 
     if (volume != audio::kFullPortVolume) {

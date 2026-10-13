@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include <SDL3/SDL.h>
+#include <gtest/gtest.h>
 
 #include <utility>
 
@@ -76,7 +76,9 @@ TEST_F(MenuInput, MenuModePreservesThresholdAndSecondPort) {
 
 TEST_F(MenuInput, OtherDefaultKeysRetainTheirPadButtons) {
     for (bool menu : {false, true}) {
-        if (menu) GamePad__2.MenuModeOn(120);
+        if (menu) {
+            GamePad__2.MenuModeOn(120);
+        }
         EXPECT_EQ(Buttons(SDL_SCANCODE_TAB), kInputTriangle);
         EXPECT_EQ(Buttons(SDL_SCANCODE_RETURN), kInputStart);
         EXPECT_EQ(Buttons(SDL_SCANCODE_E), kInputSquare);
@@ -148,7 +150,9 @@ TEST_F(MenuInput, KeyboardStickNavigatesOnlyInRetailMenuMode) {
             InputScriptApply(frame);
             GamePad__2.UpDate();
         }
-        if (menu) GamePad__2.MenuModeOn(120);
+        if (menu) {
+            GamePad__2.MenuModeOn(120);
+        }
         for (int frame = 4; frame < 8; ++frame) {
             InputScriptApply(frame);
             GamePad__2.UpDate();
@@ -211,7 +215,7 @@ TEST_F(MenuInput, MixedSourcesUseRetailThresholdAndOppositeCancellation) {
     }
     GamePad__2.MenuModeOn(120);
     constexpr int directions = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
-    int frame = 4;
+    int           frame = 4;
     for (int expected : std::initializer_list<int>{PAD_RIGHT | PAD_UP, PAD_DOWN | PAD_LEFT, 0, 0, PAD_UP}) {
         InputScriptApply(frame++);
         GamePad__2.UpDate();

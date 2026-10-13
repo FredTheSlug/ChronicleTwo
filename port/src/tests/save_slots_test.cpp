@@ -6,8 +6,9 @@
 #include <memory>
 #include <vector>
 
-#include "mainloop.hpp"
 #include "gamepad.hpp"
+#include "mainloop.hpp"
+#include "mainloop_port.hpp"
 #include "menuaqua.hpp"
 #include "menucls1.hpp"
 #include "menucommon.hpp"
@@ -18,18 +19,17 @@
 #include "platform_fixture.hpp"
 #include "save_slots.hpp"
 
-extern CSaveData *PortActiveSaveData asm("MainLoop_ActiveSaveData");
 namespace fs = std::filesystem;
 
 namespace {
 class SaveSlotTest : public testing::Test {
 protected:
-    fs::path root;
+    fs::path                         root;
     std::unique_ptr<SAVEDATA_FORMAT> image = std::make_unique<SAVEDATA_FORMAT>();
     std::unique_ptr<SAVEDATA_FORMAT> buffer = std::make_unique<SAVEDATA_FORMAT>();
-    std::unique_ptr<CSaveData> live = std::make_unique<CSaveData>();
-    CSaveData *previous = PortActiveSaveData;
-    CMemoryCardManager manager;
+    std::unique_ptr<CSaveData>       live = std::make_unique<CSaveData>();
+    CSaveData                       *previous = PortActiveSaveData;
+    CMemoryCardManager               manager;
 
     void SetUp() override {
         root = fs::temp_directory_path() / ("dc2_save_slots_" + std::to_string(dc::test::ProcessId()));
@@ -48,6 +48,7 @@ protected:
         manager.InitForMC();
         SaveSlots = {};
     }
+
     void TearDown() override {
         manager.FinishForMC();
         PortActiveSaveData = previous;
@@ -57,14 +58,17 @@ protected:
         std::error_code error;
         fs::remove_all(root, error);
     }
+
     void Write(const fs::path &path, std::size_t size = sizeof(SAVEDATA_FORMAT)) {
         fs::create_directories(path.parent_path());
         ASSERT_EQ(FilesWrite(path, image.get(), size, false), FilesResult::kWritten);
     }
+
     std::vector<char> Bytes(const fs::path &path) {
         std::ifstream input(path, std::ios::binary);
         return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
     }
+
     fs::path Legacy(int card, int number) {
         auto name = SaveSlotPath(number).filename();
         return root / (card ? "mc1" : "mc0") / name / name;
@@ -72,16 +76,16 @@ protected:
 };
 
 struct MenuRig {
-    CSaveMenuClass menu;
-    CMenuKeyFunc common = {};
-    CMenuPosDataManage layout = {};
-    CMenuPosDataForm form = {};
-    CDC2Mes message;
-    CMenuKeyFunc *old_common = MenuCommonInfo;
+    CSaveMenuClass      menu;
+    CMenuKeyFunc        common = {};
+    CMenuPosDataManage  layout = {};
+    CMenuPosDataForm    form = {};
+    CDC2Mes             message;
+    CMenuKeyFunc       *old_common = MenuCommonInfo;
     CMenuPosDataManage *old_layout = MenuPosData;
-    CDC2Mes *old_messages[9];
-    CMenuPosDataForm *old_forms[9];
-    int old_language = LanguageCode;
+    CDC2Mes            *old_messages[9];
+    CMenuPosDataForm   *old_forms[9];
+    int                 old_language = LanguageCode;
 
     MenuRig() {
         LanguageCode = LANG_ENGLISH;
@@ -109,6 +113,7 @@ struct MenuRig {
         GamePad__2.previous_pad[0].button = 0;
         GamePad__2.pad[0].button = 0;
     }
+
     ~MenuRig() {
         MenuCommonInfo = old_common;
         MenuPosData = old_layout;
@@ -119,12 +124,18 @@ struct MenuRig {
         }
         GamePad__2.pad[0].button = 0;
     }
+
     void Press(int button) {
         GamePad__2.pad[0].button = button;
         menu.KeyStep();
         GamePad__2.pad[0].button = 0;
     }
-    void Idle() { for (int i = 0; i < 10; ++i) menu.KeyStep(); }
+
+    void Idle() {
+        for (int i = 0; i < 10; ++i) {
+            menu.KeyStep();
+        }
+    }
 };
 } // namespace
 
@@ -141,13 +152,17 @@ TEST_F(SaveSlotTest, NamesAreCanonicalAndIgnoreTemporaryFiles) {
 }
 
 TEST_F(SaveSlotTest, ImportsBothCardsByteExactlyWithoutTouchingOriginals) {
-    for (int number = 0; number < 3; ++number) Write(Legacy(0, number));
+    for (int number = 0; number < 3; ++number) {
+        Write(Legacy(0, number));
+    }
     image->unique_counter = 99;
     Write(Legacy(1, 0));
     auto list = SaveSlotScan();
     ASSERT_EQ(list.saves.size(), 4);
     EXPECT_FALSE(list.read_failed);
-    for (int number = 0; number < 3; ++number) EXPECT_EQ(Bytes(Legacy(0, number)), Bytes(SaveSlotPath(number)));
+    for (int number = 0; number < 3; ++number) {
+        EXPECT_EQ(Bytes(Legacy(0, number)), Bytes(SaveSlotPath(number)));
+    }
     EXPECT_EQ(Bytes(Legacy(1, 0)), Bytes(SaveSlotPath(0, true)));
     EXPECT_NE(Bytes(SaveSlotPath(0)), Bytes(SaveSlotPath(0, true)));
     EXPECT_EQ(SaveSlotScan().saves.size(), 4); // Reopening never duplicates imports.
@@ -340,7 +355,9 @@ TEST_F(SaveSlotTest, OverwriteRequiresYesAndRetainsConfirmationInputDelay) {
 }
 
 TEST_F(SaveSlotTest, MenuScrollsPastThirteenAndClampsItsVisibleWindow) {
-    for (int i = 0; i < 31; ++i) Write(SaveSlotPath(i));
+    for (int i = 0; i < 31; ++i) {
+        Write(SaveSlotPath(i));
+    }
     manager.GetAllSaveFileInfo();
     MenuRig rig;
     rig.menu.select = 12;

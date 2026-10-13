@@ -1,3 +1,4 @@
+# Requires game.debug_mode=true in the replay save root config.json.
 # Retail debug event select, then dialogue and short movement probes.
 300 circle
 306

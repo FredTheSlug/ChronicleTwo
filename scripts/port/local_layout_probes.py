@@ -17,6 +17,6 @@ menu = menus.split("int CBaseMenuClass::MenuItemCommandSelect(", 1)[1]
 target = re.search(r"^\s*([^;\n]+\btarget(?:\[[^;]+\])?);", menu, re.M)
 if outline is None or target is None:
     raise SystemExit("Local layout declarations changed; update the probe extraction")
-output.write_text("namespace LocalLayoutProbe {\n" + outline.group(0) +
+output.write_text('#pragma once\n#include "gamedata.hpp"\n#include "outline.hpp"\nnamespace LocalLayoutProbe {\n' + outline.group(0) +
                   "\ninline auto TargetSize() { " + target.group(1) +
                   "; return sizeof(target); }\n}\n")

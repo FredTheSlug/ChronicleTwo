@@ -1,6 +1,4 @@
 #include "common.h"
-#include "options/screen.hpp"
-#include "menu_mouse.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -10,12 +8,14 @@
 
 #include "gamepad.hpp"
 #include "mainloop.hpp"
+#include "menu_mouse.hpp"
 #include "menucommon.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
 #include "menusys.hpp"
 #include "options/rows.hpp"
+#include "options/screen.hpp"
 #include "platform/display.hpp"
 #include "platform/input.hpp"
 #include "platform/input_script.hpp"

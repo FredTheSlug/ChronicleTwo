@@ -12,7 +12,7 @@ namespace {
 // This is the natural host placement of a draw environment after an eight-byte member.
 struct alignas(16) OffsetDrawEnv {
     std::uint64_t prefix = 0;
-    mgCDrawEnv env;
+    mgCDrawEnv    env;
 };
 
 static_assert(alignof(mgCDrawEnv) == 8);
@@ -23,7 +23,7 @@ static_assert(sizeof(mgCDrawEnv) == 64);
 
 TEST(MgDrawEnvCopy, CopiesAtNaturalEightByteAlignment) {
     alignas(16) mgCDrawEnv source;
-    auto destination = std::make_unique<OffsetDrawEnv>();
+    auto                   destination = std::make_unique<OffsetDrawEnv>();
     ASSERT_EQ(reinterpret_cast<std::uintptr_t>(&source) % 16, 0u);
     ASSERT_EQ(reinterpret_cast<std::uintptr_t>(&destination->env) % 16, 8u);
     unsigned char pattern[sizeof(mgCDrawEnv)];

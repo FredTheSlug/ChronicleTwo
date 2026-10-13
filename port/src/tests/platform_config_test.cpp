@@ -147,9 +147,9 @@ TEST_F(PlatformConfig, UnknownKeysAndSectionsAreIgnored) {
     ASSERT_TRUE(ConfigParse(R"({"game": {"debug_menu": false}, "stray": 1})") == Config{});
 }
 
-TEST_F(PlatformConfig, DebugModeParsesBoolsAndDefaultsToOn) {
-    ASSERT_TRUE(Config{}.debug_mode);
-    ASSERT_TRUE(ConfigParse("").debug_mode);
+TEST_F(PlatformConfig, DebugModeParsesBoolsAndDefaultsToOff) {
+    ASSERT_FALSE(Config{}.debug_mode);
+    ASSERT_FALSE(ConfigParse("").debug_mode);
     ASSERT_FALSE(ConfigParse(R"({"game": {"debug_mode": false}})").debug_mode);
     ASSERT_TRUE(ConfigParse(R"({"game": {"debug_mode": true}})").debug_mode);
 }
@@ -157,15 +157,15 @@ TEST_F(PlatformConfig, DebugModeParsesBoolsAndDefaultsToOn) {
 TEST_F(PlatformConfig, DebugModeInvalidValuesKeepTheDefault) {
     for (const char *value : {"\"yes\"", "1", "null", "\"off\""}) {
         std::string json = std::string(R"({"game": {"debug_mode": )") + value + "}}";
-        ASSERT_TRUE(ConfigParse(json).debug_mode) << json;
+        ASSERT_FALSE(ConfigParse(json).debug_mode) << json;
     }
 }
 
 TEST_F(PlatformConfig, DebugModeRoundTripsThroughSerialize) {
     Config config;
-    config.debug_mode = false;
+    config.debug_mode = true;
     Config parsed = ConfigParse(ConfigSerialize(config));
-    ASSERT_FALSE(parsed.debug_mode);
+    ASSERT_TRUE(parsed.debug_mode);
     ASSERT_TRUE(parsed == config);
 }
 

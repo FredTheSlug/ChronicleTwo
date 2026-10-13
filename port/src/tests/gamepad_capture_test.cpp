@@ -20,11 +20,13 @@ protected:
         PathsSetSaveRoot(root);
         pad.CaptureStart();
     }
+
     void TearDown() override { std::filesystem::remove_all(root); }
+
     std::filesystem::path root;
-    CGamePad pad{};
+    CGamePad              pad{};
 };
-}
+} // namespace
 
 TEST_F(PadCapture, RecordingRoundTripsUnderSaveRootAndStopsAtEnd) {
     PAD_STATUS input{};
@@ -37,7 +39,7 @@ TEST_F(PadCapture, RecordingRoundTripsUnderSaveRootAndStopsAtEnd) {
     input.button = 0xABCD;
     pad.Capture(&input);
     pad.SaveCapture();
-    std::ifstream file(root / "key_cap.bin", std::ios::binary);
+    std::ifstream                    file(root / "key_cap.bin", std::ios::binary);
     const std::vector<unsigned char> bytes{std::istreambuf_iterator<char>(file), {}};
     EXPECT_EQ(bytes, (std::vector<unsigned char>{0x34, 0x12, 1, 2, 3, 4, 0xCD, 0xAB, 1, 2, 3, 4}));
     pad.CaptureStart();

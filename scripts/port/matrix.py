@@ -23,6 +23,7 @@ import argparse
 import concurrent.futures
 import dataclasses
 import filecmp
+import hashlib
 import json
 import math
 import os
@@ -165,66 +166,6 @@ def psnr(a, b) -> float:
     return math.inf if mse == 0 else 10.0 * math.log10(255.0 ** 2 / mse)
 
 
-@dataclasses.dataclass(frozen=True)
-class Signature:
-    mean_rgb: tuple[float, float, float]
-    tolerance: float
-
-
-@dataclasses.dataclass(frozen=True)
-class HudProbe:
-    name: str
-    edge: str
-    logical_rect: tuple[float, float, float, float]  # x, y, w, h in 512x480 logical units; x/y offset from the edge
-    signature: Signature
-
-
-# Per-scene HUD probes; a scene maps to an empty tuple until its probes are defined.
-HUD_PROBES: dict[str, tuple[HudProbe, ...]] = {"title": (), "costume": ()}
-
-
-def visible_logical(w: int, h: int, letterbox: bool) -> tuple[float, float, float, float]:
-    if letterbox:
-        return 0.0, 0.0, float(LOGICAL[0]), float(LOGICAL[1])
-    m = main_mapping(w, h)
-    return -m.off_x / m.scale_x, -m.off_y / m.scale_y, w / m.scale_x, h / m.scale_y
-
-
-def probe_pixels(probe: HudProbe, w: int, h: int, letterbox: bool) -> tuple[int, int, int, int]:
-    # Named edges anchor to the visible area, as UiAnchor does in Fill; unnamed axes stay in frame logical
-    # space, since UiAnchor's side 0 keeps the frame's own place.
-    m = main_mapping(w, h)
-    vx, vy, vw, vh = visible_logical(w, h, letterbox)
-    x, y, rw, rh = probe.logical_rect
-    if "left" in probe.edge:
-        lx = vx + x
-    elif "right" in probe.edge:
-        lx = vx + vw - x - rw
-    else:
-        lx = x
-    if "top" in probe.edge:
-        ly = vy + y
-    elif "bottom" in probe.edge:
-        ly = vy + vh - y - rh
-    else:
-        ly = y
-    x0 = min(max(round(lx * m.scale_x + m.off_x), 0), w)
-    y0 = min(max(round(ly * m.scale_y + m.off_y), 0), h)
-    x1 = min(max(round((lx + rw) * m.scale_x + m.off_x), 0), w)
-    y1 = min(max(round((ly + rh) * m.scale_y + m.off_y), 0), h)
-    return x0, y0, x1, y1
-
-
-def check_probe(arr, probe: HudProbe, letterbox: bool) -> tuple[bool, tuple[float, float, float] | None]:
-    h, w = arr.shape[:2]
-    x0, y0, x1, y1 = probe_pixels(probe, w, h, letterbox)
-    if x1 <= x0 or y1 <= y0:
-        return False, None
-    mean = arr[y0:y1, x0:x1].reshape(-1, 3).mean(axis=0)
-    ok = bool(np.max(np.abs(mean - np.asarray(probe.signature.mean_rgb))) <= probe.signature.tolerance)
-    return ok, (float(mean[0]), float(mean[1]), float(mean[2]))
-
-
 @dataclasses.dataclass
 class Run:
     w: int
@@ -265,35 +206,74 @@ def plan_runs(work: Path, ref, sizes, lb, skip_dpt: bool) -> dict[tuple, Run]:
     return plan
 
 
+def launch_config(run: Run) -> bytes:
+    return json.dumps({"video": {"aspect": run.aspect}, "game": {"debug_mode": False}},
+                      sort_keys=True).encode("utf-8")
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def provenance(exe: Path, data: Path, script: Path, frames: int, run: Run) -> dict:
+    return {"exe": {"path": str(exe.resolve()), "sha256": digest(exe)},
+            "input": {"path": str(script.resolve()), "sha256": digest(script)},
+            "config_sha256": hashlib.sha256(launch_config(run)).hexdigest(),
+            "data": str(data.resolve()), "frames": frames,
+            "window": [run.w, run.h], "aspect": run.aspect, "dpt": run.dpt}
+
+
 def run_game(exe: Path, data: Path, script: Path, frames: int, run: Run) -> None:
     save = run.dir / "save"
     save.mkdir(parents=True)
-    (save / "config.json").write_text(json.dumps({"video": {"aspect": run.aspect}}), encoding="utf-8")
+    config = save / "config.json"
+    config.write_bytes(launch_config(run))
+    identity = provenance(exe, data, script, frames, run)
     cmd = [str(exe), "--headless", "--data", str(data), "--save", str(save), "--input", str(script),
            "--window", f"{run.w}x{run.h}", "--frames", str(frames), "--screenshot", str(run.png)]
     if run.dpt:
         cmd += ["--display-per-tick", "4"]
+    env = os.environ.copy()
+    for name in ("DC2_JUMP", "DC2_GIVE", "DC2_FAST_LOAD"):
+        env.pop(name, None)
     t0 = time.monotonic()
     try:
-        p = subprocess.run(cmd, capture_output=True, timeout=RUN_TIMEOUT)
+        p = subprocess.run(cmd, capture_output=True, timeout=RUN_TIMEOUT, env=env)
         run.rc, out = p.returncode, p.stdout + p.stderr
     except subprocess.TimeoutExpired as e:
         run.rc, out = -1, (e.stdout or b"") + (e.stderr or b"")
+    except OSError as e:
+        run.rc, out = -1, str(e).encode("utf-8")
     run.seconds = time.monotonic() - t0
     (run.dir / "log.txt").write_bytes(out)
+    result = {"version": 1, "rc": run.rc, "seconds": run.seconds, "provenance": identity,
+              "saved_config_sha256": digest(config)}
+    (run.dir / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(f"  {run.name}: rc={run.rc} {run.seconds:.1f}s", flush=True)
 
 
-def locate_run(run: Run, work: Path) -> None:
+def locate_run(run: Run, work: Path, exe: Path, data: Path, script: Path, frames: int) -> None:
     tag = run_tag(run.w, run.h, run.aspect, run.dpt)
-    # "fill-*" also matches "fill-dpt4-*"; the uuid suffix is always 8 hex chars, which excludes it.
+    # The exact UUID suffix excludes dpt4 directories when looking up plain Fill.
     suffix = re.compile(re.escape(tag) + r"-[0-9a-f]{8}")
     found = [d for d in (work / "runs").glob(f"{tag}-*") if suffix.fullmatch(d.name)]
     if len(found) != 1:
-        raise RunFailed(f"{run.name}: {len(found)} run dirs under {work / 'runs'} match {tag}-*, want 1")
+        raise RunFailed(f"{run.name}: {len(found)} run dirs match {tag}-*, want 1")
     run.dir = found[0]
-    if run.png.is_file():
-        run.rc = 0
+    try:
+        result = json.loads((run.dir / "result.json").read_text(encoding="utf-8"))
+        if not isinstance(result, dict) or result.get("version") != 1 or type(result.get("rc")) is not int:
+            raise ValueError("invalid exit-status receipt")
+        if result.get("provenance") != provenance(exe, data, script, frames, run):
+            raise ValueError("binary, input or launch configuration differs")
+        if result.get("saved_config_sha256") != digest(run.dir / "save" / "config.json"):
+            raise ValueError("saved configuration differs")
+        seconds = result.get("seconds")
+        if type(seconds) not in (float, int) or not math.isfinite(seconds) or seconds < 0:
+            raise ValueError("invalid duration")
+        run.rc, run.seconds = result["rc"], seconds
+    except (OSError, ValueError, TypeError) as e:
+        raise RunFailed(f"{run.name}: unusable run receipt: {e}") from e
 
 
 def load(run: Run):
@@ -453,7 +433,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.no_run:
             for r in runs.values():
-                locate_run(r, work)
+                locate_run(r, work, exe, data, script, args.frame)
         else:
             with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
                 list(pool.map(lambda r: run_game(exe, data, script, args.frame, r), runs.values()))

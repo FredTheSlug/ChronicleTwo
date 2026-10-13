@@ -4,20 +4,20 @@
 #include "gamepad.hpp"
 #include "mainloop.hpp"
 #include "menuaqua.hpp"
-#include "menucls1.hpp"
 #include "menuchr.hpp"
+#include "menucls1.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menusys.hpp"
 #include "mglib.hpp"
-#include "platform/input.hpp"
 #include "platform/clock.hpp"
+#include "platform/input.hpp"
 
 using namespace menumouse;
 
 TEST(MenuMouse, GridUsesSixColumnsAndHalfOpenCellEdges) {
     const Point origin{240, 50};
-    const Rect clip{240, 44, 240, 250};
+    const Rect  clip{240, 44, 240, 250};
     EXPECT_EQ(GridHit({240, 50}, origin, clip, 144), (Target{ITEM_MENU_PANEL_BAG, 0}));
     EXPECT_EQ(GridHit({279.99f, 99.99f}, origin, clip, 144).cursor, 0);
     EXPECT_EQ(GridHit({280, 50}, origin, clip, 144).cursor, 1);
@@ -89,8 +89,8 @@ TEST(MenuMouse, ButtonsHeldOnEntryRequireReleaseBeforeClick) {
 
 namespace {
 const Target source{ITEM_MENU_PANEL_BAG, 1}, dest{ITEM_MENU_PANEL_BAG, 8};
-const Take press{true, true, 1, 0, 1}, hold{true, true, 0, 0, 1}, release{true, false, 0, 1, 0};
-}
+const Take   press{true, true, 1, 0, 1}, hold{true, true, 0, 0, 1}, release{true, false, 0, 1, 0};
+} // namespace
 
 TEST(MenuMouse, ShortClickOpensCommandOnRelease) {
     Gesture g;
@@ -148,24 +148,24 @@ TEST(MenuMouse, CarriedRetailItemCanBePlacedWithClick) {
 namespace {
 class ItemMouse : public testing::Test {
 protected:
-    CMenuKeyFunc keys;
-    CMenuPosDataManage forms{};
-    CMenuPosDataForm board{}, character{}, hand{}, command{};
-    MENUFORMPARTS_TYPE parts[7]{};
-    MENU_INPUTKEY_ARG layouts[ITEM_MENU_PANEL_NUM]{};
-    CGameDataUsed items[144]{};
-    CHARA_DATA chara{};
-    CDC2Mes message;
-    CMenuItemInfo saved_menu = class_menu_item_info;
-    CMENU_USERPARAM saved_user = MenuUserParam;
-    CMenuKeyFunc *saved_keys = MenuCommonInfo;
+    CMenuKeyFunc        keys;
+    CMenuPosDataManage  forms{};
+    CMenuPosDataForm    board{}, character{}, hand{}, command{};
+    MENUFORMPARTS_TYPE  parts[7]{};
+    MENU_INPUTKEY_ARG   layouts[ITEM_MENU_PANEL_NUM]{};
+    CGameDataUsed       items[144]{};
+    CHARA_DATA          chara{};
+    CDC2Mes             message;
+    CMenuItemInfo       saved_menu = class_menu_item_info;
+    CMENU_USERPARAM     saved_user = MenuUserParam;
+    CMenuKeyFunc       *saved_keys = MenuCommonInfo;
     CMenuPosDataManage *saved_forms = MenuPosData;
-    CMenuMoveItem *saved_move = MenuMoveItemPtr;
-    CDC2Mes *saved_message = MenuDCMsg[5];
-    CMenuPosDataForm *saved_message_form = MenuMesForm[5];
-    CGamePad saved_pad = GamePad__2;
-    int saved_width = mgScreenWidth, saved_height = mgScreenHeight;
-    float saved_board_x = MenuItemBrdUnderBrdPosXY[0], saved_board_y = MenuItemBrdUnderBrdPosXY[1];
+    CMenuMoveItem      *saved_move = MenuMoveItemPtr;
+    CDC2Mes            *saved_message = MenuDCMsg[5];
+    CMenuPosDataForm   *saved_message_form = MenuMesForm[5];
+    CGamePad            saved_pad = GamePad__2;
+    int                 saved_width = mgScreenWidth, saved_height = mgScreenHeight;
+    float               saved_board_x = MenuItemBrdUnderBrdPosXY[0], saved_board_y = MenuItemBrdUnderBrdPosXY[1];
 
     void SetUp() override {
         MenuMouseClose();
@@ -202,21 +202,32 @@ protected:
         menu.key_arg_no = ITEM_MENU_PANEL_BAG;
         menu.item_board_form = &board;
         menu.view_form[0] = &character;
-        board.x = 226; board.y = 24;
+        board.x = 226;
+        board.y = 24;
         character.draw_flag = true;
         character.parts = parts;
         character.parts_num = 7;
         char *names[] = {const_cast<char *>("item0"), const_cast<char *>("item1"), const_cast<char *>("item2"),
-                        const_cast<char *>("wep0"), const_cast<char *>("wep1"),
-                        const_cast<char *>("c_i0"), const_cast<char *>("c_w0")};
-        Point positions[] = {{50, 58}, {91, 58}, {133, 58}, {30, 400}, {196, 400}, {29, 50}, {3, 379}};
+                         const_cast<char *>("wep0"), const_cast<char *>("wep1"),
+                         const_cast<char *>("c_i0"), const_cast<char *>("c_w0")};
+        Point positions[] = {
+            {50,  58 },
+            {91,  58 },
+            {133, 58 },
+            {30,  400},
+            {196, 400},
+            {29,  50 },
+            {3,   379}
+        };
         for (int i = 0; i < 7; ++i) {
             parts[i].name = names[i];
             parts[i].x = positions[i].x;
             parts[i].y = positions[i].y;
             parts[i].dtype = MENUFORMPARTS_DTYPE_FUNCINFO;
         }
-        for (int i = 0; i < 3; ++i) menu.item_parts[0][i] = &parts[i];
+        for (int i = 0; i < 3; ++i) {
+            menu.item_parts[0][i] = &parts[i];
+        }
         menu.wep_parts[0][8] = &parts[3];
         menu.wep_parts[0][14] = &parts[4];
         MenuItemBrdUnderBrdPosXY[0] = 242;
@@ -244,7 +255,8 @@ protected:
         MenuDCMsg[5] = saved_message;
         MenuMesForm[5] = saved_message_form;
         GamePad__2 = saved_pad;
-        mgScreenWidth = saved_width; mgScreenHeight = saved_height;
+        mgScreenWidth = saved_width;
+        mgScreenHeight = saved_height;
         MenuItemBrdUnderBrdPosXY[0] = saved_board_x;
         MenuItemBrdUnderBrdPosXY[1] = saved_board_y;
     }
@@ -255,7 +267,7 @@ protected:
         keys.SelDataInit();
     }
 };
-}
+} // namespace
 
 TEST_F(ItemMouse, HoverUpdatesRetailGridSelectionWithoutPressingAnything) {
     Tick(40, 50);
@@ -334,7 +346,9 @@ TEST_F(ItemMouse, CommandHoverAndClickUseTheDisplayedMessageRows) {
     menu.ask_para.mes_no = 5;
     menu.ask_para.cmd_num = 3;
     command.draw_flag = true;
-    message.text_x = 250; message.text_y = 100; message.text_w = 100;
+    message.text_x = 250;
+    message.text_y = 100;
+    message.text_w = 100;
     message.font_h = 24;
     message.draw_off_x = message.draw_off_y = 0;
     message.window_mode = MES_WIN_FLOATING;
@@ -395,8 +409,10 @@ TEST_F(ItemMouse, ConfirmationChoicesUseRetailYesNoState) {
     menu.ask_para.mes_no = 5;
     command.draw_flag = true;
     message.window_mode = MES_WIN_YESNO;
-    message.choice_pos[0][0] = 250; message.choice_pos[0][1] = 100;
-    message.choice_pos[1][0] = 350; message.choice_pos[1][1] = 100;
+    message.choice_pos[0][0] = 250;
+    message.choice_pos[0][1] = 100;
+    message.choice_pos[1][0] = 350;
+    message.choice_pos[1][1] = 100;
     message.cursor = 1;
     Tick(0, 30);
     EXPECT_EQ(message.GetMsgCursor(), 0);
@@ -417,9 +433,11 @@ TEST_F(ItemMouse, QuantityBoardWheelAndArrowsUseRetailDirectionKeys) {
     command.parts = parts;
     command.parts_num = 2;
     parts[0].name = const_cast<char *>("up");
-    parts[0].x = 250; parts[0].y = 70;
+    parts[0].x = 250;
+    parts[0].y = 70;
     parts[1].name = const_cast<char *>("down");
-    parts[1].x = 250; parts[1].y = 110;
+    parts[1].x = 250;
+    parts[1].y = 110;
     Tick(1, 0, 0, -1);
     EXPECT_EQ(MenuMouseSyntheticDown(), PAD_DOWN);
     Tick(0, 0, 1);

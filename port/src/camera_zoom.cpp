@@ -1,17 +1,18 @@
 #include "common.h"
-#include "camera_zoom.hpp"
-#include "camera_mouse.hpp"
-#include "scenesnd.hpp"
 
 #include <algorithm>
 #include <cmath>
+
+#include "camera_mouse.hpp"
+#include "camera_zoom.hpp"
+#include "scenesnd.hpp"
 
 namespace {
 float Distance(const float *eye, const float *target) {
     return std::hypot(eye[0] - target[0], eye[2] - target[2]);
 }
 
-}
+} // namespace
 
 float CameraZoom::HeightScale(CCameraControl &camera) const {
     return active ? std::clamp(requested / std::max(1.0f, camera.GetActiveParam()->min_dist), 0.05f, 1.0f) : 1.0f;
@@ -25,9 +26,15 @@ void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enab
         }
         return;
     }
-    if (!std::isfinite(wheel) || wheel == 0) return;
-    if (!active) requested = Distance(camera.next_pos, camera.next_ref);
-    if (!std::isfinite(requested)) return;
+    if (!std::isfinite(wheel) || wheel == 0) {
+        return;
+    }
+    if (!active) {
+        requested = Distance(camera.next_pos, camera.next_ref);
+    }
+    if (!std::isfinite(requested)) {
+        return;
+    }
     // Bound the multiplication as well as the result; enormous finite wheel
     // samples must behave like reaching a limit, never introduce infinity.
     requested = std::clamp(requested - std::clamp(wheel, -1000.0f, 1000.0f) * wheel_step,
@@ -38,8 +45,8 @@ void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enab
 
 void CameraZoom::Move(CCameraControl &camera, CScene &scene,
                       CCameraControl::Control &control, float *rotation) {
-    CCameraControl candidate = camera;
-    CameraCtrlParam &param = *candidate.GetActiveParam();
+    CCameraControl        candidate = camera;
+    CameraCtrlParam      &param = *candidate.GetActiveParam();
     const CameraCtrlParam retail = param;
     // Never set equal limits: retail interpolates height by max_dist-min_dist.
     // Retain its height curve at the requested distance without extrapolating
@@ -57,7 +64,7 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     // Close zoom preserves the normal viewing slope, instead of turning the
     // same retail eye height into an overhead view. Ground clearance still wins.
     candidate.next_pos[1] = candidate.next_ref[1] +
-                           (candidate.next_pos[1] - candidate.next_ref[1]) * HeightScale(camera);
+                            (candidate.next_pos[1] - candidate.next_ref[1]) * HeightScale(camera);
     const float height = param.height;
     param = retail;
     param.height = height;
@@ -83,7 +90,7 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
         }
     }
     bounds.min[3] = bounds.max[3] = 1;
-    CCPoly polys[512];
+    CCPoly    polys[512];
     const int count = MouseCameraCollectPolys(scene, bounds, polys, 512);
     if (count >= 0) {
         candidate.CheckGround(polys, count);

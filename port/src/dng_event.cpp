@@ -25,12 +25,16 @@ void PrepareMonsterMemory(CMonsterMan &manager, mgCMemory &memory) {
 }
 
 PORT_OVERRIDE void LoadMonsterFile() {
-    if (!ActiveMonster) return;
+    if (!ActiveMonster) {
+        return;
+    }
     ActiveMonster->Initialize(DngMainScene);
     DngMainScene->AssignStack(3);
     DngMainScene->ClearStack(3);
     auto *memory = DngMainScene->GetStack(3);
-    if (!memory) return;
+    if (!memory) {
+        return;
+    }
     PrepareMonsterMemory(*ActiveMonster, *memory);
     sndInitPort(5);
     auto &locate = ActiveMonster->locate;
@@ -46,12 +50,14 @@ PORT_OVERRIDE void LoadMonsterFile() {
     CreatMonsterFloorInfo(reinterpret_cast<char *>(BuffReadData), size);
     for (int i = 0; i < locate.num; ++i) {
         const int id = locate.monster_id[i];
-        if (ActiveMonster->SearchBaseIndex(id) < 0) ActiveMonster->EntryRefer(id, memory);
+        if (ActiveMonster->SearchBaseIndex(id) < 0) {
+            ActiveMonster->EntryRefer(id, memory);
+        }
     }
 }
 
 PORT_OVERRIDE void LoadMonsterFile(int monster_id, int initialize) {
-    CScene *scene = DngMainScene;
+    CScene      *scene = DngMainScene;
     CMonsterMan *manager = ActiveMonster;
 
     if (manager == nullptr) {

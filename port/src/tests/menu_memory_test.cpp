@@ -7,8 +7,8 @@
 
 TEST(MenuMemory, TailEndsAtParentBoundaryAfterAlignment) {
     constexpr int capacity = 0x20000;
-    static char key;
-    auto *base = reinterpret_cast<u_long128 *>(ArenaBlock(&key, (capacity + 4) * sizeof(u_long128)));
+    static char   key;
+    auto         *base = reinterpret_cast<u_long128 *>(ArenaBlock(&key, (capacity + 4) * sizeof(u_long128)));
     for (int character : {USER_CHARA_MAX, USER_CHARA_MONICA, USER_CHARA_ROBO, USER_CHARA_MONSTER}) {
         for (int offset = 0; offset < 4; ++offset) {
             for (int used = 0; used < 4; ++used) {

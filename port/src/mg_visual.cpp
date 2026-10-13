@@ -9,8 +9,8 @@
 #include "mg_dataset.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_math.hpp"
-#include "mg_visual.hpp"
 #include "mg_texture.hpp"
+#include "mg_visual.hpp"
 #include "mg_visual_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
@@ -108,8 +108,8 @@ gfx::Vertex3D SkinSlot(const mgVertexWeight &weight) {
 
 struct FaceEntry {
     std::shared_ptr<mgVisualFaceMesh> mesh;
-    bool                            persistent = false;
-    int                             last_frame = 0;
+    bool                              persistent = false;
+    int                               last_frame = 0;
 };
 
 std::unordered_map<const mgCFace *, FaceEntry> &FaceTable() {
@@ -287,8 +287,8 @@ const void *current_object = nullptr;
 // A draw owns its immutable geometry independently of the face address in the load arena.
 struct FaceDraw {
     std::shared_ptr<const mgVisualFaceMesh> geometry;
-    gfx::TextureBinding                    binding;
-    uint32_t                               face_flags;
+    gfx::TextureBinding                     binding;
+    uint32_t                                face_flags;
 };
 
 struct GroupDraw {

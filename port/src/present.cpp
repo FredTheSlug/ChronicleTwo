@@ -1,5 +1,4 @@
 #include "present.hpp"
-#include "present_timing.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -13,6 +12,7 @@
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
 #include "platform/overlay.hpp"
+#include "present_timing.hpp"
 
 void mgTimeWaitTicks(int start, int frames, ClockWaitHook hook);
 
@@ -32,7 +32,7 @@ struct FpsOverlay {
 PresentSettings settings;
 PresentStats stats;
 bool tick_shown = true;
-PresentPacer pacer;
+PresentPacer      pacer;
 Clock::time_point last_log;
 FpsOverlay overlay;
 std::int64_t counted_tick = 0;

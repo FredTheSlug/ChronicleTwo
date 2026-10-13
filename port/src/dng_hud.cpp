@@ -4,6 +4,8 @@
 #include "character.hpp"
 #include "dng_hud.hpp"
 #include "dng_main.hpp"
+#include "dng_target_port.hpp"
+#include "gfx/gfx.hpp"
 #include "maintex.hpp"
 #include "mg_drawprim.hpp"
 #include "mglib.hpp"
@@ -11,8 +13,6 @@
 #include "prespr.hpp"
 #include "scenesnd.hpp"
 #include "userdata.hpp"
-#include "gfx/gfx.hpp"
-#include "dng_target_port.hpp"
 
 PORT_OVERRIDE void CWarningGage2::Draw() {
     if (time < 20 || layout == WARNING_GAGE_LAYOUT_NONE) {
@@ -22,19 +22,24 @@ PORT_OVERRIDE void CWarningGage2::Draw() {
     struct WarningIcon {
         int x, y, width, height, u, v;
     };
+
     constexpr WarningIcon human_label[] = {
-        {183, 41, 68, 20, 316, 236}, {274, 64, 68, 20, 316, 236},
+        {183, 41, 68, 20, 316, 236},
+        {274, 64, 68, 20, 316, 236},
         {411, 73, 68, 20, 316, 236}
     };
     constexpr WarningIcon human_icon[] = {
-        {170, 16, 28, 36, 210, 226}, {302, 15, 26, 54, 290, 202},
+        {170, 16, 28, 36, 210, 226},
+        {302, 15, 26, 54, 290, 202},
         {439, 56, 26, 22, 238, 234}
     };
     constexpr WarningIcon robot_label[] = {
-        {146, 38, 68, 20, 316, 236}, {320, 33, 68, 20, 316, 236}
+        {146, 38, 68, 20, 316, 236},
+        {320, 33, 68, 20, 316, 236}
     };
     constexpr WarningIcon robot_icon[] = {
-        {133, 13, 28, 36, 210, 226}, {348, 16, 26, 22, 238, 234}
+        {133, 13, 28, 36, 210, 226},
+        {348, 16, 26, 22, 238, 234}
     };
     const bool human = layout == WARNING_GAGE_LAYOUT_MAIN;
     if (!human && layout != WARNING_GAGE_LAYOUT_ROBO) {
@@ -52,9 +57,8 @@ PORT_OVERRIDE void CWarningGage2::Draw() {
             icon.v = human && i == 1 ? 202 : 212;
         }
         // Warnings are emitted after DrawStatusBord, so they need the same panel's anchor here.
-        gfx::UiAnchorScope anchor(human ? gfx::UiAnchor::Side(i == 0 ? -1 : 1, -1, true) :
-                                         gfx::UiAnchor{});
-        CPreSprite sprite;
+        gfx::UiAnchorScope anchor(human ? gfx::UiAnchor::Side(i == 0 ? -1 : 1, -1, true) : gfx::UiAnchor{});
+        CPreSprite         sprite;
         sprite.Initialize(nullptr, nullptr);
         sprite.Preset2D();
         sprite.Begin(MG_PRIM_SPRITE);

@@ -1,8 +1,9 @@
 #include "common.h"
-#include "padcontrol.hpp"
+
 #include "mainloop.hpp"
-#include "platform/input.hpp"
 #include "menu_mouse_item.hpp"
+#include "padcontrol.hpp"
+#include "platform/input.hpp"
 
 PORT_OVERRIDE void CPadControl::Update(CGamePad *pad) {
     // The logical gameplay sample follows the retail pad read once per frame.
@@ -17,21 +18,38 @@ PORT_OVERRIDE void CPadControl::Update(CGamePad *pad) {
     lx = pad->GetLXf();
     ly = pad->GetLYf();
     for (auto &entry : btn) {
-        if (!entry.config) continue;
+        if (!entry.config) {
+            continue;
+        }
         const int button = entry.config & 0xFFFF;
         switch (entry.config & PAD_CTRL_TRIGGER_MASK) {
-            case PAD_CTRL_TRIGGER_ON: entry.value = pad->On(button); break;
-            case PAD_CTRL_TRIGGER_DOWN: entry.value = pad->Down(button); break;
-            case PAD_CTRL_TRIGGER_UP: entry.value = pad->Up(button); break;
+            case PAD_CTRL_TRIGGER_ON:
+                entry.value = pad->On(button);
+                break;
+            case PAD_CTRL_TRIGGER_DOWN:
+                entry.value = pad->Down(button);
+                break;
+            case PAD_CTRL_TRIGGER_UP:
+                entry.value = pad->Up(button);
+                break;
         }
     }
     for (auto &entry : analog) {
         switch (entry.axis) {
-            case PAD_CTRL_AXIS_LX: entry.value = lx; break;
-            case PAD_CTRL_AXIS_LY: entry.value = ly; break;
-            case PAD_CTRL_AXIS_RX: entry.value = rx; break;
-            case PAD_CTRL_AXIS_RY: entry.value = ry; break;
-            case PAD_CTRL_AXIS_NONE: break;
+            case PAD_CTRL_AXIS_LX:
+                entry.value = lx;
+                break;
+            case PAD_CTRL_AXIS_LY:
+                entry.value = ly;
+                break;
+            case PAD_CTRL_AXIS_RX:
+                entry.value = rx;
+                break;
+            case PAD_CTRL_AXIS_RY:
+                entry.value = ry;
+                break;
+            case PAD_CTRL_AXIS_NONE:
+                break;
         }
     }
 }

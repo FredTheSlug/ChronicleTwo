@@ -1,15 +1,16 @@
 #include "menu_mouse_item.hpp"
 
+#include <SDL3/SDL.h>
+
 #include <algorithm>
 #include <cmath>
-#include <SDL3/SDL.h>
 
 #include "gamepad.hpp"
 #include "gfx/gfx.hpp"
 #include "mainloop.hpp"
 #include "menuaqua.hpp"
-#include "menucls1.hpp"
 #include "menuchr.hpp"
+#include "menucls1.hpp"
 #include "menucommon.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
@@ -26,7 +27,9 @@ bool Rect::Contains(Point p) const {
 }
 
 Target GridHit(Point p, Point origin, Rect clip, int count) {
-    if (!clip.Contains(p) || p.x < origin.x || p.x >= origin.x + 240 || p.y < origin.y) return {};
+    if (!clip.Contains(p) || p.x < origin.x || p.x >= origin.x + 240 || p.y < origin.y) {
+        return {};
+    }
     const int column = static_cast<int>((p.x - origin.x) / 40);
     const int row = static_cast<int>((p.y - origin.y) / 50);
     const int index = row * 6 + column;
@@ -34,13 +37,17 @@ Target GridHit(Point p, Point origin, Rect clip, int count) {
 }
 
 int CommandHit(Point p, Rect text, int count, float line_height) {
-    if (line_height <= 0 || !text.Contains(p)) return -1;
+    if (line_height <= 0 || !text.Contains(p)) {
+        return -1;
+    }
     int row = static_cast<int>((p.y - text.y) / line_height);
     return row < count ? row : -1;
 }
 
 int ScrollTop(int top, int count, int visible_rows, float wheel) {
-    if (!std::isfinite(wheel) || wheel == 0) return top;
+    if (!std::isfinite(wheel) || wheel == 0) {
+        return top;
+    }
     int step = static_cast<int>(std::clamp(std::ceil(std::abs(wheel)), 1.0f, 24.0f));
     return std::clamp(top + (wheel > 0 ? -step : step), 0, std::max(0, (count + 5) / 6 - visible_rows));
 }
@@ -62,7 +69,9 @@ Take Pointer::Update(const InputMenuMouse &mouse, Point start, Point units, Rect
         return {};
     }
     if (take.moved) {
-        if (!pointing) pos = start;
+        if (!pointing) {
+            pos = start;
+        }
         pointing = true;
         pos.x = std::clamp(pos.x + mouse.dx * units.x, bounds.x, bounds.x + bounds.w);
         pos.y = std::clamp(pos.y + mouse.dy * units.y, bounds.y, bounds.y + bounds.h);
@@ -74,14 +83,22 @@ Take Pointer::Update(const InputMenuMouse &mouse, Point start, Point units, Rect
 void Gesture::Reset() { *this = {}; }
 
 Action Gesture::Update(const Take &take, Point p, Target hit, bool can_pick_up, bool holding) {
-    if (!take.pointing) { Reset(); return Action::None; }
-    if (take.pressed & 2) { Reset(); return Action::Cancel; }
+    if (!take.pointing) {
+        Reset();
+        return Action::None;
+    }
+    if (take.pressed & 2) {
+        Reset();
+        return Action::Cancel;
+    }
     if (release_pending) {
         Reset();
         return holding ? (hit ? Action::Drop : Action::Cancel) : Action::None;
     }
     if (take.pressed & 1) {
-        if (holding) return hit ? Action::Drop : Action::None;
+        if (holding) {
+            return hit ? Action::Drop : Action::None;
+        }
         if (hit && can_pick_up) {
             pending = true;
             source = hit;
@@ -114,14 +131,14 @@ Action Gesture::Update(const Take &take, Point p, Target hit, bool can_pick_up, 
 
 namespace {
 using namespace menumouse;
-Pointer pointer;
-Gesture gesture;
-bool menu_open = false, finish_drop = false;
-bool wheel_jump = false;
-int saved_scroll_manner = MENU_ITEM_BRD_CALC_EASE;
-int synthetic = 0, bag_top = 0;
+Pointer       pointer;
+Gesture       gesture;
+bool          menu_open = false, finish_drop = false;
+bool          wheel_jump = false;
+int           saved_scroll_manner = MENU_ITEM_BRD_CALC_EASE;
+int           synthetic = 0, bag_top = 0;
 CMenuKeyFunc *owner = nullptr;
-int view = -1;
+int           view = -1;
 
 bool ItemPage() {
     return MenuPosData && MenuCommonInfo && MenuCommonInfo->now_mode == MENU_MODE_ITEM &&
@@ -153,34 +170,53 @@ Rect BoardClip(CMenuItemInfo &menu) {
 
 Target Hit(CMenuItemInfo &menu, Point p, int count) {
     Target target = GridHit(p, {MenuItemBrdUnderBrdPosXY[0], MenuItemBrdUnderBrdPosXY[1]}, BoardClip(menu), count);
-    if (target) return target;
-    if (menu.view_mode != MENU_ITEM_VIEW_MAX && menu.view_mode != MENU_ITEM_VIEW_MONICA) return {};
+    if (target) {
+        return target;
+    }
+    if (menu.view_mode != MENU_ITEM_VIEW_MAX && menu.view_mode != MENU_ITEM_VIEW_MONICA) {
+        return {};
+    }
     auto *form = menu.view_form[menu.sub_view];
-    if (!form || !form->draw_flag) return {};
+    if (!form || !form->draw_flag) {
+        return {};
+    }
     // The icon parts are the artwork's upper left. c_i/c_w instead place the
     // much larger, animated retail selection frame.
     for (int i = 0; i < 3; ++i) {
         auto *icon = menu.item_parts[menu.sub_view][i];
-        if (!icon) continue;
+        if (!icon) {
+            continue;
+        }
         Point q = FormPoint(form, icon->name);
-        if (Rect{q.x - 4, q.y - 4, 40, 40}.Contains(p)) return {ITEM_MENU_PANEL_ACTIVE_ITEMS, i};
+        if (Rect{q.x - 4, q.y - 4, 40, 40}.Contains(p)) {
+            return {ITEM_MENU_PANEL_ACTIVE_ITEMS, i};
+        }
     }
     for (int i = 0; i < 2; ++i) {
         auto *icon = menu.wep_parts[menu.sub_view][8 + i * 6];
-        if (!icon) continue;
+        if (!icon) {
+            continue;
+        }
         Point q = FormPoint(form, icon->name);
-        if (Rect{q.x - 4, q.y - 4, 40, 40}.Contains(p)) return {ITEM_MENU_PANEL_EQUIPMENT, i};
+        if (Rect{q.x - 4, q.y - 4, 40, 40}.Contains(p)) {
+            return {ITEM_MENU_PANEL_EQUIPMENT, i};
+        }
     }
     // The model occupies the space between the active items and the weapons.
     Point active = FormPoint(form, "c_i0"), weapon = FormPoint(form, "c_w0");
-    if (Rect{active.x + 20, active.y + 48, 180, weapon.y - active.y - 62}.Contains(p))
+    if (Rect{active.x + 20, active.y + 48, 180, weapon.y - active.y - 62}.Contains(p)) {
         return {ITEM_MENU_PANEL_CHARA, 0};
+    }
     return {};
 }
 
 void Select(CMenuItemInfo &menu, CMenuKeyFunc &keys, Target target, MENU_INPUTKEY_ARG *layouts) {
-    if (!target || (menu.key_arg_no == target.panel && keys.cursor == target.cursor)) return;
-    if (menu.key_arg_no == ITEM_MENU_PANEL_BAG) bag_top = keys.top_line;
+    if (!target || (menu.key_arg_no == target.panel && keys.cursor == target.cursor)) {
+        return;
+    }
+    if (menu.key_arg_no == ITEM_MENU_PANEL_BAG) {
+        bag_top = keys.top_line;
+    }
     menu.key_arg_no = target.panel;
     keys.key_arg = &layouts[target.panel];
     keys.cursor = target.cursor;
@@ -221,58 +257,85 @@ Take TakePointer(Point) {
 
 void Commands(CMenuItemInfo &menu, const Take &take) {
     gesture.Reset();
-    if (take.pressed & 2) { synthetic = PAD_CIRCLE; return; }
-    if (!take.pointing || menu.step != 0 || !menu.ask_para.form) return;
+    if (take.pressed & 2) {
+        synthetic = PAD_CIRCLE;
+        return;
+    }
+    if (!take.pointing || menu.step != 0 || !menu.ask_para.form) {
+        return;
+    }
     auto *message = MenuDCMsg[menu.ask_para.mes_no];
-    if (!message || !menu.ask_para.form->draw_flag) return;
+    if (!message || !menu.ask_para.form->draw_flag) {
+        return;
+    }
     int dx = 0, dy = 0;
     message->CalcCenteringXY(&dx, &dy);
     Rect rect{message->text_x + message->draw_off_x + dx,
               message->text_y + message->draw_off_y + dy,
               static_cast<float>(message->text_w), static_cast<float>(menu.ask_para.cmd_num * message->font_h)};
-    int row = CommandHit(pointer.pos, rect, menu.ask_para.cmd_num, message->font_h);
+    int  row = CommandHit(pointer.pos, rect, menu.ask_para.cmd_num, message->font_h);
     if (row >= 0 && take.moved && row != message->GetMsgCursor()) {
         message->SetMsgCursor(row);
         MenuSePlay(SYSTEM_SE_CURSOR);
     }
-    if (row >= 0 && (take.pressed & 1)) synthetic = PAD_CROSS;
+    if (row >= 0 && (take.pressed & 1)) {
+        synthetic = PAD_CROSS;
+    }
 }
 
 void Question(CMenuItemInfo &menu, CMenuKeyFunc &keys, const Take &take) {
     gesture.Reset();
-    if (take.pressed & 2) { synthetic = PAD_CIRCLE; return; }
-    if (!take.pointing) return;
+    if (take.pressed & 2) {
+        synthetic = PAD_CIRCLE;
+        return;
+    }
+    if (!take.pointing) {
+        return;
+    }
     auto *quantity = keys.how_much_form;
     if (quantity && quantity->draw_flag) {
         // The quantity board repositions its parts above or below the hand.
         // Use those parts rather than assuming which side has room.
         Point up = FormPoint(quantity, "up"), down = FormPoint(quantity, "down");
-        Rect area{std::min(up.x, down.x) - 12, std::min(up.y, down.y) - 12,
+        Rect  area{std::min(up.x, down.x) - 12, std::min(up.y, down.y) - 12,
                   std::abs(up.x - down.x) + 48, std::abs(up.y - down.y) + 48};
         if (area.Contains(pointer.pos)) {
-            if (take.wheel != 0) synthetic = take.wheel > 0 ? PAD_UP : PAD_DOWN;
-            else if (take.pressed & 1) {
-                if (Rect{up.x - 6, up.y - 6, 32, 24}.Contains(pointer.pos)) synthetic = PAD_UP;
-                else if (Rect{down.x - 6, down.y - 6, 32, 24}.Contains(pointer.pos)) synthetic = PAD_DOWN;
-                else synthetic = PAD_CROSS;
+            if (take.wheel != 0) {
+                synthetic = take.wheel > 0 ? PAD_UP : PAD_DOWN;
+            } else if (take.pressed & 1) {
+                if (Rect{up.x - 6, up.y - 6, 32, 24}.Contains(pointer.pos)) {
+                    synthetic = PAD_UP;
+                } else if (Rect{down.x - 6, down.y - 6, 32, 24}.Contains(pointer.pos)) {
+                    synthetic = PAD_DOWN;
+                } else {
+                    synthetic = PAD_CROSS;
+                }
             }
         }
         return;
     }
     const int id = menu.ask_para.mes_no;
-    if (id < 0 || id >= 9) return;
+    if (id < 0 || id >= 9) {
+        return;
+    }
     auto *message = MenuDCMsg[id];
     auto *form = MenuMesForm[id];
-    if (!message || !form || !form->draw_flag || message->window_mode != MES_WIN_YESNO) return;
+    if (!message || !form || !form->draw_flag || message->window_mode != MES_WIN_YESNO) {
+        return;
+    }
     for (int choice = 0; choice < 2; ++choice) {
         // These are the same absolute positions DrawYesNo and the retail hand use.
         Point p{static_cast<float>(message->choice_pos[choice][0]), static_cast<float>(message->choice_pos[choice][1])};
-        if (p.x < 0 || p.y < 0 || !Rect{p.x - 8, p.y - 4, 56, 28}.Contains(pointer.pos)) continue;
+        if (p.x < 0 || p.y < 0 || !Rect{p.x - 8, p.y - 4, 56, 28}.Contains(pointer.pos)) {
+            continue;
+        }
         if (take.moved && message->GetMsgCursor() != choice) {
             message->SetMsgCursor(choice);
             MenuSePlay(SYSTEM_SE_CURSOR);
         }
-        if (take.pressed & 1) synthetic = PAD_CROSS;
+        if (take.pressed & 1) {
+            synthetic = PAD_CROSS;
+        }
         break;
     }
 }
@@ -293,15 +356,19 @@ void MenuMousePadTick() {
         MenuItemBrdCalcManner = saved_scroll_manner;
         wheel_jump = false;
     }
-    if (menu_open && !ItemPage()) MenuMouseClose();
-
+    if (menu_open && !ItemPage()) {
+        MenuMouseClose();
+    }
 }
 
 int MenuMouseSyntheticDown() { return synthetic; }
 
 bool MenuMouseItemActive() { return ItemPage(); }
+
 void MenuMouseItemOrigin(float &x, float &y) {
-    if (!ItemPage()) return;
+    if (!ItemPage()) {
+        return;
+    }
     const Point start = Start(class_menu_item_info, *MenuCommonInfo);
     x = start.x;
     y = start.y;
@@ -309,9 +376,16 @@ void MenuMouseItemOrigin(float &x, float &y) {
 
 void MenuMouseUpdate(CMenuKeyFunc &keys) {
     synthetic = 0;
+
     // Commit even an empty result: an inventory press may be a pending drag.
-    struct CommitButtons { ~CommitButtons() { MenuMouseSetButtons(synthetic); } } commit;
-    if (!ItemPage() || &keys != MenuCommonInfo) { MenuMouseClose(); return; }
+    struct CommitButtons {
+        ~CommitButtons() { MenuMouseSetButtons(synthetic); }
+    } commit;
+
+    if (!ItemPage() || &keys != MenuCommonInfo) {
+        MenuMouseClose();
+        return;
+    }
     auto &menu = class_menu_item_info;
     if (!menu_open || owner != &keys) {
         pointer = {};
@@ -329,7 +403,10 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
     }
     if (!take.pointing || !keys.key_enable || GamePad__2.key_lock || menu_debug_flag ||
         menu.mode == MENU_ASK_MODE_OPEN || menu.mode == MENU_ASK_MODE_CLOSE ||
-        (MenuMoveItemPtr && MenuMoveItemPtr->move_on) || MenuLoadFileCheck(MenuCharaBuild2)) { gesture.Reset(); return; }
+        (MenuMoveItemPtr && MenuMoveItemPtr->move_on) || MenuLoadFileCheck(MenuCharaBuild2)) {
+        gesture.Reset();
+        return;
+    }
     if (finish_drop) {
         finish_drop = false;
         if (menu.mode == MENU_ASK_MODE_NONE && keys.have_item.item_no > 0) {
@@ -338,16 +415,23 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
             menu.IsCancelNoneLoadItem();
         }
     }
-    if (menu.mode == MENU_ASK_MODE_ITEM_COMMAND) { Commands(menu, take); return; }
+    if (menu.mode == MENU_ASK_MODE_ITEM_COMMAND) {
+        Commands(menu, take);
+        return;
+    }
     if (menu.mode != MENU_ASK_MODE_NONE) {
         Question(menu, keys, take);
         return;
     }
-    if (menu.key_arg_no < 0 || menu.key_arg_no >= ITEM_MENU_PANEL_NUM || !keys.key_arg || !menu.item_board_form) return;
+    if (menu.key_arg_no < 0 || menu.key_arg_no >= ITEM_MENU_PANEL_NUM || !keys.key_arg || !menu.item_board_form) {
+        return;
+    }
     // key_arg always points into this retail table while the item page is idle.
     auto *layouts = keys.key_arg - menu.key_arg_no;
-    int count = layouts[ITEM_MENU_PANEL_BAG].max;
-    if (menu.key_arg_no == ITEM_MENU_PANEL_BAG) bag_top = keys.top_line;
+    int   count = layouts[ITEM_MENU_PANEL_BAG].max;
+    if (menu.key_arg_no == ITEM_MENU_PANEL_BAG) {
+        bag_top = keys.top_line;
+    }
     if (take.wheel && BoardClip(menu).Contains(pointer.pos)) {
         int top = ScrollTop(bag_top, count, layouts[ITEM_MENU_PANEL_BAG].disp_lines, take.wheel);
         if (top != bag_top) {
@@ -364,11 +448,12 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
         }
     }
     Target hit = Hit(menu, pointer.pos, count);
-    if (hit && (take.moved || gesture.dragging)) Select(menu, keys, hit, layouts);
+    if (hit && (take.moved || gesture.dragging)) {
+        Select(menu, keys, hit, layouts);
+    }
     bool can_pick_up = false;
     if (hit && (hit.panel == ITEM_MENU_PANEL_BAG || hit.panel == ITEM_MENU_PANEL_ACTIVE_ITEMS)) {
-        auto *item = hit.panel == ITEM_MENU_PANEL_BAG ? &MenuUserParam.used_data[hit.cursor] :
-                     &MenuUserParam.chara[menu.sub_view]->active_item[hit.cursor];
+        auto *item = hit.panel == ITEM_MENU_PANEL_BAG ? &MenuUserParam.used_data[hit.cursor] : &MenuUserParam.chara[menu.sub_view]->active_item[hit.cursor];
         can_pick_up = item->item_no > 0;
     }
     Action action = gesture.Update(take, pointer.pos, hit, can_pick_up, keys.have_item.item_no > 0);
@@ -382,14 +467,21 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
             synthetic = PAD_CROSS;
             finish_drop = true;
             break;
-        case Action::Click: synthetic = PAD_CROSS; break;
-        case Action::Cancel: synthetic = PAD_CIRCLE; break;
-        case Action::None: break;
+        case Action::Click:
+            synthetic = PAD_CROSS;
+            break;
+        case Action::Cancel:
+            synthetic = PAD_CIRCLE;
+            break;
+        case Action::None:
+            break;
     }
 }
 
 bool MenuMouseDrawPosition(const CMenuPosDataForm *form, int &x, int &y) {
-    if (!menu_open || !MenuMouseActive() || !pointer.pointing || !ItemPage() || !owner || form != owner->cursor_form) return false;
+    if (!menu_open || !MenuMouseActive() || !pointer.pointing || !ItemPage() || !owner || form != owner->cursor_form) {
+        return false;
+    }
     // Keep the retail cell frame at the selected target; move the hand and its
     // carried icon together. The form's cursor0 part locates the hand's base.
     Point hand = FormPoint(owner->cursor_form, "cursor0");
@@ -404,5 +496,7 @@ PORT_OVERRIDE void CMenuKeyFunc::SelDataInit() {
     save_cursor = cursor;
     save_top_line = top_line;
     key_input = false;
-    if (MenuMouseItemActive()) MenuMouseUpdate(*this);
+    if (MenuMouseItemActive()) {
+        MenuMouseUpdate(*this);
+    }
 }

@@ -12,7 +12,7 @@
 
 TEST(ActionInput, LogicalButtonsWriteThroughTheOutputReference) {
     std::vector<u_long128> storage(1024);
-    mgCMemory memory;
+    mgCMemory              memory;
     memory.stSetBuffer(storage.data(), storage.size());
     RS_PROG_HEADER program = {};
     std::memcpy(program.magic, "SB2", 3);
@@ -47,7 +47,7 @@ TEST(ActionInput, LogicalButtonsWriteThroughTheOutputReference) {
 
 TEST(ActionInput, PauseMaskWritesThroughTheFollowingOutputReference) {
     std::vector<u_long128> storage(1024);
-    mgCMemory memory;
+    mgCMemory              memory;
     memory.stSetBuffer(storage.data(), storage.size());
     RS_PROG_HEADER program = {};
     std::memcpy(program.magic, "SB2", 3);

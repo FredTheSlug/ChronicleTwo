@@ -14,7 +14,9 @@ namespace {
 
 bool IsBackdrop(mgCDrawPrim *prim, mgRect<int> uv, char *name, int width, int height, int top = 0) {
     if (!prim || !prim->prim.TME || uv.left != 0 || uv.top != top ||
-        uv.right != width || uv.bottom != height) return false;
+        uv.right != width || uv.bottom != height) {
+        return false;
+    }
     const auto *texture = mgTexManager.GetTexture(name, -1);
     return texture && prim->texture.tex0_bits == texture->tex0_bits;
 }
@@ -22,10 +24,17 @@ bool IsBackdrop(mgCDrawPrim *prim, mgRect<int> uv, char *name, int width, int he
 void DrawBackdrop(mgCDrawPrim &prim, mgRect<float> rect, mgRect<int> uv, float artwork_width) {
     const auto extent = mgPortVisibleExtent();
     const bool wide = extent.left < 0 || extent.right > mgScreenWidth;
-    uint8_t color[4];
+    uint8_t    color[4];
     mgPortPrimColor(prim, color);
     std::vector<gfx::Vertex2D> vertices;
-    const int corners[6][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 0}, {1, 1}, {0, 1}};
+    const int                  corners[6][2] = {
+        {0, 0},
+        {1, 0},
+        {1, 1},
+        {0, 0},
+        {1, 1},
+        {0, 1}
+    };
     const auto append = [&](float left, float right, float u0, float u1) {
         // Linear filtering must stay inside the artwork at a reflection seam;
         // otherwise its transparent padding leaves a dark hairline.
@@ -35,8 +44,8 @@ void DrawBackdrop(mgCDrawPrim &prim, mgRect<float> rect, mgRect<int> uv, float a
         }
         for (const auto &corner : corners) {
             vertices.push_back(mgPortPrimVertex(prim,
-                corner[0] ? right : left, corner[1] ? rect.top + rect.bottom : rect.top, 0,
-                corner[0] ? u1 : u0, corner[1] ? uv.top + uv.bottom : uv.top, color));
+                                                corner[0] ? right : left, corner[1] ? rect.top + rect.bottom : rect.top, 0,
+                                                corner[0] ? u1 : u0, corner[1] ? uv.top + uv.bottom : uv.top, color));
         }
     };
     const float left = rect.left, right = left + rect.right;
@@ -80,7 +89,7 @@ template <>
 void PrimQuad<float>(mgCDrawPrim *prim, mgRect<float> put_rect, mgRect<int> tex_rect) {
     static char character_name[] = "chr_bg";
     static char invent_name[] = "inv_bg";
-    const auto extent = mgPortVisibleExtent();
+    const auto  extent = mgPortVisibleExtent();
     if ((extent.left < 0 || extent.right > mgScreenWidth) &&
         (IsBackdrop(prim, tex_rect, character_name, 513, 768) ||
          IsBackdrop(prim, tex_rect, invent_name, 512, 416, 48))) {

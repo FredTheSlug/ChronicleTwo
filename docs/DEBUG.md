@@ -4,12 +4,12 @@ Retail cites are `ps2/src` file:line. PC cites are `port/src` or `tools/kazarov`
 
 ## Config
 
-`game.debug_mode` in `config.json`, default `true`. It is read once at boot, so a change takes effect on the next start.
+`game.debug_mode` in `config.json`, default `false`. It is read once at boot, so a change takes effect on the next start.
 
 - `true`: at boot, `MasterDebugCode` is set to `MASTER_DEBUG_CODE` and `MasterDebugModeOn` is set to 1. Retail `title.cpp:2377` then unlocks pad 2 without a developer save. Retail `title.cpp:2281` would otherwise read the save's debug code. Also enables the pad-1 chord below.
 - `false`: nothing changes at boot. Retail behaviour: pad 2 unlocks only if the four shoulders are held on pad 2 at boot and a memory card save carries a debug code. The pad-1 chord is off.
 
-This differs from retail on purpose: with the default, the developer-save gate is bypassed for every user. Set `"debug_mode": false` to restore it.
+Set `"game": {"debug_mode": true}` in the save root's `config.json` to enable native debug controls. Ordinary boots preserve the retail developer-save gate. `--jump` enables debug controls explicitly for that run.
 
 Boot code: `port/src/debug_mode.cpp` (`DebugModeBoot`), called from `port/src/mainloop.cpp` after the retail shoulder check.
 
@@ -53,7 +53,7 @@ These work with the pad-2 Circle toggle. Pad 2 is locked unless the boot unlock 
 
 ## What `DebugFlag` unlocks on pad 1
 
-- Title: Start+Select opens the debug menu (`ps2/src/title.cpp:848`). The menu's sub-views (maps, dungeons, title, chrview, texview, mapview, sound, movie, language, items, save edit, `dbg/game%d.cfg`, save convert) and its event select were not re-checked line by line for this doc.
+- Title: Start+Select opens the debug menu (`ps2/src/title.cpp:848`). The menu's sub-views (maps, dungeons, title, chrview, texview, mapview, sound, movie, language, items, save edit, `dbg/game%d.cfg`, save convert) and its event select are available.
 - Future map select: `ps2/src/mainloop3.cpp:115` (`FutureMapSelect`).
 - Dungeon: R3 opens the dungeon debug menu (`ps2/src/dng_main.cpp:2177`, `dngDebugStart`, reached only under `DebugFlag` at `dng_main.cpp:2157`). R3 again closes it (`ps2/src/dng_debug.cpp:311`). Start+Select exits the floor (`ps2/src/dng_main.cpp:1133`).
 - Town and georama: R3 opens the edit debug menu (`ps2/src/editloop.cpp:1719-1730`). With `DebugFlag`, R2 makes the material check pass (`ps2/src/editmenu.cpp:3955`, `5511`; `editmode.cpp:2055`). L3, or Square outside place mode, moves 3x (`ps2/src/editmode.cpp:1454-1456`).
@@ -63,7 +63,7 @@ These work with the pad-2 Circle toggle. Pad 2 is locked unless the boot unlock 
 ## PC gaps
 
 - The keyboard feeds pad 1 only (`tools/kazarov/port/platform/input.cpp`, `Compose`); L2+Select makes its debug button reads available too.
-- `developer_menu` (paddle 2) and `debug_menu` (paddle 1) are bound in `input.cpp` but nothing reads them. See `docs/port/HANDOFF.md` 86 and 91.
+- `developer_menu` (paddle 2) and `debug_menu` (paddle 1) are bound in `input.cpp` but nothing reads them.
 - GyoRace hits the `sgLoopGyoRace` stub (`port/src/gyorace.cpp`).
 
 ## Jump replays

@@ -1,11 +1,13 @@
-#include <gtest/gtest.h>
 #include <SDL3/SDL.h>
+#include <gtest/gtest.h>
+
 #include <cmath>
 #include <numbers>
 #include <utility>
+
 #include "gamepad.hpp"
-#include "padcontrol.hpp"
 #include "mainloop.hpp"
+#include "padcontrol.hpp"
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
 
@@ -16,7 +18,7 @@ TEST(MouseDelivery, LogicalPadUpdateLatchesMotionWithoutDeflectingTheStick) {
     InputSetScriptedDevices({.mouse_dx = 400.0f, .mouse_dy = -50.0f});
     GamePad__2.pad[0].right_x = GamePad__2.pad[0].right_y = 128;
     GamePad__2.pad[0].left_x = GamePad__2.pad[0].left_y = 128;
-    const auto before = InputGetMouseLook().read;
+    const auto  before = InputGetMouseLook().read;
     CPadControl pad{};
     pad.Initialize();
     pad.Update(&GamePad__2);
@@ -38,12 +40,16 @@ TEST(MouseDelivery, NativeButtonEventsReachTheRetailPad) {
     ClockReset();
     InputPoll();
     GamePad__2.Init();
-    for (int n = 0; n < 4; ++n) GamePad__2.UpDate();
+    for (int n = 0; n < 4; ++n) {
+        GamePad__2.UpDate();
+    }
     SDL_Event event{};
     event.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
-    for (auto [button, mask] : {std::pair{SDL_BUTTON_LEFT, PAD_CROSS},
-                               std::pair{SDL_BUTTON_RIGHT, PAD_CIRCLE},
-                               std::pair{SDL_BUTTON_MIDDLE, PAD_R3}}) {
+    for (auto [button, mask] : {
+             std::pair{SDL_BUTTON_LEFT,   PAD_CROSS },
+             std::pair{SDL_BUTTON_RIGHT,  PAD_CIRCLE},
+             std::pair{SDL_BUTTON_MIDDLE, PAD_R3    }
+    }) {
         event.button.button = button;
         InputHandleEvent(event);
         InputPoll();

@@ -17,12 +17,12 @@ int MouseCameraCollectPolys(CScene &scene, mgVu0FBOX &box, CCPoly *out, int capa
 // Only the active, unlocked walking camera may take a mouse sample. The caller
 // supplies whether the town loop is running, so other camera modes keep ownership.
 bool TownMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
-                        bool walking, bool subgame, bool locked);
+                         bool walking, bool subgame, bool locked);
 
 bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
-                           const DNG_STATUS &status, const DNG_BATTLE_AREA *area,
-                           CActionChara *chara, bool subgame, bool locked, bool debug,
-                           bool eye = false);
+                            const DNG_STATUS &status, const DNG_BATTLE_AREA *area,
+                            CActionChara *chara, bool subgame, bool locked, bool debug,
+                            bool eye = false);
 
 // Update the retail first-person angles and both look-at poses without moving
 // the eye. Only a caller with explicit first-person ownership may apply a read.

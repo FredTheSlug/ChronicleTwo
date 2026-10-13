@@ -7,8 +7,8 @@
 
 TEST(ScriptInterpreter, PushStackPreservesHostStringPointer) {
     CScriptInterpreter interpreter;
-    SPI_STACK stack[2]{};
-    char text[] = "string argument";
+    SPI_STACK          stack[2]{};
+    char               text[] = "string argument";
     ASSERT_GT(reinterpret_cast<std::uintptr_t>(text), UINT32_MAX);
     interpreter.SetStack(stack, 2);
     SPI_STACK argument{};
@@ -22,9 +22,9 @@ TEST(ScriptInterpreter, PushStackPreservesHostStringPointer) {
 
 TEST(ScriptInterpreter, EmptyQuotedStringAndMissingArgumentKeepTheirTypes) {
     CScriptInterpreter interpreter;
-    SPI_STACK stack[4]{};
-    char strings[64]{};
-    char script[] = "\"\",,42;";
+    SPI_STACK          stack[4]{};
+    char               strings[64]{};
+    char               script[] = "\"\",,42;";
     interpreter.SetScript(script, std::strlen(script));
     interpreter.SetStack(stack, 4);
     interpreter.SetStringBuff(strings, sizeof(strings));
@@ -41,9 +41,9 @@ TEST(ScriptInterpreter, EmptyQuotedStringAndMissingArgumentKeepTheirTypes) {
 
 TEST(ScriptInterpreter, NumericAndEscapedTextArgumentsKeepTheirValues) {
     CScriptInterpreter interpreter;
-    SPI_STACK stack[6]{};
-    char strings[64]{};
-    char script[] = " -7, 1.5,\"a\\\"b\",bad,12 trailing,\"\x81\x5c\";";
+    SPI_STACK          stack[6]{};
+    char               strings[64]{};
+    char               script[] = " -7, 1.5,\"a\\\"b\",bad,12 trailing,\"\x81\x5c\";";
     interpreter.SetScript(script, std::strlen(script));
     interpreter.SetStack(stack, 6);
     interpreter.SetStringBuff(strings, sizeof(strings));

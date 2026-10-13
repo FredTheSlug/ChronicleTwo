@@ -6,12 +6,20 @@
 
 #include "mainloop.hpp"
 
-enum class JumpMode { Town, Dungeon, Event, Title, Opening, Menu };
+enum class JumpMode {
+    Town,
+    Dungeon,
+    Event,
+    Title,
+    Opening,
+    Menu
+};
+
 struct GameJump {
     JumpMode mode = JumpMode::Menu;
-    int map = 10;
-    int floor = 1;
-    int event = 0;
+    int      map = 10;
+    int      floor = 1;
+    int      event = 0;
 };
 
 bool GameParseJump(std::string_view text, GameJump &jump);

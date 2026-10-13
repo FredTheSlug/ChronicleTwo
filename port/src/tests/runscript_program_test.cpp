@@ -8,7 +8,10 @@
 namespace {
 struct ProgramTable {
     RS_PROG_HEADER header{};
-    RS_PROGDATA entries[2]{{7, 0}, {150, 0}};
+    RS_PROGDATA    entries[2]{
+        {7,   0},
+        {150, 0}
+    };
 
     ProgramTable() {
         header.prog = offsetof(ProgramTable, entries);
@@ -25,7 +28,7 @@ TEST(RunScriptProgram, UnloadedInterpreterHasNoOptionalPrograms) {
 
 TEST(RunScriptProgram, LoadedProgramLookupAndDeletion) {
     ProgramTable program;
-    CRunScript script;
+    CRunScript   script;
     script.prog = &program.header;
     EXPECT_EQ(script.check_program(7), 1);
     EXPECT_EQ(script.check_program(150), 1);

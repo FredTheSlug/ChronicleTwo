@@ -12,9 +12,9 @@
 namespace {
 struct EventProgram {
     RS_PROG_HEADER header{};
-    RS_PROGDATA entry{100, offsetof(EventProgram, function)};
-    funcdata function{};
-    vmcode_t code{RS_OP_END, 0, 0};
+    RS_PROGDATA    entry{100, offsetof(EventProgram, function)};
+    funcdata       function{};
+    vmcode_t       code{RS_OP_END, 0, 0};
 
     EventProgram() {
         std::memcpy(header.magic, "SB2", 3);
@@ -28,12 +28,12 @@ struct EventProgram {
 
 TEST(EventRuntimeMemory, ScriptBytesCanUseTheRetailBufferBudget) {
     static char key;
-    auto *storage = reinterpret_cast<u_long128 *>(ArenaBlock(&key, 20000 * sizeof(u_long128)));
-    mgCMemory memory;
+    auto       *storage = reinterpret_cast<u_long128 *>(ArenaBlock(&key, 20000 * sizeof(u_long128)));
+    mgCMemory   memory;
     memory.stSetBuffer(storage, 20000);
     // The d05 chapter script occupies 19333 quadwords. Native interpreter arrays
     // need 896 more, while the retail arrays needed 448 and fitted the 20000 budget.
-    char *bytes = reinterpret_cast<char *>(memory.Alloc(19333));
+    char        *bytes = reinterpret_cast<char *>(memory.Alloc(19333));
     EventProgram program;
     std::memcpy(bytes, &program, sizeof(program));
     SetEventScript(bytes, nullptr, &memory);
@@ -49,7 +49,7 @@ TEST(EventRuntimeMemory, ReplacingAProgramRetainsTheInterpreterStackCapacity) {
     EventProgram second;
     second.entry.no = 101;
     alignas(64) u_long128 storage[1024]{};
-    mgCMemory memory;
+    mgCMemory             memory;
     memory.stSetBuffer(storage, 1024);
     SetEventScript(reinterpret_cast<char *>(&first), nullptr, &memory);
     EXPECT_EQ(RunEvent(100, nullptr), 0);

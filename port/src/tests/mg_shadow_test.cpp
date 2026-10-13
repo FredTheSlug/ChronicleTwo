@@ -13,7 +13,6 @@
 #include "common.h"
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
-#include "libgraph.h"
 #include "mg_drawprim.hpp"
 #include "mg_shadow.hpp"
 #include "mg_shadow_port.hpp"
@@ -21,6 +20,11 @@
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
+
+// Register macros must follow the host and test headers.
+// clang-format off
+#include "libgraph.h"
+// clang-format on
 
 using namespace dc::test;
 using dc::vu1::Cross3;

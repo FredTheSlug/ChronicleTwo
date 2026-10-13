@@ -13,6 +13,9 @@
 #include "subgame.hpp"
 #include "userdata.hpp"
 
+extern sceVu0FVECTOR PortTownSavedEye asm("EditCtrl_SavedEye");
+extern sceVu0FVECTOR PortDungeonSavedEye asm("DngMain_SavedEye");
+
 namespace {
 bool                  walking_script = false;
 InputKeyboardMovement script_stick;
@@ -83,6 +86,12 @@ bool FirstPersonLookOwns() {
     return camera && camera->Iam() == CAMERA_KIND_CONTROL && DungeonFirstPersonOwns(static_cast<CCameraControl *>(camera));
 }
 
+void FirstPersonShiftSavedEye(float *saved, const float *before, const float *after) {
+    for (int i = 0; i < 3; ++i) {
+        saved[i] += after[i] - before[i];
+    }
+}
+
 // The retail eye routines read these float getters. Keep controller look while
 // keyboard movement travels through the independent channel and normal solver.
 PORT_OVERRIDE float CGamePad::GetLXf() {
@@ -118,6 +127,9 @@ bool TownFirstPersonWalk(CScene *scene, CPadControl *pad) {
         return false;
     }
     auto       *camera = static_cast<CCameraControl *>(scene->GetCamera(0));
+    auto       *chara = scene->GetCharacter(scene->player_chara);
+    sceVu0FVECTOR before, after;
+    chara->GetPosition(before);
     const auto  stick = FirstPersonWalkStick(keys, PortEditEyeHeading, camera->GetAngle());
     CPadControl movement = *pad;
     movement.analog[PAD_ANALOG_LEFT_X_2].value = stick.x;
@@ -126,6 +138,8 @@ bool TownFirstPersonWalk(CScene *scene, CPadControl *pad) {
     // landing and map events. A door/ladder event may deliberately end eye view.
     PortEditViewMode = EDIT_VIEW_MODE_WALK;
     PortEditCharaControl(scene, &movement);
+    chara->GetPosition(after);
+    FirstPersonShiftSavedEye(PortTownSavedEye, before, after);
     if (!scene->event_run && PortEditLadderMode == EDIT_LADDER_MODE_NONE) {
         PortEditViewMode = EDIT_VIEW_MODE_EYE;
     }
@@ -164,6 +178,7 @@ void DungeonFirstPersonWalk(CCameraControl &camera) {
     GamePad__2.pad[0] = saved_pad;
     GamePad__2.previous_pad[0] = saved_previous;
     MainChara__2->GetPosition(after);
+    FirstPersonShiftSavedEye(PortDungeonSavedEye, before, after);
     // Translate the eye by the displacement accepted by retail collision.
     for (int i = 0; i < 3; ++i) {
         const float delta = after[i] - before[i];

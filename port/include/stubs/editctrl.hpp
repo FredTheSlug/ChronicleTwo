@@ -9,6 +9,8 @@ extern int          LadderMode asm("EditCtrl_LadderMode");
 extern EditViewMode ViewMode asm("EditCtrl_ViewMode");
 extern float        viewAngleH asm("EditCtrl_EyeHeading");
 extern float        viewAngleV asm("EditCtrl_EyeTilt");
+extern sceVu0FVECTOR OldCameraPos asm("EditCtrl_SavedEye");
+extern int InitEyeViewFlag asm("EditCtrl_EyeInitialized");
 
 static void LadderControl(CScene *scene, CPadControl *pad);
 static void CharaControl(CScene *scene, CPadControl *pad);

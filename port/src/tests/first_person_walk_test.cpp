@@ -3,6 +3,7 @@
 #include <cmath>
 #include <limits>
 #include <numbers>
+#include <functional>
 
 #include "camera_control_port.hpp"
 #include "dng_main.hpp"
@@ -15,6 +16,87 @@
 #include "platform/input_script.hpp"
 #include "stubs/photo.hpp"
 #include "userdata.hpp"
+
+extern sceVu0FVECTOR PortTownSavedEye asm("EditCtrl_SavedEye");
+extern sceVu0FVECTOR PortDungeonSavedEye asm("DngMain_SavedEye");
+extern int PortTownEyeInitialized asm("EditCtrl_EyeInitialized");
+extern int PortDungeonEyeInitialized asm("DngMain_EyeInitialized");
+
+namespace {
+struct RestoreFirstPersonState {
+    std::function<void()> restore;
+    RestoreFirstPersonState() {
+        auto &scene = *GetMainScene();
+        auto slots = [camera = *scene.GetSceneCamera(0), chara = *scene.GetSceneCharacter(0),
+                      active = scene.active_camera, player = scene.player_chara, event = scene.event_run,
+                      dng = DngMainScene, area = BattleAreaScene, main = MainChara__2, user = DngUserData,
+                      status = DngStatus, pad = GamePad__2, photo = TakePhotoMode, debug = DebugInfo.debug_camera] {
+            auto &scene = *GetMainScene();
+            *scene.GetSceneCamera(0) = camera;
+            *scene.GetSceneCharacter(0) = chara;
+            scene.active_camera = active;
+            scene.player_chara = player;
+            scene.event_run = event;
+            DngMainScene = dng;
+            BattleAreaScene = area;
+            MainChara__2 = main;
+            DngUserData = user;
+            DngStatus = status;
+            GamePad__2 = pad;
+            TakePhotoMode = photo;
+            DebugInfo.debug_camera = debug;
+        };
+        std::vector<std::pair<int *, int>> flags;
+        for (auto *flag : {&PortLoopNo, &PortTownLoopMode, &PortTownControlMode, &PortTownLockChara,
+                          &PortTownPause, &PortEditLadderMode, &PortDungeonDebugPause,
+                          &PortTownEyeInitialized, &PortDungeonEyeInitialized}) {
+            flags.emplace_back(flag, *flag);
+        }
+        restore = [slots, flags, view = PortEditViewMode] {
+            slots();
+            for (auto [flag, value] : flags) *flag = value;
+            PortEditViewMode = view;
+            InputScriptInstall({});
+        };
+    }
+    ~RestoreFirstPersonState() { restore(); }
+};
+}
+
+TEST(FirstPersonWalk, AcceptedDisplacementRestoresThirdPersonEyeAtNewPlayerPosition) {
+    RestoreFirstPersonState restore;
+    const float before[] = {10, 20, 30, 1}, after[] = {310, 5, -70, 1};
+    for (bool dungeon : {false, true}) {
+        CScene scene;
+        CCameraControl camera;
+        CActionChara chara;
+        scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+        scene.AssignChara(0, &chara, const_cast<char *>("player"));
+        scene.active_camera = scene.player_chara = 0;
+        float *saved = dungeon ? PortDungeonSavedEye : PortTownSavedEye;
+        const float entry[] = {10, 60, 130, 1};
+        std::copy_n(entry, 4, saved);
+        FirstPersonShiftSavedEye(saved, before, after);
+        camera.SetPos(after[0], after[1], after[2]);
+        camera.FollowOff();
+        if (dungeon) {
+            DngMainScene = &scene;
+            BattleAreaScene = &scene.battle_area;
+            MainChara__2 = &chara;
+            DngStatus.eye_view = 1;
+            PortDungeonEyeInitialized = 1;
+            TakePhotoMode = TAKE_PHOTO_OFF;
+            ResetEyeView(&chara);
+        } else {
+            PortTownEyeInitialized = 1;
+            ResetViewMode(&scene);
+        }
+        for (int i = 0; i < 3; ++i) {
+            EXPECT_FLOAT_EQ(camera.pos[i], entry[i] + after[i] - before[i]);
+        }
+        EXPECT_FLOAT_EQ(saved[3], 1);
+    }
+}
 
 TEST(FirstPersonWalk, ViewRelativeForwardBackAndStrafePreserveMagnitude) {
     for (float heading : {0.0f, 0.7f, -1.3f, std::numbers::pi_v<float>}) {
@@ -42,6 +124,7 @@ TEST(FirstPersonWalk, ViewRelativeForwardBackAndStrafePreserveMagnitude) {
 }
 
 TEST(FirstPersonWalk, TownGatesSpecialOwnersAndKeepsPadLook) {
+    RestoreFirstPersonState restore;
     auto          &scene = *GetMainScene();
     CCharacter2    chara;
     CCameraControl camera;
@@ -108,6 +191,7 @@ TEST(FirstPersonWalk, TownGatesSpecialOwnersAndKeepsPadLook) {
 }
 
 TEST(FirstPersonWalk, DungeonGatesPhotoRidepodPauseEventsAndActions) {
+    RestoreFirstPersonState restore;
     CScene           scene;
     CCameraControl   camera;
     CActionChara     chara;

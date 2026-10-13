@@ -23,6 +23,11 @@ struct Choices {
     bool horizontal = false, confirm = false;
     std::vector<MenuMouseRect> rows;
 } choices;
+struct ListClick {
+    const void *owner = nullptr;
+    int seen = -100, ready = 0, target = -1;
+    bool pending = false;
+} list_click;
 void SetCapture(bool on);
 
 }
@@ -73,6 +78,7 @@ void SetCapture(bool on) {
 void MenuMouseEnable(bool on) {
     navigation = on;
     choices = {};
+    list_click = {};
     SetCapture(on);
 }
 
@@ -111,7 +117,10 @@ const MenuMouseSample &MenuMouseTake() {
     const auto &pad = InputGetPad(0);
     if (pad.buttons || std::abs(int(pad.left_x) - 128) > 30 || std::abs(int(pad.left_y) - 128) > 30)
         sample.pointing = false;
-    if (!sample.pointing) choices.confirm = false;
+    if (!sample.pointing) {
+        choices.confirm = false;
+        choices.target = choices.selected;
+    }
     if (sample.moved || sample.clicked || sample.wheel != 0) sample.pointing = true;
     const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
     int width = static_cast<int>(mapping.pixel_width), height = static_cast<int>(mapping.pixel_height);
@@ -165,6 +174,24 @@ int MenuMouseRows(std::span<const MenuMouseRect> rows, int selected, int wheel_s
         if (mouse.pointing && MenuMouseHit(rows, mouse.x, mouse.y) >= 0) buttons |= PAD_CROSS;
     }
     return MenuMouseChoose(mouse, rows, selected, wheel_step);
+}
+
+void MenuMouseDelayConfirm(const void *owner, int selected, int target, int ticks) {
+    if (list_click.owner != owner || list_click.seen < frame - 1)
+        list_click = {owner, frame, frame, selected, false};
+    list_click.seen = frame;
+    if (target != list_click.target) {
+        list_click.target = target;
+        list_click.pending = false;
+    }
+    if (target != selected) list_click.ready = frame + ticks;
+    if (buttons & PAD_CROSS) list_click.pending = true;
+    buttons &= ~PAD_CROSS;
+    if ((buttons & PAD_CIRCLE) || !sample.pointing) list_click.pending = false;
+    if (list_click.pending && target == selected && frame >= list_click.ready) {
+        buttons |= PAD_CROSS;
+        list_click.pending = false;
+    }
 }
 
 void MenuMouseDraw() {

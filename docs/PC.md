@@ -320,6 +320,19 @@ Deterministic mouse replays are `tools/input/town-mouse-menu.input` and
 `MenuMouse.*` and `MenuMouseInput.*` cover hit testing, display scaling,
 controller handoff, scrolling and confirmation timing.
 
+`town-mouse-menu-wide.input` checks opening and cancelling at 16:9.
+`dungeon-mouse-play.input` enters a floor with the mouse and opens its root menu.
+`dungeon-mouse-item-popup.input` follows the normal dungeon replay to the locked
+gate and selects the Gate Key with the mouse. `title-mouse-load.input` exercises
+Continue, a file-row click and its confirmation using a copied File 11 fixture.
+`title-mouse-newgame.input` clicks New Game and reaches costume selection.
+File-list clicks wait through the retail cursor-settling delay before confirming.
+
+Shop-specific lists and the screens inside the root-menu destinations do not yet
+have dedicated hit regions. Ordinary dialogue choices share the message adapter;
+the rendered confirmation replays and drawn-message unit tests cover that input
+path, but campaign dialogue choices still need a dedicated replay.
+
 ### Mouse follow camera
 
 Mouse motion directly turns the active walking camera around the character. It

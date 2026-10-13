@@ -1,0 +1,32 @@
+# --window 1280x960; a copied save root with a valid File 11.
+# Load slots at 4000; file list at 5300; load confirmation at 5900.
+300 circle
+306
+320 cross
+326
+900 start
+906
+1200 circle
+1206
+1500 cross
+1506
+2450 start
+2456
+2600 mouse:0,-110
+2601
+2650 mouse1
+2651
+4500 mouse:0,-80
+4501
+4600 mouse1
+4601
+5400 wheel:-1
+5401
+5500 mouse1
+5501
+6100 mouse:-60,130
+6101
+6200 mouse1
+6201
+7600 mouse1
+7601

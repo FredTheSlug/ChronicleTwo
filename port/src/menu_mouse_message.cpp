@@ -22,9 +22,13 @@ PORT_OVERRIDE void ClsMes::StepSelectCursor(int steps) {
     if (fade < 1 || alpha <= 0 || !buff || font_h <= 0) return;
     std::vector<MenuMouseRect> choices;
     if (window_mode == MES_WIN_YESNO) {
-        for (const auto &choice : choice_pos)
+        for (int i = 0; i < 2; ++i) {
+            const auto &choice = choice_pos[i];
+            const int spacing = choice_pos[1 - i][0] - choice[0];
+            const float width = float(spacing > 0 ? std::min(72, spacing) : 72);
             choices.push_back(choice[0] >= 0 && choice[1] >= 0 ?
-                MenuMouseRect{float(choice[0] - 4), float(choice[1] - 4), 72, 32} : MenuMouseRect{});
+                MenuMouseRect{float(choice[0] - 4), float(choice[1] - 4), width, 32} : MenuMouseRect{});
+        }
     } else {
         const int count = std::clamp((text_h + font_h - 1) / font_h, 0, int(MES_LINE_MAX));
         int dx = 0, dy = 0;

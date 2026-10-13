@@ -25,7 +25,7 @@ extern unsigned char MouseTitleHDD asm("MenuMouse_TitleHDD");
 bool MenuMouseFloor();
 
 namespace {
-void RootMouse(CMenuKeyFunc &keys) {
+void RootMouse() {
     if (!MouseInter || !MenuPosData || MouseInter->step != MENU_INTER_STEP_SELECT || MouseInter->next_mode >= 0) return;
     std::vector<MenuMouseRect> rows;
     for (int i = 0; i < MouseInter->select_num; ++i) {
@@ -50,6 +50,7 @@ void SaveMouse() {
         for (int i = save.top; i < std::min(save.top + 3, 13); ++i)
             rows[i] = {save.list_form->x, save.list_form->y + 80 * i, 458, 76};
         const int selected = MenuMouseRows(rows, save.select);
+        MenuMouseDelayConfirm(&save, save.select, selected, 4);
         if (selected != save.select) MenuMouseMove(&save.select, selected);
     }
 }
@@ -92,7 +93,7 @@ void TitleMouse() {
 
 PORT_OVERRIDE int CMenuKeyFunc::CheckSelectKey() {
     if (key_enable) {
-        if (now_mode == MENU_MODE_MAIN_TOWN || now_mode == MENU_MODE_MAIN_DUNGEON) RootMouse(*this);
+        if (now_mode == MENU_MODE_MAIN_TOWN || now_mode == MENU_MODE_MAIN_DUNGEON) RootMouse();
         if (now_mode == MENU_MODE_SAVE || now_mode == MENU_MODE_TITLE_SAVE) SaveMouse();
         if (now_mode == MENU_MODE_DNG_TREE_MAP && !MenuMouseFloor()) SaveMouse();
         if (now_mode == MENU_MODE_ITEM_SELECT) ItemPopupMouse();

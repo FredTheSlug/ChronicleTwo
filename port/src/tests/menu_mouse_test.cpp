@@ -2,14 +2,20 @@
 
 #include "gamepad.hpp"
 #include "mainloop.hpp"
+#include "menudraw.hpp"
+#include "menumain.hpp"
+#include "menuop.hpp"
 #include "menu_mouse.hpp"
 #include "menusys.hpp"
+#include "nd_meswin.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
 
 #include <limits>
+
+extern CSaveMenuClass *MouseSave asm("MenuMouse_Save");
 
 namespace {
 constexpr MenuMouseRect rows[] = {{20, 40, 100, 30}, {20, 80, 100, 30}, {20, 120, 100, 30}};
@@ -174,5 +180,129 @@ TEST_F(MenuMouseInput, MenuCloseKeepsHeldClickAwayFromGameplayUntilRelease) {
     Tick();
     MenuMouseTake();
     EXPECT_EQ(InputApplyKeyboardMouse({}, {.mouse_buttons = 1}).buttons, kInputCross);
+}
+
+TEST_F(MenuMouseInput, ControllerHandoffDiscardsThePreviousMouseChoiceTarget) {
+    const MenuMouseRect choices[] = {{200, 200, 100, 60}, {20, 200, 70, 50}};
+    MenuMouseEnable(true);
+    MenuMouseNoteChoices(this, 42, choices, 1, true);
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    EXPECT_EQ(MenuMouseButtons(), PAD_LEFT);
+    Tick();
+    InputSetScriptedDevices({});
+    InputPadState controller{};
+    controller.buttons = kInputDown;
+    InputSetOverride(0, &controller);
+    MenuMouseNoteChoices(this, 42, choices, 1, true);
+    EXPECT_EQ(MenuMouseButtons(), 0);
+    Tick();
+    InputSetOverride(0, nullptr);
+    InputSetScriptedDevices({.mouse_dx = 1000});
+    MenuMouseNoteChoices(this, 42, choices, 1, true);
+    EXPECT_EQ(MenuMouseButtons(), 0);
+}
+
+TEST_F(MenuMouseInput, ListClickWaitsForTheRetailCursorThenConfirmsOnce) {
+    const MenuMouseRect list[] = {{200, 200, 100, 60}, {300, 200, 100, 60}};
+    MenuMouseEnable(true);
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    EXPECT_EQ(MenuMouseRows(list, 1), 0);
+    MenuMouseDelayConfirm(this, 1, 0, 4);
+    EXPECT_EQ(MenuMouseButtons(), 0);
+    InputSetScriptedDevices({});
+    for (int i = 1; i <= 5; ++i) {
+        Tick();
+        MenuMouseRows(list, 0);
+        MenuMouseDelayConfirm(this, 0, 0, 4);
+        EXPECT_EQ(MenuMouseButtons(), i == 4 ? PAD_CROSS : 0);
+    }
+}
+
+TEST_F(MenuMouseInput, ListClickCannotCarryIntoAnotherPageOrSurviveCancel) {
+    const MenuMouseRect list[] = {{200, 200, 100, 60}, {300, 200, 100, 60}};
+    MenuMouseEnable(true);
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    MenuMouseRows(list, 1);
+    MenuMouseDelayConfirm(this, 1, 0, 4);
+    InputSetScriptedDevices({.mouse_buttons = 2});
+    Tick();
+    MenuMouseRows(list, 0);
+    MenuMouseDelayConfirm(this, 0, 0, 4);
+    EXPECT_EQ(MenuMouseButtons(), PAD_CIRCLE);
+    InputSetScriptedDevices({});
+    for (int i = 0; i < 5; ++i) Tick();
+    MenuMouseRows(list, 0);
+    MenuMouseDelayConfirm(this, 0, 0, 4);
+    EXPECT_EQ(MenuMouseButtons(), 0);
+}
+
+TEST_F(MenuMouseInput, DrawnDialogueLinesUseTheirActualPositionsAndFirstSelectableLine) {
+    ClsMes message;
+    short text[] = {0};
+    message.buff = text;
+    message.fade = 1;
+    message.alpha = 128;
+    message.font_h = 30;
+    message.text_h = 90;
+    message.text_w = 150;
+    message.select_top = message.select = 1;
+    message.line_pos_on[0] = message.line_pos_on[1] = message.line_pos_on[2] = 1;
+    message.line_pos[0][0] = message.line_pos[1][0] = message.line_pos[2][0] = 200;
+    message.line_pos[0][1] = 100;
+    message.line_pos[1][1] = 140;
+    message.line_pos[2][1] = 220;
+    message.StepSelectCursor(1);
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_DOWN);
+    // Drawing a message never writes the script's selected line itself.
+    EXPECT_EQ(message.select, 1);
+}
+
+TEST_F(MenuMouseInput, DrawnYesNoChoicesUseTheirOwnPositions) {
+    ClsMes message;
+    short text[] = {0};
+    message.buff = text;
+    message.fade = 1;
+    message.alpha = 128;
+    message.font_h = 30;
+    message.select = 0;
+    message.window_mode = MES_WIN_YESNO;
+    message.choice_pos[0][0] = 190;
+    message.choice_pos[0][1] = 220;
+    message.choice_pos[1][0] = 220;
+    message.choice_pos[1][1] = 220;
+    message.StepSelectCursor(1);
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_RIGHT);
+    EXPECT_EQ(message.select, 0);
+}
+
+TEST_F(MenuMouseInput, LoadListUsesScrolledFormGeometryAndRetailCursorTransition) {
+    CSaveMenuClass save;
+    CMenuPosDataForm form;
+    form.x = 30;
+    form.y = 190 - 80 * 10;
+    save.list_form = &form;
+    save.mode = SAVE_MENU_MODE_LOAD;
+    save.CBaseMenuClass::mode = MENU_ASK_MODE_NONE;
+    save.page = SAVE_MENU_PAGE_FILE_LIST;
+    save.phase = SAVE_LIST_PHASE_SELECT;
+    save.select = 11;
+    save.top = 10;
+    auto *previous = MouseSave;
+    MouseSave = &save;
+    CMenuKeyFunc keys;
+    keys.now_mode = MENU_MODE_TITLE_SAVE;
+    keys.key_enable = true;
+    keys.select_key = 0;
+    MenuMouseEnable(true);
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    keys.CheckSelectKey();
+    EXPECT_EQ(save.select, 11);
+    EXPECT_EQ(MenuKeySelectCheck(0, &save.select, &save.top, 0, 13, 3, MENU_CURSOR_LIMIT_CLAMP), MENU_CURSOR_MOVED);
+    EXPECT_EQ(save.select, 10);
+    EXPECT_EQ(save.top, 10);
+    EXPECT_FALSE(GamePad__2.Down(PAD_CROSS));
+    MouseSave = previous;
 }
 }

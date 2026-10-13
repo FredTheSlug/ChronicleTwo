@@ -92,6 +92,8 @@ struct mgPortGsState {
     uint64_t tex1 = 0;
     int scissor[4] = {};    // SCAX0, SCAY0, SCAX1, SCAY1, inclusive target pixels
     uint8_t fog_color[3] = {};
+    // Colour survives primitive and packet boundaries until another Color call.
+    uint8_t prim_color[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 };
 
 mgPortGsState &mgPortGs();

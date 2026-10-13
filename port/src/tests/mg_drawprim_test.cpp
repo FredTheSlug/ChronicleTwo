@@ -410,6 +410,49 @@ TEST(MgDrawPrim, PrimColorReturnsLastColourCall) {
     EXPECT_EQ(rgba[3], 40);
 }
 
+TEST(MgDrawPrim, HudBarKeepsColourAcrossBatches) {
+    PrimRig rig;
+    rig.prim.Coord(1);
+    rig.prim.Begin(MG_PRIM_TRIANGLE_STRIP);
+    rig.prim.Color(0x80, 0x70, 0x60, 0x40);
+    rig.prim.End();
+
+    // The ABS bar and secondary WHP bar begin without repeating the preceding colour.
+    rig.prim.Begin(MG_PRIM_TRIANGLE_STRIP);
+    for (const Corner &corner : kCorners) {
+        rig.prim.Vertex(corner.x, corner.y, 0.0f);
+    }
+    rig.prim.End();
+    ASSERT_EQ(rig.batches.size(), 1u);
+    for (const auto &vertex : rig.batches[0].vertices) {
+        EXPECT_EQ(Rgba(vertex), (std::array<uint8_t, 4>{0x80, 0x70, 0x60, 0x40}));
+    }
+}
+
+TEST(MgDrawPrim, ColourPersistsAcrossBuildersAndReinitialization) {
+    PrimRig rig;
+    rig.prim.Begin(MG_PRIM_POINT);
+    rig.prim.Color(12, 34, 56, 0x80);
+    rig.prim.End();
+    mgCDrawPrim next;
+    next.draw_manager = &rig.manager;
+    next.Initialize(&rig.memory, &rig.vif_packet);
+    next.Coord(1);
+    next.Begin(MG_PRIM_POINT);
+    next.Vertex(1.0f, 1.0f, 0.0f);
+    next.End();
+    rig.prim.Initialize(&rig.memory, &rig.vif_packet);
+    rig.prim.Begin(MG_PRIM_POINT);
+    rig.prim.Vertex(2.0f, 2.0f, 0.0f);
+    rig.prim.End();
+    ASSERT_EQ(rig.batches.size(), 2u);
+    for (const auto &batch : rig.batches) {
+        for (const auto &vertex : batch.vertices) {
+            EXPECT_EQ(Rgba(vertex), (std::array<uint8_t, 4>{12, 34, 56, 0x80}));
+        }
+    }
+}
+
 TEST(MgDrawPrim, PrimSubmitFlushesPendingBatchFirst) {
     PrimRig rig;
     rig.prim.Coord(1);

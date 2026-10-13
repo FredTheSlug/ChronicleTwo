@@ -275,6 +275,8 @@ void Kick(const mgCDrawPrim &self, PrimRun *run, uint32_t gs_x, uint32_t gs_y, u
 PORT_OVERRIDE void mgCDrawPrim::Begin2() {
     // A disabled builder skips End2, so state left by an earlier primitive is dropped here.
     runs.insert_or_assign(this, PrimRun{});
+    // End/Begin does not write a new colour. HUD bars inherit the preceding batch's tint.
+    std::copy_n(mgPortGs().prim_color, 4, runs.at(this).color);
 
     disabled = 1;
 
@@ -392,6 +394,7 @@ PORT_OVERRIDE void mgCDrawPrim::Color(int r, int g, int b, int a) {
     run->color[1] = static_cast<uint8_t>(g & 0xFF);
     run->color[2] = static_cast<uint8_t>(b & 0xFF);
     run->color[3] = static_cast<uint8_t>(a & 0xFF);
+    std::copy_n(run->color, 4, mgPortGs().prim_color);
 }
 
 

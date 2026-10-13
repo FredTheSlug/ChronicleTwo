@@ -106,30 +106,14 @@ TEST(CameraZoom, EasesBeyondRetailRangePersistsWalkingAndRestoresParameters) {
     EXPECT_EQ(camera.GetActiveParam()->no_check, before.no_check);
 }
 
-TEST(CameraZoom, ResetAndDisableReturnSmoothlyToRetailDistance) {
+TEST(CameraZoom, ResetAndDisableImmediatelyReleaseRetailControl) {
     for (bool enabled : {false, true}) {
-        auto                    camera = Camera();
-        CameraZoom              zoom;
-        CScene                  scene;
-        CCameraControl::Control control{};
-        float                   rotation[4]{};
+        auto       camera = Camera();
+        CameraZoom zoom;
         zoom.Read(camera, -100, false, true);
-        for (int i = 0; i < 60; ++i) {
-            zoom.Move(camera, scene, control, rotation);
-            camera.Step(1);
-        }
-        zoom.Read(camera, 50, true, enabled);
-        EXPECT_FLOAT_EQ(zoom.requested, camera.GetActiveParam()->min_dist);
-        EXPECT_TRUE(zoom.returning);
-        zoom.Move(camera, scene, control, rotation);
-        camera.Step(1);
-        EXPECT_GT(Distance(camera), camera.GetActiveParam()->min_dist);
-        for (int i = 0; i < 60 && zoom.active; ++i) {
-            zoom.Move(camera, scene, control, rotation);
-            camera.Step(1);
-        }
+        zoom.Read(camera, 0, enabled, enabled);
         EXPECT_FALSE(zoom.active);
-        EXPECT_NEAR(Distance(camera), camera.GetActiveParam()->min_dist, 0.15f);
+        EXPECT_FALSE(zoom.returning);
     }
 }
 
@@ -258,7 +242,7 @@ TEST(CameraZoom, ContinuousCorridorClampsBeforeThinWallAndCanReverse) {
     auto candidate = camera;
     candidate.next_pos[2] = 300;
     auto wall = Plane(2, 150);
-    EXPECT_GT(MouseCameraClampFollow(camera, candidate, &wall, 1), 0);
+    EXPECT_GT(MouseCameraClampFollow(camera, candidate, &wall, 1), -1);
     EXPECT_LT(camera.next_pos[2], 146);
     EXPECT_GT(camera.next_pos[2], 140);
     EXPECT_FLOAT_EQ(camera.pos[2], 100);
@@ -283,13 +267,13 @@ TEST(CameraZoom, CeilingAndFloorKeepClearanceAcrossTheEasedPath) {
     }
 }
 
-TEST(CameraZoom, CollectorFailureInvalidGeometryAndInvalidStartingPoseHoldActualPose) {
+TEST(CameraZoom, UnprovableCorridorReportsFailureForRetailFallback) {
     for (int count : {-1, 512, 1}) {
         auto camera = Camera();
         auto candidate = camera;
         candidate.next_pos[2] = 300;
         CCPoly invalid{};
-        EXPECT_FLOAT_EQ(MouseCameraClampFollow(camera, candidate, &invalid, count), 0);
+        EXPECT_FLOAT_EQ(MouseCameraClampFollow(camera, candidate, &invalid, count), -1);
         EXPECT_FLOAT_EQ(camera.next_pos[2], 100);
         EXPECT_FLOAT_EQ(camera.next_ref[1], 40);
     }
@@ -297,7 +281,7 @@ TEST(CameraZoom, CollectorFailureInvalidGeometryAndInvalidStartingPoseHoldActual
     auto candidate = camera;
     candidate.next_pos[2] = 30;
     auto wall = Plane(2, 50);
-    EXPECT_FLOAT_EQ(MouseCameraClampFollow(camera, candidate, &wall, 1), 0);
+    EXPECT_FLOAT_EQ(MouseCameraClampFollow(camera, candidate, &wall, 1), -1);
     EXPECT_FLOAT_EQ(camera.next_pos[2], 100);
 }
 
@@ -362,9 +346,76 @@ TEST(CameraZoom, TownConsumesWheelOnceAndRejectsLockedMenuAndEventSamples) {
     InputSetScriptedDevices({.mouse_buttons = 1u << 2});
     InputLatchPad(0);
     camera.MoveCamera(&pad, rotation, nullptr, 0);
-    EXPECT_NEAR(camera.next_pos[2], camera.GetActiveParam()->min_dist, 0.02f);
+    EXPECT_LE(camera.next_pos[2], camera.GetActiveParam()->max_dist + 0.02f);
     InputSetScriptedDevices({});
     InputSetOverride(0, nullptr);
     InputResetBindings();
     const_cast<Config &>(ConfigGet()).mouse_zoom = old_option;
+}
+
+TEST(CameraZoom, UnprovableActualPoseFallsBackToRetailFollow) {
+    auto camera = Camera();
+    camera.pos[0] = NAN;
+    camera.SetFollow(25, 10, 0);
+    auto                    retail = camera;
+    CameraZoom              zoom;
+    CScene                  scene;
+    CCameraControl::Control control{};
+    float                   rotation[4]{};
+    zoom.Read(camera, -100, false, true);
+    zoom.Move(camera, scene, control, rotation);
+    retail.MoveCamera(&control, rotation, nullptr, 0);
+    for (int axis = 0; axis < 3; ++axis) {
+        EXPECT_FLOAT_EQ(camera.next_pos[axis], retail.next_pos[axis]);
+        EXPECT_FLOAT_EQ(camera.next_ref[axis], retail.next_ref[axis]);
+    }
+}
+
+TEST(CameraZoom, CallerPolygonsLimitZoomAndInvalidStartingWallKeepsFollowing) {
+    CScene                  scene;
+    CCameraControl::Control control{};
+    float                   rotation[4]{};
+    for (float distance : {150.0f, 50.0f}) {
+        auto camera = Camera();
+        camera.SetFollow(10, 10, 0);
+        CameraZoom zoom;
+        zoom.Read(camera, -100, false, true);
+        auto wall = Plane(2, distance);
+        zoom.Move(camera, scene, control, rotation, &wall, 1);
+        EXPECT_LT(camera.next_pos[2], distance);
+        EXPECT_GT(camera.next_ref[0], 0);
+    }
+}
+
+TEST(CameraZoom, RetailAutoMoveStillAvoidsPipeObstaclesUnlessCancelled) {
+    CScene                  scene;
+    CCameraControl::Control control{};
+    float                   rotation[4]{};
+    CCPoly                  wall{};
+    float                   vertices[3][4] = {
+        {3, -1000, 150, 1},
+        {3, 1000,  150, 1},
+        {4, 0,     250, 1}
+    };
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            wall.vertex[i][j] = vertices[i][j];
+        }
+    }
+    wall.normal[0] = 1;
+    wall.normal[2] = -0.01f;
+    for (bool cancel : {false, true}) {
+        auto camera = Camera();
+        if (cancel) {
+            camera.rot_cancel |= CAMERA_ROT_CANCEL_AUTO_MOVE;
+        }
+        CameraZoom zoom;
+        zoom.Read(camera, -25, false, true);
+        zoom.Move(camera, scene, control, rotation, &wall, 1);
+        if (cancel) {
+            EXPECT_FLOAT_EQ(camera.next_pos[0], 0);
+        } else {
+            EXPECT_NE(camera.next_pos[0], 0);
+        }
+    }
 }

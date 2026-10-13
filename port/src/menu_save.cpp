@@ -43,16 +43,24 @@ void ShowList(CSaveMenuClass &menu) {
     input_wait = 4;
 }
 
-void Notice(CSaveMenuClass &menu, const char *text) {
+CDC2Mes *NoticeWindow(CSaveMenuClass &menu) {
     menu.phase = SAVE_LIST_PHASE_NOTICE;
     auto *message = MenuDCMsg[2];
     message->MsgPreset(MENU_SCRIPT_MES_DEFAULT, LanguageCode);
     message->SetAbsPos(5);
-    Text(message, text);
     message->push_button = 1;
     MenuMesForm[2]->draw_flag = true;
     menu.cursor_form->draw_flag = false;
     input_wait = 4;
+    return message;
+}
+
+void Notice(CSaveMenuClass &menu, const char *text) {
+    Text(NoticeWindow(menu), text);
+}
+
+void Notice(CSaveMenuClass &menu, int message) {
+    NoticeWindow(menu)->MakeMsg(message);
 }
 
 void Close(CSaveMenuClass &menu) {
@@ -219,7 +227,9 @@ PORT_OVERRIDE int CSaveMenuClass::KeyStep() {
                     break;
                 }
                 if (mode == SAVE_MENU_MODE_GYORACE_LOAD && entry->info.fish_num <= 0) {
-                    Notice(*this, "There are no fish in this save.");
+                    Notice(*this, 0x13AA);
+                    ExeScript(const_cast<char *>("NOT_FISH"));
+                    message->SetMsgVolumeNoOne(entry->number + 1);
                     break;
                 }
                 ExeScript(const_cast<char *>("FILE_OKBTN"));
@@ -229,7 +239,8 @@ PORT_OVERRIDE int CSaveMenuClass::KeyStep() {
                     save_kind = is_new ? SAVE_FILE_NEW : SAVE_FILE_OVERWRITE;
                     if (is_new) {
                         // No occupied entry can reach this prompt.
-                        Text(message, "Create a New Save?");
+                        message->SetMsgVolumeNoOne(manager->GetSaveDataSize(MC_SIZE_SAVE_TOTAL) / 1024 + 4);
+                        message->MakeMsg(0xBC3);
                     } else {
                         message->SetMsgVolumeNoOne(entry->number + 1);
                         message->MakeMsg(chapter8_start ? 0xC44 : 0xBC4);
@@ -237,7 +248,13 @@ PORT_OVERRIDE int CSaveMenuClass::KeyStep() {
                     phase = SAVE_LIST_PHASE_CONFIRM_SAVE;
                 } else {
                     message->SetMsgVolumeNoOne(entry->number + 1);
-                    message->MakeMsg(0xBE0);
+                    if (mode == SAVE_MENU_MODE_GYORACE_LOAD) {
+                        int values[2] = {entry->number + 1, entry->info.fish_num};
+                        message->SetMsgVolumeNo(values, 2);
+                        message->MakeMsg(0x13A9);
+                    } else {
+                        message->MakeMsg(0xBE0);
+                    }
                     phase = SAVE_LIST_PHASE_CONFIRM_LOAD;
                 }
                 message->SetMsgCursor(1);
@@ -280,7 +297,7 @@ PORT_OVERRIDE int CSaveMenuClass::KeyStep() {
                     break;
                 }
                 if (manager->error.code != MC_ERROR_NONE) {
-                    Notice(*this, writing ? "Saving failed. Check your save folder and try again." : "Loading failed. The save has been kept.");
+                    Notice(*this, writing ? 0xBC1 : 0xBC6);
                     break;
                 }
                 message->MsgPreset(MENU_SCRIPT_MES_DEFAULT, LanguageCode);
@@ -361,7 +378,7 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
     prim->End();
     MenuReloadTexture(tex_block, MenuArg.mes_tex_block);
     CMenuFont                     font;
-    static std::array<CDC2Mes, 5> chapter_messages;
+    static std::array<CDC2Mes, 5> row_messages;
     font.SetClearance(14, 20);
     font.SetColor(128, 128, 128, alpha);
     for (int row = first; row < last; ++row) {
@@ -370,24 +387,37 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
             continue;
         }
         // Message drawing changes the shared clip. Restore it for each row,
-        // including a New Save label following a chapter message.
+        // including an unused-file row following a chapter message.
         SetMenuScissor({0, 162, mgScreenWidth - 1, 402});
-        if (SaveSlotIsNew(SaveSlots, row, menu.mode == SAVE_MENU_MODE_SAVE)) {
-            font.DrawDirect(const_cast<char *>("New Save"), x, y + 24);
+        auto &row_message = row_messages[row - first];
+        auto *messages = GetMenuMainMessageBuffer();
+        row_message.SetMessData(messages, messages);
+        row_message.MsgPreset(MENU_SCRIPT_MES_NO_WIN);
+        const bool  is_new = SaveSlotIsNew(SaveSlots, row, menu.mode == SAVE_MENU_MODE_SAVE);
+        const auto *slot = is_new ? nullptr : &SaveSlots.saves[row];
+        row_message.SetMsgVolumeNoOne(is_new ? SaveSlotFirstFree(SaveSlots) + 1 : slot->number + 1);
+        row_message.MakeMsg(0xC27);
+        row_message.line_pos[0][0] = x;
+        row_message.line_pos[0][1] = y + 12;
+        row_message.line_pos_on[0] = true;
+        row_message.line_pos[1][0] = x;
+        row_message.line_pos[1][1] = is_new ? y + 40 : -100;
+        row_message.line_pos_on[1] = true;
+        if (is_new || slot->state != SaveSlotState::Ready) {
+            row_message.SetMsgAlpha(alpha);
+            row_message.StepMsg();
+            row_message.DrawMsg();
+            if (slot) {
+                font.DrawDirect(const_cast<char *>(SaveSlotStatus(slot->state)), x, y + 38);
+            }
             continue;
         }
-        const auto &slot = SaveSlots.saves[row];
-        char        label[96];
-        std::snprintf(label, sizeof(label), "File %d%s", slot.number + 1, slot.second_card ? " (import 2)" : "");
-        font.DrawDirect(label, x, y + 12);
-        if (slot.state != SaveSlotState::Ready) {
-            font.DrawDirect(const_cast<char *>(SaveSlotStatus(slot.state)), x, y + 38);
-            continue;
-        }
-        const auto        &info = slot.info;
+        const auto        &info = slot->info;
         unsigned long long minutes = std::min(info.play_time / (50 * 60), 999ULL * 60 + 59);
-        std::snprintf(label, sizeof(label), "%3llu:%02llu", minutes / 60, minutes % 60);
-        font.DrawDirect(label, x, y + 40);
+        // Retail draws the zero-padded clock separately from its localized row.
+        char clock[32];
+        std::snprintf(clock, sizeof(clock), "%3llu:%02llu", minutes / 60, minutes % 60);
+        font.DrawDirect(clock, x, y + 40);
         int              map = info.map_no;
         static const int dungeon_maps[] = {55, 57, 58, 64, 79, 97, 160};
         if (info.program_loop_no == LOOP_DUNGEON && info.dungeon_no >= 0 && info.dungeon_no < 7) {
@@ -397,23 +427,31 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
             map = 11;
         }
         char *title = map >= 0 && map < 256 ? GetMapTitle(map) : nullptr;
-        if (title) {
-            font.DrawDirect(title, x + 135, y + 12);
+        char *titles[1] = {title};
+        row_message.SetMsgItemNo(titles, 1);
+        int chapter = info.progress == 100 ? 11 : info.progress >= 4 ? info.progress - 2
+                                              : info.progress >= 2   ? 1
+                                                                     : 0;
+        int chapters[1] = {0xC7F + std::clamp(chapter, 0, 11)};
+        row_message.SetMsgItemNo(chapters, 1);
+        row_message.MakeMsg(0xC26);
+        const int positions[4][2] = {
+            {x,       y + 12},
+            {x,       -100  },
+            {x + 135, y + 12},
+            {x + 135, y + 40}
+        };
+        for (int line = 0; line < 4; ++line) {
+            row_message.line_pos[line][0] = positions[line][0];
+            row_message.line_pos[line][1] = positions[line][1];
+            row_message.line_pos_on[line] = true;
         }
-        int   chapter = info.progress == 100 ? 11 : info.progress >= 4 ? info.progress - 2
-                                                : info.progress >= 2   ? 1
-                                                                       : 0;
-        auto &chapter_message = chapter_messages[row - first];
-        auto *messages = GetMenuMainMessageBuffer();
-        chapter_message.SetMessData(messages, messages);
-        chapter_message.MsgPreset(0x10);
-        chapter_message.MakeMsg(0xC7F + std::clamp(chapter, 0, 11));
-        chapter_message.line_pos[0][0] = x + 135;
-        chapter_message.line_pos[0][1] = y + 40;
-        chapter_message.line_pos_on[0] = true;
-        chapter_message.SetMsgAlpha(alpha);
-        chapter_message.StepMsg();
-        chapter_message.DrawMsg();
+        row_message.SetMsgAlpha(alpha);
+        row_message.StepMsg();
+        row_message.DrawMsg();
+        if (slot->second_card) {
+            font.DrawDirect(const_cast<char *>("(import 2)"), x + 290, y + 40);
+        }
     }
     ResetMenuScissor();
 }

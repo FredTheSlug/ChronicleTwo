@@ -41,5 +41,6 @@ float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int c
 
 // Commit the safe prefix of a generated follow destination, leaving the actual
 // eye untouched. Proves every independent eye/target easing combination, so a
-// thin wall cannot be skipped between clear endpoints. Failure holds the pose.
+// thin wall cannot be skipped between clear endpoints. Returns -1 when the
+// corridor cannot be proved; the caller must fall back to retail movement.
 float MouseCameraClampFollow(CCameraControl &camera, const CCameraControl &candidate, CCPoly *polys, int count);

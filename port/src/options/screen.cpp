@@ -76,7 +76,7 @@ void Close() {
 void Open() {
     g_screen = {};
     g_screen.open = true;
-    g_screen.save_failed = !ConfigSave();
+    g_screen.save_failed = !ConfigSaved();
     ListResolutions();
     g_wait_source.clear();
     g_drain = true;

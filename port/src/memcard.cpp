@@ -5,6 +5,7 @@
 #include <limits>
 #include <memory>
 
+#include "inventmn.hpp"
 #include "mainloop.hpp"
 #include "platform/files.hpp"
 #include "save_slots.hpp"
@@ -177,6 +178,9 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
         return MC_STEP_DONE;
     }
     GetAllSaveFileInfo();
+    // Publication has succeeded durably. A catalog refresh error describes the
+    // listing, not the write that just completed.
+    InitError();
     for (std::size_t i = 0; i < SaveSlots.saves.size(); ++i) {
         if (SaveSlots.saves[i].path == path) {
             file_no = static_cast<int>(i);
@@ -199,6 +203,10 @@ PORT_OVERRIDE int CMemoryCardManager::LoadFromMc(int row) {
     // address rebinding still runs when its menu opens.
     auto *save = GetSaveData();
     std::memcpy(save, &image->save_data, sizeof(*save));
+    if (std::memcmp(image->version, "dc2Ver2", 8) == 0) {
+        TranslateInventUserData(image->save_data.GetUserDataManager()->GetInventUserData(),
+                                save->GetUserDataManager()->GetInventUserData());
+    }
     load_program_loop_no = image->program_loop_no;
     load_map_no = image->map_no;
     load_dungeon_no = image->dungeon_no;

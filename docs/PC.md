@@ -115,7 +115,7 @@ A data root is missing when it is not a directory, or has no regular file `manif
 
 Continue and Save Adventure open the file list directly. There is no memory-card
 selection or formatting step. The save screen lists every existing save and one
-last **New Save** entry; the load screen lists only existing saves. Up/Down moves
+last unused file entry for a new save; the load screen lists only existing saves. Up/Down moves
 one row and the shoulder buttons move two, as in the retail list. Cancel returns
 to the screen that opened the menu. Replacing a save retains the retail yes/no
 confirmation, with No selected initially. Unusable saves also require this
@@ -124,10 +124,12 @@ confirmation before replacement.
 Each save is one file under `<save root>/saves/`, named
 `BESCES-51190dkcl<N>` (File N+1). The list has no 13-file limit. New Save uses the
 first unused number, rechecks it when writing, and never replaces an occupied
-name. Files with unsupported versions, incomplete writes, wrong sizes, read
-errors or failed retail checksums remain visible with their status. They are
-never removed automatically. A file with a valid name reserves that name even
-when it cannot be loaded; unrelated names and temporary files are not list rows.
+name. Files with unsupported versions, incomplete writes or wrong sizes remain
+visible with their status. Unreadable entries are skipped; occupied disk names
+are still protected from replacement. Listing caches the header, story progress
+and play time by file size and modification time. Loading always rereads the
+complete image and checks the retail digits before changing game state. Files
+are never removed automatically; unrelated names and temporary files are not rows.
 
 On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
 copied byte for byte into `saves/`. The equivalent files from `mc1` get a `.card2`
@@ -135,12 +137,26 @@ suffix and an `(import 2)` label, keeping equal slot numbers distinct. Existing
 flat files take precedence; imports never overwrite them. Original card folders,
 icons and payloads are retained. If an import cannot be written, the original
 entry remains visible and can still be loaded if readable. Back up both the old
-card directories and `saves/` when moving a save root.
+card directories, `saves/` and `.save-imports/` when moving a save root. Durable
+markers in `.save-imports/` record completed imports and older card copies hidden
+by an existing flat save, so deleting a flat save does not bring its card copy back.
 
 The payload is the existing port save image and its retail header and checksums;
 no PC metadata is added. As before, it uses the host layout of `CSaveData`,
 including its photo records, so this does not add PS2-console save compatibility.
-Photo album and separate bonus-data storage continue to use their existing paths.
+Older `dc2Ver2` images of the supported port layout are accepted and converted
+with the retail invention-card routine; retail does not check this version's
+digits. Photo album and separate bonus-data storage keep their existing paths.
+
+Save rows, the unused-file row, new-save/overwrite/load prompts, operation failure
+notices and Finny Frenzy confirmations use the disc's retail localized messages.
+The flat-folder notices "No saves found." and "Could not read the save folder.
+Return and try again.", the second-card suffix "(import 2)", and the detailed
+statuses "Cannot read save", "Unusable save (size)", "Unsupported save version",
+"Incomplete save", "Corrupt save" and the fallback "Unusable save" have no
+corresponding retail flat-file diagnostics and remain in English. Retail's
+no-data notice names a memory card and slot, so it is not used for an empty PC
+save folder.
 
 Saving uses Kazarov's `FilesWrite`: an exclusive temporary file beside the target,
 a complete write, flush and close, then a write-through rename on Windows or a
@@ -317,7 +333,10 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.mouse_release` | string or array of strings | empty | key names | keys that release the captured mouse |
 | `input.bindings` | object: action to string or array of strings | empty | key names | rebinds actions; action names are lowercased |
 
-`ConfigChange` stores and saves the full configuration, calls `DisplayChanged`, and calls a change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the tick rate, present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
+Opening PC SETTINGS does not write `config.json`. `ConfigChange` stores changed
+settings and merges only those edits into the current file, preserving unknown
+keys and unrelated values edited externally. It calls `DisplayChanged` and a
+change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the tick rate, present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
 
 ### PC SETTINGS
 
@@ -365,7 +384,7 @@ not change active-item slots. Arrow keys send the D-pad and can select those slo
 Menu pointer input is shared by the inventory, other game menus and PC SETTINGS.
 The Controls page includes **Mouse wheel zoom** (off by default); menu scrolling
 never queues camera zoom. Save/load pointer selection uses the complete flat list,
-with one **New Save** row only when saving.
+with one unused file row for a new save only when saving.
 
 Move the mouse to show the pointer and hover an option. Left click presses Cross,
 right click presses Circle, and the wheel moves through a list. A controller or
@@ -508,9 +527,10 @@ Close zoom scales eye height with distance so the view keeps its normal slope;
 mouse pitch uses the same scale and floor/ceiling clearance still takes priority.
 
 `input.bindings.zoom_reset` defaults to `Mouse3` (middle click). It restores the
-active camera's normal minimum follow distance, as far as geometry permits.
-The existing L2/cancel camera reset also restores zoom. Turning the option off
-returns smoothly to the normal range. When enabled, the reset binding owns its
+active camera's retail follow control immediately. Retail easing then returns
+to its normal distance range, as far as geometry permits. The Bindings page
+includes **Zoom reset**. The existing L2/cancel camera reset and turning the
+option off also release zoom immediately. When enabled, the reset binding owns its
 keyboard/mouse source ahead of conflicting actions; physical controller buttons
 retain their retail actions, including R3's dungeon unit switch.
 
@@ -522,9 +542,10 @@ or reset input. A map or camera-parameter change clears the selected zoom.
 Each zoom update collects the generated follow destination and ground query,
 runs the retail floor/wall correction, then validates the entire eased corridor
 with four-unit clearance. Eye and target may ease at different rates; both are
-covered. Uncertain geometry or a full collection holds the actual pose rather
-than sending the camera through an unproved segment. No retail parameter set
-is changed by zoom. This conservative check may shorten motion sooner than
+covered. Uncertain geometry, a full collection or a blocked path falls back to
+retail camera movement for that frame, keeping the target following the player.
+The caller's retail collision polygons and automatic obstacle avoidance remain
+active while zooming. No retail parameter set is retained by zoom. This conservative check may shorten motion sooner than
 the retail endpoint checks.
 
 `tools/input/town-mouse-zoom.input` and `tools/input/dungeon-mouse-zoom.input`

@@ -1,12 +1,16 @@
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <memory>
 #include <vector>
 
+#include "font.hpp"
 #include "gamepad.hpp"
+#include "inventmn.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "menuaqua.hpp"
@@ -194,16 +198,15 @@ TEST_F(SaveSlotTest, UnusableEntriesStayVisibleAndReserveTheirNames) {
     fs::create_directories(Legacy(0, 5).parent_path());
     auto before = Bytes(SaveSlotPath(2));
     auto list = SaveSlotScan();
-    ASSERT_EQ(list.saves.size(), 6);
+    ASSERT_EQ(list.saves.size(), 4);
     EXPECT_EQ(list.saves[0].state, SaveSlotState::WrongSize);
     EXPECT_EQ(list.saves[1].state, SaveSlotState::Incomplete);
-    EXPECT_EQ(list.saves[2].state, SaveSlotState::BadChecksum);
+    EXPECT_EQ(list.saves[2].state, SaveSlotState::Ready);
+    EXPECT_EQ(SaveSlotRead(SaveSlotPath(2), *buffer), SaveSlotState::BadChecksum);
     EXPECT_EQ(list.saves[3].state, SaveSlotState::WrongVersion);
-    EXPECT_EQ(list.saves[4].state, SaveSlotState::Unreadable);
-    EXPECT_EQ(list.saves[5].state, SaveSlotState::Unreadable);
-    EXPECT_EQ(SaveSlotRows(list, true), 7);
-    EXPECT_EQ(SaveSlotRows(list, false), 6);
-    EXPECT_EQ(SaveSlotFirstFree(list), 6);
+    EXPECT_EQ(SaveSlotRows(list, true), 5);
+    EXPECT_EQ(SaveSlotRows(list, false), 4);
+    EXPECT_EQ(SaveSlotFirstFree(list), 5);
     EXPECT_EQ(Bytes(SaveSlotPath(2)), before);
 }
 
@@ -304,7 +307,7 @@ TEST_F(SaveSlotTest, FailedPublicationPreservesOccupiedNameAndReportsError) {
     manager.SaveToMc(0);
     EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
     EXPECT_TRUE(fs::exists(SaveSlotPath(0) / "keep.txt"));
-    EXPECT_EQ(SaveSlotScan().saves.size(), 1);
+    EXPECT_TRUE(SaveSlotScan().saves.empty());
 }
 
 TEST_F(SaveSlotTest, InvalidCatalogRootReportsErrorAndRefusesNewSave) {
@@ -372,4 +375,177 @@ TEST_F(SaveSlotTest, MenuScrollsPastThirteenAndClampsItsVisibleWindow) {
     EXPECT_EQ(rig.menu.select, 31);
     EXPECT_EQ(rig.menu.top, 29);
     EXPECT_TRUE(SaveSlotIsNew(SaveSlots, rig.menu.select, true));
+}
+
+TEST_F(SaveSlotTest, DeletedImportsStayDeletedAcrossLaterScans) {
+    Write(Legacy(0, 0));
+    Write(Legacy(1, 0));
+    ASSERT_EQ(SaveSlotScan().saves.size(), 2);
+    fs::remove(SaveSlotPath(0));
+    fs::remove(SaveSlotPath(0, true));
+    SaveSlots = {};
+    EXPECT_TRUE(SaveSlotScan().saves.empty());
+    EXPECT_TRUE(fs::exists(Legacy(0, 0)));
+    EXPECT_TRUE(fs::exists(Legacy(1, 0)));
+}
+
+TEST_F(SaveSlotTest, ExistingFlatSaveRetiresItsLegacyCopyBeforeManualDeletion) {
+    Write(Legacy(0, 3));
+    image->unique_counter = 42;
+    Write(SaveSlotPath(3));
+    ASSERT_EQ(SaveSlotScan().saves.size(), 1);
+    fs::remove(SaveSlotPath(3));
+    EXPECT_TRUE(SaveSlotScan().saves.empty());
+}
+
+TEST_F(SaveSlotTest, ListingDefersChecksumValidationUntilLoad) {
+    image->check_digit = 999999;
+    Write(SaveSlotPath(0));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 1);
+    EXPECT_EQ(list.saves[0].state, SaveSlotState::Ready);
+    EXPECT_EQ(list.saves[0].info.play_time, 123456);
+    EXPECT_EQ(SaveSlotRead(SaveSlotPath(0), *buffer), SaveSlotState::BadChecksum);
+}
+
+TEST_F(SaveSlotTest, HeaderCacheUsesSizeAndTimeWhileLoadAlwaysRevalidates) {
+    Write(SaveSlotPath(0));
+    ASSERT_EQ(SaveSlotScan().saves.size(), 1);
+    const auto stamp = fs::last_write_time(SaveSlotPath(0));
+    std::strcpy(image->version, "invalid");
+    ASSERT_EQ(FilesWrite(SaveSlotPath(0), image.get(), sizeof(*image), true), FilesResult::kWritten);
+    fs::last_write_time(SaveSlotPath(0), stamp);
+    auto cached = SaveSlotScan();
+    ASSERT_EQ(cached.saves.size(), 1);
+    EXPECT_EQ(cached.saves[0].state, SaveSlotState::Ready);
+    EXPECT_EQ(SaveSlotRead(SaveSlotPath(0), *buffer), SaveSlotState::WrongVersion);
+    fs::last_write_time(SaveSlotPath(0), stamp + std::chrono::seconds(2));
+    EXPECT_EQ(SaveSlotScan().saves[0].state, SaveSlotState::WrongVersion);
+    fs::remove(SaveSlotPath(0));
+    Write(SaveSlotPath(0), 100);
+    EXPECT_EQ(SaveSlotScan().saves[0].state, SaveSlotState::WrongSize);
+}
+
+TEST_F(SaveSlotTest, UnreadableUnrelatedEntriesAreSkipped) {
+    Write(SaveSlotPath(0));
+    fs::create_directory(SaveSlotPath(1));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 1);
+    EXPECT_FALSE(list.read_failed);
+    EXPECT_EQ(list.saves[0].number, 0);
+}
+
+TEST_F(SaveSlotTest, DurableSaveRemainsSuccessfulWhenPostWriteScanFails) {
+    Write(SaveSlotPath(0));
+    manager.GetAllSaveFileInfo();
+    // The catalog was readable at selection; an unrelated legacy-card root
+    // becomes unreadable before the confirmed overwrite is published.
+    std::ofstream(root / "mc1") << "occupied";
+    live->map_no = 21;
+    SaveSlotNew = false;
+    ASSERT_EQ(manager.SaveToMc(0), MC_STEP_DONE);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(manager.total_transferred, sizeof(SAVEDATA_FORMAT));
+    EXPECT_TRUE(SaveSlots.read_failed);
+    ASSERT_EQ(SaveSlotRead(SaveSlotPath(0), *image), SaveSlotState::Ready);
+    EXPECT_EQ(image->save_data.map_no, 21);
+}
+
+TEST_F(SaveSlotTest, VersionTwoLoadsAndUsesRetailInventionConversion) {
+    std::strcpy(image->version, "dc2Ver2");
+
+    // Retail's old INVENT_CREATED_ITEM record is twelve bytes; conversion
+    // copies the first two shorts of each of its 128 entries to four-byte cards.
+    struct OldCard {
+        short          item_id;
+        unsigned short flags;
+        unsigned char  unused[8];
+    };
+
+    static_assert(sizeof(OldCard) == 12);
+    auto *source = image->save_data.GetUserDataManager()->GetInventUserData();
+    for (int i = 0; i < 128; ++i) {
+        const OldCard card{static_cast<short>(i + 1), static_cast<unsigned short>(i + 100), {}};
+        auto         *bytes = reinterpret_cast<char *>(source) + offsetof(CInventUserData, created_item);
+        std::memcpy(bytes + i * sizeof(OldCard), &card, sizeof(card));
+    }
+    image->check_digit = image->check_digit_half = 999999; // Retail does not check Ver2 digits.
+    Write(Legacy(0, 7));
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(SaveSlots.saves.size(), 1);
+    EXPECT_EQ(SaveSlots.saves[0].state, SaveSlotState::Ready);
+    ASSERT_EQ(manager.LoadFromMc(0), MC_STEP_DONE);
+    ASSERT_EQ(manager.error.code, MC_ERROR_NONE);
+    auto *converted = live->GetUserDataManager()->GetInventUserData();
+    for (int i = 0; i < 128; ++i) {
+        EXPECT_EQ(converted->created_item[i].item_id, i + 1);
+        EXPECT_EQ(converted->created_item[i].unk_2, i + 100);
+    }
+    EXPECT_EQ(live->map_no, 10);
+}
+
+TEST_F(SaveSlotTest, NewSaveAndFinnyPromptsUseRetailMessagesInEveryPalLanguage) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) {
+        GTEST_SKIP() << "DC2_DATA supplies the retail font table";
+    }
+    PathsSetDataRoot(data);
+    LoadFontTblBin();
+    image->fish_num = 5;
+    Write(SaveSlotPath(7));
+    manager.GetAllSaveFileInfo();
+    for (int language = LANG_ENGLISH; language <= LANG_SPANISH; ++language) {
+        {
+            MenuRig rig;
+            LanguageCode = language;
+            rig.menu.select = 1;
+            rig.Idle();
+            rig.Press(PAD_CROSS);
+            EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_CONFIRM_SAVE);
+            EXPECT_EQ(rig.message.mes_no, 0xBC3);
+            EXPECT_GT(rig.message.values[0], 0);
+            EXPECT_EQ(rig.message.GetMsgCursor(), 1);
+        }
+        {
+            MenuRig rig;
+            LanguageCode = language;
+            rig.menu.mode = SAVE_MENU_MODE_GYORACE_LOAD;
+            rig.Idle();
+            rig.Press(PAD_CROSS);
+            EXPECT_EQ(rig.message.mes_no, 0x13A9);
+            EXPECT_EQ(rig.message.values[0], 8);
+            EXPECT_EQ(rig.message.values[1], 5);
+        }
+    }
+}
+
+TEST_F(SaveSlotTest, NoFishAndOperationFailuresUseRetailNotices) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) {
+        GTEST_SKIP() << "DC2_DATA supplies the retail font table";
+    }
+    PathsSetDataRoot(data);
+    LoadFontTblBin();
+    Write(SaveSlotPath(7));
+    manager.GetAllSaveFileInfo();
+    {
+        MenuRig rig;
+        rig.menu.mode = SAVE_MENU_MODE_GYORACE_LOAD;
+        rig.Idle();
+        rig.Press(PAD_CROSS);
+        EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_NOTICE);
+        EXPECT_EQ(rig.message.mes_no, 0x13AA);
+        EXPECT_EQ(rig.message.values[0], 8);
+    }
+    for (bool writing : {true, false}) {
+        MenuRig rig;
+        rig.Idle();
+        rig.menu.phase = writing ? SAVE_LIST_PHASE_SAVING : SAVE_LIST_PHASE_LOADING;
+        manager.save_buffer = nullptr;
+        manager.file_no = 99;
+        manager.SetFuncNo(writing ? MC_FUNC_SAVE : MC_FUNC_LOAD);
+        rig.menu.KeyStep();
+        EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_NOTICE);
+        EXPECT_EQ(rig.message.mes_no, writing ? 0xBC1 : 0xBC6);
+    }
 }

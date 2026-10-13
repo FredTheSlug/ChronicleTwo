@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <filesystem>
 #include <format>
@@ -267,4 +268,38 @@ TEST_F(PlatformConfig, FailedPortChangeKeepsLiveValuesAndRetriesTheSave) {
     fs::remove(Path());
     EXPECT_TRUE(ConfigChange(config));
     EXPECT_FALSE(ConfigParse(Read()).interpolation);
+}
+
+TEST_F(PlatformConfig, ChangeMergesOnlyEditedFieldsIntoExternallyUpdatedJson) {
+    Write(R"({"audio":{"master_volume":0.5},"input":{"bindings":{"cross":["K"]}},"extra":{"old":1}})");
+    ASSERT_TRUE(ConfigLoad());
+    Write(R"({"audio":{"master_volume":0.25,"future_mode":"custom"},"input":{"bindings":{"cross":["Z"],"future_action":["J"]}},"extra":{"old":2,"new":[1,2]},"stray":7})");
+    Config changed = ConfigGet();
+    changed.font_sharp = true;
+    ASSERT_TRUE(ConfigChange(changed));
+    auto json = nlohmann::json::parse(Read());
+    EXPECT_EQ(json["audio"]["master_volume"], 0.25);
+    EXPECT_EQ(json["audio"]["future_mode"], "custom");
+    EXPECT_EQ(json["input"]["bindings"]["cross"][0], "Z");
+    EXPECT_EQ(json["input"]["bindings"]["future_action"][0], "J");
+    EXPECT_EQ(json["extra"]["old"], 2);
+    EXPECT_EQ(json["extra"]["new"].size(), 2);
+    EXPECT_EQ(json["stray"], 7);
+    EXPECT_EQ(json["video"]["text_font"], "sharp");
+    const auto before = Read();
+    ASSERT_TRUE(ConfigChange(changed));
+    EXPECT_EQ(Read(), before);
+}
+
+TEST_F(PlatformConfig, BindingResetPreservesUnrelatedExternalBindings) {
+    Write(R"({"input":{"bindings":{"cross":["K"],"circle":["Q"]}}})");
+    ASSERT_TRUE(ConfigLoad());
+    Write(R"({"input":{"bindings":{"cross":["K"],"circle":["Z"],"future":["J"]}}})");
+    Config changed = ConfigGet();
+    changed.key_bindings.erase(changed.key_bindings.begin());
+    ASSERT_TRUE(ConfigChange(changed));
+    auto json = nlohmann::json::parse(Read());
+    EXPECT_FALSE(json["input"]["bindings"].contains("cross"));
+    EXPECT_EQ(json["input"]["bindings"]["circle"][0], "Z");
+    EXPECT_EQ(json["input"]["bindings"]["future"][0], "J");
 }

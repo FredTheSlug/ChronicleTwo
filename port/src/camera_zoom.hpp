@@ -17,5 +17,6 @@ struct CameraZoom {
 
     float HeightScale(CCameraControl &camera) const;
     void  Read(CCameraControl &camera, float wheel, bool reset, bool enabled);
-    void  Move(CCameraControl &camera, CScene &scene, CCameraControl::Control &control, float *rotation);
+    void  Move(CCameraControl &camera, CScene &scene, CCameraControl::Control &control, float *rotation,
+               CCPoly *retail_polys = nullptr, int retail_count = 0);
 };

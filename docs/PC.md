@@ -766,7 +766,7 @@ A hand-written stride is rewritten as indexing only where `verify.py` stays iden
 | `mgRENDER_INFO::GetPlight` (`index * 0x30 + ... + 0x90`) | - | in-place rewrite reverted, MWCC code differs; correct on PC, since `mgLIGHT_INFO` holds floats only |
 | `CRepairManager::Generate` (`slot * sizeof(mgCMemory)`) | - | in-place rewrite reverted, MWCC code differs; correct on PC as it stands |
 | `CAutoMapGen::CreatTermParts` | - | correct on PC as it stands |
-| `_SWE_SET_COLOR`, `_SWE_SET_TEXTURE`, `_SWE_START_EFFECT` (`(slot << 2) + chara + offsetof(sword_effect)`) | `event_func.cpp` | in-place rewrite reverted, MWCC code differs; stride fix that needs an override, since `sword_effect` is an array of pointers and `<< 2` is wrong on PC |
+| `_SWE_SET_COLOR`, `_SWE_SET_TEXTURE`, `_SWE_START_EFFECT` (`(slot << 2) + chara + offsetof(sword_effect)`) | `event_func.cpp` | scene event bindings in `port/src/event.cpp` use the native pointer array; the byte-matched PS2 handlers remain intact |
 | `CVillagerMngr::GetAppearVlgr` (`time * sizeof(void *) + schedule + offset + 8`) | `port/src/villagermngr.cpp` | stride fix |
 | `mgCMemory::SetHeapMem`, `mgCMemory::StartStackMode` | `port/src/mg_memory.cpp` | stride fix; kept |
 

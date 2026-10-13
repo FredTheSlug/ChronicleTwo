@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <cstdlib>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -9,6 +10,7 @@
 
 #include "mainloop.hpp"
 #include "inventmn.hpp"
+#include "font.hpp"
 #include "gamepad.hpp"
 #include "menuaqua.hpp"
 #include "menucls1.hpp"
@@ -457,4 +459,66 @@ TEST_F(SaveSlotTest, VersionTwoLoadsAndUsesRetailInventionConversion) {
         EXPECT_EQ(converted->created_item[i].unk_2, i + 100);
     }
     EXPECT_EQ(live->map_no, 10);
+}
+
+TEST_F(SaveSlotTest, NewSaveAndFinnyPromptsUseRetailMessagesInEveryPalLanguage) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) GTEST_SKIP() << "DC2_DATA supplies the retail font table";
+    PathsSetDataRoot(data);
+    LoadFontTblBin();
+    image->fish_num = 5;
+    Write(SaveSlotPath(7));
+    manager.GetAllSaveFileInfo();
+    for (int language = LANG_ENGLISH; language <= LANG_SPANISH; ++language) {
+        {
+            MenuRig rig;
+            LanguageCode = language;
+            rig.menu.select = 1;
+            rig.Idle();
+            rig.Press(PAD_CROSS);
+            EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_CONFIRM_SAVE);
+            EXPECT_EQ(rig.message.mes_no, 0xBC3);
+            EXPECT_GT(rig.message.values[0], 0);
+            EXPECT_EQ(rig.message.GetMsgCursor(), 1);
+        }
+        {
+            MenuRig rig;
+            LanguageCode = language;
+            rig.menu.mode = SAVE_MENU_MODE_GYORACE_LOAD;
+            rig.Idle();
+            rig.Press(PAD_CROSS);
+            EXPECT_EQ(rig.message.mes_no, 0x13A9);
+            EXPECT_EQ(rig.message.values[0], 8);
+            EXPECT_EQ(rig.message.values[1], 5);
+        }
+    }
+}
+
+TEST_F(SaveSlotTest, NoFishAndOperationFailuresUseRetailNotices) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) GTEST_SKIP() << "DC2_DATA supplies the retail font table";
+    PathsSetDataRoot(data);
+    LoadFontTblBin();
+    Write(SaveSlotPath(7));
+    manager.GetAllSaveFileInfo();
+    {
+        MenuRig rig;
+        rig.menu.mode = SAVE_MENU_MODE_GYORACE_LOAD;
+        rig.Idle();
+        rig.Press(PAD_CROSS);
+        EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_NOTICE);
+        EXPECT_EQ(rig.message.mes_no, 0x13AA);
+        EXPECT_EQ(rig.message.values[0], 8);
+    }
+    for (bool writing : {true, false}) {
+        MenuRig rig;
+        rig.Idle();
+        rig.menu.phase = writing ? SAVE_LIST_PHASE_SAVING : SAVE_LIST_PHASE_LOADING;
+        manager.save_buffer = nullptr;
+        manager.file_no = 99;
+        manager.SetFuncNo(writing ? MC_FUNC_SAVE : MC_FUNC_LOAD);
+        rig.menu.KeyStep();
+        EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_NOTICE);
+        EXPECT_EQ(rig.message.mes_no, writing ? 0xBC1 : 0xBC6);
+    }
 }

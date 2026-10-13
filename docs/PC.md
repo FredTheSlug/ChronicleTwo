@@ -113,7 +113,7 @@ A data root is missing when it is not a directory, or has no regular file `manif
 
 Continue and Save Adventure open the file list directly. There is no memory-card
 selection or formatting step. The save screen lists every existing save and one
-last **New Save** entry; the load screen lists only existing saves. Up/Down moves
+last unused file entry for a new save; the load screen lists only existing saves. Up/Down moves
 one row and the shoulder buttons move two, as in the retail list. Cancel returns
 to the screen that opened the menu. Replacing a save retains the retail yes/no
 confirmation, with No selected initially. Unusable saves also require this
@@ -139,6 +139,16 @@ The payload is the existing port save image and its retail header and checksums;
 no PC metadata is added. As before, it uses the host layout of `CSaveData`,
 including its photo records, so this does not add PS2-console save compatibility.
 Photo album and separate bonus-data storage continue to use their existing paths.
+
+Save rows, the unused-file row, new-save/overwrite/load prompts, operation failure
+notices and Finny Frenzy confirmations use the disc's retail localized messages.
+The flat-folder notices "No saves found." and "Could not read the save folder.
+Return and try again.", the second-card suffix "(import 2)", and the detailed
+statuses "Cannot read save", "Unusable save (size)", "Unsupported save version",
+"Incomplete save", "Corrupt save" and the fallback "Unusable save" have no
+corresponding retail flat-file diagnostics and remain in English. Retail's
+no-data notice names a memory card and slot, so it is not used for an empty PC
+save folder.
 
 Saving uses Kazarov's `FilesWrite`: an exclusive temporary file beside the target,
 a complete write, flush and close, then a write-through rename on Windows or a
@@ -361,7 +371,7 @@ not change active-item slots. Arrow keys send the D-pad and can select those slo
 Menu pointer input is shared by the inventory, other game menus and PC SETTINGS.
 The Controls page includes **Mouse wheel zoom** (off by default); menu scrolling
 never queues camera zoom. Save/load pointer selection uses the complete flat list,
-with one **New Save** row only when saving.
+with one unused file row for a new save only when saving.
 
 Move the mouse to show the pointer and hover an option. Left click presses Cross,
 right click presses Circle, and the wheel moves through a list. A controller or

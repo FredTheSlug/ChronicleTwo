@@ -170,6 +170,7 @@ std::span<const Page> Pages() {
                          Choice<&Config::stick_invert_y>("input.stick_invert_y", "Invert stick Y", "Reverses the controller look stick's vertical axis.", {"Off", "On"}),
                          Choice<&Config::glyphs_new>("input.glyphs", "Button symbols", "PC settings prompts. Other menus keep the game art.", {"Original", "New"}),
                          Choice<&Config::glyph_device>("input.glyph_device", "Glyph style", "Auto follows the last device used.\nKeyboard prompts follow your current bindings.", {"Auto", "PS3", "PS4", "PS5", "PS5 Color", "Xbox", "Switch", "Steam Deck", "Steam Controller", "Keyboard"}),
+                         Choice<&Config::mouse_zoom>("input.mouse_zoom", "Mouse wheel zoom", "Wheel changes camera distance while walking.\nMenus use the wheel for selection instead.", {"Off", "On"}),
                      }},
         {"Bindings", Bindings()           },
     };

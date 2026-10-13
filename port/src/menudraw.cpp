@@ -8,16 +8,10 @@
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
-#include "mw_runtime.h"
 #include "menu_mouse_item.hpp"
 
 extern float PortMenuWakuPosition[2] asm("MenuDraw_WakuPosition");
 
-PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
-    int draw_x = fptosi(x), draw_y = fptosi(y);
-    MenuMouseDrawPosition(this, draw_x, draw_y);
-    MenuFormDraw(draw_x, draw_y, state);
-}
 
 PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
                                     int alpha, int red, int green, int blue) {
@@ -243,5 +237,7 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
         if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) clip_form = false;
     }
     mgPortScreenClipScope clip(clip_form);
-    MenuFormDraw(fptosi(x), fptosi(y), state);
+    int draw_x = fptosi(x), draw_y = fptosi(y);
+    MenuMouseDrawPosition(this, draw_x, draw_y);
+    MenuFormDraw(draw_x, draw_y, state);
 }

@@ -1,5 +1,6 @@
 #include "common.h"
 #include "options/screen.hpp"
+#include "menu_mouse.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -76,7 +77,6 @@ void Open() {
     g_screen = {};
     g_screen.open = true;
     g_screen.save_failed = !ConfigSave();
-    InputSetMenuMouse(true);
     ListResolutions();
     g_wait_source.clear();
     g_drain = true;
@@ -120,21 +120,14 @@ void Activate(const Hit &hit) {
 }
 
 InputMenuMouse Pointer() {
-    auto       mouse = InputTakeMenuMouse();
-    const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
-    int        w = static_cast<int>(mapping.pixel_width), h = static_cast<int>(mapping.pixel_height);
-    WindowSize(w, h);
-    WindowMode mode;
-    if (!InputScriptActive() && WindowCurrentMode(mode) && !MouseCaptured()) {
-        SDL_GetMouseState(&g_pointer_x, &g_pointer_y);
-    } else {
-        g_pointer_x = std::clamp(g_pointer_x + mouse.dx, 0.0f, static_cast<float>(w));
-        g_pointer_y = std::clamp(g_pointer_y + mouse.dy, 0.0f, static_cast<float>(h));
-    }
-    if (mouse.dx != 0 || mouse.dy != 0 || mouse.buttons != g_buttons || mouse.wheel != 0) {
-        g_pointing = true;
-    }
-    return mouse;
+    const auto &sample = MenuMouseTake();
+    g_pointer_x = sample.x;
+    g_pointer_y = sample.y;
+    g_pointing = sample.pointing;
+    // This page handles its own hit regions, so a click must not also reach the
+    // underlying retail Options screen through the shared synthetic pad edge.
+    MenuMouseSetButtons(0);
+    return {sample.moved ? 1.0f : 0.0f, 0, sample.wheel, sample.held};
 }
 
 void Track(bool on) {
@@ -142,20 +135,15 @@ void Track(bool on) {
         return;
     }
     g_tracking = on;
-    if (!on) {
-        InputSetMenuMouse(false);
-    }
-    g_buttons = InputTakeMenuMouse().buttons;
+    g_buttons = MenuMouseTake().held;
     g_repeat.Reset(GamePad__2.GetPadOn());
     g_drain = false;
     g_wait_source.clear();
     g_screen = {};
     g_pointing = false;
-    const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
-    int        w = static_cast<int>(mapping.pixel_width), h = static_cast<int>(mapping.pixel_height);
-    WindowSize(w, h);
-    g_pointer_x = w * .5f;
-    g_pointer_y = h * .5f;
+    const auto &sample = MenuMouseTake();
+    g_pointer_x = sample.x;
+    g_pointer_y = sample.y;
 }
 
 bool Run() {
@@ -172,9 +160,6 @@ bool Run() {
             g_drain = false;
             g_wait_source.clear();
             g_repeat.Reset();
-            if (!g_screen.open) {
-                InputSetMenuMouse(false);
-            }
         }
         return true;
     }
@@ -252,12 +237,7 @@ bool Run() {
 
 } // namespace
 
-Point PointerPosition() {
-    const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
-    int        w = static_cast<int>(mapping.pixel_width), h = static_cast<int>(mapping.pixel_height);
-    WindowSize(w, h);
-    return PointerToUi(g_pointer_x, g_pointer_y, w, h, mapping);
-}
+Point PointerPosition() { return {g_pointer_x, g_pointer_y}; }
 
 bool Pointing() { return g_tracking && g_pointing; }
 

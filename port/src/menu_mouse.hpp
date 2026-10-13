@@ -36,3 +36,6 @@ void MenuMouseDraw();
 // Exclusive adapters translate this sampled frame into retail buttons.
 void MenuMouseSetButtons(int buttons);
 bool MenuMouseActive();
+
+class CSaveMenuClass;
+void MenuMouseSave(CSaveMenuClass &save);

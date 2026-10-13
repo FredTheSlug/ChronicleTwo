@@ -124,10 +124,6 @@ void Draw() {
         const std::string shortcuts = g_screen.binding >= 0 ? "Escape: Cancel capture" : ButtonName("l1", config) + "/" + ButtonName("r1", config) + ": Page   " + ButtonName(confirm, config) + ": Change   " + ButtonName(cancel, config) + ": Back";
         Text(shortcuts, 53, 432, 404, true, 12);
     }
-    if (Pointing()) {
-        // A small high-contrast pointer using the same font as the menu.
-        Text(">", static_cast<int>(point.x), static_cast<int>(point.y), 20, true, 18);
-    }
 }
 
 } // namespace options

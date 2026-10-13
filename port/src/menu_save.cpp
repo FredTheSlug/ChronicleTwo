@@ -1,4 +1,5 @@
 #include "menuop.hpp"
+#include "menu_mouse.hpp"
 
 #include <algorithm>
 #include <array>
@@ -157,6 +158,7 @@ PORT_OVERRIDE int CSaveMenuClass::KeyStep() {
             input_wait = 4;
         }
     } else {
+        if (MenuCommonInfo->key_enable) MenuMouseSave(*this);
         int pushed = ConvertCheckPushButton(MenuCommonInfo->CheckPushButton());
         int keys = MenuCommonInfo->CheckSelectKey();
         int lr = MenuCommonInfo->CheckLRKey();

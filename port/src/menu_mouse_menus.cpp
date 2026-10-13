@@ -14,6 +14,7 @@
 #include "menusys.hpp"
 #include "mglib.hpp"
 #include "title.hpp"
+#include "save_slots.hpp"
 
 extern CItemSelect *MouseItemSelect asm("MenuMouse_ItemSelect");
 extern CMenuInter *MouseInter asm("MenuMouse_Inter");
@@ -36,24 +37,6 @@ void RootMouse() {
     if (selected != MouseInter->select_no) MenuMouseMove(&MouseInter->select_no, selected);
 }
 
-void SaveMouse() {
-    if (!MouseSave || MouseSave->CBaseMenuClass::mode != MENU_ASK_MODE_NONE) return;
-    auto &save = *MouseSave;
-    if (save.page == SAVE_MENU_PAGE_SLOT_SELECT && save.step == SAVE_MENU_STEP_READY) {
-        MenuMouseRect rows[2]{};
-        for (int i = 0; i < 2; ++i) if (auto *form = save.slot_form[i])
-            rows[i] = {form->x, form->y, 360, 64};
-        const int selected = MenuMouseRows(rows, save.slot);
-        if (selected != save.slot) { save.slot = selected; MenuSePlay(SYSTEM_SE_CURSOR); }
-    } else if (save.page == SAVE_MENU_PAGE_FILE_LIST && save.phase == SAVE_LIST_PHASE_SELECT && save.list_form) {
-        MenuMouseRect rows[13]{};
-        for (int i = save.top; i < std::min(save.top + 3, 13); ++i)
-            rows[i] = {save.list_form->x, save.list_form->y + 80 * i, 458, 76};
-        const int selected = MenuMouseRows(rows, save.select);
-        MenuMouseDelayConfirm(&save, save.select, selected, 4);
-        if (selected != save.select) MenuMouseMove(&save.select, selected);
-    }
-}
 
 void ItemPopupMouse() {
     if (!MouseItemSelect || MouseItemSelect->mode != MENU_ASK_MODE_NONE) return;
@@ -94,8 +77,7 @@ void TitleMouse() {
 PORT_OVERRIDE int CMenuKeyFunc::CheckSelectKey() {
     if (key_enable) {
         if (now_mode == MENU_MODE_MAIN_TOWN || now_mode == MENU_MODE_MAIN_DUNGEON) RootMouse();
-        if (now_mode == MENU_MODE_SAVE || now_mode == MENU_MODE_TITLE_SAVE) SaveMouse();
-        if (now_mode == MENU_MODE_DNG_TREE_MAP && !MenuMouseFloor()) SaveMouse();
+        if (now_mode == MENU_MODE_DNG_TREE_MAP) MenuMouseFloor();
         if (now_mode == MENU_MODE_ITEM_SELECT) ItemPopupMouse();
     }
     if (GamePad__2.Down(PAD_UP)) select_key |= MENU_SELECT_KEY_UP;
@@ -118,4 +100,19 @@ PORT_OVERRIDE int MenuCheckPushButton() {
                                MENU_PUSH_BUTTON_START, MENU_PUSH_BUTTON_L3, MENU_PUSH_BUTTON_R3};
     for (int i = 0; i < 6; ++i) if (GamePad__2.Down(pads[i])) return actions[i];
     return 0;
+}
+
+void MenuMouseSave(CSaveMenuClass &save) {
+    if (save.CBaseMenuClass::mode != MENU_ASK_MODE_NONE || save.page != SAVE_MENU_PAGE_FILE_LIST ||
+        save.phase != SAVE_LIST_PHASE_SELECT || !save.list_form) return;
+    const int count = SaveSlotRows(SaveSlots, save.mode == SAVE_MENU_MODE_SAVE);
+    std::vector<MenuMouseRect> rows(count);
+    for (int i = std::max(0, save.top - 1); i < std::min(save.top + 4, count); ++i) {
+        const float y = save.list_form->y + 80 * i;
+        const float top = std::max(162.0f, y), bottom = std::min(402.0f, y + 76);
+        if (bottom > top) rows[i] = {save.list_form->x, top, 458, bottom - top};
+    }
+    const int selected = MenuMouseRows(rows, save.select);
+    MenuMouseDelayConfirm(&save, save.select, selected, 4);
+    if (selected != save.select) MenuMouseMove(&save.select, selected);
 }

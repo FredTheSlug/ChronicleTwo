@@ -358,6 +358,12 @@ retail menu navigation past the game's threshold, including active-item slots.
 
 ### Mouse menus
 
+Menu pointer input is shared by the inventory, other game menus and PC SETTINGS.
+The Controls page includes **Mouse wheel zoom** (off by default); menu scrolling
+never queues camera zoom. Save/load pointer selection uses the complete flat list,
+with one **New Save** row only when saving.
+
+
 Move the mouse to show the pointer and hover an option. Left click presses Cross,
 right click presses Circle, and the wheel moves through a list. A controller or
 keyboard movement hides the pointer; a stationary pointer does not undo that
@@ -365,7 +371,7 @@ selection. Clicks held while opening or closing a menu do not confirm the next
 screen.
 
 Mouse selection covers the town and dungeon root menus, title menu, dungeon
-floor map and Save Adventure action, memory card slots and save/load file lists,
+floor map and Save Adventure action, the flat save/load file lists,
 and the field Use Item popup. Yes/No boxes and dialogue choices use the message
 system's drawn choice positions and feed its normal directional input before
 confirming. The pointer follows the renderer's UI mapping, including widescreen
@@ -389,7 +395,7 @@ controller handoff, scrolling and confirmation timing.
 `dungeon-mouse-play.input` enters a floor with the mouse and opens its root menu.
 `dungeon-mouse-item-popup.input` follows the normal dungeon replay to the locked
 gate and selects the Gate Key with the mouse. `title-mouse-load.input` exercises
-Continue, a file-row click and its confirmation using a copied File 11 fixture.
+Continue, a file-row click and its confirmation using a copied flat-save fixture.
 `title-mouse-newgame.input` clicks New Game and reaches costume selection.
 File-list clicks wait through the retail cursor-settling delay before confirming.
 
@@ -483,7 +489,7 @@ Item page and opens Bread's commands by frame 2850. These two scripts also use
 Set `input.mouse_zoom` to `true` in `config.json` to enable wheel zoom in town
 walking and dungeon follow views. The default is `false`, as in Dark Cloud 1.
 Wheel up moves closer; wheel down moves farther, eight world units per notch,
-with a requested range of 30–600 units. The normal camera easing makes the
+with a requested range of 30Ã¢â‚¬â€œ600 units. The normal camera easing makes the
 transition smooth. The distance stays selected while walking, and collision
 shortens it where walls, floors or ceilings intervene, returning toward the
 requested distance when the path clears.

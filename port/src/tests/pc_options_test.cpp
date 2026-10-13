@@ -36,6 +36,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
         "input.mouse_sensitivity",
         "input.mouse_invert_y",
         "input.mouse_capture",
+        "input.mouse_zoom",
         "input.stick_sensitivity",
         "input.stick_invert_x",
         "input.stick_invert_y",

@@ -6,6 +6,7 @@
 #include "menumain.hpp"
 #include "menuop.hpp"
 #include "menu_mouse.hpp"
+#include "save_slots.hpp"
 #include "menusys.hpp"
 #include "nd_meswin.hpp"
 #include "mglib.hpp"
@@ -278,6 +279,8 @@ TEST_F(MenuMouseInput, DrawnYesNoChoicesUseTheirOwnPositions) {
 }
 
 TEST_F(MenuMouseInput, LoadListUsesScrolledFormGeometryAndRetailCursorTransition) {
+    const auto catalog = SaveSlots;
+    SaveSlots.saves.resize(20);
     CSaveMenuClass save;
     CMenuPosDataForm form;
     form.x = 30;
@@ -297,6 +300,7 @@ TEST_F(MenuMouseInput, LoadListUsesScrolledFormGeometryAndRetailCursorTransition
     keys.select_key = 0;
     MenuMouseEnable(true);
     InputSetScriptedDevices({.mouse_buttons = 1});
+    MenuMouseSave(save);
     keys.CheckSelectKey();
     EXPECT_EQ(save.select, 11);
     EXPECT_EQ(MenuKeySelectCheck(0, &save.select, &save.top, 0, 13, 3, MENU_CURSOR_LIMIT_CLAMP), MENU_CURSOR_MOVED);
@@ -304,5 +308,55 @@ TEST_F(MenuMouseInput, LoadListUsesScrolledFormGeometryAndRetailCursorTransition
     EXPECT_EQ(save.top, 10);
     EXPECT_FALSE(GamePad__2.Down(PAD_CROSS));
     MouseSave = previous;
+    SaveSlots = catalog;
 }
+}
+
+TEST_F(MenuMouseInput, RepeatedAdaptersShareMotionWheelAndButtonEdgesWithinATick) {
+    MenuMouseEnable(true);
+    InputSetScriptedDevices({.mouse_buttons = 1, .mouse_dx = 40, .mouse_dy = 10, .mouse_wheel = -2});
+    const auto first = MenuMouseTake();
+    const auto second = MenuMouseTake();
+    EXPECT_FLOAT_EQ(first.x, 296);
+    EXPECT_FLOAT_EQ(first.y, 250);
+    EXPECT_EQ(first.clicked, 1u);
+    EXPECT_FLOAT_EQ(first.wheel, -2);
+    EXPECT_FLOAT_EQ(second.x, first.x);
+    EXPECT_FLOAT_EQ(second.y, first.y);
+    EXPECT_FLOAT_EQ(second.wheel, first.wheel);
+    MenuMouseSetButtons(PAD_SQUARE);
+    EXPECT_EQ(MenuMouseButtons(), PAD_SQUARE);
+    InputSetScriptedDevices({});
+    Tick();
+    EXPECT_EQ(MenuMouseTake().released, 1u);
+    EXPECT_EQ(MenuMouseButtons(), 0);
+}
+
+TEST_F(MenuMouseInput, FlatSaveWheelReachesOnlyTheSingleNewRowBeyondRetailCapacity) {
+    const auto catalog = SaveSlots;
+    SaveSlots.saves.resize(20);
+    CSaveMenuClass save;
+    CMenuPosDataForm form;
+    form.x = 30;
+    form.y = 164 - 80 * 18;
+    save.list_form = &form;
+    save.mode = SAVE_MENU_MODE_SAVE;
+    save.CBaseMenuClass::mode = MENU_ASK_MODE_NONE;
+    save.page = SAVE_MENU_PAGE_FILE_LIST;
+    save.phase = SAVE_LIST_PHASE_SELECT;
+    save.select = 19;
+    save.top = 18;
+    MenuMouseEnable(true);
+    InputSetScriptedDevices({.mouse_wheel = -1});
+    MenuMouseSave(save);
+    EXPECT_EQ(MenuKeySelectCheck(0, &save.select, &save.top, 0, 21, 3, MENU_CURSOR_LIMIT_CLAMP), MENU_CURSOR_MOVED);
+    EXPECT_EQ(save.select, 20);
+    InputSetScriptedDevices({.mouse_wheel = -1});
+    Tick();
+    MenuMouseSave(save);
+    MenuKeySelectCheck(0, &save.select, &save.top, 0, 21, 3, MENU_CURSOR_LIMIT_CLAMP);
+    EXPECT_EQ(save.select, 20);
+    EXPECT_TRUE(SaveSlotIsNew(SaveSlots, save.select, true));
+    EXPECT_FALSE(SaveSlotIsNew(SaveSlots, save.select, false));
+    SaveSlots = catalog;
 }

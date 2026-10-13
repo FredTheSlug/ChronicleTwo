@@ -181,15 +181,49 @@ TEST_F(MenuIconGpu, EffectPaletteComesFromSelectedDescriptorAndRestoresNormally)
     variant.clut = alternate.data();
     menu_.item_icon_tex[0][1] = base;
     menu_.item_icon_tex[2][1] = &variant;
-    ASSERT_EQ(GetMenuItemIconTexInfo(1, 2), &variant);
-    auto handles = MgTextureLookup(base);
+    mgCMemory memory;
+    sceVif1Packet packet{};
+    mgVif1Packet = &packet;
+    mgRENDER_INFO info{};
+    mgCDrawManager manager;
+    manager.render_info = &info;
+    mgCDrawPrim prim;
+    prim.draw_manager = &manager;
+    prim.Initialize(&memory, &packet);
+    prim.write = nullptr;
+    prim.Coord(1);
+    mgPortSetPrimSink([&](gfx::Primitive kind, std::span<const gfx::Vertex2D> vertices,
+                         const gfx::TextureBinding &binding, const gfx::DrawState &state) {
+        auto draw_state = state;
+        draw_state.scissor = false;
+        gfx::Draw2D(kind, vertices, binding, draw_state);
+    });
+    u8 rgba[] = {128, 128, 128, 128};
+    gfx::BeginRecording();
+    const u8 clear[] = {0, 0, 0, 255};
+    gfx::Clear(true, clear, true, 0);
+    DrawOneItem(&prim, {10, 10, 32, 32}, 1, 2, nullptr, rgba, 0);
+    mgTexManager.ReloadCLUT(base, static_cast<sceVif1Packet *>(nullptr));
+    DrawOneItem(&prim, {50, 10, 32, 32}, 1, 0, nullptr, rgba, 0);
+    auto list = gfx::EndRecording();
+    ASSERT_TRUE(gfx::RenderList(*list, 1, {.canonical = true}));
+    ASSERT_TRUE(gfx::ReadbackFrame(gfx_.pixels, gfx_.width, gfx_.height));
+    // Mode 2 retains retail dimming; the palette selects blue rather than normal green.
+    EXPECT_TRUE(gfx_.PixelNear(20, 20, 0, 0, 201));
+    EXPECT_TRUE(gfx_.PixelNear(60, 20, 0, 255, 0));
+    for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
+        ASSERT_TRUE(gfx::RenderList(*list, alpha, {.present = true}));
+        ASSERT_TRUE(gfx::ReadbackFrame(gfx_.pixels, gfx_.width, gfx_.height));
+        EXPECT_TRUE(gfx_.PixelNear(20, 20, 0, 0, 201)) << alpha;
+        EXPECT_TRUE(gfx_.PixelNear(60, 20, 0, 255, 0)) << alpha;
+    }
+    const auto normal_handles = MgTextureLookupTex0(base->tex0.value);
+    const auto effect_handles = MgTextureLookupTex0(variant.tex0.value);
+    EXPECT_EQ(normal_handles.texture, effect_handles.texture);
+    EXPECT_NE(normal_handles.palette, effect_handles.palette);
     std::vector<u8> pixels;
     uint32_t width, height;
-    ASSERT_TRUE(gfx::ReadbackTexture(handles.palette, pixels, width, height));
-    EXPECT_EQ(pixels[7 * 4 + 1], 0);
-    EXPECT_EQ(pixels[7 * 4 + 2], 255);
-    mgTexManager.ReloadCLUT(base, static_cast<sceVif1Packet *>(nullptr));
-    ASSERT_TRUE(gfx::ReadbackTexture(handles.palette, pixels, width, height));
+    ASSERT_TRUE(gfx::ReadbackTexture(normal_handles.palette, pixels, width, height));
     EXPECT_EQ(pixels[7 * 4 + 1], 255);
     EXPECT_EQ(pixels[7 * 4 + 2], 0);
 }

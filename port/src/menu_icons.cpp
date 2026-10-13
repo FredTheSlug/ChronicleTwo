@@ -4,7 +4,6 @@
 #include <cstring>
 
 #include "gamedata.hpp"
-#include "gfx/tim2.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "mg_texture_port.hpp"
@@ -33,16 +32,8 @@ PORT_OVERRIDE mgCTexture *GetMenuItemIconTexInfo(int item_no, int mode) {
     GetMenuItemIconTexGetXY(item_no, source);
     PortIconUV[PortIconSheet] = {static_cast<short>(source.left), static_cast<short>(source.top),
                                static_cast<short>(source.right), static_cast<short>(source.bottom)};
-    const MgTextureHandles handles = MgTextureLookupTex0(texture->tex0.value);
-    // Effect variants are CPU copies of the atlas descriptor sharing its registry key;
-    // their palette bytes belong to the variant, rather than to the registered base.
-    if (mode != 0 && texture->clut != nullptr && handles.palette != gfx::kNullTexture) {
-        gfx::tim2::Source palette;
-        palette.psm = gfx::tim2::Psm::T8;
-        palette.clut = reinterpret_cast<const uint8_t *>(texture->clut);
-        palette.csm1 = texture->tex0.CSM == 0;
-        palette.clut16 = texture->tex0.CPSM == SCE_GS_PSMCT16 || texture->tex0.CPSM == SCE_GS_PSMCT16S;
-        gfx::UpdatePalette(handles.palette, gfx::tim2::DecodePalette(palette).data(), 0, 256);
+    if (mode != 0) {
+        MgTextureRegisterPaletteVariant(texture, MenuPosData->item_icon_tex[0][PortIconSheet]);
     }
     return texture;
 }

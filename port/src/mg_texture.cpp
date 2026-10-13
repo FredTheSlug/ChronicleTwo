@@ -31,6 +31,7 @@ static_assert(static_cast<uint32_t>(MG_TEXTURE_LEVEL_MAX) == gfx::tim2::kMaxLeve
 
 struct Entry {
     const mgCTextureManager *owner = nullptr;
+    const mgCTexture *atlas = nullptr;
     uint32_t                 key = 0;
     gfx::TextureHandle       image = gfx::kNullTexture;
     gfx::TextureHandle       palette = gfx::kNullTexture;
@@ -211,6 +212,11 @@ void Rebuild(const mgCTexture *texture, Entry &entry) {
     entry.uploaded = true;
 
     const gfx::tim2::Source source = BuildSource(texture);
+    if (entry.atlas != nullptr) {
+        entry.palette = gfx::CreatePalette();
+        gfx::UpdatePalette(entry.palette, gfx::tim2::DecodePalette(source).data(), 0, 256);
+        return;
+    }
     const uint32_t          canvas_width = 1u << texture->tex0.TW;
     const uint32_t          canvas_height = 1u << texture->tex0.TH;
     gfx::tim2::Uploaded     uploaded;
@@ -268,6 +274,16 @@ void ReleaseTexture(const mgCTexture *texture) {
         return;
     }
 
+    // Descriptor copies are released with their atlas, before their arena can be reused.
+    std::vector<const mgCTexture *> variants;
+    for (const auto &[candidate, entry] : registry.entries) {
+        if (entry.atlas == texture) {
+            variants.push_back(candidate);
+        }
+    }
+    for (const auto *variant : variants) {
+        ReleaseTexture(variant);
+    }
     Entry &entry = found->second;
 #if MG_TEXTURE_HAS_SEAM
     // A registry key can immediately name a different texture; its old rendered pixels cannot.
@@ -381,6 +397,27 @@ void InstallSeam() {}
 
 } // namespace
 
+void MgTextureRegisterPaletteVariant(mgCTexture *variant, const mgCTexture *atlas) {
+    auto &registry = Registry();
+    const auto base = registry.entries.find(atlas);
+    if (variant == nullptr || variant == atlas || base == registry.entries.end()) {
+        return;
+    }
+    const auto *owner = base->second.owner;
+    const auto atlas_key = base->second.key;
+    if (const auto found = registry.entries.find(variant); found != registry.entries.end()) {
+        if (found->second.atlas == atlas && variant->tex0.CBP == found->second.key) {
+            Resolve(variant, found->second, false);
+            return;
+        }
+        ReleaseTexture(variant);
+    }
+    auto &entry = Register(owner, variant);
+    entry.atlas = atlas;
+    variant->tex0.TBP0 = atlas_key;
+    Resolve(variant, entry, false);
+}
+
 void MgTexturePixelsChanged(const mgCTexture *texture) {
     const auto found = Registry().entries.find(texture);
     if (found == Registry().entries.end()) {
@@ -422,7 +459,8 @@ MgTextureHandles MgTextureLookup(const mgCTexture *texture) {
     }
 
     Resolve(texture, found->second, false);
-    return {found->second.image, found->second.palette};
+    const auto image = found->second.atlas != nullptr ? MgTextureLookup(found->second.atlas).texture : found->second.image;
+    return {image, found->second.palette};
 }
 
 MgTextureHandles MgTextureLookupTex0(uint64_t tex0) {

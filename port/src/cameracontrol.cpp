@@ -5,6 +5,7 @@
 #undef CAMERA_CONTROL_USE_RETAIL_ASSIGNMENT
 
 #include "camera_mouse.hpp"
+#include "camera_zoom.hpp"
 #include "editctrl.hpp"
 #include "editloop.hpp"
 #include "dng_main.hpp"
@@ -15,6 +16,7 @@
 #include "subgame.hpp"
 #include "photo.hpp"
 #include "platform/input.hpp"
+#include "platform/config.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -61,15 +63,10 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
         control.height = -2.0f * pad->Analog(PAD_ANALOG_RIGHT_Y_2);
         control.rot_back = (pad->Btn(PAD_BTN_L2) || pad->Btn(PAD_BTN_CANCEL)) ? 1 : 0;
     }
-    // Controller movement, wall correction, floor clearance and swing-back keep
-    // their retail implementation. Mouse yaw is a separate, immediate pose turn.
-    MoveCamera(&control, player_rot, polys, poly_count);
-
     const InputMouseLook &look = InputGetMouseLook();
     static std::uint64_t consumed_read = 0;
-    if (look.read == consumed_read) return;
+    const bool fresh = look.read != consumed_read;
     consumed_read = look.read;
-    if (control.rot_back) return;
     const bool dungeon = GetNowLoopNo() == LOOP_DUNGEON;
     CScene *scene = dungeon ? DngMainScene : GetMainScene();
     const bool walking = GetNowLoopNo() == LOOP_EDIT && !IsEditMode() && IsWalkMode();
@@ -77,7 +74,29 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
                               MainChara__2, SubGameRunning(), GamePad__2.key_lock,
                               DebugInfo.debug_camera != 0) :
                               TownMouseCameraOwns(this, scene, pad, walking, SubGameRunning(), GamePad__2.key_lock);
-    if (!owns ||
+    static CameraZoom zoom;
+    static CCameraControl *zoom_camera = nullptr;
+    static CScene *zoom_scene = nullptr;
+    static int zoom_map = -1, zoom_submap = -1, zoom_param = -1;
+    if (scene && (zoom_camera != this || zoom_scene != scene || zoom_map != scene->now_map_no ||
+                  zoom_submap != scene->now_sub_map_no || zoom_param != active_param)) {
+        zoom = {};
+        zoom_camera = this;
+        zoom_scene = scene;
+        zoom_map = scene->now_map_no;
+        zoom_submap = scene->now_sub_map_no;
+        zoom_param = active_param;
+    }
+    if (owns) {
+        zoom.Read(*this, fresh ? look.zoom : 0,
+                  (fresh && look.zoom_reset) || control.rot_back, ConfigGet().mouse_zoom);
+    }
+    // A pad-only session (even with the option enabled) takes exactly the retail
+    // path until a wheel request. Other camera owners never inherit zoom limits.
+    if (owns && zoom.active) zoom.Move(*this, *scene, control, player_rot);
+    else MoveCamera(&control, player_rot, polys, poly_count);
+
+    if (!fresh || control.rot_back || (ConfigGet().mouse_zoom && look.zoom_reset) || !owns ||
         (look.yaw == 0 && look.pitch == 0) || !std::isfinite(look.yaw) || !std::isfinite(look.pitch)) return;
 
     // The retail collection encloses the old eye and cannot cover a mouse flick.

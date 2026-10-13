@@ -135,6 +135,64 @@ void CopyPose(CCameraControl &camera, const CCameraControl &candidate) {
     camera.height = pending.y;
     camera.distance = Length(pending);
 }
+
+bool ClearFollow(Vec eye, Vec target, Vec next_eye, Vec next_target, CCPoly *polys, int count) {
+    if (!Finite(eye) || !Finite(target) || !Finite(next_eye) || !Finite(next_target)) return false;
+    const Vec middle_target = (target + next_target) * 0.5;
+    const double target_radius = Length(next_target - target) * 0.5;
+    const double eye_travel = Length(next_eye - eye);
+    double accepted = 0, step = 1;
+    // The target can ease at a different rate from the eye. Enclose its entire
+    // segment for every eye interval rather than checking synchronized samples.
+    for (int work = 0; work < 256; ++work) {
+        const double end = std::min(1.0, accepted + step);
+        const Vec middle_eye = eye + (next_eye - eye) * ((accepted + end) * 0.5);
+        const double envelope = 4.0 + std::max(target_radius, eye_travel * (end - accepted) * 0.5);
+        bool clear = true;
+        for (int i = 0; i < count; ++i) {
+            if (!(TriangleDistance(middle_target, middle_eye, polys[i]) > envelope)) {
+                clear = false;
+                break;
+            }
+        }
+        if (clear) {
+            if (end == 1) return true;
+            accepted = end;
+            step = 1 - accepted;
+        } else {
+            step *= 0.5;
+            if (step < 0.00001) return false;
+        }
+    }
+    return false;
+}
+}
+
+float MouseCameraClampFollow(CCameraControl &camera, const CCameraControl &candidate, CCPoly *polys, int count) {
+    const Vec eye = Read(camera.pos), target = Read(camera.ref);
+    const Vec next_eye = Read(candidate.next_pos), next_target = Read(candidate.next_ref);
+    Write(camera.next_pos, eye);
+    Write(camera.next_ref, target);
+    if (count < 0 || count >= 512 || (count && !polys) ||
+        !Finite(next_eye) || !Finite(next_target) || !ClearFollow(eye, target, eye, target, polys, count)) return 0;
+    double accepted = 0, rejected = 1;
+    if (ClearFollow(eye, target, next_eye, next_target, polys, count)) {
+        accepted = 1;
+    } else {
+        // Find a safe destination from the actual pose, even when the old
+        // pending pose was blocked. Refused pending motion is never replayed.
+        for (int work = 0; work < 16; ++work) {
+            const double fraction = (accepted + rejected) * 0.5;
+            if (ClearFollow(eye, target, eye + (next_eye - eye) * fraction,
+                            target + (next_target - target) * fraction, polys, count)) accepted = fraction;
+            else rejected = fraction;
+        }
+        const double travel = std::max(Length(next_eye - eye), Length(next_target - target));
+        if (travel > 0) accepted = std::max(0.0, accepted - 0.1 / travel);
+    }
+    Write(camera.next_pos, eye + (next_eye - eye) * accepted);
+    Write(camera.next_ref, target + (next_target - target) * accepted);
+    return accepted;
 }
 
 int MouseCameraCollectPolys(CScene &scene, mgVu0FBOX &box, CCPoly *out, int capacity) {

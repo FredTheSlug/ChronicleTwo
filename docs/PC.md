@@ -379,8 +379,8 @@ Mouse motion directly turns the active walking camera around the character. It
 does not deflect the right stick or inherit its dead zone and easing. Vertical
 motion changes follow-camera height within the active retail limits, keeping the
 view aimed at the character. `input.mouse_sensitivity` is degrees per mouse
-count; `input.mouse_invert_y` reverses vertical motion. Mouse1, Mouse2 and Mouse3
-retain their Cross, Circle and R3 bindings.
+count; `input.mouse_invert_y` reverses vertical motion. Mouse1 and Mouse2 retain
+their Cross and Circle bindings. Mouse3 retains R3 unless wheel zoom is enabled.
 
 `CPadControl::Update` latches one independent mouse sample per logical pad update.
 The `CCameraControl::MoveCamera` port override consumes that sample once, only in
@@ -452,6 +452,42 @@ active-slot placement (1100), active-slot moves (1300), and return after a drop
 outside the menu (1550). `item-menu-mouse-dungeon.input` reaches the dungeon's
 Item page and opens Bread's commands by frame 2850. These two scripts also use
 1280x720; scale `mouse:dx,dy` counts with the window dimensions for other sizes.
+
+### Mouse wheel zoom
+
+Set `input.mouse_zoom` to `true` in `config.json` to enable wheel zoom in town
+walking and dungeon follow views. The default is `false`, as in Dark Cloud 1.
+Wheel up moves closer; wheel down moves farther, eight world units per notch,
+with a requested range of 30–600 units. The normal camera easing makes the
+transition smooth. The distance stays selected while walking, and collision
+shortens it where walls, floors or ceilings intervene, returning toward the
+requested distance when the path clears.
+
+`input.bindings.zoom_reset` defaults to `Mouse3` (middle click). It restores the
+active camera's normal minimum follow distance, as far as geometry permits.
+The existing L2/cancel camera reset also restores zoom. Turning the option off
+returns smoothly to the normal range. When enabled, the reset binding owns its
+keyboard/mouse source ahead of conflicting actions; physical controller buttons
+retain their retail actions, including R3's dungeon unit switch.
+
+Zoom only starts after a wheel request. Pad-only play keeps the retail camera
+path even when the option is enabled. Menus, events, lock-on, first-person,
+fixed cameras, photo mode and Georama retain ownership and do not queue wheel
+or reset input. A map or camera-parameter change clears the selected zoom.
+
+Each zoom update collects the generated follow destination and ground query,
+runs the retail floor/wall correction, then validates the entire eased corridor
+with four-unit clearance. Eye and target may ease at different rates; both are
+covered. Uncertain geometry or a full collection holds the actual pose rather
+than sending the camera through an unproved segment. No retail parameter set
+is changed by zoom. This conservative check may shorten motion sooner than
+the retail endpoint checks.
+
+`tools/input/town-mouse-zoom.input` and `tools/input/dungeon-mouse-zoom.input`
+exercise both limits, walking, reset and menu interruptions with the respective
+`--jump town:10 --fast-load` and `--jump dungeon:0:1 --fast-load` hooks. Their
+comments list capture frames; `--screenshot-display` also captures eased
+presentation frames. Enable the option in each replay's save-root config.
 
 ## Decision 1: long64 is kept
 

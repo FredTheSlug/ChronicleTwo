@@ -38,3 +38,8 @@ float MouseCameraYaw(CCameraControl &camera, float yaw, CCPoly *polys, int count
 // Tilt the follow view by changing eye height, within the active retail limits.
 // Returns the accepted height delta; the look-at point remains on the character.
 float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int count);
+
+// Commit the safe prefix of a generated follow destination, leaving the actual
+// eye untouched. Proves every independent eye/target easing combination, so a
+// thin wall cannot be skipped between clear endpoints. Failure holds the pose.
+float MouseCameraClampFollow(CCameraControl &camera, const CCameraControl &candidate, CCPoly *polys, int count);

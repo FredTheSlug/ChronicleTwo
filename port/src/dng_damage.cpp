@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "dng_hud.hpp"
+#include "screen_overlay_anchor.hpp"
 #include "gfx/gfx.hpp"
 #include "maintex.hpp"
 #include "mglib.hpp"
@@ -13,15 +14,18 @@
 
 namespace {
 // Keep presentation identity outside the retail objects and their serialized layouts.
-std::unordered_map<const void *, uint64_t> generations;
+struct ScoreEmission { uint64_t generation = 0; ScreenOverlayAnchor anchor; };
+std::unordered_map<const void *, ScoreEmission> generations;
 uint64_t next_generation = 0;
 
-void Emit(const void *score) { generations[score] = ++next_generation; }
+void Emit(const void *score) { generations[score] = {++next_generation, {}}; }
 
-gfx::Interp2D Presentation(const void *score) {
+gfx::Interp2D Presentation(const void *score, const int *screen) {
     auto found = generations.find(score);
     if (found == generations.end()) return {};
-    return {static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(score)), found->second};
+    if (found->second.anchor.Update(screen[0] / 16, screen[1] / 16))
+        found->second.generation = ++next_generation;
+    return {static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(score)), found->second.generation};
 }
 
 void BeginScore(CPreSprite &prim) {
@@ -62,11 +66,12 @@ PORT_OVERRIDE void CDamageScore::SetSprite(float *position, int u, int v, int wi
 
 PORT_OVERRIDE void CDamageScore::Draw() {
     if (!active) return;
-    gfx::Interp2DScope interpolation(Presentation(this));
     CPreSprite prim;
     int screen[4];
-    BeginScore(prim);
     pos[3] = 1.0f;
+    if (!mgTransWorldPrim(screen, pos)) return;
+    gfx::Interp2DScope interpolation(Presentation(this, screen));
+    BeginScore(prim);
     if (sprite) {
         if (mgTransWorldPrim(screen, pos)) {
             prim.Color(0x80, 0x80, 0x80, alpha);
@@ -112,14 +117,15 @@ PORT_OVERRIDE void CDamageScore2::Draw(CScene *scene) {
     if (!character) return;
     auto *frame = character->GetFrame();
     if (!frame) return;
-    gfx::Interp2DScope interpolation(Presentation(this));
     CPreSprite prim;
     int screen[4];
     sceVu0FVECTOR position;
-    BeginScore(prim);
     frame->GetWorldPosition0(position);
     position[1] += height;
     position[3] = 1.0f;
+    if (!mgTransWorldPrim(screen, position)) return;
+    gfx::Interp2DScope interpolation(Presentation(this, screen));
+    BeginScore(prim);
     for (int i = 0; text[i] > 0; ++i) {
         if (!mgTransWorldPrim(screen, position)) continue;
         screen[0] -= (length * 14 / 2) << 4;

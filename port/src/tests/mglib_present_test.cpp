@@ -1052,6 +1052,8 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesPositionAndHealthAndReuseCuts
     after = DamageVertices(*mgPortLastList());
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    record(440, 25); // An abrupt projection/camera cut within the same mode.
+    ExpectNewestAtEveryAlpha();
     gauge.Initialize(0);
     gauge.SetView(1);
     gauge.scale = 1;
@@ -1118,6 +1120,8 @@ TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
     uint32_t width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    record(440); // Same target and mode, discontinuous camera projection.
+    ExpectNewestAtEveryAlpha();
     player.target_no = 2; // A different scene identity, even if storage is reused.
     record(280);
     ExpectNewestAtEveryAlpha();
@@ -1372,6 +1376,8 @@ TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     CheckOverlayBlend(before, after, newest);
     EXPECT_EQ(std::memcmp(&message_state, &message, sizeof(message)), 0);
     EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    record(440); // Same target and mode, discontinuous camera projection.
+    ExpectNewestAtEveryAlpha();
     player.target_no = 2; // A different scene identity, even if storage is reused.
     record(280);
     ExpectNewestAtEveryAlpha();
@@ -1428,6 +1434,11 @@ TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
     const auto state_before = damage;
     CheckDamageBlend(*list, before, after, newest);
     EXPECT_EQ(std::memcmp(&damage, &state_before, sizeof(damage)), 0);
+    mgBeginFrame(nullptr);
+    DamageProjection(440); // A cut with unchanged world position and emission.
+    damage.Draw();
+    mgEndFrame(nullptr);
+    ExpectNewestAtEveryAlpha();
 }
 
 TEST(DamagePresentation, RetailLifetimesRemainInGameSteps) {
@@ -1577,6 +1588,8 @@ TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
     auto state = damage;
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     EXPECT_EQ(std::memcmp(&state, &damage, sizeof(damage)), 0);
+    record(440); // Same character and damage emission, a cut within the mode.
+    ExpectNewestAtEveryAlpha();
     auto previous_generation = std::get<gfx::detail::Draw2DEntry>(mgPortLastList()->entries.back()).interpolation.generation;
     damage.SetValue(0, 123, 0); // same glyphs and object, distinct emission
     damage.Step();
@@ -1752,8 +1765,8 @@ void CaptureRidepodWarning(bool wide) {
         gfx::detail::RecordEntry(std::move(entry));
     }
     auto reference = gfx::EndRecording();
-    ASSERT_TRUE(gfx::RenderList(*reference, 1, {}));
-    ASSERT_TRUE(gfx::ReadbackFrame(old, width, height));
+    ASSERT_TRUE(gfx::RenderList(*reference, 1, gfx::RenderOptions{.canonical = true}));
+    ASSERT_TRUE(gfx::ReadbackTexture(gfx::kPreviousFrame, old, width, height));
     if (wide) EXPECT_NE(anchored, old);
     else EXPECT_EQ(anchored, old); // 4:3 remains byte-identical.
     if (const char *capture = std::getenv("DC2_CAPTURE_DIR")) {

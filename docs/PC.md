@@ -836,6 +836,9 @@ Edits to `ps2/src` or `ps2/include` made for the port must leave the PS2 build b
 - `ps2/src/menuop.cpp`: switch-case scope braces (`SUB_SAVE_SPACE_ASK`) and a split initialisation.
 - `ps2/src/fishing.cpp`: a named union, `EventDataUnion`, with an empty constructor.
 - `ps2/src/inventmn.cpp`: an enum cast in arithmetic (`(int) INVENT_ALBUM_PHOTO_NUM`).
+- `ps2/src/inventmn.cpp`: `CMenuInvent`'s constructor is `inline` only under `#ifndef PORT`, so native builds emit the definition called from other units.
+- `ps2/src/effscript.cpp`: `_DIST_VECTOR` reserves `float vector[4]`, matching the four floats `GetStackVector` writes.
+- `ps2/include/scenesnd.hpp`: the `motion_blur` alias uses `offsetof(CFadeInOut, blur_alpha)` for its padding, with `<cstddef>` providing the macro on both builds. This keeps it on the blur field when the preceding texture pointer grows on native builds.
 - `ps2/src/mg_tanime.cpp`: a cast of `MG_TEX_ANIME_AMPLITUDE_FULL` to `float` in arithmetic.
 - `ps2/src/memcard.cpp`: `unsigned long` spelled as `u_long` in `CheckOmake` and `GetCostumeList`.
 - `ps2/src/mg_visual.cpp`: `unsigned long` spelled as `u_long` in both `mgSetPkTEX0` overloads.

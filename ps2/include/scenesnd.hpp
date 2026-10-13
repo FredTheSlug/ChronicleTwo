@@ -2,6 +2,7 @@
 
 #include "common.h"
 
+#include <cstddef>
 #include <libvu0.h>
 
 #include "character.hpp"
@@ -360,7 +361,7 @@ public:
         CFadeInOut fade; /**< Screen fade. */
 
         struct {
-            u8  unk_2c70[0x2C];
+            u8  unk_2c70[offsetof(CFadeInOut, blur_alpha)];
             int motion_blur; /**< Strength of the scene's motion blur effect. */
         };
     };

@@ -1,10 +1,12 @@
 #pragma once
 
 #include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "memcard.hpp"
+#include "platform/files.hpp"
 
 enum class SaveSlotState {
     Ready,
@@ -25,6 +27,9 @@ struct SaveSlot {
 
 struct SaveSlotList {
     std::vector<SaveSlot> saves;
+    // Includes unreadable flat names and unmarked legacy entries from both cards.
+    std::set<int>         occupied;
+    int                   first_free = 0;
     bool                  read_failed = false;
 };
 
@@ -45,3 +50,5 @@ SaveSlotList          SaveSlotScan();
 // operation IDs; display numbers and filenames are kept in SaveSlot, never in a
 // retail fixed-size table.
 CMemoryCardManager *SaveSlotManager();
+
+FilesResult SaveSlotWrite(const std::filesystem::path &path, const SAVEDATA_FORMAT &image, bool replace);

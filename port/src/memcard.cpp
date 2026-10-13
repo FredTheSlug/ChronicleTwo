@@ -55,7 +55,7 @@ PORT_OVERRIDE int CMemoryCardManager::GetAllSaveFileInfo() {
 PORT_OVERRIDE unsigned long long CMemoryCardManager::CheckMaxUniqueCounter() {
     unsigned long long newest = 0;
     for (const auto &slot : SaveSlots.saves) {
-        if (slot.state == SaveSlotState::Ready) {
+        if (slot.state == SaveSlotState::Ready && slot.info.state) {
             newest = std::max(newest, slot.info.unique_counter);
         }
     }
@@ -67,7 +67,7 @@ PORT_OVERRIDE int CMemoryCardManager::GetUpdateFile() {
     unsigned long long newest = 0;
     for (std::size_t i = 0; i < SaveSlots.saves.size(); ++i) {
         const auto &slot = SaveSlots.saves[i];
-        if (slot.state == SaveSlotState::Ready && (row < 0 || slot.info.unique_counter > newest)) {
+        if (slot.state == SaveSlotState::Ready && slot.info.state && (row < 0 || slot.info.unique_counter > newest)) {
             row = static_cast<int>(i);
             newest = slot.info.unique_counter;
         }
@@ -83,7 +83,7 @@ PORT_OVERRIDE int CMemoryCardManager::CheckDataFileNum() {
 PORT_OVERRIDE u32 CMemoryCardManager::CheckOmake(u_long *out_mask) {
     unsigned int flags = 0;
     for (const auto &slot : SaveSlots.saves) {
-        if (slot.state != SaveSlotState::Ready) {
+        if (slot.state != SaveSlotState::Ready || !slot.info.state) {
             continue;
         }
         flags |= slot.info.omake_flag;
@@ -97,7 +97,7 @@ PORT_OVERRIDE u32 CMemoryCardManager::CheckOmake(u_long *out_mask) {
 PORT_OVERRIDE int CMemoryCardManager::CheckDebugCode() {
     int code = 0;
     for (const auto &slot : SaveSlots.saves) {
-        if (slot.state == SaveSlotState::Ready && slot.info.debug_code > 0) {
+        if (slot.state == SaveSlotState::Ready && slot.info.state && slot.info.debug_code > 0) {
             code = slot.info.debug_code;
         }
     }
@@ -160,7 +160,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
                 break;
             }
             path = SaveSlotPath(number);
-            result = FilesWrite(path, &image, sizeof(image), false);
+            result = SaveSlotWrite(path, image, false);
             if (result != FilesResult::kExists) {
                 break;
             }
@@ -170,7 +170,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
         path = SaveSlotPath(slot.number, slot.second_card);
         // Failed imports can still be loaded and explicitly replaced, but the
         // original card payload is never modified.
-        result = FilesWrite(path, &image, sizeof(image), slot.path == path);
+        result = SaveSlotWrite(path, image, slot.path == path);
     }
     SaveSlotNew = false;
     if (result != FilesResult::kWritten) {

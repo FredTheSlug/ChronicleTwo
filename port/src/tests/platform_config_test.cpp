@@ -206,6 +206,43 @@ TEST_F(PlatformConfig, SettingsChangeStoresAndNormalises) {
     ASSERT_TRUE(ConfigParse(Read()).tick_rate == 120.0);
 }
 
+TEST_F(PlatformConfig, InvalidFilesAreBackedUpAndReplacedOnChange) {
+    int backup_number = 0;
+    for (const std::string text : {"", " \r\n\t", "{broken", "[]", "null", "42"}) {
+        SCOPED_TRACE(text);
+        Write(text);
+        ASSERT_TRUE(ConfigLoad());
+        EXPECT_EQ(Read(), text);
+        Config changed = ConfigGet();
+        changed.master_volume = 0.25f;
+        ASSERT_TRUE(ConfigChange(changed));
+        EXPECT_EQ(ConfigParse(Read()), changed);
+        EXPECT_TRUE(nlohmann::json::parse(Read()).contains("game"));
+        auto backup = Path();
+        backup += ".bad";
+        if (backup_number) {
+            backup += "." + std::to_string(backup_number);
+        }
+        std::ifstream file(backup, std::ios::binary);
+        ASSERT_TRUE(file);
+        EXPECT_EQ(std::string(std::istreambuf_iterator<char>(file), {}), text);
+        ++backup_number;
+    }
+    std::ifstream first(Path().string() + ".bad", std::ios::binary);
+    EXPECT_EQ(std::string(std::istreambuf_iterator<char>(first), {}), "");
+}
+
+TEST_F(PlatformConfig, DirectoryCreatedAfterLoadIsNeverReplaced) {
+    ASSERT_FALSE(ConfigLoad());
+    fs::remove(Path());
+    fs::create_directory(Path());
+    Config changed = ConfigGet();
+    changed.master_volume = 0.25f;
+    EXPECT_FALSE(ConfigChange(changed));
+    EXPECT_TRUE(fs::is_directory(Path()));
+    EXPECT_FALSE(fs::exists(Path().string() + ".bad"));
+}
+
 TEST_F(PlatformConfig, ExistingUnreadableFileIsNeverOverwritten) {
     fs::create_directory(Path());
     ASSERT_FALSE(ConfigLoad());
@@ -303,4 +340,27 @@ TEST_F(PlatformConfig, BindingResetPreservesUnrelatedExternalBindings) {
     EXPECT_FALSE(json["input"]["bindings"].contains("cross"));
     EXPECT_EQ(json["input"]["bindings"]["circle"][0], "Z");
     EXPECT_EQ(json["input"]["bindings"]["future"][0], "J");
+}
+
+TEST_F(PlatformConfig, BindingEditsAndResetMergeCaseInsensitiveNames) {
+    Write(R"({"input":{"bindings":{"Cross":["K"],"CiRcLe":["Q"]}}})");
+    ASSERT_TRUE(ConfigLoad());
+    Write(R"({"input":{"bindings":{"Cross":["K"],"CROSS":["X"],"CiRcLe":["Z"],"Future":["J"]}},"extra":{"Cross":42}})");
+    Config changed = ConfigGet();
+    changed.key_bindings[0].keys = {"V"};
+    ASSERT_TRUE(ConfigChange(changed));
+    auto json = nlohmann::json::parse(Read());
+    EXPECT_EQ(json["input"]["bindings"].size(), 3);
+    EXPECT_EQ(json["input"]["bindings"]["cross"][0], "V");
+    EXPECT_FALSE(json["input"]["bindings"].contains("Cross"));
+    EXPECT_FALSE(json["input"]["bindings"].contains("CROSS"));
+    EXPECT_EQ(json["input"]["bindings"]["CiRcLe"][0], "Z");
+    EXPECT_EQ(json["input"]["bindings"]["Future"][0], "J");
+    EXPECT_EQ(json["extra"]["Cross"], 42);
+    Write(R"({"input":{"bindings":{"CrOsS":["V"],"CiRcLe":["Z"],"Future":["J"]}}})");
+    changed.key_bindings.erase(changed.key_bindings.begin());
+    ASSERT_TRUE(ConfigChange(changed));
+    json = nlohmann::json::parse(Read());
+    EXPECT_FALSE(json["input"]["bindings"].contains("CrOsS"));
+    EXPECT_EQ(json["input"]["bindings"].size(), 2);
 }

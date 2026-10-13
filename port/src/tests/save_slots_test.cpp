@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "dataread.hpp"
 #include "font.hpp"
 #include "gamepad.hpp"
 #include "inventmn.hpp"
@@ -78,6 +79,37 @@ protected:
         return root / (card ? "mc1" : "mc0") / name / name;
     }
 };
+
+std::string MessageText(const CDC2Mes &message) {
+    std::string text;
+    const auto *font = GetYoyakuTblTop();
+    for (int i = 0; i < message.tbl_num; ++i) {
+        const auto code = message.tbl[i].code;
+        if (code == MES_CODE_SPACE) {
+            text += ' ';
+        } else if (code == MES_CODE_NEWLINE) {
+            text += '\n';
+        } else if (code < GetYoyakuTblNum()) {
+            text += font[code * 2 + 1] == ' ' ? static_cast<char>(font[code * 2]) : '?';
+        }
+    }
+    return text;
+}
+
+std::vector<u_long128> SaveMessages(int language) {
+    const auto    path = PathsDataRoot() / "menu" / std::to_string(language) / "save.pac";
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) {
+        return {};
+    }
+    const auto             size = static_cast<std::size_t>(file.tellg());
+    std::vector<u_long128> archive((size + 15) / 16);
+    file.seekg(0);
+    if (!file.read(reinterpret_cast<char *>(archive.data()), size)) {
+        return {};
+    }
+    return archive;
+}
 
 struct MenuRig {
     CSaveMenuClass      menu;
@@ -172,19 +204,23 @@ TEST_F(SaveSlotTest, ImportsBothCardsByteExactlyWithoutTouchingOriginals) {
     EXPECT_EQ(SaveSlotScan().saves.size(), 4); // Reopening never duplicates imports.
 }
 
-TEST_F(SaveSlotTest, ExistingFlatFileWinsOverOlderCardCopy) {
+TEST_F(SaveSlotTest, DifferentLegacyCollisionImportsWithoutReplacingFlatFile) {
     Write(Legacy(0, 0));
     image->unique_counter = 42;
     Write(SaveSlotPath(0));
     auto before = Bytes(SaveSlotPath(0));
     auto list = SaveSlotScan();
-    ASSERT_EQ(list.saves.size(), 1);
+    ASSERT_EQ(list.saves.size(), 2);
     EXPECT_EQ(list.saves[0].info.unique_counter, 42);
+    EXPECT_EQ(Bytes(SaveSlotPath(1)), Bytes(Legacy(0, 0)));
+    EXPECT_EQ(SaveSlotScan().saves.size(), 2);
+    fs::remove(SaveSlotPath(1));
+    EXPECT_EQ(SaveSlotScan().saves.size(), 1);
     EXPECT_EQ(Bytes(SaveSlotPath(0)), before);
     EXPECT_NE(Bytes(Legacy(0, 0)), before);
 }
 
-TEST_F(SaveSlotTest, UnusableEntriesStayVisibleAndReserveTheirNames) {
+TEST_F(SaveSlotTest, UnusableEntriesReserveNamesEvenWhenUnreadableRowsAreSkipped) {
     Write(SaveSlotPath(0), 100);
     image->incomplete = 1;
     Write(SaveSlotPath(1));
@@ -206,7 +242,7 @@ TEST_F(SaveSlotTest, UnusableEntriesStayVisibleAndReserveTheirNames) {
     EXPECT_EQ(list.saves[3].state, SaveSlotState::WrongVersion);
     EXPECT_EQ(SaveSlotRows(list, true), 5);
     EXPECT_EQ(SaveSlotRows(list, false), 4);
-    EXPECT_EQ(SaveSlotFirstFree(list), 5);
+    EXPECT_EQ(SaveSlotFirstFree(list), 6);
     EXPECT_EQ(Bytes(SaveSlotPath(2)), before);
 }
 
@@ -315,6 +351,9 @@ TEST_F(SaveSlotTest, InvalidCatalogRootReportsErrorAndRefusesNewSave) {
     std::ofstream(root / "saves") << "occupied";
     manager.GetAllSaveFileInfo();
     EXPECT_TRUE(SaveSlots.read_failed);
+    EXPECT_EQ(SaveSlotFirstFree(SaveSlots), -1);
+    EXPECT_EQ(SaveSlotRows(SaveSlots, true), 0);
+    EXPECT_FALSE(SaveSlotIsNew(SaveSlots, 0, true));
     SaveSlotNew = true;
     manager.SaveToMc(0);
     EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
@@ -389,9 +428,8 @@ TEST_F(SaveSlotTest, DeletedImportsStayDeletedAcrossLaterScans) {
     EXPECT_TRUE(fs::exists(Legacy(1, 0)));
 }
 
-TEST_F(SaveSlotTest, ExistingFlatSaveRetiresItsLegacyCopyBeforeManualDeletion) {
+TEST_F(SaveSlotTest, IdenticalFlatSaveRetiresItsLegacyCopyBeforeManualDeletion) {
     Write(Legacy(0, 3));
-    image->unique_counter = 42;
     Write(SaveSlotPath(3));
     ASSERT_EQ(SaveSlotScan().saves.size(), 1);
     fs::remove(SaveSlotPath(3));
@@ -547,5 +585,139 @@ TEST_F(SaveSlotTest, NoFishAndOperationFailuresUseRetailNotices) {
         rig.menu.KeyStep();
         EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_NOTICE);
         EXPECT_EQ(rig.message.mes_no, writing ? 0xBC1 : 0xBC6);
+    }
+}
+
+TEST_F(SaveSlotTest, LegacyCollisionComparesPayloadBeyondTheHeader) {
+    Write(Legacy(0, 0));
+    image->save_data.map_no = 42;
+    Write(SaveSlotPath(0));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 2);
+    EXPECT_EQ(Bytes(SaveSlotPath(1)), Bytes(Legacy(0, 0)));
+    EXPECT_NE(Bytes(SaveSlotPath(0)), Bytes(SaveSlotPath(1)));
+}
+
+TEST_F(SaveSlotTest, CollisionAllocationReservesUnreadableNamesOnBothCards) {
+    Write(SaveSlotPath(0));
+    image->unique_counter = 2;
+    Write(Legacy(0, 0));
+    fs::create_directories(Legacy(0, 1).parent_path());
+    fs::create_directories(Legacy(1, 2).parent_path());
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 2);
+    EXPECT_EQ(Bytes(SaveSlotPath(3)), Bytes(Legacy(0, 0)));
+    EXPECT_EQ(SaveSlotFirstFree(list), 4);
+    EXPECT_FALSE(fs::exists(root / ".save-imports" / SaveSlotPath(1).filename()));
+    EXPECT_FALSE(fs::exists(root / ".save-imports" / SaveSlotPath(2, true).filename()));
+}
+
+TEST_F(SaveSlotTest, PublishedSaveInvalidatesHeaderEvenWithUnchangedTimestamp) {
+    Write(SaveSlotPath(0));
+    ASSERT_EQ(SaveSlotScan().saves[0].info.unique_counter, 1);
+    const auto stamp = fs::last_write_time(SaveSlotPath(0));
+    image->unique_counter = 99;
+    image->save_data.play_time = 900;
+    ASSERT_EQ(SaveSlotWrite(SaveSlotPath(0), *image, true), FilesResult::kWritten);
+    fs::last_write_time(SaveSlotPath(0), stamp);
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(SaveSlots.saves.size(), 1);
+    EXPECT_EQ(SaveSlots.saves[0].info.unique_counter, 99);
+    EXPECT_EQ(SaveSlots.saves[0].info.play_time, 900);
+    SaveSlotNew = false;
+    live->play_time = 1000;
+    ASSERT_EQ(manager.SaveToMc(0), MC_STEP_DONE);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(SaveSlots.saves[0].info.unique_counter, 100);
+    EXPECT_EQ(SaveSlots.saves[0].info.play_time, 1000);
+}
+
+TEST_F(SaveSlotTest, MarkerFailureDoesNotBlockSavingOrDuplicateRelocatedImports) {
+    Write(SaveSlotPath(0));
+    image->unique_counter = 42;
+    Write(Legacy(0, 0));
+    std::ofstream(root / ".save-imports") << "occupied";
+    manager.GetAllSaveFileInfo();
+    EXPECT_FALSE(SaveSlots.read_failed);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(SaveSlotScan().saves.size(), 2);
+    EXPECT_EQ(SaveSlotScan().saves.size(), 2);
+    SaveSlotNew = true;
+    manager.SaveToMc(2);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(SaveSlots.saves.size(), 3);
+    EXPECT_TRUE(fs::is_regular_file(SaveSlotPath(2)));
+}
+
+TEST_F(SaveSlotTest, VersionTwoMetadataDoesNotUnlockOrSelectNewestBeforeConversion) {
+    Write(SaveSlotPath(0));
+    std::strcpy(image->version, "dc2Ver2");
+    image->unique_counter = 9999;
+    image->omake_flag = 0xffff;
+    image->costume_bit = 0xffff;
+    image->debug_code = 42;
+    Write(SaveSlotPath(1));
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(SaveSlots.saves.size(), 2);
+    EXPECT_EQ(SaveSlots.saves[1].state, SaveSlotState::Ready);
+    EXPECT_EQ(SaveSlots.saves[1].info.state, 0);
+    u_long costumes = 0;
+    EXPECT_EQ(manager.CheckOmake(&costumes), 0);
+    EXPECT_EQ(costumes, 0);
+    EXPECT_EQ(manager.CheckDebugCode(), 0);
+    EXPECT_EQ(manager.GetUpdateFile(), 0);
+    EXPECT_EQ(manager.CheckMaxUniqueCounter(), 1);
+    EXPECT_EQ(manager.LoadFromMc(1), MC_STEP_DONE);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+}
+
+TEST_F(SaveSlotTest, FirstFreeIsACatalogSnapshotRefreshedByScans) {
+    auto list = SaveSlotScan();
+    EXPECT_EQ(SaveSlotFirstFree(list), 0);
+    Write(SaveSlotPath(0));
+    EXPECT_EQ(SaveSlotFirstFree(list), 0);
+    list = SaveSlotScan();
+    EXPECT_EQ(SaveSlotFirstFree(list), 1);
+    fs::remove(SaveSlotPath(0));
+    EXPECT_EQ(SaveSlotFirstFree(list), 1);
+    EXPECT_EQ(SaveSlotFirstFree(SaveSlotScan()), 0);
+}
+
+TEST_F(SaveSlotTest, LocalizedSavePromptsContainRetailText) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) {
+        GTEST_SKIP() << "DC2_DATA supplies localized menu archives and the font table";
+    }
+    PathsSetDataRoot(data);
+    LoadFontTblBin();
+    image->fish_num = 5;
+    Write(SaveSlotPath(7));
+    manager.GetAllSaveFileInfo();
+    for (int language : {LANG_ENGLISH, LANG_SPANISH}) {
+        auto archive = SaveMessages(language);
+        ASSERT_FALSE(archive.empty());
+        char  name[] = "allmenu.mes";
+        auto *messages = reinterpret_cast<short *>(GetPackFile(reinterpret_cast<u_int *>(archive.data()), name, nullptr));
+        ASSERT_NE(messages, nullptr);
+        for (bool finny : {false, true}) {
+            MenuRig rig;
+            LanguageCode = language;
+            rig.message.SetMessData(messages, messages);
+            rig.menu.mode = finny ? SAVE_MENU_MODE_GYORACE_LOAD : SAVE_MENU_MODE_SAVE;
+            rig.menu.select = finny ? 0 : 1;
+            rig.Idle();
+            rig.Press(PAD_CROSS);
+            rig.message.StepMsg();
+            const auto  text = MessageText(rig.message);
+            const char *expected;
+            if (language == LANG_ENGLISH) {
+                expected = finny ? "File 8 has data for 5 fish.\nLoad fish data from file 8?"
+                                 : "At least 415KB is necessary\nfor a new file.\nOK to save?";
+            } else {
+                expected = finny ? "El archivo 8 tiene datos de 5 peces.\nCargar los datos de peces del archivo 8?"
+                                 : "Necesitas al menos 415 KB \npara guardar datos.\nGuardar?";
+            }
+            EXPECT_EQ(text, expected);
+        }
     }
 }

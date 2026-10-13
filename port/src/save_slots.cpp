@@ -1,7 +1,9 @@
 #include "save_slots.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <map>
@@ -68,6 +70,34 @@ bool Import(const fs::path &from, const fs::path &to) {
     return FilesWrite(to, bytes.data(), bytes.size(), false) == FilesResult::kWritten;
 }
 
+bool SameBytes(const fs::path &left, const fs::path &right) {
+    std::error_code error;
+    if (!fs::is_regular_file(left, error) || !fs::is_regular_file(right, error)) {
+        return false;
+    }
+    const auto size = fs::file_size(left, error);
+    if (error) {
+        return false;
+    }
+    if (size != fs::file_size(right, error) || error) {
+        return false;
+    }
+    std::ifstream a(left, std::ios::binary), b(right, std::ios::binary);
+    if (!a || !b) {
+        return false;
+    }
+    std::array<char, 65536> x, y;
+    for (std::uintmax_t remaining = size; remaining;) {
+        const auto count = static_cast<std::streamsize>(std::min<std::uintmax_t>(remaining, x.size()));
+        if (!a.read(x.data(), count) || !b.read(y.data(), count) ||
+            std::memcmp(x.data(), y.data(), static_cast<std::size_t>(count)) != 0) {
+            return false;
+        }
+        remaining -= count;
+    }
+    return true;
+}
+
 struct CachedHeader {
     std::uintmax_t     size;
     fs::file_time_type modified;
@@ -99,17 +129,19 @@ SaveSlotState ReadHeader(const fs::path &path, std::uintmax_t size, SAVEDATA_INF
     if (image->incomplete) {
         return SaveSlotState::Incomplete;
     }
-    info.state = 1;
+    // Ver2 can be loaded and converted, but its raw header must not grant
+    // unlocks, debug codes or newest-save priority before that conversion.
+    info.state = std::memcmp(image->version, "dc2Ver4", 8) == 0 ? 1 : 0;
     info.map_no = image->map_no;
     info.program_loop_no = image->program_loop_no;
     info.dungeon_no = image->dungeon_no;
     info.floor_id = image->floor_id;
     info.progress = image->save_data.game_progress;
     info.play_time = image->save_data.play_time;
-    info.unique_counter = image->unique_counter;
-    info.omake_flag = image->omake_flag;
-    info.costume_bit = image->costume_bit;
-    info.debug_code = image->debug_code;
+    info.unique_counter = info.state ? image->unique_counter : 0;
+    info.omake_flag = info.state ? image->omake_flag : 0;
+    info.costume_bit = info.state ? image->costume_bit : 0;
+    info.debug_code = info.state ? image->debug_code : 0;
     info.fish_num = image->fish_num;
     return SaveSlotState::Ready;
 }
@@ -143,14 +175,29 @@ fs::path ImportMarker(const fs::path &target) {
     return PathsSaveRoot() / ".save-imports" / target.filename();
 }
 
-bool RecordImport(const fs::path &target) {
+void RecordImport(const fs::path &target) {
     auto marker = ImportMarker(target);
-    if (FilesCreateDirectory(marker.parent_path()) == FilesResult::kFailed) {
-        return false;
+    if (FilesCreateDirectory(marker.parent_path()) != FilesResult::kFailed) {
+        constexpr char imported[] = "imported\n";
+        const auto     result = FilesWrite(marker, imported, sizeof(imported) - 1, false);
+        if (result == FilesResult::kWritten || result == FilesResult::kExists) {
+            return;
+        }
     }
-    constexpr char imported[] = "imported\n";
-    const auto     result = FilesWrite(marker, imported, sizeof(imported) - 1, false);
-    return result == FilesResult::kWritten || result == FilesResult::kExists;
+    std::fprintf(stderr, "save import: could not record %s; will retry on the next scan\n",
+                 PathsDisplay(marker).c_str());
+}
+
+int FirstFree(const std::set<int> &occupied) {
+    int number = 0;
+    for (int used : occupied) {
+        if (used == number) {
+            ++number;
+        } else if (used > number) {
+            break;
+        }
+    }
+    return number < 1000000000 ? number : -1;
 }
 } // namespace
 
@@ -184,28 +231,15 @@ int SaveSlotNumber(const std::string &name, bool &second_card) {
 }
 
 int SaveSlotFirstFree(const SaveSlotList &list) {
-    int number = 0;
-    for (const auto &slot : list.saves) {
-        if (slot.number == number) {
-            ++number;
-        } else if (slot.number > number) {
-            break;
-        }
-    }
-    // Unreadable entries are omitted from the list but still own their names.
-    std::error_code error;
-    while (number < 1000000000 && fs::exists(SaveSlotPath(number), error)) {
-        ++number;
-    }
-    return !error && number < 1000000000 ? number : -1;
+    return list.first_free;
 }
 
 int SaveSlotRows(const SaveSlotList &list, bool saving) {
-    return static_cast<int>(list.saves.size()) + (saving ? 1 : 0);
+    return static_cast<int>(list.saves.size()) + (saving && list.first_free >= 0 ? 1 : 0);
 }
 
 bool SaveSlotIsNew(const SaveSlotList &list, int row, bool saving) {
-    return saving && row == static_cast<int>(list.saves.size());
+    return saving && list.first_free >= 0 && row == static_cast<int>(list.saves.size());
 }
 
 const char *SaveSlotStatus(SaveSlotState state) {
@@ -271,8 +305,10 @@ SaveSlotList SaveSlotScan() {
         int  number = SaveSlotNumber(path.filename().string(), second);
         if (number >= 0) {
             entries[{number, second}] = path;
+            list.occupied.insert(number);
         }
     }
+    std::vector<std::pair<fs::path, bool> > legacy;
     for (int card = 0; card < 2; ++card) {
         paths.clear();
         if (!ListDirectory(PathsSaveRoot() / (card ? "mc1" : "mc0"), paths)) {
@@ -284,25 +320,49 @@ SaveSlotList SaveSlotScan() {
             if (number < 0 || second) {
                 continue;
             }
-            auto            key = std::make_pair(number, card != 0);
             auto            target = SaveSlotPath(number, card != 0);
             std::error_code error;
             if (fs::exists(ImportMarker(target), error)) {
                 continue;
             }
-            if (entries.contains(key)) {
-                if (fs::is_regular_file(target, error) && !RecordImport(target)) {
-                    list.read_failed = true;
-                }
+            list.occupied.insert(number);
+            legacy.emplace_back(dir, card != 0);
+        }
+    }
+    // Reserve all legacy names before relocating any collision, including names
+    // whose payload is temporarily unavailable.
+    for (const auto &[dir, second_card] : legacy) {
+        bool            second;
+        int             number = SaveSlotNumber(dir.filename().string(), second);
+        auto            key = std::make_pair(number, second_card);
+        auto            target = SaveSlotPath(number, second_card);
+        const auto      marker_target = target;
+        const auto      source = dir / dir.filename();
+        std::error_code error;
+        if (entries.contains(key)) {
+            // A matching number alone does not prove an import. Search flat
+            // files too, so a failed marker write can retry a relocated copy.
+            const bool imported = std::ranges::any_of(entries, [&](const auto &entry) {
+                return entry.second.parent_path() == SaveSlotsRoot() && SameBytes(source, entry.second);
+            });
+            if (imported) {
+                RecordImport(marker_target);
                 continue;
             }
-            auto source = dir / dir.filename();
-            if (Import(source, target) && !RecordImport(target)) {
-                list.read_failed = true;
+            number = list.read_failed ? -1 : FirstFree(list.occupied);
+            if (number < 0) {
+                continue;
             }
-            // An incomplete/missing legacy payload still owns a row and a name.
-            entries[key] = fs::exists(target, error) ? target : source;
+            key = {number, second_card};
+            target = SaveSlotPath(number, second_card);
+            list.occupied.insert(number);
         }
+        if (Import(source, target)) {
+            header_cache.erase(target);
+            RecordImport(marker_target);
+        }
+        // Unreadable payloads are omitted from rows but retain their names.
+        entries[key] = fs::exists(target, error) ? target : source;
     }
     std::set<fs::path> seen;
     for (const auto &[key, path] : entries) {
@@ -319,5 +379,14 @@ SaveSlotList SaveSlotScan() {
         list.saves.push_back(slot);
     }
     std::erase_if(header_cache, [&](const auto &entry) { return !seen.contains(entry.first); });
+    list.first_free = list.read_failed ? -1 : FirstFree(list.occupied);
     return list;
+}
+
+FilesResult SaveSlotWrite(const fs::path &path, const SAVEDATA_FORMAT &image, bool replace) {
+    const auto result = FilesWrite(path, &image, sizeof(image), replace);
+    if (result == FilesResult::kWritten) {
+        header_cache.erase(path);
+    }
+    return result;
 }

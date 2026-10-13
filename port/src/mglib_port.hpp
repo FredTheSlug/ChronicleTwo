@@ -163,7 +163,8 @@ bool mgPortInShadow();
 // Submission. Dropped outside a frame and before mgPortRendererReady().
 
 void mgPortDraw2D(gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices,
-                  const gfx::TextureBinding &texture, const gfx::DrawState &state);
+                  const gfx::TextureBinding &texture, const gfx::DrawState &state,
+                  const gfx::Presentation2D *presentation = nullptr);
 void mgPortDrawMesh(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
                     const gfx::MeshConstants &constants, const gfx::TextureBinding &texture,
                     const gfx::DrawState &state, const gfx::MeshTransform *transform = nullptr);

@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <memory>
+#include <thread>
 #include <vector>
 
 #include "audio/mixer.hpp"
@@ -108,6 +110,13 @@ TEST_F(PcOptionsAudio, SoundtrackUsesTheLoadedSequenceNameOnTheNextPlay) {
     ConfigChange(config);
     audio::SoundtrackReload();
     CSnd.SQ_Play(0, 0, 256);
+    const auto request = audio::SoundtrackRequestFor("test.sq");
+    ASSERT_NE(request, nullptr);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (!request->ready.load() && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_TRUE(request->ready.load());
     EXPECT_GT(fx::Rms(fx::RenderFrames(audio::DefaultMixer(), 128)), .1);
     config.soundtrack = false;
     ConfigChange(config);

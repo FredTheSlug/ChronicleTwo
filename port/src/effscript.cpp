@@ -27,9 +27,15 @@ PORT_OVERRIDE int CEffectScriptMan::AssignCharacter(_EFF_SCRIPT *script, int cou
     // the allocator's strict end-of-stack capacity check.
     const long long required = count * (static_cast<long long>(object_size) +
                                        std::max(0, script->chara->GetCopySize())) + 4;
-    if (required > std::numeric_limits<int>::max()) return 0;
+    if (required > std::numeric_limits<int>::max()) {
+        std::printf("------- es work max!! (assign character[%lld]) ---------\n", required);
+        return 0;
+    }
     u_long128 *token = work_memory->StartStackMode(MG_STACK_MODE_FIT, static_cast<int>(required));
-    if (token == nullptr) return 0;
+    if (token == nullptr) {
+        std::printf("------- es work max!! (assign character[%lld]) ---------\n", required);
+        return 0;
+    }
     for (int i = 0; i < count; ++i) {
         script->sub_chara[i] = new (work_memory->Alloc(object_size)) CCharacter2;
         script->chara->Copy(*script->sub_chara[i], work_memory);

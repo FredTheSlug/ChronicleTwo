@@ -55,7 +55,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
             ASSERT_TRUE(options::StepRow(row, config, 1) || options::StepRow(row, config, -1)) << row.key;
             EXPECT_NE(config, Config{}) << row.key;
             EXPECT_EQ(ConfigParse(ConfigSerialize(config)), config) << row.key;
-            EXPECT_TRUE(config.debug_mode);
+            EXPECT_FALSE(config.debug_mode);
             EXPECT_DOUBLE_EQ(config.tick_rate, 50);
         }
     }

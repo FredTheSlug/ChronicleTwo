@@ -1,3 +1,4 @@
+# Requires game.debug_mode=true in the replay save root config.json.
 # Retail chapter 1 normal start, enter the first floor, dismiss tutorials, walk.
 # Replay through frame 4400.
 300 circle

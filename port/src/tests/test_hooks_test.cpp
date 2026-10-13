@@ -4,6 +4,29 @@
 #include "gamepad.hpp"
 #include "nowload.hpp"
 #include "platform/input.hpp"
+#include "platform/config.hpp"
+#include "platform/paths.hpp"
+#include "platform_fixture.hpp"
+#include <filesystem>
+#include <format>
+
+namespace {
+class GamePadSingleDebug : public testing::Test {
+protected:
+    void SetUp() override {
+        root = std::filesystem::temp_directory_path() / std::format("dc2_debug_{}", dc::test::ProcessId());
+        PathsSetSaveRoot(root);
+        Config config;
+        config.debug_mode = true;
+        ASSERT_TRUE(ConfigChange(config));
+    }
+    void TearDown() override {
+        ConfigChange(Config{});
+        std::filesystem::remove_all(root);
+    }
+    std::filesystem::path root;
+};
+} // namespace
 
 TEST(TestHooks, JumpAcceptsModesAndBounds) {
     GameJump jump;
@@ -36,7 +59,7 @@ TEST(TestHooks, GiveRejectsMalformedListsWithoutChangingThePreviousList) {
     }
 }
 
-TEST(GamePadSingleDebug, ModifierRoutesEdgesAndHeldButtonsPastThePad2Lock) {
+TEST_F(GamePadSingleDebug, ModifierRoutesEdgesAndHeldButtonsPastThePad2Lock) {
     CGamePad pad{};
     pad.key_lock2 = 1;
     pad.pad[0].button = PAD_L2 | PAD_SELECT | PAD_CIRCLE | PAD_RIGHT | PAD_R2;
@@ -53,7 +76,7 @@ TEST(GamePadSingleDebug, ModifierRoutesEdgesAndHeldButtonsPastThePad2Lock) {
     EXPECT_FALSE(pad.Down2(PAD_R2));
 }
 
-TEST(GamePadSingleDebug, OrdinaryPad1AndRealPad2RetainTheirButtons) {
+TEST_F(GamePadSingleDebug, OrdinaryPad1AndRealPad2RetainTheirButtons) {
     CGamePad pad{};
     pad.pad[0].button = PAD_CIRCLE | PAD_RIGHT;
     EXPECT_TRUE(pad.Down(PAD_CIRCLE));
@@ -65,7 +88,7 @@ TEST(GamePadSingleDebug, OrdinaryPad1AndRealPad2RetainTheirButtons) {
     EXPECT_FALSE(pad.Down2(PAD_L1));
 }
 
-TEST(GamePadSingleDebug, AddingL2AfterSelectDoesNotPauseDuringTimeScrubbing) {
+TEST_F(GamePadSingleDebug, AddingL2AfterSelectDoesNotPauseDuringTimeScrubbing) {
     CGamePad pad{};
     pad.previous_pad[0].button = PAD_SELECT;
     pad.pad[0].button = PAD_SELECT | PAD_L2 | PAD_RIGHT;
@@ -74,7 +97,7 @@ TEST(GamePadSingleDebug, AddingL2AfterSelectDoesNotPauseDuringTimeScrubbing) {
     EXPECT_FALSE(pad.Down2(PAD_SELECT));
 }
 
-TEST(GamePadSingleDebug, ModifiedStartCapturesWhileOrdinaryStartResumes) {
+TEST_F(GamePadSingleDebug, ModifiedStartCapturesWhileOrdinaryStartResumes) {
     CGamePad pad{};
     pad.key_lock2 = 1;
     pad.previous_pad[0].button = PAD_L2 | PAD_SELECT;
@@ -90,7 +113,7 @@ TEST(GamePadSingleDebug, ModifiedStartCapturesWhileOrdinaryStartResumes) {
     EXPECT_TRUE(GameDebugPauseResumeRequested(pad));
 }
 
-TEST(TestHooks, DeveloperMenuChordUsesHostInputPastTheGameLockAndOnlyOnAnEdge) {
+TEST_F(GamePadSingleDebug, DeveloperMenuChordUsesHostInputPastTheGameLockAndOnlyOnAnEdge) {
     InputPadState input;
     input.connected = true;
     input.buttons = kInputStart | kInputSelect;

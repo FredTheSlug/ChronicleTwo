@@ -84,6 +84,7 @@ list(JOIN CT_CPU_TESTS ":" CT_CPU_FILTER)
 execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/port/gpu_test_labels.py
     ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/tools/kazarov/port/tests
     --filters ${CT_GPU_FILTER}:${CT_GPU_SLOW_FILTER}
+    --cpu-filters ${CT_CPU_FILTER}
     RESULT_VARIABLE gpu_label_result OUTPUT_VARIABLE gpu_label_output ERROR_VARIABLE gpu_label_error)
 if(NOT gpu_label_result EQUAL 0)
     message(FATAL_ERROR "${gpu_label_output}${gpu_label_error}")

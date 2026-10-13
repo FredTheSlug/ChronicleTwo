@@ -40,13 +40,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('roots', type=Path, nargs='+')
     parser.add_argument('--filters', required=True)
+    parser.add_argument('--cpu-filters', default='')
     args = parser.parse_args()
     filters = args.filters.split(':')
+    cpu_filters = args.cpu_filters.split(':')
     missing = []
     for root in args.roots:
         for path in sorted(root.rglob('*_test.cpp')):
             for name in device_tests(path):
-                if not any(fnmatch.fnmatchcase(name, pattern) for pattern in filters):
+                if any(fnmatch.fnmatchcase(name, pattern) for pattern in cpu_filters):
+                    missing.append(f'{path.name}: {name} creates a device but has a CPU exemption')
+                elif not any(fnmatch.fnmatchcase(name, pattern) for pattern in filters):
                     missing.append(f'{path.name}: {name} needs a gpu filter')
     if missing:
         parser.exit(1, '\n'.join(missing) + '\n')

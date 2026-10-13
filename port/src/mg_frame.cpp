@@ -12,6 +12,19 @@
 #include "mglib_port.hpp"
 #include "stubs/mg_frame.hpp"
 
+PORT_OVERRIDE void mgCObject::SetPosition(float *input) {
+    // Position consumes xyz; the stored homogeneous lane is always one.
+    // Some callers provide exactly three floats.
+    if (position[0] != input[0] || position[1] != input[1] || position[2] != input[2]) {
+        use_srt = 1;
+        position[0] = input[0];
+        position[1] = input[1];
+        position[2] = input[2];
+        position[3] = 1.0f;
+        changed = 1;
+    }
+}
+
 PORT_OVERRIDE void mgCFrame::GetWorldPosition0(float *out_position) {
     sceVu0FMATRIX world;
     GetLWMatrix(world);

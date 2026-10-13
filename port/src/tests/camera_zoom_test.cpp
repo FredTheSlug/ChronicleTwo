@@ -362,3 +362,40 @@ TEST(CameraZoom, UnprovableActualPoseFallsBackToRetailFollow) {
         EXPECT_FLOAT_EQ(camera.next_ref[axis], retail.next_ref[axis]);
     }
 }
+
+TEST(CameraZoom, CallerPolygonsLimitZoomAndInvalidStartingWallKeepsFollowing) {
+    CScene scene;
+    CCameraControl::Control control{};
+    float rotation[4]{};
+    for (float distance : {150.0f, 50.0f}) {
+        auto camera = Camera();
+        camera.SetFollow(10, 10, 0);
+        CameraZoom zoom;
+        zoom.Read(camera, -100, false, true);
+        auto wall = Plane(2, distance);
+        zoom.Move(camera, scene, control, rotation, &wall, 1);
+        EXPECT_LT(camera.next_pos[2], distance);
+        EXPECT_GT(camera.next_ref[0], 0);
+    }
+}
+
+TEST(CameraZoom, RetailAutoMoveStillAvoidsPipeObstaclesUnlessCancelled) {
+    CScene scene;
+    CCameraControl::Control control{};
+    float rotation[4]{};
+    CCPoly wall{};
+    float vertices[3][4] = {{3, -1000, 150, 1}, {3, 1000, 150, 1}, {4, 0, 250, 1}};
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 4; ++j) wall.vertex[i][j] = vertices[i][j];
+    wall.normal[0] = 1;
+    wall.normal[2] = -0.01f;
+    for (bool cancel : {false, true}) {
+        auto camera = Camera();
+        if (cancel) camera.rot_cancel |= CAMERA_ROT_CANCEL_AUTO_MOVE;
+        CameraZoom zoom;
+        zoom.Read(camera, -25, false, true);
+        zoom.Move(camera, scene, control, rotation, &wall, 1);
+        if (cancel) EXPECT_FLOAT_EQ(camera.next_pos[0], 0);
+        else EXPECT_NE(camera.next_pos[0], 0);
+    }
+}

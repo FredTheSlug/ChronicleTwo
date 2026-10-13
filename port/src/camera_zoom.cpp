@@ -87,10 +87,21 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     }
     bounds.min[3] = bounds.max[3] = 1;
     CCPoly polys[512];
-    const int count = MouseCameraCollectPolys(scene, bounds, polys, 512);
-    if (count >= 0) {
+    int count = MouseCameraCollectPolys(scene, bounds, polys, 512);
+    // The caller's retail collision set remains authoritative even if the
+    // extended distance query did not return those polygons.
+    if (count < 0 || retail_count < 0 || retail_count >= 512 - count ||
+        (retail_count && !retail_polys)) {
+        camera.MoveCamera(&control, rotation, retail_polys, retail_count);
+        return;
+    }
+    for (int i = 0; i < retail_count; ++i) polys[count++] = retail_polys[i];
+    if (!retail.no_check) {
         candidate.CheckGround(polys, count);
         candidate.CheckCollision(polys, count);
+        if (control.rot == 0 && !(candidate.rot_cancel & CAMERA_ROT_CANCEL_AUTO_MOVE)) {
+            candidate.AutoMove(polys, count);
+        }
     }
     // Only next poses are committed. Retail's Step supplies smooth motion, and
     // the proof covers independent eye/target easing and thin walls in between.

@@ -660,6 +660,11 @@ em also retain the original glyph. Font files are opt-in local inputs, not valid
 the sharp painter with a font named by `DC2_TEST_FONT`. Without that fixture the raster/layout test
 is skipped; mapping, config and native submission tests do not require a font file.
 
+For a repeatable visual comparison, use `--jump dungeon:0:1 --fast-load --input tools/input/font-dialogue.input
+--frames 1050 --screenshot caption.png --screenshot-display 1` with a fresh save folder for each setting.
+The floor menu is visible at frame 400 of the same script. Add `--window 1920x1080` or `--window 3840x2160`
+to compare presentation captures (`caption-display-0.png`) at those resolutions.
+
 `mgInitFont` returns 0 and `mgCloseFont` does nothing. The port keeps no console, because retail never draws it: `font_draw_flag` is never set.
 
 `--frames N` exits after frame N. `--screenshot PATH` writes that frame as a PNG first; a failed write exits with status 1. `--screenshot` without `--frames` is a usage error. `--input SCRIPT` loads the script at start-up. The pump applies it on each tick with `mgPortFrameCount()`, so pad input follows the game's frame count.

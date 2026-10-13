@@ -8,6 +8,7 @@
 #include <tuple>
 #include <vector>
 
+// SDL must precede the game's register-name macros.
 #include "gfx_fixture.hpp"
 #include "font.hpp"
 #include "font_port.hpp"
@@ -116,8 +117,12 @@ TEST(FontPortGpu, SharpDrawingKeepsRetailLayoutAndLineBreaks) {
     dc::test::GfxFixture            gfx(1440, 1080, 1.0f, dc::test::GfxOptions{.offscreen = true});
     FontState                       state;
     std::vector<gfx::TextureHandle> textures;
-    mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D>, const gfx::TextureBinding &texture,
-                          const gfx::DrawState &) { textures.push_back(texture.texture); });
+    std::vector<std::vector<gfx::Vertex2D>> geometry;
+    mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices, const gfx::TextureBinding &texture,
+                          const gfx::DrawState &) {
+        textures.push_back(texture.texture);
+        geometry.emplace_back(vertices.begin(), vertices.end());
+    });
 
     char  direct[] = "Wi 0129!\nA long menu item";
     CFont font;
@@ -154,9 +159,9 @@ TEST(FontPortGpu, SharpDrawingKeepsRetailLayoutAndLineBreaks) {
     EXPECT_EQ(Entries(mes), original);
 
     // A tokenized page also keeps its explicit page/line/space/position controls and icon cells.
-    std::vector<short> message = {1, 0, 7, 3, 0, 0xf700 | 30, 33, 0xff02, 55, 0xfd06,
-                                  0xff00, 0xf900 | 5, 34, 0xff03, 35, 0xff01};
-    mes.SetBuff(message.data());
+    std::array<u16, 16> message = {1, 0, 7, 3, 0, 0xf700 | 30, 33, 0xff02, 55, 0xfd06,
+                                   0xff00, 0xf900 | 5, 34, 0xff03, 35, 0xff01};
+    mes.SetBuff(reinterpret_cast<short *>(message.data()));
     select("original");
     ASSERT_EQ(mes.MakeMesWinTbl(7), 1);
     const auto tokenized = Entries(mes);
@@ -164,4 +169,29 @@ TEST(FontPortGpu, SharpDrawingKeepsRetailLayoutAndLineBreaks) {
     ASSERT_EQ(mes.MakeMesWinTbl(7), 1);
     EXPECT_EQ(Entries(mes), tokenized);
     EXPECT_TRUE(std::ranges::any_of(tokenized, [](const Entry &e) { return std::get<0>(e) == MES_CODE_PAGE; }));
+
+    // The sharp silhouette supplies every retail outline style and the fill's alpha multiplication.
+    constexpr std::array<int, 9> passes = {1, 2, 2, 5, 3, 2, 5, 4, 13};
+    char letter[] = "W";
+    font.SetColor(23, 45, 67, 96);
+    font.alpha = 64;
+    for (int style = 0; style < FUCHI_NUM; ++style) {
+        geometry.clear();
+        textures.clear();
+        font.SetFuchi(style);
+        font.DrawDirect(letter, 40, 30);
+        ASSERT_EQ(geometry.size(), 1u);
+        EXPECT_EQ(geometry[0].size(), static_cast<std::size_t>(passes[style] * 4));
+        const auto &fill = geometry[0][geometry[0].size() - 4];
+        EXPECT_EQ(fill.color[0], 23);
+        EXPECT_EQ(fill.color[1], 45);
+        EXPECT_EQ(fill.color[2], 67);
+        EXPECT_EQ(fill.color[3], 48);
+        const auto texture = gfx::GetTextureInfo(textures[0]);
+        ASSERT_TRUE(texture.has_value());
+        const auto &right = geometry[0][geometry[0].size() - 3];
+        EXPECT_GE(texture->width - 2, (right.x - fill.x) * 2.25f);
+        EXPECT_GE(fill.x, 40.0f);
+        EXPECT_LE(right.x, 48.0f);
+    }
 }

@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdio>
 
 #include "dngmenu.hpp"
 #include "mainloop.hpp"
@@ -366,9 +367,10 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
         }
         const auto &info = slot->info;
         unsigned long long minutes = std::min(info.play_time / (50 * 60), 999ULL * 60 + 59);
-        int values[3] = {slot->number + 1, static_cast<int>(minutes / 60), static_cast<int>(minutes % 60)};
-        int widths[3] = {0, 3, 2};
-        row_message.SetMsgVolumeNo(values, widths, 3);
+        // Retail draws the zero-padded clock separately from its localized row.
+        char clock[32];
+        std::snprintf(clock, sizeof(clock), "%3llu:%02llu", minutes / 60, minutes % 60);
+        font.DrawDirect(clock, x, y + 40);
         int map = info.map_no;
         static const int dungeon_maps[] = {55, 57, 58, 64, 79, 97, 160};
         if (info.program_loop_no == LOOP_DUNGEON && info.dungeon_no >= 0 && info.dungeon_no < 7) map = dungeon_maps[info.dungeon_no];
@@ -380,7 +382,7 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
         int chapters[1] = {0xC7F + std::clamp(chapter, 0, 11)};
         row_message.SetMsgItemNo(chapters, 1);
         row_message.MakeMsg(0xC26);
-        const int positions[4][2] = {{x, y + 12}, {x, y + 40}, {x + 135, y + 12}, {x + 135, y + 40}};
+        const int positions[4][2] = {{x, y + 12}, {x, -100}, {x + 135, y + 12}, {x + 135, y + 40}};
         for (int line = 0; line < 4; ++line) {
             row_message.line_pos[line][0] = positions[line][0];
             row_message.line_pos[line][1] = positions[line][1];

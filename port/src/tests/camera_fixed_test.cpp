@@ -1,3 +1,4 @@
+#include <SDL3/SDL.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>
@@ -12,6 +13,10 @@
 #include "mainloop.hpp"
 #include "options/rows.hpp"
 #include "platform/config.hpp"
+#include "platform/input.hpp"
+#include "platform/mouse.hpp"
+#include "present.hpp"
+
 #include "scenesnd.hpp"
 
 TEST(CameraFixedMouse, BoundsDecayAndDisplayRateIndependence) {
@@ -184,6 +189,19 @@ TEST(CameraFixedMouse, RetailTownModesGateBothPointAndPathCameras) {
     };
     reset();
     EXPECT_EQ(TownMouseFixedOwner(), &camera);
+    MouseFixedActive(0); // Establish the new owner with no inherited motion.
+    EXPECT_FALSE(PresentMouseActive());
+    MouseConfigure(false, {});
+    SDL_Event motion{};
+    motion.type = SDL_EVENT_MOUSE_MOTION;
+    motion.motion.xrel = 20;
+    InputHandleEvent(motion);
+    EXPECT_TRUE(PresentMouseActive()); // Pending motion before a logical sample.
+    InputLatchPad(0);
+    EXPECT_TRUE(PresentMouseActive());
+    MouseFixedActive(10); // Let the spring settle completely.
+    EXPECT_FALSE(PresentMouseActive());
+    MouseConfigure(true, {});
     PortEditFixedCamera = 2;
     EXPECT_EQ(TownMouseFixedOwner(), &camera);
     for (int other = 0; other < 9; ++other) {

@@ -49,7 +49,7 @@ void PollFpsToggle() {
 }
 
 const gfx::DisplayList *DisplayOverlayList() {
-    if (MenuMouseActive() && !ClockUnbounded()) {
+    if (PresentMouseActive() && !ClockUnbounded()) {
         if (!WindowPollEvents()) {
             std::exit(kExitOk);
         }
@@ -162,7 +162,7 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
 
     PollFpsToggle();
 
-    if (!settings.interpolation && !MenuMouseActive() && !TownMouseFixedOwner()) {
+    if (!settings.interpolation && !PresentMouseActive()) {
         if (!tick_shown) {
             PresentCanonicalFrame();
             tick_shown = true;
@@ -192,6 +192,10 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
 }
 
 } // namespace
+
+bool PresentMouseActive() {
+    return MenuMousePointerVisible() || MouseFixedActive(0);
+}
 
 void PresentSetSettings(const PresentSettings &value) {
     settings = value;

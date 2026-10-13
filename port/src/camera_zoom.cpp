@@ -11,9 +11,6 @@ float Distance(const float *eye, const float *target) {
     return std::hypot(eye[0] - target[0], eye[2] - target[2]);
 }
 
-void Copy(float *to, const float *from) {
-    for (int i = 0; i < 3; ++i) to[i] = from[i];
-}
 }
 
 float CameraZoom::HeightScale(CCameraControl &camera) const {

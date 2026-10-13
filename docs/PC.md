@@ -490,6 +490,8 @@ exercise both limits, walking, reset and menu interruptions with the respective
 `--jump town:10 --fast-load` and `--jump dungeon:0:1 --fast-load` hooks. Their
 comments list capture frames; `--screenshot-display` also captures eased
 presentation frames. Enable the option in each replay's save-root config.
+`tools/input/dungeon-mouse-zoom-wall.input` adds a sideways wall approach,
+distance clamping, an inward reversal and reset in the same corridor.
 
 ## Decision 1: long64 is kept
 

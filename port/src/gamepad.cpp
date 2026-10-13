@@ -1,6 +1,8 @@
 #include "common.h"
 
 #include "gamepad.hpp"
+#include "menu_mouse.hpp"
+#include "mainloop.hpp"
 #include "test_hooks.hpp"
 #include "platform/input.hpp"
 #include "platform/paths.hpp"
@@ -84,11 +86,13 @@ PORT_OVERRIDE void CGamePad::UpDate() {
 PORT_OVERRIDE void CGamePad::MenuModeOn(int threshold) {
     axis_threshold[0] = threshold;
     InputSetMenuNavigation(true);
+    MenuMouseEnable(true);
 }
 
 PORT_OVERRIDE void CGamePad::MenuModeOff() {
     axis_threshold[0] = 0;
     InputSetMenuNavigation(false);
+    MenuMouseEnable(false);
 }
 
 PORT_OVERRIDE void CGamePad::CaptureStart() {
@@ -186,5 +190,12 @@ PORT_OVERRIDE int CGamePad::Down2(int mask) {
 PORT_OVERRIDE int CGamePad::Down(int mask) {
     if (key_lock) return 0;
     if (DebugModifier(*this)) mask &= ~(PAD_CIRCLE | PAD_CROSS);
-    return (mask & pad[0].button & ~previous_pad[0].button) != 0;
+    return (mask & ((pad[0].button & ~previous_pad[0].button) |
+                    (this == &GamePad__2 ? MenuMouseButtons() : 0))) != 0;
+}
+
+PORT_OVERRIDE int CGamePad::GetPadDown() {
+    if (key_lock) return 0;
+    return (pad[0].button & ~previous_pad[0].button) |
+           (this == &GamePad__2 ? MenuMouseButtons() : 0);
 }

@@ -9,6 +9,7 @@
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
 #include "mglib_port.hpp"
+#include "menu_mouse.hpp"
 #include "platform/clock.hpp"
 #include "present.hpp"
 #include "platform/paths.hpp"
@@ -1218,6 +1219,7 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
 
     if (gfx_open) {
         gfx::SetRenderTarget(gfx::kMainTarget);
+        MenuMouseDraw();
         gfx::DisplayListRef list = gfx::EndRecording();
         recording = false;
 

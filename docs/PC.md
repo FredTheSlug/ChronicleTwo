@@ -291,6 +291,35 @@ stick: it moves the character without changing active-item slots or navigating
 menus. Arrow keys send the D-pad. A physical controller's left stick retains
 retail menu navigation past the game's threshold, including active-item slots.
 
+### Mouse menus
+
+Move the mouse to show the pointer and hover an option. Left click presses Cross,
+right click presses Circle, and the wheel moves through a list. A controller or
+keyboard movement hides the pointer; a stationary pointer does not undo that
+selection. Clicks held while opening or closing a menu do not confirm the next
+screen.
+
+Mouse selection covers the town and dungeon root menus, title menu, dungeon
+floor map and Save Adventure action, memory card slots and save/load file lists,
+and the field Use Item popup. Yes/No boxes and dialogue choices use the message
+system's drawn choice positions and feed its normal directional input before
+confirming. The pointer follows the renderer's UI mapping, including widescreen
+anchoring and display scaling.
+
+The root and file lists pass their selection through the retail cursor helper,
+so scrolling, help text and background loading follow the same path as a D-pad
+move. The floor map similarly uses its normal next-room transition. The shared
+pointer implementation is `port/src/menu_mouse.cpp`; menu adapters, cursor
+transitions, floor selection and message choices live in separate
+`menu_mouse_*.cpp` files.
+
+Deterministic mouse replays are `tools/input/town-mouse-menu.input` and
+`title-mouse-menu.input` at `--window 1280x960`, and
+`dungeon-mouse-floor.input` and `dungeon-mouse-save.input` at
+`--window 1280x720`. Their comments give jump arguments and capture points.
+`MenuMouse.*` and `MenuMouseInput.*` cover hit testing, display scaling,
+controller handoff, scrolling and confirmation timing.
+
 ### Mouse follow camera
 
 Mouse motion directly turns the active walking camera around the character. It

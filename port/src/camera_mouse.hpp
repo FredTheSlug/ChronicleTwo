@@ -28,6 +28,8 @@ bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *
 // the eye. Only a caller with explicit first-person ownership may apply a read.
 bool MouseCameraEye(CCameraControl &camera, float &heading, float &tilt, float yaw, float pitch);
 
+void TownMouseEyeAfterControl(CScene *scene, CPadControl *pad);
+
 // Apply the safe prefix of a direct yaw to both current and pending poses.
 // Polygons must cover the entire orbit and follow corridor, not just the old eye.
 // No refused motion is carried into another input read.

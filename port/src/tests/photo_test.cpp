@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "common.h"
 #include "gfx/gfx.hpp"
@@ -14,6 +15,10 @@
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
+#include "photo.hpp"
+#include "padcontrol.hpp"
+#include "inventmn.hpp"
+#include "stubs/photo.hpp"
 
 using namespace dc::test;
 
@@ -158,4 +163,51 @@ TEST(Photo, ShutterSpriteCapturesTheFrame) {
     EXPECT_LT(right[0], 60);
     EXPECT_LT(right[1], 60);
     EXPECT_GT(right[2], 200);
+}
+
+TEST(Photo, ShutterReadbackContainsTheFirstCaptureAndItsCurrentSubjectDepth) {
+    PhotoRenderer renderer;
+    mgCTexture work{};
+    work.Initialize();
+    work.width = work.height = 64;
+    work.bpp = 16;
+    work.tex0.TBP0 = 256 << 5;
+    work.tex0.TBW = 1;
+    work.tex0.PSM = SCE_GS_PSMCT16;
+    WorkTex = &work;
+    CPadControl pad;
+    auto photos = std::make_unique<CInventUserData>();
+    for (float depth : {0.25f, 0.75f}) {
+        TakePhotoMode = TAKE_PHOTO_SHUTTER;
+        mgBeginFrame(nullptr);
+        LoopTakePhoto(&pad, photos.get());
+        const uint8_t clear[4] = {};
+        DrawHalves();
+        gfx::Clear(false, clear, true, depth, nullptr);
+        mgCTexture frame{};
+        mgGetFrameBuffer(&frame);
+        mgSetPkFrameBuffer(&work);
+        const std::vector<gfx::Vertex2D> sprite = {
+            Corner(0, 0, 0, 0, 128, 128, 128),
+            Corner(64, 0, frame.width, 0, 128, 128, 128),
+            Corner(64, 64, frame.width, frame.height, 128, 128, 128),
+            Corner(0, 64, 0, frame.height, 128, 128, 128)};
+        mgPortDraw2D(gfx::Primitive::Quads, sprite, mgPortBinding(&frame), OpaqueState());
+        mgSetPkFrameBuffer(-1, -1, -1, -1);
+        mgEndFrame(nullptr);
+
+        mgBeginFrame(nullptr);
+        u_long128 image[512]{};
+        u_long128 values[16]{};
+        mgStoreImage(&work, image);
+        mgRect<int> lens(252, 204, 260, 212);
+        mgStoreZBuffImage(lens, values);
+        const auto *pixels = reinterpret_cast<const uint16_t *>(image);
+        EXPECT_EQ(pixels[32 * 64 + 16] & 0x7FFF, 0x001F);
+        EXPECT_EQ(pixels[32 * 64 + 48] & 0x7FFF, 0x7C00);
+        EXPECT_EQ(reinterpret_cast<const uint32_t *>(values)[0], mgPortGsDepth(depth));
+        mgEndFrame(nullptr);
+    }
+    WorkTex = nullptr;
+    TakePhotoMode = TAKE_PHOTO_OFF;
 }

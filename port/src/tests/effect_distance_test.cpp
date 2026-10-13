@@ -8,13 +8,13 @@
 #include "runscript.hpp"
 
 void SetEffectScriptFunc();
-int SetEffectScript(CRunScript *script, char *program, mgCMemory *memory);
+int  SetEffectScript(CRunScript *script, char *program, mgCMemory *memory);
 
 TEST(EffectDistance, LengthCallbackPreservesTheCallerAndWritesTheOutputReference) {
     // Run in RelWithDebInfo too: the fourth vector lane overwrote a saved register there,
     // while Debug's stack layout let the same callback return without a crash.
     std::vector<u_long128> storage(256);
-    mgCMemory memory;
+    mgCMemory              memory;
     memory.stSetBuffer(storage.data(), storage.size());
     RS_PROG_HEADER program = {};
     std::memcpy(program.magic, "SB2", 3);
@@ -42,4 +42,35 @@ TEST(EffectDistance, LengthCallbackPreservesTheCallerAndWritesTheOutputReference
     EXPECT_FLOAT_EQ(args[2].val.f, 12.0f);
     EXPECT_EQ(args[3].val.p, &output);
     EXPECT_EQ(script.stack_num, 64);
+}
+
+TEST(EffectDistance, BetweenTwoVectorsPreservesInputsAndOutputReference) {
+    // Run in RelWithDebInfo too: the fourth vector lane overwrote a saved register there,
+    // while Debug's stack layout let the same callback return without a crash.
+    std::vector<u_long128> storage(256);
+    mgCMemory              memory;
+    memory.stSetBuffer(storage.data(), storage.size());
+    RS_PROG_HEADER program = {};
+    std::memcpy(program.magic, "SB2", 3);
+    CRunScript script;
+    SetEffectScriptFunc();
+    ASSERT_TRUE(SetEffectScript(&script, reinterpret_cast<char *>(&program), &memory));
+
+    RS_STACKDATA output{};
+    output.type = RS_FLOAT;
+    output.val.f = -123;
+    RS_STACKDATA args[7]{};
+    const float  values[6] = {0, 0, 0, 3, 4, 12};
+    for (int i = 0; i < 6; ++i) {
+        args[i].type = RS_FLOAT;
+        args[i].val.f = values[i];
+    }
+    args[6].type = RS_PTR;
+    args[6].val.p = &output;
+    ASSERT_EQ(script.ext_func_table[EFF_EXT_DIST_VECTOR2](args, 7), 1);
+    EXPECT_FLOAT_EQ(output.val.f, 13);
+    for (int i = 0; i < 6; ++i) {
+        EXPECT_FLOAT_EQ(args[i].val.f, values[i]);
+    }
+    EXPECT_EQ(args[6].val.p, &output);
 }

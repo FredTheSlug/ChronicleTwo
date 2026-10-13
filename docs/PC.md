@@ -829,6 +829,8 @@ The tests are `port/src/tests/uptr_test.cpp` (`Uptr.*`). They cover pointer widt
 
 Edits to `ps2/src` or `ps2/include` made for the port must leave the PS2 build byte-identical. They are corrections that are standard C++ either way, never code for the port. The edits to `ps2/`:
 
+- `ps2/src/effscript.cpp`: the distance-pair, scene character/entry-object and event-handle position callbacks reserve four floats for full-vector writers; script vectors still use three scalar arguments.
+
 
 - `ps2/include/mg_tanime.hpp`: declaration order. The inline `mgRect<float>::mgRect()` moves below the `Set` declaration it calls.
 - `ps2/include/sce` is untouched. Its `libmc.h` and `libpad.h` differ from the other game's transcriptions, and changing a prototype's parameter types changes MWCC's code for the callers, so Kazarov's `libmc.cpp` and `libpad.cpp` take those types from the header they are compiled with (`tools/kazarov/port/sce/sdk_params.hpp`).

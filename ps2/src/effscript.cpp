@@ -2107,8 +2107,8 @@ static int _DIST_VECTOR(RS_STACKDATA *stack, int argument_count) {
  *
  */
 static int _DIST_VECTOR2(RS_STACKDATA *stack, int argument_count) {
-    float from[3];
-    float to[3];
+    float from[4];
+    float to[4];
 
     if (argument_count != 7) {
         return 0;
@@ -4480,7 +4480,7 @@ int _SPT_COLOR_CONV(RS_STACKDATA *stack, int argc) {
  *
  */
 int _SCN_GET_CHR_POS(RS_STACKDATA *stack, int argc) {
-    float        pos[3];
+    float        pos[4];
     CCharacter2 *chara;
 
     if (argc != 4) {
@@ -4506,7 +4506,7 @@ int _SCN_GET_CHR_POS(RS_STACKDATA *stack, int argc) {
  *
  */
 int _SCN_GET_CHR_ROT(RS_STACKDATA *stack, int argc) {
-    float        rot[3];
+    float        rot[4];
     CCharacter2 *chara;
 
     if (argc != 2 && argc != 4) {
@@ -4676,7 +4676,7 @@ int _SCN_GET_CHR_FRM_ROT(RS_STACKDATA *stack, int argc) {
  *
  */
 int _SCN_GET_ENTRY_OBJ_POS(RS_STACKDATA *stack, int argc) {
-    float pos[3];
+    float pos[4];
     int   chara_slot;
     int   entry_index;
 
@@ -5043,7 +5043,7 @@ int _SET_LIGHT_FLAG(RS_STACKDATA *stack, int argc) {
  *
  */
 int _SCN_GET_CHR_ENTOBJ_POS(RS_STACKDATA *stack, int argc) {
-    float        pos[3];
+    float        pos[4];
     int          chara_slot;
     int          entry_index;
     CCharacter2 *chara;
@@ -5541,7 +5541,7 @@ int _ES_SET_COLPRIM(RS_STACKDATA *stack, int argc) {
  *
  */
 int _GET_EOH_POS(RS_STACKDATA *stack, int argc) {
-    float pos[3];
+    float pos[4];
 
     if (argc != 4) {
         return 0;

@@ -245,6 +245,9 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     if (name == "input.mouse_capture") {
         return ReadBool(value, s.mouse_capture);
     }
+    if (name == "input.mouse_fixed_look") {
+        return ReadBool(value, config.mouse_fixed_look);
+    }
     if (name == "input.mouse_zoom") {
         return ReadBool(value, s.mouse_zoom);
     }
@@ -358,6 +361,7 @@ std::string ConfigSerialize(const Config &config) {
     root["input"]["mouse_invert_y"] = s.mouse_invert_y;
     root["input"]["mouse_capture"] = s.mouse_capture;
     root["input"]["mouse_zoom"] = s.mouse_zoom;
+    root["input"]["mouse_fixed_look"] = config.mouse_fixed_look;
     root["input"]["touchpad"] = s.touchpad;
     root["input"]["touchpad_sensitivity"] = Shortest(s.touchpad_sensitivity);
     root["input"]["lightbar"] = s.lightbar;

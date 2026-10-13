@@ -1,6 +1,8 @@
 #include "common.h"
 #include "editctrl.hpp"
 #include "camera_mouse.hpp"
+#include "camera_fixed.hpp"
+#include "platform/config.hpp"
 #include "editloop.hpp"
 #include "mainloop.hpp"
 #include "subgame.hpp"
@@ -55,4 +57,23 @@ PORT_OVERRIDE int EditControl(CScene *scene, CPadControl *pad) {
     }
     TownMouseEyeAfterControl(scene, pad);
     return 0;
+}
+
+extern int PortEditFixedCamera asm("EditCtrl_FixedCamera");
+extern int PortTownLoopMode asm("EditLoop_Mode");
+extern int PortTownControlMode asm("EditLoop_Control");
+extern int PortTownLockChara asm("EditLoop_PlayerLock");
+extern int PortTownPause asm("EditLoop_Pause");
+
+CCameraControl *TownMouseFixedOwner() {
+    if (GetNowLoopNo() != LOOP_EDIT || PortTownLoopMode != EDIT_LOOP_WALK ||
+        PortTownControlMode != EDIT_CONTROL_PLAYER || PortTownLockChara || PortTownPause ||
+        PortEditViewMode != EDIT_VIEW_MODE_WALK || PortEditLadderMode != EDIT_LADDER_MODE_NONE ||
+        SubGameRunning() || DebugInfo.debug_camera) return nullptr;
+    auto *scene = GetMainScene();
+    auto *base = scene->GetCamera(scene->active_camera);
+    if (!base || base->Iam() != CAMERA_KIND_CONTROL) return nullptr;
+    auto *camera = static_cast<CCameraControl *>(base);
+    return TownMouseFixedOwns(camera, scene, &PadCtrl, true, PortEditFixedCamera != 0,
+                              GamePad__2.key_lock, ConfigGet().mouse_fixed_look) ? camera : nullptr;
 }

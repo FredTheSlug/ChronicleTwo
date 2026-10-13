@@ -491,6 +491,24 @@ outside the menu (1550). `item-menu-mouse-dungeon.input` reaches the dungeon's
 Item page and opens Bread's commands by frame 2850. These two scripts also use
 1280x720; scale `mouse:dx,dy` counts with the window dimensions for other sizes.
 
+### Fixed camera mouse look
+
+`input.mouse_fixed_look` defaults to `true` and appears as **Fixed camera mouse look**
+in PC SETTINGS > Controls. In town rooms whose map supplies a fixed point/path
+camera, mouse motion adds a gentle view rotation, limited to 15 degrees horizontally
+and 10 degrees vertically. The view eases back exponentially when the mouse rests;
+the decay advances on every displayed frame, including with interpolation disabled.
+The camera stays at its retail position, and character movement uses the unchanged
+retail camera. Events, dialogue, menus, pause, ladders, Georama, debug cameras and
+user-controllable cameras keep their own view. Turning the option off drops the offset.
+
+An untouched mouse takes the original rendering path. The offset changes only display
+renders; gameplay, scene culling, canonical captures and depth queries retain retail's
+view. `tools/input/town-mouse-fixed.input`, with `--jump town:31 --fast-load`, reaches
+Morton's Sundries directly. Use `--display-per-tick 4 --screenshot-display 2` and inspect
+the `-display-*.png` captures at frame 609 for motion and 900 for return. The companion
+canonical PNG remains the retail view even during mouse motion.
+
 ### Mouse wheel zoom
 
 Set `input.mouse_zoom` to `true` in `config.json` to enable wheel zoom in town

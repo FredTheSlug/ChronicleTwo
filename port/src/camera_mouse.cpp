@@ -174,7 +174,7 @@ float MouseCameraClampFollow(CCameraControl &camera, const CCameraControl &candi
     Write(camera.next_pos, eye);
     Write(camera.next_ref, target);
     if (count < 0 || count >= 512 || (count && !polys) ||
-        !Finite(next_eye) || !Finite(next_target) || !ClearFollow(eye, target, eye, target, polys, count)) return 0;
+        !Finite(next_eye) || !Finite(next_target) || !ClearFollow(eye, target, eye, target, polys, count)) return -1;
     double accepted = 0, rejected = 1;
     if (ClearFollow(eye, target, next_eye, next_target, polys, count)) {
         accepted = 1;

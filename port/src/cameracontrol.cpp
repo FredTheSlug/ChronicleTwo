@@ -103,7 +103,7 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     }
     // A pad-only session (even with the option enabled) takes exactly the retail
     // path until a wheel request. Other camera owners never inherit zoom limits.
-    if (zoom_owns && zoom.active) zoom.Move(*this, *scene, control, player_rot);
+    if (zoom_owns && zoom.active) zoom.Move(*this, *scene, control, player_rot, polys, poly_count);
     else MoveCamera(&control, player_rot, polys, poly_count);
 
     if (!fresh || control.rot_back || (ConfigGet().mouse_zoom && look.zoom_reset) || !owns ||

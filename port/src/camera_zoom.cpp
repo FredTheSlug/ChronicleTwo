@@ -19,10 +19,8 @@ float CameraZoom::HeightScale(CCameraControl &camera) const {
 
 void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enabled) {
     if (!enabled || reset) {
-        if (active) {
-            requested = camera.GetActiveParam()->min_dist;
-            returning = true;
-        }
+        requested = camera.GetActiveParam()->min_dist;
+        active = returning = false;
         return;
     }
     if (!std::isfinite(wheel) || wheel == 0) return;
@@ -37,7 +35,12 @@ void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enab
 }
 
 void CameraZoom::Move(CCameraControl &camera, CScene &scene,
-                      CCameraControl::Control &control, float *rotation) {
+                      CCameraControl::Control &control, float *rotation,
+                      CCPoly *retail_polys, int retail_count) {
+    if (!active) {
+        camera.MoveCamera(&control, rotation, retail_polys, retail_count);
+        return;
+    }
     CCameraControl candidate = camera;
     CameraCtrlParam &param = *candidate.GetActiveParam();
     const CameraCtrlParam retail = param;
@@ -91,7 +94,15 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     }
     // Only next poses are committed. Retail's Step supplies smooth motion, and
     // the proof covers independent eye/target easing and thin walls in between.
-    MouseCameraClampFollow(camera, candidate, polys, count);
+    CCameraControl clamped = camera;
+    if (MouseCameraClampFollow(clamped, candidate, polys, count) <= 0) {
+        camera.MoveCamera(&control, rotation, retail_polys, retail_count);
+        return;
+    }
+    for (int i = 0; i < 4; ++i) {
+        camera.next_pos[i] = clamped.next_pos[i];
+        camera.next_ref[i] = clamped.next_ref[i];
+    }
     camera.GetActiveParam()->height = height;
     camera.rot_back = candidate.rot_back;
     camera.rot_back_angle = candidate.rot_back_angle;

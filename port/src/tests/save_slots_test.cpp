@@ -414,3 +414,19 @@ TEST_F(SaveSlotTest, UnreadableUnrelatedEntriesAreSkipped) {
     EXPECT_FALSE(list.read_failed);
     EXPECT_EQ(list.saves[0].number, 0);
 }
+
+TEST_F(SaveSlotTest, DurableSaveRemainsSuccessfulWhenPostWriteScanFails) {
+    Write(SaveSlotPath(0));
+    manager.GetAllSaveFileInfo();
+    // The catalog was readable at selection; an unrelated legacy-card root
+    // becomes unreadable before the confirmed overwrite is published.
+    std::ofstream(root / "mc1") << "occupied";
+    live->map_no = 21;
+    SaveSlotNew = false;
+    ASSERT_EQ(manager.SaveToMc(0), MC_STEP_DONE);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(manager.total_transferred, sizeof(SAVEDATA_FORMAT));
+    EXPECT_TRUE(SaveSlots.read_failed);
+    ASSERT_EQ(SaveSlotRead(SaveSlotPath(0), *image), SaveSlotState::Ready);
+    EXPECT_EQ(image->save_data.map_no, 21);
+}

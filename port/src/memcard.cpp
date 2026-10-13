@@ -155,6 +155,9 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
         return MC_STEP_DONE;
     }
     GetAllSaveFileInfo();
+    // Publication has succeeded durably. A catalog refresh error describes the
+    // listing, not the write that just completed.
+    InitError();
     for (std::size_t i = 0; i < SaveSlots.saves.size(); ++i) {
         if (SaveSlots.saves[i].path == path) file_no = static_cast<int>(i);
     }

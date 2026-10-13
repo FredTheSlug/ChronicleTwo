@@ -84,6 +84,7 @@ TEST(CameraMouse, PendingCorridorMustAlsoBeClear) {
 TEST(CameraMouse, CameraOwnershipRejectsScriptsLocksOtherViewsAndOtherCameras) {
     auto camera = Camera();
     CScene scene;
+    scene.event_run = 0;
     CPadControl pad{};
     scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
     scene.active_camera = 0;
@@ -178,6 +179,10 @@ TEST(CameraMouse, PitchCannotSweepThroughACeiling) {
 namespace {
 class CapacityMap : public CMap {
 public:
+    CapacityMap() {
+        place_parts = nullptr;
+        place_parts_num = 0;
+    }
     int calls = 0;
     int polygons = 0;
     int GetCameraPoly(CCPoly *out, mgVu0FBOX &, int maximum) override {
@@ -191,6 +196,7 @@ public:
 
 TEST(CameraMouse, AFullMapCollectorCannotEnterTheNextMapWithZeroCapacity) {
     CScene scene;
+    scene.event_run = 0;
     CapacityMap first, second;
     first.polygons = 8;
     second.polygons = 1;
@@ -205,7 +211,7 @@ TEST(CameraMouse, AFullMapCollectorCannotEnterTheNextMapWithZeroCapacity) {
     EXPECT_EQ(second.calls, 0);
 }
 
-TEST(CameraMouse, DungeonFollowAndFollowLowConsumeDirectMotionOnce) {
+TEST(CameraMouse, DungeonActionsKeepRightStickAndDirectMouseFollowControl) {
     const int old_loop = PortLoopNo;
     auto *old_scene = DngMainScene;
     auto *old_area = BattleAreaScene;
@@ -214,6 +220,7 @@ TEST(CameraMouse, DungeonFollowAndFollowLowConsumeDirectMotionOnce) {
     const auto old_debug = DebugInfo.debug_camera;
     const int old_flag = DebugFlag;
     CScene scene;
+    scene.event_run = 0;
     DNG_BATTLE_AREA area{};
     CActionChara chara;
     chara.menu_flag = 1;
@@ -233,28 +240,66 @@ TEST(CameraMouse, DungeonFollowAndFollowLowConsumeDirectMotionOnce) {
     InputSetOverride(0, &input);
     CPadControl pad{};
     pad.Initialize();
-    for (int mode : {DNG_CAMERA_FOLLOW, DNG_CAMERA_FOLLOW_LOW}) {
-        auto camera = Camera();
-        scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
-        scene.active_camera = 0;
-        area.camera_mode = mode;
-        InputSetScriptedDevices({.mouse_dx = 100, .mouse_dy = -30});
-        InputLatchPad(0);
-        float rotation[4]{};
-        camera.MoveCamera(&pad, rotation, nullptr, 0);
-        EXPECT_LT(camera.pos[0], -10) << mode;
-        EXPECT_LT(camera.pos[1], 40) << mode;
-        const float turned = camera.pos[0];
-        camera.MoveCamera(&pad, rotation, nullptr, 0);
-        EXPECT_FLOAT_EQ(camera.pos[0], turned);
-        // A lock-on sample cannot become a turn when lock-on ends in this read.
-        chara.lock_on = 1;
-        InputLatchPad(0);
-        camera.MoveCamera(&pad, rotation, nullptr, 0);
-        EXPECT_FLOAT_EQ(camera.pos[0], turned);
-        chara.lock_on = 0;
-        camera.MoveCamera(&pad, rotation, nullptr, 0);
-        EXPECT_FLOAT_EQ(camera.pos[0], turned);
+    struct Action {
+        const char *name;
+        int hold, menu, guard, gun, lock, landed;
+    };
+    const Action actions[] = {
+        {"standing", ACTION_HOLD_NONE, 1, 0, 0, 0, 1},
+        {"carrying stone", ACTION_HOLD_STONE, 0, 0, 0, 0, 1},
+        {"carrying enemy", ACTION_HOLD_ENEMY, 0, 0, 0, 0, 1},
+        {"holding item", ACTION_HOLD_ITEM, 0, 0, 0, 0, 1},
+        {"guarding", ACTION_HOLD_NONE, 0, 1, 0, 0, 1},
+        {"aiming", ACTION_HOLD_NONE, 0, 0, 1, 0, 1},
+        {"aiming locked on", ACTION_HOLD_NONE, 0, 0, 1, 1, 1},
+        {"falling", ACTION_HOLD_NONE, 0, 0, 0, 0, 0},
+    };
+    for (const auto &action : actions) {
+        SCOPED_TRACE(action.name);
+        chara.hold_type = action.hold;
+        chara.menu_flag = action.menu;
+        chara.guard_flag = action.guard;
+        chara.dir_gun = action.gun;
+        chara.lock_on = action.lock;
+        chara.move_check.landed = action.landed;
+        for (int mode : {DNG_CAMERA_FOLLOW, DNG_CAMERA_FOLLOW_LOW}) {
+            SCOPED_TRACE(mode);
+            // The retail pad path accepts both axes in each action state.
+            auto controller = Camera();
+            scene.AssignCamera(0, &controller, const_cast<char *>("MainCam"));
+            scene.active_camera = 0;
+            area.camera_mode = mode;
+            InputSetScriptedDevices({});
+            InputLatchPad(0);
+            pad.analog[PAD_ANALOG_RIGHT_X_2].value = 1;
+            pad.analog[PAD_ANALOG_RIGHT_Y_2].value = 1;
+            float rotation[4]{};
+            controller.MoveCamera(&pad, rotation, nullptr, 0);
+            EXPECT_LT(controller.next_pos[0], -1);
+            EXPECT_LT(controller.GetActiveParam()->height, 0);
+            pad.analog[PAD_ANALOG_RIGHT_X_2].value = 0;
+            pad.analog[PAD_ANALOG_RIGHT_Y_2].value = 0;
+            auto camera = Camera();
+            scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+            scene.active_camera = 0;
+            area.camera_mode = mode;
+            InputSetScriptedDevices({.mouse_dx = 100, .mouse_dy = -30});
+            InputLatchPad(0);
+            camera.MoveCamera(&pad, rotation, nullptr, 0);
+            EXPECT_LT(camera.pos[0], -10) << mode;
+            EXPECT_LT(camera.pos[1], 40) << mode;
+            const float turned = camera.pos[0];
+            camera.MoveCamera(&pad, rotation, nullptr, 0);
+            EXPECT_FLOAT_EQ(camera.pos[0], turned);
+            // An event-owned sample cannot become a turn after the event ends.
+            scene.event_run = 1;
+            InputLatchPad(0);
+            camera.MoveCamera(&pad, rotation, nullptr, 0);
+            EXPECT_FLOAT_EQ(camera.pos[0], turned);
+            scene.event_run = 0;
+            camera.MoveCamera(&pad, rotation, nullptr, 0);
+            EXPECT_FLOAT_EQ(camera.pos[0], turned);
+        }
     }
     InputSetScriptedDevices({});
     InputSetOverride(0, nullptr);
@@ -267,9 +312,10 @@ TEST(CameraMouse, DungeonFollowAndFollowLowConsumeDirectMotionOnce) {
     DebugFlag = old_flag;
 }
 
-TEST(CameraMouse, DungeonOwnershipKeepsAuthoredAndNonwalkingModes) {
+TEST(CameraMouse, DungeonOwnershipKeepsAuthoredModesButAllowsPlayerActions) {
     auto camera = Camera();
     CScene scene;
+    scene.event_run = 0;
     CPadControl pad{};
     DNG_BATTLE_AREA area{};
     DNG_STATUS status{};
@@ -312,13 +358,13 @@ TEST(CameraMouse, DungeonOwnershipKeepsAuthoredAndNonwalkingModes) {
     EXPECT_FALSE(owns());
     area.script.running = 0;
     chara.lock_on = 1;
-    EXPECT_FALSE(owns());
+    EXPECT_TRUE(owns());
     chara.lock_on = 0;
     chara.menu_flag = 0;
-    EXPECT_FALSE(owns());
+    EXPECT_TRUE(owns());
     chara.menu_flag = 1;
     chara.hold_type = ACTION_HOLD_STONE;
-    EXPECT_FALSE(owns());
+    EXPECT_TRUE(owns());
     chara.hold_type = ACTION_HOLD_NONE;
     chara.damage_req = ACTION_DAMAGE_REQ_DEAD;
     EXPECT_FALSE(owns());
@@ -330,6 +376,19 @@ TEST(CameraMouse, DungeonOwnershipKeepsAuthoredAndNonwalkingModes) {
     EXPECT_FALSE(DungeonMouseCameraOwns(&camera, &scene, &pad, status, &area, &chara, false, true, false));
     EXPECT_FALSE(DungeonMouseCameraOwns(&camera, &scene, &pad, status, &area, &chara, false, false, true));
     EXPECT_TRUE(owns());
+    camera.FollowOff();
+    status.eye_view = 1;
+    auto eye_owns = [&] { return DungeonMouseCameraOwns(&camera, &scene, &pad, status, &area,
+                                                       &chara, false, false, false, true); };
+    EXPECT_TRUE(eye_owns());
+    chara.hold_type = ACTION_HOLD_STONE;
+    EXPECT_FALSE(eye_owns());
+    chara.hold_type = ACTION_HOLD_NONE;
+    chara.menu_flag = 0;
+    EXPECT_FALSE(eye_owns());
+    chara.menu_flag = 1;
+    chara.lock_on = 1;
+    EXPECT_FALSE(eye_owns());
 }
 
 TEST(CameraMouse, DungeonEyeLookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
@@ -340,6 +399,7 @@ TEST(CameraMouse, DungeonEyeLookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
     const auto old_status = DngStatus;
     const float old_yaw = viewAngleH__2, old_pitch = viewAngleV__2;
     CScene scene;
+    scene.event_run = 0;
     DNG_BATTLE_AREA area{};
     CActionChara chara;
     chara.SetPosition(0, 0, 0);

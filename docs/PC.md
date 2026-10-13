@@ -416,9 +416,13 @@ their Cross and Circle bindings. Mouse3 retains R3 unless wheel zoom is enabled.
 `CPadControl::Update` latches one independent mouse sample per logical pad update.
 The `CCameraControl::MoveCamera` port override consumes that sample once, only in
 town walking mode or dungeon follow/follow-low mode with the active main camera,
-unlocked input and no scene event or subgame. Dungeon lock-on, paused player or
-field control, pending/running event scripts and non-walking character actions
-retain camera ownership. Fixed, boss and arena views, menus, Georama and
+unlocked input and no scene event or subgame. Dungeon carrying, guarding, aiming,
+falling and lock-on keep follow-camera mouse control, just as they keep right-stick
+control; lock-on target framing still runs first. The character's menu-eligibility
+flag does not gate the follow camera. Paused player or field control and
+pending/running event scripts retain camera ownership. Town water movement uses
+the walking camera; ladders keep their authored camera for both inputs.
+Fixed, boss and arena views, menus, Georama and
 photo views retain their existing controls. A camera-reset request owns
 its frame; a later mouse yaw cancels an unfinished reset.
 
@@ -435,6 +439,9 @@ their axes and suppress the independent mouse look on those axes.
 yaw, vertical motion and a menu interruption. `tools/input/dungeon-mouse-camera.input`,
 with `--jump dungeon:0:1 --fast-load`, enters the first floor and exercises the
 same follow controls.
+`tools/input/dungeon-mouse-carry.input`, with `--jump dungeon:4:1 --fast-load`,
+lifts a rock in Mt. Gundor using R1 and Cross, then turns the mouse camera while
+carrying it (capture at frame 2374).
 
 In towns and dungeons, R2 first-person view also accepts direct mouse yaw and pitch. The
 eye stays at the retail character position, pitch stays within the retail

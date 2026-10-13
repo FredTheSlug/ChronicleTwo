@@ -74,6 +74,9 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
                               MainChara__2, SubGameRunning(), GamePad__2.key_lock,
                               DebugInfo.debug_camera != 0) :
                               TownMouseCameraOwns(this, scene, pad, walking, SubGameRunning(), GamePad__2.key_lock);
+    // Wheel zoom has its own framing policy. Extending right-stick look parity
+    // to player actions must not change which states can take over distance.
+    const bool zoom_owns = owns && (!dungeon || (!MainChara__2->lock_on && MainChara__2->CheckRunEvent()));
     static CameraZoom zoom;
     static CCameraControl *zoom_camera = nullptr;
     static CScene *zoom_scene = nullptr;
@@ -94,13 +97,13 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
         zoom_floor = floor;
         zoom_visit = visit;
     }
-    if (owns) {
+    if (zoom_owns) {
         zoom.Read(*this, fresh ? look.zoom : 0,
                   (fresh && look.zoom_reset) || control.rot_back, ConfigGet().mouse_zoom);
     }
     // A pad-only session (even with the option enabled) takes exactly the retail
     // path until a wheel request. Other camera owners never inherit zoom limits.
-    if (owns && zoom.active) zoom.Move(*this, *scene, control, player_rot);
+    if (zoom_owns && zoom.active) zoom.Move(*this, *scene, control, player_rot);
     else MoveCamera(&control, player_rot, polys, poly_count);
 
     if (!fresh || control.rot_back || (ConfigGet().mouse_zoom && look.zoom_reset) || !owns ||
@@ -130,7 +133,7 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     // A full collector cannot prove that the corridor contains every polygon.
     if (count < 0 || count >= 512) return;
     if (MouseCameraYaw(*this, look.yaw, orbit_polys, count) != 0) CancelRotBack();
-    MouseCameraPitch(*this, look.pitch, orbit_polys, count, zoom.HeightScale(*this));
+    MouseCameraPitch(*this, look.pitch, orbit_polys, count, zoom_owns ? zoom.HeightScale(*this) : 1.0f);
 }
 
 PORT_OVERRIDE void CCameraControl::Step(int frames) {

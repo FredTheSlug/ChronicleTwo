@@ -236,7 +236,11 @@ bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *
            !(area->pause_flag & (DNG_PAUSE_PLAYER_STEP | DNG_PAUSE_PLAYER_CONTROL |
                                  DNG_PAUSE_FIELD_STEP | DNG_PAUSE_PAD_RESET)) &&
            area->script.event_no == -1 && !area->script.running &&
-           !chara->lock_on && chara->damage_req != ACTION_DAMAGE_REQ_DEAD && chara->CheckRunEvent();
+           chara->damage_req != ACTION_DAMAGE_REQ_DEAD &&
+           // CheckRunEvent gates menus and eye entry, not the retail follow
+           // camera. Carrying, action scripts and lock-on still reach its
+           // MoveCamera call after the automatic target framing.
+           (!eye || (!chara->lock_on && chara->CheckRunEvent()));
 }
 
 bool MouseCameraEye(CCameraControl &camera, float &heading, float &tilt, float yaw, float pitch) {

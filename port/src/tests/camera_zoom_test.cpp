@@ -179,6 +179,7 @@ TEST(CameraZoom, PadOnlyCameraRemainsRetailWithOptionOffOrOn) {
 
 TEST(CameraZoom, DungeonMenusEventsLockOnAndEyeViewOwnWheelAndReset) {
     CScene scene;
+    scene.event_run = 0;
     DNG_BATTLE_AREA area{};
     CActionChara chara;
     chara.menu_flag = 1;
@@ -212,18 +213,22 @@ TEST(CameraZoom, DungeonMenusEventsLockOnAndEyeViewOwnWheelAndReset) {
     camera.MoveCamera(&pad, rotation, nullptr, 0);
     const float distance = camera.next_pos[2];
     EXPECT_GT(distance, 160);
-    for (int owner = 0; owner < 5; ++owner) {
+    for (int owner = 0; owner < 7; ++owner) {
         DngStatus.mode = owner == 0 ? DNG_STATUS_MENU : DNG_STATUS_FIELD;
         area.script.running = owner == 1;
         chara.lock_on = owner == 2;
         DngStatus.eye_view = owner == 3;
         area.pause_flag = owner == 4 ? DNG_PAUSE_PLAYER_CONTROL : 0;
+        chara.hold_type = owner == 5 ? ACTION_HOLD_STONE : ACTION_HOLD_NONE;
+        chara.menu_flag = owner != 6;
         InputSetScriptedDevices({.mouse_buttons = 1u << 2, .mouse_wheel = 100});
         InputLatchPad(0);
         camera.MoveCamera(&pad, rotation, nullptr, 0);
         EXPECT_LE(camera.next_pos[2], camera.GetActiveParam()->max_dist + 0.1f);
         DngStatus.mode = DNG_STATUS_FIELD;
         area.script.running = chara.lock_on = DngStatus.eye_view = area.pause_flag = 0;
+        chara.hold_type = ACTION_HOLD_NONE;
+        chara.menu_flag = 1;
         camera.MoveCamera(&pad, rotation, nullptr, 0);
         EXPECT_NEAR(camera.next_pos[2], distance, 0.02f) << owner;
     }

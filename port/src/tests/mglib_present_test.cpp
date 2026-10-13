@@ -1038,7 +1038,7 @@ void ExpectNewestAtEveryAlpha() {
 }
 } // namespace
 
-TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
+TEST(TargetPresentation, WorldLifeGaugeInterpolatesPositionAndHealthAndReuseCuts) {
     PresentRenderer renderer(640, 480);
     PresentSetSettings(PresentSettings{.interpolation = true});
     mgCMemory memory;
@@ -1071,8 +1071,13 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     EXPECT_EQ(std::memcmp(&state, &gauge, sizeof(gauge)), 0);
     EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    before = after;
     record(280, 25);
-    ExpectNewestAtEveryAlpha(); // HP changes stay tick-exact.
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    record(440, 25); // An abrupt projection/camera cut within the same mode.
+    ExpectNewestAtEveryAlpha();
     gauge.Initialize(0);
     gauge.SetView(1);
     gauge.scale = 1;
@@ -1143,6 +1148,8 @@ TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
     uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    record(440); // Same target and mode, discontinuous camera projection.
+    ExpectNewestAtEveryAlpha();
     player.target_no = 2; // A different scene identity, even if storage is reused.
     record(280);
     ExpectNewestAtEveryAlpha();
@@ -1418,6 +1425,8 @@ TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     CheckOverlayBlend(before, after, newest);
     EXPECT_EQ(std::memcmp(&message_state, &message, sizeof(message)), 0);
     EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    record(440); // Same target and mode, discontinuous camera projection.
+    ExpectNewestAtEveryAlpha();
     player.target_no = 2; // A different scene identity, even if storage is reused.
     record(280);
     ExpectNewestAtEveryAlpha();
@@ -1479,6 +1488,11 @@ TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
     const auto  state_before = damage;
     CheckDamageBlend(*list, before, after, newest);
     EXPECT_EQ(std::memcmp(&damage, &state_before, sizeof(damage)), 0);
+    mgBeginFrame(nullptr);
+    DamageProjection(440); // A cut with unchanged world position and emission.
+    damage.Draw();
+    mgEndFrame(nullptr);
+    ExpectNewestAtEveryAlpha();
 }
 
 TEST(DamagePresentation, RetailLifetimesRemainInGameSteps) {
@@ -1636,6 +1650,8 @@ TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
     auto state = damage;
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     EXPECT_EQ(std::memcmp(&state, &damage, sizeof(damage)), 0);
+    record(440); // Same character and damage emission, a cut within the mode.
+    ExpectNewestAtEveryAlpha();
     auto previous_generation = std::get<gfx::detail::Draw2DEntry>(mgPortLastList()->entries.back()).interpolation.generation;
     damage.SetValue(0, 123, 0); // same glyphs and object, distinct emission
     damage.Step();
@@ -1776,3 +1792,73 @@ TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
     TEX_SystenFrame = saved;
     manager.Initialize(0x1000, -1);
 }
+
+namespace {
+void CaptureRidepodWarning(bool wide) {
+    const char *data = std::getenv("DC2_DATA");
+    if (!data) GTEST_SKIP() << "DC2_DATA supplies the extracted glyph atlas";
+    const auto path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) GTEST_SKIP() << "Extracted system texture archive unavailable";
+    const size_t bytes = static_cast<size_t>(file.tellg());
+    std::vector<u_long128> archive((bytes + 15) / 16);
+    file.seekg(0);
+    ASSERT_TRUE(file.read(reinterpret_cast<char *>(archive.data()), bytes));
+    int member_size = 0;
+    char member_name[] = "frame_basic.img";
+    auto *image = GetPackFile(reinterpret_cast<u_int *>(archive.data()), member_name, &member_size);
+    ASSERT_NE(image, nullptr);
+    PresentRenderer renderer(wide ? 1280 : 640, wide ? 720 : 480);
+    gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    std::vector<u_long128> backing(131072);
+    mgCMemory memory;
+    memory.stSetBuffer(backing.data(), static_cast<int>(backing.size()));
+    mgCTextureManager manager;
+    manager.SetTableBuffer(64, 8, &memory);
+    manager.Initialize(0x1000, -1);
+    manager.EnterIMGFile(reinterpret_cast<u_char *>(image), 0, &memory, nullptr);
+    auto *saved = TEX_SystenFrame;
+    char texture_name[] = "frame";
+    TEX_SystenFrame = manager.GetTexture(texture_name, -1);
+    ASSERT_NE(TEX_SystenFrame, nullptr);
+    mgSetDataBuffer(&memory, &memory, 0);
+
+    CWarningGage2 warning{};
+    warning.layout = WARNING_GAGE_LAYOUT_ROBO;
+    warning.time = 20;
+    warning.warning[0] = warning.warning[1] = 1;
+    warning.rate[0] = warning.rate[1] = 0.1f;
+    mgSetBackGround(20, 30, 45, 128);
+    mgBeginFrame(nullptr);
+    warning.Draw();
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> anchored, old;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, anchored, width, height));
+    gfx::BeginRecording();
+    for (auto entry : mgPortLastList()->entries) {
+        if (auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
+            EXPECT_EQ(draw->side.x, -1);
+            EXPECT_EQ(draw->side.y, -1);
+            draw->side = {}; // The previous robot-warning path, as a pixel oracle.
+        }
+        gfx::detail::RecordEntry(std::move(entry));
+    }
+    auto reference = gfx::EndRecording();
+    ASSERT_TRUE(gfx::RenderList(*reference, 1, gfx::RenderOptions{.canonical = true}));
+    ASSERT_TRUE(gfx::ReadbackTexture(gfx::kPreviousFrame, old, width, height));
+    if (wide) EXPECT_NE(anchored, old);
+    else EXPECT_EQ(anchored, old); // 4:3 remains byte-identical.
+    if (const char *capture = std::getenv("DC2_CAPTURE_DIR")) {
+        std::filesystem::create_directories(capture);
+        const auto name = wide ? "ridepod-16x9.png" : "ridepod-4x3.png";
+        ASSERT_TRUE(gfx::WritePng(std::filesystem::path(capture) / name, anchored.data(), width, height));
+        ASSERT_TRUE(gfx::WritePng(std::filesystem::path(capture) / (std::string("before-") + name), old.data(), width, height));
+    }
+    TEX_SystenFrame = saved;
+    manager.Initialize(0x1000, -1);
+}
+}
+TEST(MglibPresent, RidepodWarningsAnchorAtSixteenNine) { CaptureRidepodWarning(true); }
+TEST(MglibPresent, RidepodWarningsStayIdenticalAtFourThree) { CaptureRidepodWarning(false); }

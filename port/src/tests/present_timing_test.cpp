@@ -63,3 +63,17 @@ TEST(PresentTiming, AlphaSpansTheWholeOneOrTwoFieldGameFrame) {
     EXPECT_FLOAT_EQ(PresentFrameAlpha(0, 0, 2), 0);
     EXPECT_LE(PresentFrameAlpha(3, .5, 2), 1);
 }
+
+TEST(PresentTiming, TinyCapsAreOneFpsAndZeroIsUnlimited) {
+    PresentPacer pacer;
+    ASSERT_TRUE(pacer.Present([] { return true; }, [] { return origin; }));
+    for (double rate : {1e-12, 1e-300, 0.5, 1.0}) {
+        auto decision = pacer.Next(origin + 1ms, origin + 2s, rate);
+        EXPECT_EQ(decision.action, Action::Wait);
+        EXPECT_EQ(decision.deadline, origin + 1s);
+    }
+    EXPECT_EQ(pacer.Next(origin + 1ms, origin + 2s, 0).action, Action::Display);
+    const auto end = Clock::time_point::max() - 2ms;
+    ASSERT_TRUE(pacer.Present([] { return true; }, [&] { return end; }));
+    EXPECT_EQ(pacer.Next(end + 1ms, Clock::time_point::max(), 1e-12).action, Action::Tick);
+}

@@ -23,10 +23,11 @@ public:
         if (now >= next_tick) {
             return {Action::Tick, next_tick};
         }
-        if (max_fps > 0.0) {
+        if (std::isfinite(max_fps) && max_fps > 0.0) {
             const auto period = std::chrono::duration_cast<Clock::duration>(
-                std::chrono::duration<double>(1.0 / max_fps));
-            const auto due = last_start_ + period;
+                std::chrono::duration<double>(1.0 / std::max(1.0, max_fps)));
+            const auto due = last_start_ > Clock::time_point::max() - period
+                                 ? Clock::time_point::max() : last_start_ + period;
             if (now < due) {
                 // Even a tick with no display yet must yield to the simulation deadline.
                 return due >= next_tick ? Decision{Action::Tick, next_tick}

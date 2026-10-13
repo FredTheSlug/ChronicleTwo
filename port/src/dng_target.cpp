@@ -11,6 +11,7 @@
 #include "monster.hpp"
 #include "nd_meswin.hpp"
 #include "prespr.hpp"
+#include "screen_overlay_anchor.hpp"
 
 namespace {
 // Host-only identities keep presentation state out of retail objects and saves.
@@ -18,16 +19,18 @@ struct GaugeEmission {
     uint64_t life = 0;
     uint64_t content = 0;
     uint64_t rage = 0;
-    int      hp = 0, max_hp = 0, screen = 0;
-    char     brackets = 0, label = 0;
+    int                 hp = 0, max_hp = 0, screen = 0;
+    char                brackets = 0, label = 0;
+    ScreenOverlayAnchor anchor;
 };
 
 struct TargetEmission {
     CActiveMonster *target = nullptr;
-    int             slot = -1;
-    uint64_t        life = 0, generation = 0;
-    bool            locked = false;
-    std::string     name;
+    int                 slot = -1;
+    uint64_t            life = 0, generation = 0;
+    bool                locked = false;
+    std::string         name;
+    ScreenOverlayAnchor anchor;
 };
 
 std::unordered_map<CEnemyLifeGage *, GaugeEmission> gauges;
@@ -48,7 +51,10 @@ void mgPortHideTarget(CLockOnModel *lock) {
 void mgPortTrackTarget(CLockOnModel *lock, CActiveMonster *target, int slot, bool locked) {
     auto      &state = targets[lock];
     const auto life = gauges[&target->life_gage].life;
-    if (state.target != target || state.slot != slot || state.life != life || state.locked != locked ||
+    int        projected[4];
+    const bool cut = mgTransWorldScreen(projected, lock->pos) &&
+                     state.anchor.Update(projected[0] / 16, projected[1] / 16);
+    if (cut || state.target != target || state.slot != slot || state.life != life || state.locked != locked ||
         state.name != target->tbl->name) {
         state.generation = ++next_generation;
     }
@@ -161,8 +167,13 @@ PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
     }
     int   half_width = static_cast<int>(34.0f * scale);
     auto &emission = gauges[this];
-    // A new HP value is discrete game information; never blend its fill with the old value.
-    if (emission.hp != hp || emission.max_hp != max_hp || emission.screen != screen) {
+    if (emission.anchor.Update(position[0], position[1])) {
+        emission.content = ++next_generation;
+        emission.rage = ++next_generation;
+    }
+    // Health and projected position follow the same interval. A hit must not cut
+    // the entire gauge away from the still-interpolating monster.
+    if (emission.max_hp != max_hp || emission.screen != screen) {
         emission.content = ++next_generation;
         emission.hp = hp;
         emission.max_hp = max_hp;

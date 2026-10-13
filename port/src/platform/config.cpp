@@ -180,7 +180,9 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
         return ReadBool(value, config.interpolation);
     }
     if (name == "video.max_fps") {
-        return ReadNumber(value, s.max_fps, kNonNegative);
+        if (!ReadNumber(value, s.max_fps, kNonNegative)) return false;
+        if (s.max_fps > 0.0 && s.max_fps < 1.0) s.max_fps = 1.0;
+        return true;
     }
     if (name == "video.width") {
         return ReadInt(value, s.window_width);

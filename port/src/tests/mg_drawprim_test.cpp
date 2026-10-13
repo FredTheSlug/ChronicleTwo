@@ -369,6 +369,32 @@ TEST(MgDrawPrim, PrimVertexAddsBuilderOffsetAfterGsScale) {
     EXPECT_FLOAT_EQ(v.y, mgPortLogicalY(Gs(20.0f) + 16));
 }
 
+TEST(MgDrawPrim, HostTextureFlushesInOrderWithoutChangingRetailBinding) {
+    GsReset reset;
+    PrimRig rig;
+    rig.prim.TextureMapEnable(0);
+    rig.prim.AlphaBlendEnable(1);
+    rig.prim.Begin(MG_PRIM_SPRITE);
+    rig.prim.Vertex(1, 2, 0);
+    rig.prim.Vertex(11, 12, 0);
+    EXPECT_TRUE(rig.batches.empty());
+    const gfx::TextureBinding texture{.texture = 123};
+    const std::array<gfx::Vertex2D, 4> quad{};
+    mgPortPrimSubmitTexture(rig.prim, quad, texture);
+    ASSERT_EQ(rig.batches.size(), 2u);
+    EXPECT_EQ(rig.batches[0].texture.texture, gfx::kNullTexture);
+    EXPECT_EQ(rig.batches[1].texture.texture, 123u);
+    EXPECT_TRUE(rig.batches[1].state.blend);
+    rig.prim.Vertex(21, 22, 0);
+    rig.prim.Vertex(31, 32, 0);
+    rig.prim.End();
+    ASSERT_EQ(rig.batches.size(), 3u);
+    EXPECT_EQ(rig.batches[2].texture.texture, gfx::kNullTexture);
+    rig.prim.disabled = 1;
+    mgPortPrimSubmitTexture(rig.prim, quad, texture);
+    EXPECT_EQ(rig.batches.size(), 3u);
+}
+
 TEST(MgDrawPrim, PrimVertexAtRawCoordinateMatchesLogicalMapping) {
     PrimRig rig;
     rig.prim.Coord(1);

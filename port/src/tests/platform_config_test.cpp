@@ -98,6 +98,7 @@ TEST_F(PlatformConfig, FullFileRoundTrips) {
     full.glyphs_new = false;
     full.glyph_device = ConfigGlyphDevice::Ps5Color;
     full.mouse_release_keys = {"F12", "Pause"};
+    full.font_sharp = true;
 
     ASSERT_TRUE(ConfigParse(ConfigSerialize(full)) == full);
 
@@ -105,6 +106,17 @@ TEST_F(PlatformConfig, FullFileRoundTrips) {
     ASSERT_TRUE(ConfigLoad());
     const HostSettings &expected = full;
     ASSERT_TRUE(SettingsGet() == expected);
+}
+
+TEST_F(PlatformConfig, TextFontIsOptInAndRoundTrips) {
+    EXPECT_FALSE(ConfigParse("").font_sharp);
+    const Config sharp = ConfigParse(R"({"video":{"text_font":"sharp"}})");
+    EXPECT_TRUE(sharp.font_sharp);
+    EXPECT_TRUE(ConfigParse(ConfigSerialize(sharp)).font_sharp);
+    EXPECT_FALSE(ConfigParse(R"({"video":{"text_font":"original"}})").font_sharp);
+    for (const char *value : {"null", "true", "1", "\"blurry\""}) {
+        EXPECT_FALSE(ConfigParse(std::string("{\"video\":{\"text_font\":") + value + "}}").font_sharp);
+    }
 }
 
 TEST_F(PlatformConfig, TickRateOutsideItsRangeKeepsTheDefault) {

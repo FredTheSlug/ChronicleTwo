@@ -26,6 +26,9 @@ bool mgPortPacketDraw(const void *packet);
 // Draws `vertices` as a list of Triangles, Lines or Quads with the builder's state. Mirrors Kick's flush and
 // flat-shading rules, so an override draws what its retail caller would.
 void mgPortPrimSubmit(mgCDrawPrim &prim, gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices);
+// Host-owned texture, with the builder's state and ordering. Does not change the builder's retail binding.
+void mgPortPrimSubmitTexture(mgCDrawPrim &prim, std::span<const gfx::Vertex2D> quads,
+                             const gfx::TextureBinding &texture);
 // Returns the UVs at p0 and p1 that cover the texels a nearest-filtered GS sprite samples across the pixel span.
 // The corners may come in either order; each keeps its own UV.
 std::pair<float, float> mgPortSpriteTexelSpan(float p0, float p1, float u0, float u1);

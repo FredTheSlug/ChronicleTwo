@@ -636,6 +636,30 @@ GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mg
 
 ### Font and headless
 
+#### Optional sharp text
+
+`video.text_font` in the save folder's `config.json` is `"original"` by default. Set it to `"sharp"`
+and put a trusted TrueType font at `<save>/lang/font.ttf` to try sharp ASCII dialogue and menu text.
+`lang/font.ttf` beside the executable is the fallback location. Restart after changing the font file.
+No font file is bundled by this feature. A missing or unusable font keeps the original text and reports
+the fallback once on stderr.
+
+This is an experimental painter for the existing text cells: glyph advances, line and page breaks,
+message reveal timing and controller behavior are unchanged. It does not use the font's kerning or
+advances to reposition text. Accented characters, Japanese, symbols, button icons, small-font mode,
+stylized sprite digits and pictures of text retain their original rendering. A different font can
+change the weight and appearance of letters even though their layout stays the same.
+
+Glyphs are rasterized through Kazarov at the target's UI scale, rounded up to eight-pixel em buckets.
+The prototype keeps immutable glyph images for the renderer's lifetime, so recorded frames never
+sample overwritten atlas cells. Its 16 MiB pixel-cache budget and 2048-entry limit fall back to retail
+for new glyph sizes when exhausted; restarting clears the cache. Very large sizes above a 512-pixel
+em also retain the original glyph. Font files are opt-in local inputs, not validated downloads.
+
+`FontPortGpu.SharpDrawingKeepsRetailLayoutAndLineBreaks` exercises the original layout functions and
+the sharp painter with a font named by `DC2_TEST_FONT`. Without that fixture the raster/layout test
+is skipped; mapping, config and native submission tests do not require a font file.
+
 `mgInitFont` returns 0 and `mgCloseFont` does nothing. The port keeps no console, because retail never draws it: `font_draw_flag` is never set.
 
 `--frames N` exits after frame N. `--screenshot PATH` writes that frame as a PNG first; a failed write exits with status 1. `--screenshot` without `--frames` is a usage error. `--input SCRIPT` loads the script at start-up. The pump applies it on each tick with `mgPortFrameCount()`, so pad input follows the game's frame count.

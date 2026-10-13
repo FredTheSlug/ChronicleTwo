@@ -26,6 +26,7 @@ target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nl
 # Cases that need a Vulkan device carry the gpu label: hosted runners have none and exclude them with -LE gpu.
 set(CT_TEST_TIMEOUT 5 CACHE STRING "Seconds a test case may run before it is cut off")
 set(CT_GPU_SLOW_TESTS
+    FontPortGpu.*
     Vu1Prog0Shader.*
     GfxMeshDc2.*
     MgTextureGpu.*

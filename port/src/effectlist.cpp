@@ -3,9 +3,26 @@
 #include <algorithm>
 #include <vector>
 
+#include "effectlist.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mglib.hpp"
+#include "mglib_port.hpp"
+
+PORT_OVERRIDE void CFadeInOut::CaptureScreen() {
+    if (cross_texture == nullptr || cross_texture->image[0] == nullptr || !mgPortRendererReady()) {
+        return;
+    }
+
+    // Capture the completed scene at this point in the stream. A CPU store followed by a
+    // pointer-only texture reload can keep an earlier scene even after its buffer changes.
+    const gfx::TextureHandle target = mgPortRenderTarget(cross_texture, true);
+    if (target != gfx::kNullTexture) {
+        gfx::BlitTexture(gfx::kPreviousFrame,
+                         gfx::Rect{0, 0, static_cast<int>(gfx::LogicalWidth()), static_cast<int>(gfx::LogicalHeight())},
+                         target, gfx::Rect{0, 0, cross_texture->width, cross_texture->height}, gfx::Filter::Nearest);
+    }
+}
 
 namespace {
 

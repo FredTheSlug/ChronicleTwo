@@ -11,6 +11,7 @@
 #include "common.h"
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
+#include "effectlist.hpp"
 #include "libgraph.h"
 #include "mg_memory.hpp"
 #include "mg_drawprim.hpp"
@@ -725,6 +726,57 @@ TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
         EXPECT_NEAR(rgba[p], 40, 1);
         EXPECT_NEAR(rgba[p + 1], 80, 1);
         EXPECT_NEAR(rgba[p + 2], 120, 1);
+    }
+}
+
+TEST(MglibPresent, CrossFadeRecapturesCompletedSceneAfterUncapturedTicks) {
+    PresentRenderer renderer(1280, 720);
+    gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
+    Textures textures;
+    Quads pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
+    mgCTexture *texture = textures.Enter("cross_capture", 512, 480, 32, pixels.data(), nullptr);
+    ASSERT_NE(texture, nullptr);
+    CFadeInOut fade;
+    fade.SetCrossTexture(texture, pixels.data());
+
+    const std::array<std::array<uint8_t, 3>, 3> scenes = {{{160, 40, 20}, {20, 160, 40}, {40, 20, 160}}};
+    for (const auto &scene : scenes) {
+        // Several unrelated ticks pass without asking the CPU readback cache for a frame.
+        for (int tick = 0; tick < 4; ++tick) {
+            mgSetBackGround(scene[0], scene[1], scene[2], 128);
+            mgBeginFrame(nullptr);
+            mgEndFrame(nullptr);
+        }
+        mgSetBackGround(8, 16, 24, 128);
+        mgBeginFrame(nullptr);
+        fade.CaptureScreen();
+        fade.CrossFade(10, 0.5f);
+        fade.Draw();
+        mgEndFrame(nullptr);
+
+        const auto check = [&](const std::vector<uint8_t> &rgba, uint32_t width, uint32_t height) {
+            // The capture also covers the wide window's sides, outside the logical 4:3 frame.
+            for (const uint32_t x : {width / 16, width / 2, width * 15 / 16}) {
+                const size_t offset = (static_cast<size_t>(height / 2) * width + x) * 4;
+                for (int channel = 0; channel < 3; ++channel) {
+                    EXPECT_NEAR(rgba[offset + channel], (scene[channel] + 8 * (channel + 1)) / 2, 1)
+                        << "capture channel " << channel << " at x=" << x;
+                }
+            }
+        };
+        std::vector<uint8_t> rgba;
+        uint32_t width = 0, height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+        check(rgba, width, height);
+        ASSERT_TRUE(PresentScreenshotDisplay(0.5f, rgba, width, height));
+        check(rgba, width, height);
+
+        // A crossfade holds this capture rather than taking a new one on each fade tick.
+        mgBeginFrame(nullptr);
+        fade.Draw();
+        mgEndFrame(nullptr);
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+        check(rgba, width, height);
     }
 }
 

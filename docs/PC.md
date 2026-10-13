@@ -394,7 +394,9 @@ GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mg
 
 `mgSetPkMoveImage` with a destination offset copies with `gfx::CopyTexture`, except when the source is the main target: it then grabs into a frame target with `gfx::BlitTexture` (nearest). With a destination rect it stretches with `gfx::BlitTexture` (linear).
 
-`mgStoreImage` reads the source back and writes the texture's PSM layout linearly, sampling the source at the texture's size. Inside a frame it reads the copy cached at the previous canonical render. 16-bit formats keep one alpha bit.
+`mgStoreImage` reads the source back and writes the texture's PSM layout linearly, sampling the source at the texture's size. Inside a frame it uses an on-demand copy cached after a canonical render; it cannot synchronously read the current recording. 16-bit formats keep one alpha bit.
+
+`CFadeInOut::CaptureScreen` records a nearest blit of `gfx::kPreviousFrame` into a frame target registered at the crossfade texture's TBP0. Every request captures the last completed scene, including the wide window's sides, and later fade draws retain that capture. It bypasses the CPU readback cache and the texture registry's pointer-only upload checks, which cannot refresh a capture buffer changed in place. Fade timing, dissolve strength and wipe geometry remain the retail code's.
 
 `mgStoreZBuffImage` fills the rect, rounded down to 8x8, with one depth value. That value is the answer to the previous call's query for the same rect, or 0 when there is none. It is an approximation.
 

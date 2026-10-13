@@ -49,7 +49,7 @@ void PollFpsToggle() {
 }
 
 const gfx::DisplayList *DisplayOverlayList() {
-    if (MenuMouseActive() && !ClockUnbounded()) {
+    if (PresentMouseActive() && !ClockUnbounded()) {
         if (!WindowPollEvents()) {
             std::exit(kExitOk);
         }
@@ -107,7 +107,7 @@ bool DisplayFrame(float alpha, bool present) {
     options.previous = settings.interpolation ? mgPortPreviousList() : nullptr;
     options.present = present;
     options.overlay = present ? DisplayOverlayList() : nullptr;
-    options.suppressed_2d_key = present && MenuMousePointerVisible() ? kMenuMouseHandKey : 0;
+    options.suppressed_2d_key = present ? MenuMouseReplacedHandKey() : 0;
     const bool shown = MouseFixedRender(*list, alpha, options, DisplaySeconds(!present));
 
     if (shown) {
@@ -132,7 +132,7 @@ bool PresentCanonicalFrame() {
         gfx::RenderOptions options;
         options.present = true;
         options.overlay = overlay_list;
-        options.suppressed_2d_key = pointer ? kMenuMouseHandKey : 0;
+        options.suppressed_2d_key = MenuMouseReplacedHandKey();
         shown = pacer.Present([&] { return MouseFixedRender(*mgPortLastList(), 1, options, 0); }, Clock::now);
     } else if (overlay_list != nullptr) {
         gfx::RenderOptions options;
@@ -162,7 +162,7 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
 
     PollFpsToggle();
 
-    if (!settings.interpolation && !MenuMouseActive() && !TownMouseFixedOwner()) {
+    if (!settings.interpolation && !PresentMouseActive()) {
         if (!tick_shown) {
             PresentCanonicalFrame();
             tick_shown = true;
@@ -192,6 +192,10 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
 }
 
 } // namespace
+
+bool PresentMouseActive() {
+    return MenuMousePointerVisible() || MouseFixedActive(0);
+}
 
 void PresentSetSettings(const PresentSettings &value) {
     settings = value;

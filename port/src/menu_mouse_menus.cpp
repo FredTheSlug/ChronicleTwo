@@ -159,3 +159,28 @@ void MenuMouseSave(CSaveMenuClass &save) {
         MenuMouseMove(&save.select, selected);
     }
 }
+
+bool MenuMouseOption(CMenuOption &menu, CMenuPosDataForm *form) {
+    const auto &mouse = MenuMouseTake();
+    if (!mouse.pointing || !form || !form->draw_flag) {
+        return false;
+    }
+    for (int row = std::max(0, menu.top); row < std::min(OPTION_ITEM_MAX, menu.top + 9); ++row) {
+        for (int choice = 0; choice < std::clamp(menu.choice_num[row], 0, OPTION_BUTTON_NUM); ++choice) {
+            const auto *part = menu.button[row][choice];
+            if (!part || !part->draw_flag) {
+                continue;
+            }
+            const MenuMouseRect rect{form->x + part->x, form->y + part->y, part->w, part->h};
+            if (rect.Contains(mouse.x, mouse.y)) {
+                if (mouse.moved || (mouse.clicked & 1)) {
+                    menu.select = row;
+                    menu.choice = choice;
+                    menu.cursor_jump = true;
+                }
+                return true;
+            }
+        }
+    }
+    return false;
+}

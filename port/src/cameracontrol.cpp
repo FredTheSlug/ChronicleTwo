@@ -18,6 +18,7 @@
 #include "gamepad.hpp"
 #include "mainloop.hpp"
 #include "mg_math.hpp"
+#include "mglib_port.hpp"
 #include "photo.hpp"
 #include "platform/config.hpp"
 #include "platform/input.hpp"
@@ -161,6 +162,9 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
 }
 
 PORT_OVERRIDE void CCameraControl::Step(int frames) {
+    if (frames < 0) {
+        mgPortCutCameraInterpolation();
+    }
     // Preserve the controller/follow step before adding the native eye look.
     if (!control_on) {
         mgCCameraFollow::Step(frames);
@@ -183,7 +187,8 @@ PORT_OVERRIDE void CCameraControl::Step(int frames) {
     DungeonFirstPersonWalk(*this);
     if (!DungeonMouseCameraOwns(this, DngMainScene, &PadCtrl, DngStatus, BattleAreaScene,
                                 MainChara__2, SubGameRunning(), GamePad__2.key_lock,
-                                DebugInfo.debug_camera != 0, true)) {
+                                DebugInfo.debug_camera != 0, true) &&
+        !DungeonFirstPersonOwns(this)) {
         return;
     }
     // InitEyeCamera first disables follow, then the next gameplay update places

@@ -456,14 +456,14 @@ TEST_F(MenuMouseInput, OptionsRightClickCancelsRetailPcAndBindingPages) {
     LanguageCode = language;
 }
 
-TEST_F(MenuMouseInput, RetailOptionsLeftClickReachesConfirmWhilePcSettingsIsClosed) {
+TEST_F(MenuMouseInput, RetailOptionsBackgroundClickCannotConfirmWhilePcSettingsIsClosed) {
     const int language = LanguageCode;
     LanguageCode = LANG_ENGLISH;
     MenuMouseEnable(true);
     options::g_screen = {};
     InputSetScriptedDevices({.mouse_buttons = 1});
     EXPECT_FALSE(options::Run());
-    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
     EXPECT_FALSE(options::g_screen.open);
     LanguageCode = language;
 }
@@ -525,4 +525,58 @@ TEST(MenuMouse, NativeCursorVisibilityFollowsFocusedClientOwnership) {
     EXPECT_FALSE(MousePointerCursorHidden(true, false, true));
     EXPECT_FALSE(MousePointerCursorHidden(true, true, false));
     EXPECT_FALSE(MousePointerCursorHidden(false, true, true));
+}
+
+TEST_F(MenuMouseInput, FractionalWheelAccumulatesOncePerLogicalSample) {
+    MenuMouseEnable(true);
+    for (int i = 0; i < 4; ++i) {
+        InputSetScriptedDevices({.mouse_wheel = -0.25f});
+        Tick();
+        EXPECT_EQ(MenuMouseTake().wheel, i == 3 ? -1 : 0);
+        EXPECT_EQ(MenuMouseTake().wheel, i == 3 ? -1 : 0);
+    }
+    InputSetScriptedDevices({.mouse_wheel = 0.5f});
+    Tick();
+    EXPECT_EQ(MenuMouseTake().wheel, 0);
+    Tick();
+    InputSetScriptedDevices({.mouse_wheel = 0.5f});
+    EXPECT_EQ(MenuMouseTake().wheel, 1);
+}
+
+TEST_F(MenuMouseInput, RetailOptionsHitUsesVisibleButtonAndSelectsItsChoice) {
+    MenuMouseEnable(true);
+    CMenuOption        menu;
+    CMenuPosDataForm   form{};
+    MENUFORMPARTS_TYPE button{};
+    form.draw_flag = button.draw_flag = true;
+    form.x = 100;
+    form.y = 40;
+    button.x = 140;
+    button.y = 190;
+    button.w = 40;
+    button.h = 25;
+    menu.top = 0;
+    menu.select = 0;
+    menu.choice = 0;
+    menu.choice_num[2] = 2;
+    menu.button[2][1] = &button;
+    InputSetScriptedDevices({.mouse_buttons = 1});
+    EXPECT_TRUE(MenuMouseOption(menu, &form)); // Initial pointer 256,240.
+    EXPECT_EQ(menu.select, 2);
+    EXPECT_EQ(menu.choice, 1);
+    InputSetScriptedDevices({.mouse_dx = 200});
+    Tick();
+    EXPECT_FALSE(MenuMouseOption(menu, &form));
+    EXPECT_EQ(menu.choice, 1);
+}
+
+TEST_F(MenuMouseInput, MultipleHandsKeepDistinctReplacementKeys) {
+    MenuMouseEnable(true);
+    InputSetScriptedDevices({.mouse_dx = 1});
+    MenuMouseTake();
+    gfx::TextureBinding texture{.texture = 123};
+    const auto          first = MenuMouseNoteHand(texture, {0, 0, 40, 24});
+    const auto          second = MenuMouseNoteHand(texture, {0, 0, 40, 24});
+    EXPECT_NE(first, second);
+    EXPECT_EQ(MenuMouseReplacedHandKey(), second);
 }

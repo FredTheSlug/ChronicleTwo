@@ -33,4 +33,5 @@ bool GameFastLoad();
 void GamePrepareJump(int &mode, INIT_LOOP_ARG &arg);
 void GameGiveOnArrival(int mode);
 bool GameDeveloperMenuRequested(int mode);
+bool GameDebugPauseRequested(CGamePad &pad);
 bool GameDebugPauseResumeRequested(CGamePad &pad);

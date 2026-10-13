@@ -23,7 +23,8 @@ bool            TownMouseFixedOwns(CCameraControl *camera, CScene *scene, CPadCo
 CCameraControl *TownMouseFixedOwner();
 
 // Borrow geometry/resources into a display-only list; no destruction ownership is copied.
-void MouseFixedDisplayList(const gfx::DisplayList &source, gfx::DisplayList &out, float yaw, float pitch);
-bool MouseFixedActive(double seconds);
-bool MouseFixedRender(const gfx::DisplayList &list, float alpha, const gfx::RenderOptions &options,
-                      double seconds);
+void  MouseFixedDisplayList(const gfx::DisplayList &source, gfx::DisplayList &out, float yaw, float pitch);
+bool  MouseFixedActive(double seconds);
+float MouseFixedCullRadius(float focal_x, float focal_y, float half_width, float half_height);
+bool  MouseFixedRender(const gfx::DisplayList &list, float alpha, const gfx::RenderOptions &options,
+                       double seconds);

@@ -35,20 +35,10 @@ TEST(MenuMouse, GridFollowsAnimatedScrollAndRejectsCapacityOverflow) {
     EXPECT_FALSE(GridHit({450, 260}, {240, 50}, clip, 29));
 }
 
-TEST(MenuMouse, CommandsRespectLineEdgesAndWindowBounds) {
-    const Rect text{100, 80, 150, 72};
-    EXPECT_EQ(CommandHit({110, 80}, text, 3, 24), 0);
-    EXPECT_EQ(CommandHit({110, 104}, text, 3, 24), 1);
-    EXPECT_EQ(CommandHit({110, 151.9f}, text, 3, 24), 2);
-    EXPECT_EQ(CommandHit({110, 152}, text, 3, 24), -1);
-    EXPECT_EQ(CommandHit({250, 90}, text, 3, 24), -1);
-    EXPECT_EQ(CommandHit({110, 90}, text, 3, 0), -1);
-}
-
-TEST(MenuMouse, WheelClampsToRowsAndPreservesFractionalNotches) {
+TEST(MenuMouse, WheelUsesWholeNotchesFromSharedAccumulator) {
     EXPECT_EQ(ScrollTop(0, 144, 5, 1), 0);
     EXPECT_EQ(ScrollTop(0, 144, 5, -1), 1);
-    EXPECT_EQ(ScrollTop(0, 144, 5, -0.1f), 1);
+    EXPECT_EQ(ScrollTop(0, 144, 5, -0.1f), 0);
     EXPECT_EQ(ScrollTop(18, 144, 5, -5), 19);
     EXPECT_EQ(ScrollTop(0, 29, 5, -1), 0);
 }
@@ -503,7 +493,7 @@ TEST_F(ItemMouse, UnmappedQuestionClickConfirmsCurrentSelection) {
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CIRCLE);
 }
 
-TEST_F(ItemMouse, QuantityClickAwayFromArrowsConfirmsInsteadOfDisappearing) {
+TEST_F(ItemMouse, QuantityRejectsClicksOutsideItsBoard) {
     class_menu_item_info.mode = MENU_ASK_MODE_HOW_MUCH;
     keys.how_much_form = &command;
     command.draw_flag = true;
@@ -516,6 +506,9 @@ TEST_F(ItemMouse, QuantityClickAwayFromArrowsConfirmsInsteadOfDisappearing) {
     parts[1].x = 250;
     parts[1].y = 110;
     Tick(-150, 0, 1);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
+    Tick(0, 0);
+    Tick(150, 20, 1);
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
 }
 
@@ -619,4 +612,28 @@ TEST_F(ItemMouse, UnselectableFollowupAcceptsClickEvenWhenOriginalCommandIsHidde
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
     MenuDCMsg[7] = saved;
     MenuMesForm[7] = saved_form;
+}
+
+TEST_F(ItemMouse, RodPointsRejectBackgroundAndAcceptStatHit) {
+    auto &menu = class_menu_item_info;
+    menu.mode = MENU_ASK_MODE_ROD_POINTS;
+    menu.view_mode = MENU_ITEM_VIEW_FISHING_ROD;
+    CMenuPosDataForm   form{};
+    MENUFORMPARTS_TYPE stat{};
+    form.draw_flag = stat.draw_flag = true;
+    form.parts = &stat;
+    form.parts_num = 1;
+    stat.name = const_cast<char *>("index0");
+    stat.x = 100;
+    stat.y = 100;
+    stat.w = 100;
+    stat.h = 24;
+    menu.view_form[5] = &form;
+    Tick(0, 0, 1);
+    EXPECT_EQ(GamePad__2.GetPadDown(), 0);
+    Tick(0, 0);
+    Tick(-140, 35, 1);
+    EXPECT_EQ(keys.cursor, 0);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
+    menu.view_form[5] = nullptr;
 }

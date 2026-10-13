@@ -21,8 +21,12 @@ int             frame = -1, buttons = 0, rows_frame = -1;
 std::uint32_t   held = 0;
 MenuMouseSample sample;
 bool            navigation = false;
+double          wheel_remainder = 0;
+int             hand_frame = -1;
+unsigned        hand_index = 0;
 
 struct Hand {
+    gfx::InterpKey      key = 0;
     gfx::TextureBinding texture;
     gfx::LogicalRect    uv{};
     float               rotation = 0, scale = 1;
@@ -72,7 +76,7 @@ int MenuMouseChoose(const MenuMouseSample &mouse, std::span<const MenuMouseRect>
         selected = hit;
     }
     if (mouse.wheel != 0 && std::isfinite(mouse.wheel)) {
-        selected = std::clamp(selected + (mouse.wheel < 0 ? wheel_step : -wheel_step), 0, static_cast<int>(rows.size()) - 1);
+        selected = std::clamp(selected + (-static_cast<int>(std::clamp(mouse.wheel, -32.0f, 32.0f)) * wheel_step), 0, static_cast<int>(rows.size()) - 1);
     }
     return selected;
 }
@@ -81,8 +85,11 @@ namespace {
 bool PadOrFocusOwnsPointer() {
     const auto &pad = InputGetPad(0);
     WindowMode  mode;
-    const bool  unfocused = WindowCurrentMode(mode) && !(SDL_GetWindowFlags(WindowHandle()) & SDL_WINDOW_INPUT_FOCUS);
-    return unfocused || pad.buttons || GamePad__2.pad[0].button ||
+    // Headless scripts have no native cursor/capture owner. A real window must
+    // release the pointer immediately when capture or input focus is lost.
+    const bool inactive = WindowCurrentMode(mode) &&
+                          (!MouseInputLive() || !(SDL_GetWindowFlags(WindowHandle()) & SDL_WINDOW_INPUT_FOCUS));
+    return inactive || pad.buttons || GamePad__2.pad[0].button ||
            std::abs(int(pad.left_x) - 128) > 30 || std::abs(int(pad.left_y) - 128) > 30;
 }
 
@@ -118,6 +125,7 @@ void SetCapture(bool on) {
     }
     enabled = on;
     hand = {};
+    wheel_remainder = 0;
     MouseSetPointerCursor(false);
     if (on) {
         closing = false;
@@ -182,12 +190,18 @@ const MenuMouseSample &MenuMouseTake() {
     sample.released = held & ~mouse.buttons;
     sample.held = mouse.buttons;
     held = mouse.buttons;
-    sample.wheel = mouse.wheel;
+    if (std::isfinite(mouse.wheel)) {
+        wheel_remainder += mouse.wheel;
+    }
+    wheel_remainder = std::clamp(wheel_remainder, -32.0, 32.0);
+    sample.wheel = std::trunc(wheel_remainder);
+    wheel_remainder -= sample.wheel;
     sample.moved = mouse.dx != 0 || mouse.dy != 0;
     if (PadOrFocusOwnsPointer()) {
         sample.pointing = false;
         sample.clicked = sample.released = 0;
         sample.wheel = 0;
+        wheel_remainder = 0;
         buttons = 0;
         choices.confirm = false;
         choices.target = choices.selected;
@@ -218,7 +232,7 @@ const MenuMouseSample &MenuMouseTake() {
                 choices.target = hit;
             }
             if (sample.wheel != 0 && std::isfinite(sample.wheel)) {
-                int target = choices.selected + (sample.wheel < 0 ? 1 : -1);
+                int target = choices.selected + -static_cast<int>(sample.wheel);
                 if (target >= 0 && target < static_cast<int>(choices.rows.size()) && choices.rows[target].w > 0) {
                     choices.target = target;
                 }
@@ -295,6 +309,7 @@ void MenuMouseDelayConfirm(const void *owner, int selected, int target, int tick
 MenuMouseSample MenuMouseDisplaySample() {
     auto point = sample;
     if (!enabled || PadOrFocusOwnsPointer()) {
+        sample.pointing = false;
         point.pointing = false;
         return point;
     }
@@ -310,12 +325,27 @@ MenuMouseSample MenuMouseDisplaySample() {
     return point;
 }
 
-void MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::LogicalRect uv,
-                       float rotation, int reverse, int alpha, float scale) {
-    if (!enabled || texture.texture == gfx::kNullTexture) {
-        return;
+gfx::InterpKey MenuMouseNextHandKey() {
+    if (hand_frame != mgPortFrameCount()) {
+        hand_frame = mgPortFrameCount();
+        hand_index = 0;
     }
-    hand = {texture, uv, rotation, scale, reverse, alpha, mgPortFrameCount()};
+    return kMenuMouseHandKey + hand_index;
+}
+
+gfx::InterpKey MenuMouseReplacedHandKey() { return MenuMousePointerVisible() ? hand.key : 0; }
+
+gfx::InterpKey MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::LogicalRect uv,
+                                 float rotation, int reverse, int alpha, float scale) {
+    if (texture.texture == gfx::kNullTexture) {
+        return 0;
+    }
+    const auto key = MenuMouseNextHandKey();
+    ++hand_index;
+    if (enabled) {
+        hand = {key, texture, uv, rotation, scale, reverse, alpha, mgPortFrameCount()};
+    }
+    return key;
 }
 
 bool MenuMousePointerVisible() {

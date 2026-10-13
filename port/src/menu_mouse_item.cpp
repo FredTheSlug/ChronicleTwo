@@ -37,19 +37,11 @@ Target GridHit(Point p, Point origin, Rect clip, int count) {
     return index < count ? Target{ITEM_MENU_PANEL_BAG, index} : Target{};
 }
 
-int CommandHit(Point p, Rect text, int count, float line_height) {
-    if (line_height <= 0 || !text.Contains(p)) {
-        return -1;
-    }
-    int row = static_cast<int>((p.y - text.y) / line_height);
-    return row < count ? row : -1;
-}
-
 int ScrollTop(int top, int count, int visible_rows, float wheel) {
     if (!std::isfinite(wheel) || wheel == 0) {
         return top;
     }
-    int step = static_cast<int>(std::clamp(std::ceil(std::abs(wheel)), 1.0f, 24.0f));
+    int step = static_cast<int>(std::clamp(std::trunc(std::abs(wheel)), 0.0f, 24.0f));
     return std::clamp(top + (wheel > 0 ? -step : step), 0, std::max(0, (count + 5) / 6 - visible_rows));
 }
 
@@ -263,7 +255,7 @@ Point Start(CMenuItemInfo &menu, CMenuKeyFunc &keys) {
     return p;
 }
 
-Take TakePointer(Point) {
+Take TakePointer() {
     const auto &sample = MenuMouseTake();
     pointer.pos = {sample.x, sample.y};
     pointer.pointing = sample.pointing;
@@ -312,9 +304,6 @@ void Question(CMenuItemInfo &menu, CMenuKeyFunc &keys, const Take &take) {
         Point up = FormPoint(quantity, "up"), down = FormPoint(quantity, "down");
         Rect  area{std::min(up.x, down.x) - 12, std::min(up.y, down.y) - 12,
                    std::abs(up.x - down.x) + 48, std::abs(up.y - down.y) + 48};
-        if (take.pressed & 1) {
-            synthetic = PAD_CROSS;
-        }
         if (area.Contains(pointer.pos)) {
             if (take.wheel != 0) {
                 synthetic = take.wheel > 0 ? PAD_UP : PAD_DOWN;
@@ -433,7 +422,8 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
         bag_top = keys.top_line;
         return;
     }
-    Take take = TakePointer(Start(menu, keys));
+    Start(menu, keys);
+    Take take = TakePointer();
     if (view != menu.view_mode || PadActive()) {
         gesture.Reset();
         view = menu.view_mode;
@@ -465,7 +455,7 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
         }
         if (take.pressed & 2) {
             synthetic = PAD_CIRCLE;
-        } else if (take.pressed & 1) {
+        } else if ((take.pressed & 1) && hit.panel == ITEM_MENU_PANEL_FISHING_ROD_STATS) {
             synthetic = PAD_CROSS;
         }
         return;

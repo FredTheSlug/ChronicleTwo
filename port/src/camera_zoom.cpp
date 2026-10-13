@@ -73,37 +73,44 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     param.height = height;
     param.no_check = 0;
 
-    mgVu0FBOX bounds{};
-    for (int i = 0; i < 3; ++i) {
-        bounds.min[i] = std::min({camera.pos[i], camera.ref[i], candidate.next_pos[i], candidate.next_ref[i]}) - 8;
-        bounds.max[i] = std::max({camera.pos[i], camera.ref[i], candidate.next_pos[i], candidate.next_ref[i]}) + 8;
-    }
-    // Include the full vertical query used by CheckGround, not only the eye.
-    bounds.min[1] = std::min(bounds.min[1], candidate.next_ref[1] + param.min_height - param.ground_space - 8);
-    bounds.max[1] = std::max(bounds.max[1], candidate.next_ref[1] + param.max_height + 28);
-    if (candidate.check_ref_on) {
+    CCPoly polys[512];
+    // Reuse the collector after retail avoidance changes the destination. Each
+    // proof must enclose the actual current and final pending corridors.
+    auto collect = [&]() {
+        mgVu0FBOX bounds{};
         for (int i = 0; i < 3; ++i) {
-            const float target = candidate.check_ref[i] + (i == 1 ? candidate.follow_offset[1] : 0);
-            bounds.min[i] = std::min(bounds.min[i], target - 8);
-            bounds.max[i] = std::max(bounds.max[i], target + 8);
-            if (i == 1) {
-                bounds.min[i] = std::min(bounds.min[i], target + param.min_height - param.ground_space - 8);
-                bounds.max[i] = std::max(bounds.max[i], target + param.max_height + 28);
+            bounds.min[i] = std::min({camera.pos[i], camera.ref[i], candidate.next_pos[i], candidate.next_ref[i]}) - 8;
+            bounds.max[i] = std::max({camera.pos[i], camera.ref[i], candidate.next_pos[i], candidate.next_ref[i]}) + 8;
+        }
+        // Include the full vertical query used by CheckGround, not only the eye.
+        bounds.min[1] = std::min(bounds.min[1], candidate.next_ref[1] + param.min_height - param.ground_space - 8);
+        bounds.max[1] = std::max(bounds.max[1], candidate.next_ref[1] + param.max_height + 28);
+        if (candidate.check_ref_on) {
+            for (int i = 0; i < 3; ++i) {
+                const float target = candidate.check_ref[i] + (i == 1 ? candidate.follow_offset[1] : 0);
+                bounds.min[i] = std::min(bounds.min[i], target - 8);
+                bounds.max[i] = std::max(bounds.max[i], target + 8);
+                if (i == 1) {
+                    bounds.min[i] = std::min(bounds.min[i], target + param.min_height - param.ground_space - 8);
+                    bounds.max[i] = std::max(bounds.max[i], target + param.max_height + 28);
+                }
             }
         }
-    }
-    bounds.min[3] = bounds.max[3] = 1;
-    CCPoly polys[512];
-    int    count = MouseCameraCollectPolys(scene, bounds, polys, 512);
-    // The caller's retail collision set remains authoritative even if the
-    // extended distance query did not return those polygons.
-    if (count < 0 || retail_count < 0 || retail_count >= 512 - count ||
-        (retail_count && !retail_polys)) {
+        bounds.min[3] = bounds.max[3] = 1;
+        int count = MouseCameraCollectPolys(scene, bounds, polys, 512);
+        if (count < 0 || retail_count < 0 || retail_count >= 512 - count ||
+            (retail_count && !retail_polys)) {
+            return -1;
+        }
+        for (int i = 0; i < retail_count; ++i) {
+            polys[count++] = retail_polys[i];
+        }
+        return count;
+    };
+    int count = collect();
+    if (count < 0) {
         camera.MoveCamera(&control, rotation, retail_polys, retail_count);
         return;
-    }
-    for (int i = 0; i < retail_count; ++i) {
-        polys[count++] = retail_polys[i];
     }
     if (!retail.no_check) {
         candidate.CheckGround(polys, count);
@@ -111,6 +118,11 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
         if (control.rot == 0 && !(candidate.rot_cancel & CAMERA_ROT_CANCEL_AUTO_MOVE)) {
             candidate.AutoMove(polys, count);
         }
+    }
+    count = collect();
+    if (count < 0) {
+        camera.MoveCamera(&control, rotation, retail_polys, retail_count);
+        return;
     }
     // Only next poses are committed. Retail's Step supplies smooth motion, and
     // the proof covers independent eye/target easing and thin walls in between.

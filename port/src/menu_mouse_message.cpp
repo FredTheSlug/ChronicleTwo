@@ -67,7 +67,7 @@ PORT_OVERRIDE void _set2DSprite(char *name, mgCDrawPrim *primitive, mgRect<int> 
     }
     const bool         cursor = std::strcmp(name, "gaiji") == 0 && uv.left == 96 && uv.top == 232 &&
                                 uv.right == 40 && uv.bottom == 24;
-    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())} : gfx::CurrentInterp2D());
+    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{MenuMouseNextHandKey(), static_cast<uint64_t>(mgPortFrameCount())} : gfx::CurrentInterp2D());
     primitive->Begin(MG_PRIM_SPRITE);
     MySetTex(name, primitive);
     if (cursor && (color->r || color->g || color->b)) {

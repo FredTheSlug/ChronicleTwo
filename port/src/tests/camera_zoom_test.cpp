@@ -8,6 +8,7 @@
 #include "dng_main.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
+#include "map.hpp"
 #include "platform/config.hpp"
 #include "platform/input.hpp"
 #include "scenesnd.hpp"
@@ -418,4 +419,59 @@ TEST(CameraZoom, RetailAutoMoveStillAvoidsPipeObstaclesUnlessCancelled) {
             EXPECT_NE(camera.next_pos[0], 0);
         }
     }
+}
+
+TEST(CameraZoom, FinalAvoidanceCorridorRecollectsSceneGeometry) {
+    class CorridorMap : public CMap {
+    public:
+        CorridorMap() {
+            place_parts = nullptr;
+            place_parts_num = 0;
+        }
+
+        int    queries = 0;
+        bool   final_wall_collected = false;
+        CCPoly trigger{};
+
+        int GetCameraPoly(CCPoly *out, mgVu0FBOX &box, int) override {
+            ++queries;
+            out[0] = trigger;
+            // A second wall outside the original eight-unit lateral envelope.
+            if (box.max[0] >= 10) {
+                final_wall_collected = true;
+                out[1] = Plane(0, 10);
+                return 2;
+            }
+            if (box.min[0] <= -10) {
+                final_wall_collected = true;
+                out[1] = Plane(0, -10);
+                return 2;
+            }
+            return 1;
+        }
+    } map;
+
+    const float vertices[3][4] = {
+        {3, -1000, 150, 1},
+        {3, 1000,  150, 1},
+        {4, 0,     250, 1}
+    };
+    for (int i = 0; i < 3; ++i) {
+        std::copy_n(vertices[i], 4, map.trigger.vertex[i]);
+    }
+    map.trigger.normal[0] = 1;
+    map.trigger.normal[2] = -0.01f;
+    CScene scene;
+    scene.AssignMap(0, &map, const_cast<char *>("map"));
+    scene.active_map = 0;
+    scene.map[0].status |= SCENE_DATA_ACTIVE;
+    auto       camera = Camera();
+    CameraZoom zoom;
+    zoom.Read(camera, -100, false, true);
+    CCameraControl::Control control{};
+    float                   rotation[4]{};
+    zoom.Move(camera, scene, control, rotation);
+    EXPECT_GE(map.queries, 2);
+    EXPECT_TRUE(map.final_wall_collected);
+    EXPECT_LT(std::fabs(camera.next_pos[0]), 6);
 }

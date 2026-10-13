@@ -29,7 +29,6 @@ struct Target {
 // Grid icons are 40 by 50 logical units. The origin follows the animated board;
 // clip is its visible aperture, so rows sliding out cannot be selected.
 Target GridHit(Point p, Point origin, Rect clip, int count);
-int    CommandHit(Point p, Rect text, int count, float line_height);
 int    ScrollTop(int top, int count, int visible_rows, float wheel);
 
 struct Take {

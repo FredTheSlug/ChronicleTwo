@@ -15,8 +15,10 @@
 #include <utility>
 #include <vector>
 
+#include "dng_main.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
+#include "mainloop.hpp"
 #include "menu_mouse.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_math.hpp"
@@ -25,6 +27,7 @@
 #include "platform/clock.hpp"
 #include "platform/paths.hpp"
 #include "present.hpp"
+#include "scenesnd.hpp"
 #include "stubs/mglib.hpp"
 
 namespace {
@@ -68,6 +71,7 @@ bool gfx_open = false;
 bool recording = false;
 bool cut_next_tick = true;
 bool cut_camera_next_tick = true;
+unsigned long long      camera_generation = 0;
 gfx::DisplayListRef last_list;
 gfx::DisplayListRef previous_list;
 int frame_count = 0;
@@ -926,6 +930,7 @@ mgPortInterpScope::~mgPortInterpScope() {
 }
 
 void mgPortCutInterpolation() {
+    ++camera_generation;
     if (recording) {
         gfx::CutInterpolation();
     } else {
@@ -933,7 +938,10 @@ void mgPortCutInterpolation() {
     }
 }
 
+unsigned long long mgPortCameraGeneration() { return camera_generation; }
+
 void mgPortCutCameraInterpolation() {
+    ++camera_generation;
     if (recording) {
         gfx::CutCameraInterpolation();
     } else {
@@ -1125,6 +1133,19 @@ PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
     manager->texture_manager = &mgTexManager;
     manager->render_info = &mgRenderInfo;
     mgTimeFrameBegin();
+    static const CScene    *last_scene = nullptr;
+    static const mgCCamera *last_camera = nullptr;
+    static int              last_event = 0;
+    CScene                 *scene = GetNowLoopNo() == LOOP_DUNGEON ? DngMainScene : GetNowLoopNo() == LOOP_EDIT ? GetMainScene()
+                                                                                                                : nullptr;
+    auto                   *camera = scene ? scene->GetCamera(scene->active_camera) : nullptr;
+    const int               event = scene ? scene->event_run : 0;
+    if (scene != last_scene || camera != last_camera || event != last_event) {
+        mgPortCutCameraInterpolation();
+        last_scene = scene;
+        last_camera = camera;
+        last_event = event;
+    }
 
     if (!frame_open) {
         if (ready && !gfx::InFrame()) {

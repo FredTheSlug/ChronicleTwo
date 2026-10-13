@@ -326,7 +326,7 @@ PORT_OVERRIDE void MainLoop() {
                 case LOOP_TITLE: {
                     static int pause = false;
 
-                    if (GamePad__2.Down2(PAD_SELECT)) {
+                    if (GameDebugPauseRequested(GamePad__2)) {
                         pause = true;
                     }
 

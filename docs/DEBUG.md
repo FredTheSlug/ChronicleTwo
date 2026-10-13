@@ -29,7 +29,8 @@ its buttons to the retail pad-2 debug reads. Real pad 2 still works. Circle togg
 toggles rain. Circle and Cross do not also activate their ordinary pad-1 actions
 while the modifier is held. The game's overall pad lock is respected.
 
-Pressing Select with L2 held pauses. While paused, the modifier plus Right steps
+Pressing Select with L2 held pauses through a separate native pause action;
+Select and L2 remain consumed by ordinary pad-1 and routed pad-2 reads. While paused, the modifier plus Right steps
 one frame and the modifier plus Start stores a frame image in the save root.
 Release the modifier and press Start to resume, or release and press Select with
 L2 held again. To use another modified debug button without pausing first, hold

@@ -139,6 +139,7 @@ TEST(TestHooks, OrdinaryDefaultsDisableDebugRoutingAndDeveloperChord) {
     pad.key_lock2 = 1;
     pad.pad[0].button = PAD_L2 | PAD_SELECT | PAD_CIRCLE;
     EXPECT_FALSE(pad.Down2(PAD_CIRCLE));
+    EXPECT_FALSE(GameDebugPauseRequested(pad));
     EXPECT_TRUE(pad.Down(PAD_CIRCLE));
     InputPadState input;
     input.connected = true;
@@ -153,4 +154,27 @@ TEST(TestHooks, JumpExplicitlyEnablesDebugWithOrdinaryDefaults) {
     EXPECT_FALSE(GameDebugEnabled());
     ASSERT_TRUE(GameSetJump("title"));
     EXPECT_TRUE(GameDebugEnabled());
+    CGamePad pad{};
+    pad.previous_pad[0].button = PAD_L2;
+    pad.pad[0].button = PAD_L2 | PAD_SELECT;
+    EXPECT_TRUE(GameDebugPauseRequested(pad));
+}
+
+TEST_F(GamePadSingleDebug, ExplicitPauseChordEntersAndResumesWithoutLeakingModifiers) {
+    CGamePad pad{};
+    pad.key_lock2 = 1;
+    pad.previous_pad[0].button = PAD_L2;
+    pad.pad[0].button = PAD_L2 | PAD_SELECT;
+    EXPECT_TRUE(GameDebugPauseRequested(pad));
+    EXPECT_TRUE(GameDebugPauseResumeRequested(pad));
+    EXPECT_FALSE(pad.Down2(PAD_SELECT | PAD_L2));
+    EXPECT_FALSE(pad.Down(PAD_SELECT | PAD_L2));
+    pad.previous_pad[0].button = pad.pad[0].button;
+    EXPECT_FALSE(GameDebugPauseRequested(pad));
+    pad.previous_pad[0].button = PAD_SELECT;
+    EXPECT_FALSE(GameDebugPauseRequested(pad));
+    pad.previous_pad[0].button = PAD_L2;
+    pad.key_lock = 1;
+    EXPECT_FALSE(GameDebugPauseRequested(pad));
+    EXPECT_FALSE(GameDebugPauseResumeRequested(pad));
 }

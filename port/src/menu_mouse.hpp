@@ -40,7 +40,7 @@ void             MenuMouseDraw();
 inline constexpr gfx::InterpKey kMenuMouseHandKey = 0x4d454e5548414e44;
 bool                            MenuMousePointerVisible();
 MenuMouseSample                 MenuMouseDisplaySample();
-void                            MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::LogicalRect uv,
+gfx::InterpKey                  MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::LogicalRect uv,
                                                   float rotation = 0, int reverse = 0, int alpha = 128, float scale = 1);
 
 // Exclusive adapters translate this sampled frame into retail buttons.
@@ -49,3 +49,9 @@ bool MenuMouseActive();
 
 class CSaveMenuClass;
 void MenuMouseSave(CSaveMenuClass &save);
+
+gfx::InterpKey MenuMouseNextHandKey();
+gfx::InterpKey MenuMouseReplacedHandKey();
+class CMenuOption;
+class CMenuPosDataForm;
+bool MenuMouseOption(CMenuOption &menu, CMenuPosDataForm *form);

@@ -1079,7 +1079,13 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesPositionAndHealthAndReuseCuts
     after = DamageVertices(*mgPortLastList());
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
-    record(440, 25); // An abrupt projection/camera cut within the same mode.
+    before = after;
+    record(400, 25); // A fast continuous camera move still interpolates.
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    mgPortCutCameraInterpolation();
+    record(440, 25); // Explicit same-camera discontinuity.
     ExpectNewestAtEveryAlpha();
     gauge.Initialize(0);
     gauge.SetView(1);
@@ -1151,7 +1157,8 @@ TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
     uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
-    record(440); // Same target and mode, discontinuous camera projection.
+    mgPortCutCameraInterpolation();
+    record(440); // Explicit same-camera discontinuity.
     ExpectNewestAtEveryAlpha();
     player.target_no = 2; // A different scene identity, even if storage is reused.
     record(280);
@@ -1428,7 +1435,8 @@ TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     CheckOverlayBlend(before, after, newest);
     EXPECT_EQ(std::memcmp(&message_state, &message, sizeof(message)), 0);
     EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
-    record(440); // Same target and mode, discontinuous camera projection.
+    mgPortCutCameraInterpolation();
+    record(440); // Explicit same-camera discontinuity.
     ExpectNewestAtEveryAlpha();
     player.target_no = 2; // A different scene identity, even if storage is reused.
     record(280);
@@ -1492,7 +1500,8 @@ TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
     CheckDamageBlend(*list, before, after, newest);
     EXPECT_EQ(std::memcmp(&damage, &state_before, sizeof(damage)), 0);
     mgBeginFrame(nullptr);
-    DamageProjection(440); // A cut with unchanged world position and emission.
+    mgPortCutCameraInterpolation();
+    DamageProjection(440); // Explicit cut with unchanged world position and emission.
     damage.Draw();
     mgEndFrame(nullptr);
     ExpectNewestAtEveryAlpha();
@@ -1653,7 +1662,13 @@ TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
     auto state = damage;
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     EXPECT_EQ(std::memcmp(&state, &damage, sizeof(damage)), 0);
-    record(440); // Same character and damage emission, a cut within the mode.
+    before = after;
+    record(400); // Fast continuous motion keeps the damage generation.
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
+    mgPortCutCameraInterpolation();
+    record(440); // Explicit same-camera discontinuity.
     ExpectNewestAtEveryAlpha();
     auto previous_generation = std::get<gfx::detail::Draw2DEntry>(mgPortLastList()->entries.back()).interpolation.generation;
     damage.SetValue(0, 123, 0); // same glyphs and object, distinct emission
@@ -1802,6 +1817,8 @@ TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
     InputResetBindings();
     InputSetScriptedDevices({});
     MenuMouseEnable(true);
+    EXPECT_FALSE(PresentMouseActive());
+    EXPECT_FALSE(MouseInputLive()); // Headless scripted pointer needs no native capture.
     const auto    texture = gfx::CreateTexture({1, 1});
     const uint8_t white[] = {255, 255, 255, 128};
     ASSERT_TRUE(gfx::UpdateTexture(texture, 0, 0, 0, 1, 1, white));

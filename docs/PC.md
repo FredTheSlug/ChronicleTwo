@@ -445,8 +445,13 @@ through goods or bag rows; in a buy/sell quantity prompt it changes the quantity
 within the game's limits. The quantity arrows, number panel, and localized Quit
 button accept clicks, and right click cancels. Item popups, stat grids, the ITEM
 page and PC SETTINGS use the shared pointer adapters described below. Some
-secondary destination screens still retain only their existing controls. Ordinary
-dialogue choices share the message adapter;
+secondary destination screens still retain only their existing controls.
+Visible hit regions confirm on click; retail Options buttons select their row
+and choice before confirming, and background clicks do not confirm.
+Informational popups without selectable regions accept a click on the current
+choice. Fractional wheel input accumulates across ticks. The displayed gold hand
+replaces only its own retail cursor, and releasing capture restores the native
+pointer immediately. Ordinary dialogue choices share the message adapter;
 the rendered confirmation replays and drawn-message unit tests cover that input
 path, but campaign dialogue choices still need a dedicated replay.
 
@@ -505,7 +510,10 @@ R2 view and exercise mouse look.
 Keyboard movement in normal first-person view (R by default) is always enabled:
 W/S move forward/back and A/D strafe relative to the view, including remapped
 movement keys and normalized diagonals. Movement uses the normal character
-collision and speed rules. Controller sticks retain retail first-person look.
+collision and speed rules. Arrow keys turn the eye view; controller sticks retain
+retail first-person look. Leaving the view restores the follow camera relative to
+the player's current position. Dungeon trap circles, touch events and GeoStones
+end eye view so the normal field-event path can handle them.
 Photo aiming, fishing, Ridepod, menus and scripted control keep their own controls.
 
 ### Item menu mouse
@@ -555,13 +563,15 @@ Item page and opens Bread's commands by frame 2850. These two scripts also use
 in PC SETTINGS > Controls. In town rooms whose map supplies a fixed point/path
 camera, mouse motion adds a gentle view rotation, limited to 15 degrees horizontally
 and 10 degrees vertically. The view eases back exponentially when the mouse rests;
-the decay advances on every displayed frame, including with interpolation disabled.
+motion and decay advance on every displayed frame, including with interpolation disabled.
+Motion across several logic ticks is retained without applying a sample twice.
 The camera stays at its retail position, and character movement uses the unchanged
 retail camera. Events, dialogue, menus, pause, ladders, Georama, debug cameras and
 user-controllable cameras keep their own view. Turning the option off drops the offset.
 
 An untouched mouse takes the original rendering path. The offset changes only display
-renders; gameplay, scene culling, canonical captures and depth queries retain retail's
+renders; scene culling conservatively includes the permitted view rotation, while
+gameplay, canonical captures and depth queries retain retail's
 view. `tools/input/town-mouse-fixed.input`, with `--jump town:31 --fast-load`, reaches
 Morton's Sundries directly. Use `--display-per-tick 4 --screenshot-display 2` and inspect
 the `-display-*.png` captures at frame 609 for motion and 900 for return. The companion

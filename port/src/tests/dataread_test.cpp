@@ -19,6 +19,8 @@
 #include "dc2data.hpp"
 #include "platform/paths.hpp"
 
+int LoadGameDataAnalyze(char *);
+
 namespace dc = dc2data;
 namespace fs = std::filesystem;
 

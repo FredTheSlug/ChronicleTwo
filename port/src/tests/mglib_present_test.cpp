@@ -432,6 +432,30 @@ TEST(MglibPresent, ScreenshotDisplayWithInterpolationOffIgnoresAlpha) {
     EXPECT_NE(at_zero, at_half);
 }
 
+TEST(MglibPresent, ScreenshotDisplayWithInterpolationOffNeedsOnlyOneTick) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = false});
+    static int object;
+    mgPortCutInterpolation();
+    RecordTicks(1, &object, 0.0f);
+    ASSERT_NE(mgPortLastList(), nullptr);
+    ASSERT_EQ(mgPortPreviousList(), nullptr);
+
+    std::vector<uint8_t> canonical;
+    std::vector<uint8_t> display;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
+    double centroid = 0.0;
+    RedCentroidX(canonical, width, height, centroid);
+    for (float alpha : {0.0f, 0.5f, 1.0f}) {
+        ASSERT_TRUE(PresentScreenshotDisplay(alpha, display, width, height));
+        EXPECT_EQ(display, canonical);
+    }
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    EXPECT_FALSE(PresentScreenshotDisplay(0.5f, display, width, height));
+}
+
 TEST(MglibPresent, DisplayPerTickRendersAndDiscards) {
     PresentRenderer renderer(640, 480);
     PresentResetStats();

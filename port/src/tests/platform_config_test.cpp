@@ -341,3 +341,26 @@ TEST_F(PlatformConfig, BindingResetPreservesUnrelatedExternalBindings) {
     EXPECT_EQ(json["input"]["bindings"]["circle"][0], "Z");
     EXPECT_EQ(json["input"]["bindings"]["future"][0], "J");
 }
+
+TEST_F(PlatformConfig, BindingEditsAndResetMergeCaseInsensitiveNames) {
+    Write(R"({"input":{"bindings":{"Cross":["K"],"CiRcLe":["Q"]}}})");
+    ASSERT_TRUE(ConfigLoad());
+    Write(R"({"input":{"bindings":{"Cross":["K"],"CROSS":["X"],"CiRcLe":["Z"],"Future":["J"]}},"extra":{"Cross":42}})");
+    Config changed = ConfigGet();
+    changed.key_bindings[0].keys = {"V"};
+    ASSERT_TRUE(ConfigChange(changed));
+    auto json = nlohmann::json::parse(Read());
+    EXPECT_EQ(json["input"]["bindings"].size(), 3);
+    EXPECT_EQ(json["input"]["bindings"]["cross"][0], "V");
+    EXPECT_FALSE(json["input"]["bindings"].contains("Cross"));
+    EXPECT_FALSE(json["input"]["bindings"].contains("CROSS"));
+    EXPECT_EQ(json["input"]["bindings"]["CiRcLe"][0], "Z");
+    EXPECT_EQ(json["input"]["bindings"]["Future"][0], "J");
+    EXPECT_EQ(json["extra"]["Cross"], 42);
+    Write(R"({"input":{"bindings":{"CrOsS":["V"],"CiRcLe":["Z"],"Future":["J"]}}})");
+    changed.key_bindings.erase(changed.key_bindings.begin());
+    ASSERT_TRUE(ConfigChange(changed));
+    json = nlohmann::json::parse(Read());
+    EXPECT_FALSE(json["input"]["bindings"].contains("CrOsS"));
+    EXPECT_EQ(json["input"]["bindings"].size(), 2);
+}

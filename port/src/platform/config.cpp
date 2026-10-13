@@ -288,7 +288,7 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
 }
 
 // Apply only session edits, leaving unrelated fields from the current file intact.
-void MergeChanges(Json &root, const Json &before, const Json &after) {
+void MergeChanges(Json &root, const Json &before, const Json &after, const std::string &path = "") {
     if (before == after) {
         return;
     }
@@ -299,16 +299,32 @@ void MergeChanges(Json &root, const Json &before, const Json &after) {
     if (!root.is_object()) {
         root = Json::object();
     }
+    const auto erase = [&](const std::string &key) {
+        if (path == "input.bindings") {
+            for (auto it = root.begin(); it != root.end();) {
+                if (Lower(it.key()) == Lower(key)) {
+                    it = root.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        } else {
+            root.erase(key);
+        }
+    };
     for (const auto &[key, value] : after.items()) {
         const Json previous = before.is_object() && before.contains(key) ? before[key] : Json();
         if (previous != value) {
-            MergeChanges(root[key], previous, value);
+            if (path == "input.bindings") {
+                erase(key);
+            }
+            MergeChanges(root[key], previous, value, path.empty() ? key : path + "." + key);
         }
     }
     if (before.is_object()) {
         for (const auto &[key, value] : before.items()) {
             if (!after.contains(key)) {
-                root.erase(key);
+                erase(key);
             }
         }
     }

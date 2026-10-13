@@ -17,6 +17,7 @@
 #include "editloop.hpp"
 #include "gamepad.hpp"
 #include "mainloop.hpp"
+#include "mglib_port.hpp"
 #include "mg_math.hpp"
 #include "photo.hpp"
 #include "platform/config.hpp"
@@ -161,6 +162,7 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
 }
 
 PORT_OVERRIDE void CCameraControl::Step(int frames) {
+    if (frames < 0) mgPortCutCameraInterpolation();
     // Preserve the controller/follow step before adding the native eye look.
     if (!control_on) {
         mgCCameraFollow::Step(frames);

@@ -195,6 +195,7 @@ private:
 void mgPortCutInterpolation();
 // Its camera is not; objects still are.
 void mgPortCutCameraInterpolation();
+unsigned long long mgPortCameraGeneration();
 // True between mgBeginFrame and mgEndFrame while the tick is recorded as a display list.
 bool mgPortRecording();
 // The tick's list and the one before it (null until two ticks were recorded), for the present driver.

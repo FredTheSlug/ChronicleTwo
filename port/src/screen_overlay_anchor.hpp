@@ -1,17 +1,17 @@
 #pragma once
 
-// Projected anchors move smoothly during normal camera/character motion. A jump
-// larger than 64 logical pixels in one tick is a presentation discontinuity.
+#include "mglib_port.hpp"
+
+// Camera cuts are signalled by the camera owner, never inferred from screen
+// distance: a continuous mouse turn can move an anchor across the whole view.
 struct ScreenOverlayAnchor {
-    int  x = 0, y = 0;
+    unsigned long long generation = 0;
     bool valid = false;
 
-    bool Update(int next_x, int next_y) {
-        const double dx = static_cast<double>(next_x) - x;
-        const double dy = static_cast<double>(next_y) - y;
-        const bool   cut = valid && dx * dx + dy * dy > 64.0 * 64.0;
-        x = next_x;
-        y = next_y;
+    bool Update(int, int) {
+        const auto next = mgPortCameraGeneration();
+        const bool cut = valid && generation != next;
+        generation = next;
         valid = true;
         return cut;
     }

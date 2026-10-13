@@ -163,35 +163,52 @@ PORT_OVERRIDE void CGamePad::LoadCapture() {
 }
 
 namespace {
-bool DebugModifier(const CGamePad &pad) {
-    constexpr int modifier = PAD_L2 | PAD_SELECT;
-    return GameDebugEnabled() && (pad.pad[0].button & modifier) == modifier;
+constexpr int kDebugButtonsModifier = PAD_L2 | PAD_SELECT;
+constexpr int kConsumedDebugButtons = kDebugButtonsModifier | PAD_CIRCLE | PAD_CROSS;
+bool DebugModifier(const CGamePad &pad, bool previous = false) {
+    const int buttons = previous ? pad.previous_pad[0].button : pad.pad[0].button;
+    return GameDebugEnabled() && (buttons & kDebugButtonsModifier) == kDebugButtonsModifier;
+}
+int Pad1Buttons(const CGamePad &pad, int buttons, bool edges = false) {
+    return DebugModifier(pad) || (edges && DebugModifier(pad, true))
+               ? buttons & ~kConsumedDebugButtons : buttons;
 }
 }
 
 PORT_OVERRIDE int CGamePad::On2(int mask) {
     if (key_lock) return 0;
     const int real = key_lock2 ? 0 : pad[1].button;
-    const int single = DebugModifier(*this) ? pad[0].button : 0;
+    const int single = DebugModifier(*this) ? pad[0].button & ~kDebugButtonsModifier : 0;
     return ((real | single) & mask) != 0;
 }
 
 PORT_OVERRIDE int CGamePad::Down2(int mask) {
     if (key_lock) return 0;
     const int real = key_lock2 ? 0 : pad[1].button & ~previous_pad[1].button;
-    const int single = DebugModifier(*this) ? pad[0].button & ~previous_pad[0].button : 0;
+    const int single = DebugModifier(*this) ? pad[0].button & ~previous_pad[0].button & ~kDebugButtonsModifier : 0;
     return ((real | single) & mask) != 0;
 }
 
 PORT_OVERRIDE int CGamePad::Down(int mask) {
     if (key_lock) return 0;
-    if (DebugModifier(*this)) mask &= ~(PAD_CIRCLE | PAD_CROSS);
-    return (mask & ((pad[0].button & ~previous_pad[0].button) |
-                    (this == &GamePad__2 ? MenuMouseButtons() : 0))) != 0;
+    return (GetPadDown() & mask) != 0;
 }
 
 PORT_OVERRIDE int CGamePad::GetPadDown() {
     if (key_lock) return 0;
-    return (pad[0].button & ~previous_pad[0].button) |
-           (this == &GamePad__2 ? MenuMouseButtons() : 0);
+    return Pad1Buttons(*this, (pad[0].button & ~previous_pad[0].button) |
+                       (this == &GamePad__2 ? MenuMouseButtons() : 0), true);
 }
+
+PORT_OVERRIDE int CGamePad::GetPadOn() {
+    if (key_lock) return 0;
+    return Pad1Buttons(*this, pad[0].button);
+}
+
+PORT_OVERRIDE int CGamePad::GetPadUp() {
+    if (key_lock) return 0;
+    return Pad1Buttons(*this, ~pad[0].button & previous_pad[0].button, true);
+}
+
+PORT_OVERRIDE int CGamePad::On(int mask) { return (GetPadOn() & mask) != 0; }
+PORT_OVERRIDE int CGamePad::Up(int mask) { return (GetPadUp() & mask) != 0; }

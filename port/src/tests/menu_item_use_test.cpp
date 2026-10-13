@@ -4,9 +4,9 @@
 #include "menucls1.hpp"
 
 TEST(MenuItemUse, NullItemRetainsFullWidthTarget) {
-    CMenuItemUse use{};
+    CMenuItemUse  use{};
     CGameDataUsed target{};
-    const auto saved = MenuUsedTarget;
+    const auto    saved = MenuUsedTarget;
     EXPECT_EQ(use.UseItem(nullptr, ITEM_USE_TARGET_ITEM, &target), 0);
     EXPECT_EQ(MenuUsedTarget.type, ITEM_USE_TARGET_ITEM);
     EXPECT_EQ(MenuUsedTarget.target.data, &target);
@@ -14,10 +14,10 @@ TEST(MenuItemUse, NullItemRetainsFullWidthTarget) {
 }
 
 TEST(MenuItemUse, IneffectiveItemStillRecordsTheTarget) {
-    CMenuItemUse use{};
+    CMenuItemUse  use{};
     CGameDataUsed item{};
     CGameDataUsed target{};
-    const auto saved = MenuUsedTarget;
+    const auto    saved = MenuUsedTarget;
     EXPECT_EQ(use.UseItem(&item, ITEM_USE_TARGET_ITEM, &target), 0);
     EXPECT_EQ(use.item_no, item.item_no);
     EXPECT_EQ(use.target_type, ITEM_USE_TARGET_ITEM);

@@ -7,17 +7,21 @@
 
 TEST(FuncPointMemory, InitializeClearsTheAnimationEndpoint) {
     CFuncPoint point;
-    for (float &v : point.anime.end) v = 123.0f;
+    for (float &v : point.anime.end) {
+        v = 123.0f;
+    }
     point.Initialize();
-    for (float v : point.anime.end) EXPECT_EQ(v, 0.0f);
+    for (float v : point.anime.end) {
+        EXPECT_EQ(v, 0.0f);
+    }
 }
 
 TEST(FuncPointMemory, CopyPreservesAllAnimationVectorsAndNames) {
     alignas(64) u_long128 storage[2048]{};
-    mgCMemory memory;
+    mgCMemory             memory;
     memory.stSetBuffer(storage, 2048);
     CFuncPointMngr source, destination;
-    auto *point = source.Add(FUNC_POINT_ANIME, &memory);
+    auto          *point = source.Add(FUNC_POINT_ANIME, &memory);
     ASSERT_NE(point, nullptr);
     char name[] = "moving-part";
     point->anime.parts_name = name;

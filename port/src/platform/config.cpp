@@ -25,6 +25,8 @@ namespace {
 using Json = nlohmann::ordered_json;
 
 Config g_config;
+Config g_persisted;
+bool g_have_persisted = false;
 // Whether config.json holds g_config, so a failed save is retried with the next change.
 bool g_saved = false;
 // An existing config.json that could not be read: replacing it would discard the user's settings.
@@ -180,7 +182,9 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
         return ReadBool(value, config.interpolation);
     }
     if (name == "video.max_fps") {
-        return ReadNumber(value, s.max_fps, kNonNegative);
+        if (!ReadNumber(value, s.max_fps, kNonNegative)) return false;
+        if (s.max_fps > 0.0 && s.max_fps < 1.0) s.max_fps = 1.0;
+        return true;
     }
     if (name == "video.width") {
         return ReadInt(value, s.window_width);
@@ -276,6 +280,25 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
         return ApplyBindings(config, value);
     }
     return false;
+}
+
+// Apply only session edits, leaving unrelated fields from the current file intact.
+void MergeChanges(Json &root, const Json &before, const Json &after) {
+    if (before == after) return;
+    if (!after.is_object()) {
+        root = after;
+        return;
+    }
+    if (!root.is_object()) root = Json::object();
+    for (const auto &[key, value] : after.items()) {
+        const Json previous = before.is_object() && before.contains(key) ? before[key] : Json();
+        if (previous != value) MergeChanges(root[key], previous, value);
+    }
+    if (before.is_object()) {
+        for (const auto &[key, value] : before.items()) {
+            if (!after.contains(key)) root.erase(key);
+        }
+    }
 }
 
 bool WriteReplacing(const std::filesystem::path &path, std::string_view text) {
@@ -380,7 +403,23 @@ bool ConfigSave() {
     const std::filesystem::path path = PathsSaveRoot() / "config.json";
     std::error_code             error;
     std::filesystem::create_directories(path.parent_path(), error);
-    g_saved = WriteReplacing(path, ConfigSerialize(g_config));
+    Json root = Json::object();
+    if (std::filesystem::exists(path, error)) {
+        std::ifstream file(path, std::ios::binary);
+        if (!file) return g_saved = false;
+        root = Json::parse(file, nullptr, false, true);
+        if (!root.is_object()) return g_saved = false;
+    } else if (error) {
+        return g_saved = false;
+    }
+    const Json after = Json::parse(ConfigSerialize(g_config));
+    if (g_have_persisted) MergeChanges(root, Json::parse(ConfigSerialize(g_persisted)), after);
+    else root = after;
+    g_saved = WriteReplacing(path, root.dump(4) + "\n");
+    if (g_saved) {
+        g_persisted = g_config;
+        g_have_persisted = true;
+    }
     if (!g_saved) {
         std::fprintf(stderr, "config: could not save %s\n", PathsDisplay(path).c_str());
     }
@@ -392,6 +431,7 @@ bool ConfigLoad() {
     std::error_code             error;
     const std::filesystem::file_status status = std::filesystem::status(path, error);
     g_keep_file = false;
+    g_have_persisted = false;
     if (status.type() == std::filesystem::file_type::not_found) {
         g_config = Config{};
         ConfigSave();
@@ -410,8 +450,12 @@ bool ConfigLoad() {
     text << file.rdbuf();
     g_config = ConfigParse(text.str());
     g_saved = true;
+    g_persisted = g_config;
+    g_have_persisted = true;
     return true;
 }
+
+bool ConfigSaved() { return g_saved; }
 
 const HostSettings &SettingsGet() {
     return g_config;

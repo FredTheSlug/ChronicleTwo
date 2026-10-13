@@ -1,9 +1,9 @@
+#include "scriptinterpreter.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
-
-#include "scriptinterpreter.hpp"
 
 namespace {
 
@@ -21,12 +21,12 @@ bool SkipArgumentSpace(input_str &input) {
 } // namespace
 
 PORT_OVERRIDE int CScriptInterpreter::GetArg() {
-    int count = 0;
+    int  count = 0;
     bool more = true;
     while (more && SkipArgumentSpace(*this)) {
         std::string text;
-        bool inside_quotes = false;
-        int byte;
+        bool        inside_quotes = false;
+        int         byte;
         for (;;) {
             if (!get(&byte)) {
                 return count;
@@ -88,7 +88,7 @@ PORT_OVERRIDE int CScriptInterpreter::GetArg() {
 
         if (quotes == 2) {
             argument.type = SPI_STACK_TYPE_STRING;
-            const char *value = text.c_str() + 1;
+            const char       *value = text.c_str() + 1;
             const std::size_t bytes = std::strlen(value) + 1;
             if (string_buff_next + bytes > string_buff + string_buff_size) {
                 std::printf("SPI string buffer over!!\n");

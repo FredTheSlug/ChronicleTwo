@@ -24,6 +24,7 @@ namespace fx = dc::test;
 class PcOptionsAudio : public testing::Test {
 protected:
     fs::path root;
+
     void SetUp() override {
         root = fs::temp_directory_path() / ("dc2_pc_options_audio_" + std::to_string(fx::ProcessId()));
         fs::remove_all(root);
@@ -32,27 +33,40 @@ protected:
         ConfigLoad();
         audio::SoundtrackReload();
     }
+
     void TearDown() override {
         ConfigChange(Config{});
         SoundApplySettings();
         audio::SoundtrackReload();
         fs::remove_all(root);
     }
+
     void WriteRecording() {
         fs::create_directories(root / "soundtrack");
         std::ofstream out(root / "soundtrack/test.wav", std::ios::binary);
-        const auto u32 = [&](std::uint32_t value) { out.write(reinterpret_cast<const char *>(&value), 4); };
-        const auto u16 = [&](std::uint16_t value) { out.write(reinterpret_cast<const char *>(&value), 2); };
-        out.write("RIFF", 4); u32(36 + 4096); out.write("WAVEfmt ", 8);
-        u32(16); u16(1); u16(1); u32(48000); u32(96000); u16(2); u16(16);
-        out.write("data", 4); u32(4096);
-        for (int n = 0; n < 2048; ++n) u16(8192);
+        const auto    u32 = [&](std::uint32_t value) { out.write(reinterpret_cast<const char *>(&value), 4); };
+        const auto    u16 = [&](std::uint16_t value) { out.write(reinterpret_cast<const char *>(&value), 2); };
+        out.write("RIFF", 4);
+        u32(36 + 4096);
+        out.write("WAVEfmt ", 8);
+        u32(16);
+        u16(1);
+        u16(1);
+        u32(48000);
+        u32(96000);
+        u16(2);
+        u16(16);
+        out.write("data", 4);
+        u32(4096);
+        for (int n = 0; n < 2048; ++n) {
+            u16(8192);
+        }
         out.close();
         std::ofstream(root / "soundtrack/soundtrack.json")
             << R"({"version":1,"overrides":{"test.sq":{"file":"test.wav","loop":true}}})";
     }
 };
-}
+} // namespace
 
 TEST_F(PcOptionsAudio, MasterGainAppliesAtSoundInitAndLiveWithoutChangingRetailVolume) {
     Config config = ConfigGet();

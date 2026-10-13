@@ -24,10 +24,11 @@ bool FirstRunDataMissing(const fs::path &root) {
 std::string FirstRunDataMessage(const fs::path &root) {
     const std::string where = PathsDisplay(root);
     return "No extracted Dark Chronicle data at " + where + ".\n\n"
-           "Extract it once from the disc with:\n"
-           "  dc2data extract <disc image or folder> " + where + "\n\n"
-           "The source is an image of the Dark Chronicle disc, or a folder holding DATA.HD4, DATA.DAT, SOUND.HD3 and SOUND.DAT.\n\n"
-           "Or point the game at an existing extraction with --data <dir> or the DC2_DATA environment variable.\n";
+                                                            "Extract it once from the disc with:\n"
+                                                            "  dc2data extract <disc image or folder> " +
+           where + "\n\n"
+                   "The source is an image of the Dark Chronicle disc, or a folder holding DATA.HD4, DATA.DAT, SOUND.HD3 and SOUND.DAT.\n\n"
+                   "Or point the game at an existing extraction with --data <dir> or the DC2_DATA environment variable.\n";
 }
 
 void FirstRunRequireData(const fs::path &root, bool headless) {

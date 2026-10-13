@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "vector_scratch_probes.hpp"
+
 #include <cstring>
 #include <memory>
 
@@ -18,4 +20,8 @@ TEST(ThunderVector, FourBandMapUsesTheCompleteLightingOutput) {
     InitS51Thunder();
     S51Thunder(scene.get());
     EXPECT_EQ(map->map_info.time_light_num, 4);
+}
+
+TEST(ThunderVector, ActualScratchDeclarationsHoldEveryWrittenLane) {
+    EXPECT_TRUE(VectorScratchProbe::Thunder);
 }

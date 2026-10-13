@@ -1,6 +1,4 @@
 #include "present.hpp"
-#include "present_timing.hpp"
-#include "camera_fixed.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -9,11 +7,13 @@
 #include <thread>
 #include <utility>
 
+#include "camera_fixed.hpp"
 #include "gfx/gfx.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
 #include "platform/overlay.hpp"
+#include "present_timing.hpp"
 
 void mgTimeWaitTicks(int start, int frames, ClockWaitHook hook);
 
@@ -33,7 +33,7 @@ struct FpsOverlay {
 PresentSettings settings;
 PresentStats stats;
 bool tick_shown = true;
-PresentPacer pacer;
+PresentPacer      pacer;
 Clock::time_point last_log;
 FpsOverlay overlay;
 std::int64_t counted_tick = 0;
@@ -85,8 +85,8 @@ double DisplaySeconds(bool intermediate = false) {
         return std::max(1, wait_frames) / ClockTickRate() / displays;
     }
     static Clock::time_point before = Clock::now();
-    const auto now = Clock::now();
-    const double seconds = std::chrono::duration<double>(now - before).count();
+    const auto               now = Clock::now();
+    const double             seconds = std::chrono::duration<double>(now - before).count();
     before = now;
     return seconds;
 }
@@ -117,8 +117,8 @@ bool DisplayFrame(float alpha, bool present) {
 
 bool PresentCanonicalFrame() {
     const gfx::DisplayList *overlay_list = FpsOverlayList();
-    const double seconds = ClockUnbounded() && settings.display_per_tick > 0 ? 0 : DisplaySeconds();
-    const bool fixed = MouseFixedActive(seconds);
+    const double            seconds = ClockUnbounded() && settings.display_per_tick > 0 ? 0 : DisplaySeconds();
+    const bool              fixed = MouseFixedActive(seconds);
     bool shown = false;
 
     if (fixed) {
@@ -173,8 +173,7 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
     }
 
     // A game frame spans mgFrameRate ticks, so alpha is the fraction of the game frame elapsed, not of the tick.
-    const float alpha = settings.interpolation ?
-        PresentFrameAlpha(static_cast<double>(ClockTickCount() - wait_start), fraction, wait_frames) : 1.0f;
+    const float alpha = settings.interpolation ? PresentFrameAlpha(static_cast<double>(ClockTickCount() - wait_start), fraction, wait_frames) : 1.0f;
 
     if (!pacer.Present([&] { return DisplayFrame(alpha, true); }, Clock::now)) {
         return false;

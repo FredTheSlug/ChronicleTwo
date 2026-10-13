@@ -1,20 +1,20 @@
 #include <gtest/gtest.h>
+
 #include <cmath>
 #include <numbers>
+
+#include "camera_control_port.hpp"
 #include "camera_mouse.hpp"
 #include "cameracontrol.hpp"
-#include "scenesnd.hpp"
-#include "padcontrol.hpp"
-#include "mainloop.hpp"
-#include "platform/input.hpp"
-#include "map.hpp"
 #include "dng_main.hpp"
+#include "mainloop.hpp"
+#include "mainloop_port.hpp"
+#include "map.hpp"
+#include "padcontrol.hpp"
 #include "photo.hpp"
+#include "platform/input.hpp"
+#include "scenesnd.hpp"
 #include "stubs/photo.hpp"
-
-extern int PortLoopNo asm("MainLoop_LoopNo");
-extern float viewAngleH__2;
-extern float viewAngleV__2;
 
 namespace {
 CCameraControl Camera() {
@@ -27,18 +27,26 @@ CCameraControl Camera() {
     camera.SetSpeed(4, 3);
     return camera;
 }
+
 CCPoly Wall(float x) {
     CCPoly poly{};
-    float vertices[3][4] = {{x, -1000, -1000, 1}, {x, 1000, -1000, 1}, {x, 0, 1000, 1}};
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 4; ++j) poly.vertex[i][j] = vertices[i][j];
+    float  vertices[3][4] = {
+        {x, -1000, -1000, 1},
+        {x, 1000,  -1000, 1},
+        {x, 0,     1000,  1}
+    };
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            poly.vertex[i][j] = vertices[i][j];
+        }
+    }
     poly.normal[0] = 1;
     return poly;
 }
-}
+} // namespace
 
 TEST(CameraMouse, DirectYawTurnsCurrentAndPendingPosesWithoutStickEasing) {
-    auto camera = Camera();
+    auto            camera = Camera();
     constexpr float yaw = std::numbers::pi_v<float> / 2;
     EXPECT_NEAR(MouseCameraYaw(camera, yaw, nullptr, 0), yaw, 0.0001f);
     EXPECT_NEAR(camera.pos[0], -100, 0.001f);
@@ -52,8 +60,8 @@ TEST(CameraMouse, DirectYawTurnsCurrentAndPendingPosesWithoutStickEasing) {
 }
 
 TEST(CameraMouse, SweepStopsBeforeAThinWallEvenWhenTheFinalEyeIsClear) {
-    auto camera = Camera();
-    auto wall = Wall(-50);
+    auto        camera = Camera();
+    auto        wall = Wall(-50);
     const float applied = MouseCameraYaw(camera, std::numbers::pi_v<float>, &wall, 1);
     EXPECT_GT(applied, 0);
     EXPECT_LT(applied, std::numbers::pi_v<float> / 2);
@@ -84,7 +92,7 @@ TEST(CameraMouse, PendingCorridorMustAlsoBeClear) {
 }
 
 TEST(CameraMouse, CameraOwnershipRejectsScriptsLocksOtherViewsAndOtherCameras) {
-    auto camera = Camera();
+    auto   camera = Camera();
     CScene scene;
     scene.event_run = 0;
     CPadControl pad{};
@@ -109,7 +117,7 @@ TEST(CameraMouse, CameraOwnershipRejectsScriptsLocksOtherViewsAndOtherCameras) {
 }
 
 TEST(CameraMouse, TownControlConsumesOneSampleAndDoesNotReplayLockedMotion) {
-    auto camera = Camera();
+    auto    camera = Camera();
     CScene &scene = *GetMainScene();
     scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
     scene.active_camera = 0;
@@ -141,7 +149,7 @@ TEST(CameraMouse, TownControlConsumesOneSampleAndDoesNotReplayLockedMotion) {
 }
 
 TEST(CameraMouse, MultipleRevolutionsRetainTheRequestedFinalHeading) {
-    auto camera = Camera();
+    auto        camera = Camera();
     const float yaw = 4.5f * std::numbers::pi_v<float>;
     EXPECT_FLOAT_EQ(MouseCameraYaw(camera, yaw, nullptr, 0), yaw);
     EXPECT_NEAR(camera.pos[0], -100, 0.001f);
@@ -167,11 +175,18 @@ TEST(CameraMouse, PitchChangesBothEyesDirectlyAndDiscardsMotionAtHeightLimits) {
 }
 
 TEST(CameraMouse, PitchCannotSweepThroughACeiling) {
-    auto camera = Camera();
-    CCPoly ceiling{};
-    const float vertices[3][4] = {{-1000, 60, -1000, 1}, {1000, 60, -1000, 1}, {0, 60, 1000, 1}};
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 4; ++j) ceiling.vertex[i][j] = vertices[i][j];
+    auto        camera = Camera();
+    CCPoly      ceiling{};
+    const float vertices[3][4] = {
+        {-1000, 60, -1000, 1},
+        {1000,  60, -1000, 1},
+        {0,     60, 1000,  1}
+    };
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            ceiling.vertex[i][j] = vertices[i][j];
+        }
+    }
     ceiling.normal[1] = -1;
     MouseCameraPitch(camera, -0.5f, &ceiling, 1);
     EXPECT_LE(camera.pos[1], 40.001f);
@@ -185,16 +200,20 @@ public:
         place_parts = nullptr;
         place_parts_num = 0;
     }
+
     int calls = 0;
     int polygons = 0;
+
     int GetCameraPoly(CCPoly *out, mgVu0FBOX &, int maximum) override {
         ++calls;
         const int written = std::min(polygons, maximum);
-        for (int i = 0; i < written; ++i) out[i] = Wall(1000);
+        for (int i = 0; i < written; ++i) {
+            out[i] = Wall(1000);
+        }
         return written;
     }
 };
-}
+} // namespace
 
 TEST(CameraMouse, AFullMapCollectorCannotEnterTheNextMapWithZeroCapacity) {
     CScene scene;
@@ -207,24 +226,24 @@ TEST(CameraMouse, AFullMapCollectorCannotEnterTheNextMapWithZeroCapacity) {
     scene.map[0].status |= SCENE_DATA_ACTIVE;
     scene.map[1].status |= SCENE_DATA_ACTIVE;
     mgVu0FBOX box{};
-    CCPoly output[8]{};
+    CCPoly    output[8]{};
     EXPECT_EQ(MouseCameraCollectPolys(scene, box, output, 8), -1);
     EXPECT_EQ(first.calls, 1);
     EXPECT_EQ(second.calls, 0);
 }
 
 TEST(CameraMouse, DungeonActionsKeepRightStickAndDirectMouseFollowControl) {
-    const int old_loop = PortLoopNo;
-    auto *old_scene = DngMainScene;
-    auto *old_area = BattleAreaScene;
-    auto *old_chara = MainChara__2;
+    const int  old_loop = PortLoopNo;
+    auto      *old_scene = DngMainScene;
+    auto      *old_area = BattleAreaScene;
+    auto      *old_chara = MainChara__2;
     const auto old_status = DngStatus;
     const auto old_debug = DebugInfo.debug_camera;
-    const int old_flag = DebugFlag;
-    CScene scene;
+    const int  old_flag = DebugFlag;
+    CScene     scene;
     scene.event_run = 0;
     DNG_BATTLE_AREA area{};
-    CActionChara chara;
+    CActionChara    chara;
     chara.menu_flag = 1;
     chara.hold_type = ACTION_HOLD_NONE;
     chara.lock_on = 0;
@@ -242,19 +261,21 @@ TEST(CameraMouse, DungeonActionsKeepRightStickAndDirectMouseFollowControl) {
     InputSetOverride(0, &input);
     CPadControl pad{};
     pad.Initialize();
+
     struct Action {
         const char *name;
-        int hold, menu, guard, gun, lock, landed;
+        int         hold, menu, guard, gun, lock, landed;
     };
+
     const Action actions[] = {
-        {"standing", ACTION_HOLD_NONE, 1, 0, 0, 0, 1},
-        {"carrying stone", ACTION_HOLD_STONE, 0, 0, 0, 0, 1},
-        {"carrying enemy", ACTION_HOLD_ENEMY, 0, 0, 0, 0, 1},
-        {"holding item", ACTION_HOLD_ITEM, 0, 0, 0, 0, 1},
-        {"guarding", ACTION_HOLD_NONE, 0, 1, 0, 0, 1},
-        {"aiming", ACTION_HOLD_NONE, 0, 0, 1, 0, 1},
-        {"aiming locked on", ACTION_HOLD_NONE, 0, 0, 1, 1, 1},
-        {"falling", ACTION_HOLD_NONE, 0, 0, 0, 0, 0},
+        {"standing",         ACTION_HOLD_NONE,  1, 0, 0, 0, 1},
+        {"carrying stone",   ACTION_HOLD_STONE, 0, 0, 0, 0, 1},
+        {"carrying enemy",   ACTION_HOLD_ENEMY, 0, 0, 0, 0, 1},
+        {"holding item",     ACTION_HOLD_ITEM,  0, 0, 0, 0, 1},
+        {"guarding",         ACTION_HOLD_NONE,  0, 1, 0, 0, 1},
+        {"aiming",           ACTION_HOLD_NONE,  0, 0, 1, 0, 1},
+        {"aiming locked on", ACTION_HOLD_NONE,  0, 0, 1, 1, 1},
+        {"falling",          ACTION_HOLD_NONE,  0, 0, 0, 0, 0},
     };
     for (const auto &action : actions) {
         SCOPED_TRACE(action.name);
@@ -315,13 +336,13 @@ TEST(CameraMouse, DungeonActionsKeepRightStickAndDirectMouseFollowControl) {
 }
 
 TEST(CameraMouse, DungeonOwnershipKeepsAuthoredModesButAllowsPlayerActions) {
-    auto camera = Camera();
+    auto   camera = Camera();
     CScene scene;
     scene.event_run = 0;
-    CPadControl pad{};
+    CPadControl     pad{};
     DNG_BATTLE_AREA area{};
-    DNG_STATUS status{};
-    CActionChara chara;
+    DNG_STATUS      status{};
+    CActionChara    chara;
     chara.menu_flag = 1;
     chara.hold_type = ACTION_HOLD_NONE;
     chara.lock_on = 0;
@@ -330,7 +351,7 @@ TEST(CameraMouse, DungeonOwnershipKeepsAuthoredModesButAllowsPlayerActions) {
     scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
     scene.active_camera = 0;
     auto owns = [&] { return DungeonMouseCameraOwns(&camera, &scene, &pad, status, &area,
-                                                   &chara, false, false, false); };
+                                                    &chara, false, false, false); };
     EXPECT_TRUE(owns());
     for (int mode : {int(DNG_CAMERA_BOSS), int(DNG_CAMERA_ARENA), 3}) {
         area.camera_mode = mode;
@@ -381,7 +402,7 @@ TEST(CameraMouse, DungeonOwnershipKeepsAuthoredModesButAllowsPlayerActions) {
     camera.FollowOff();
     status.eye_view = 1;
     auto eye_owns = [&] { return DungeonMouseCameraOwns(&camera, &scene, &pad, status, &area,
-                                                       &chara, false, false, false, true); };
+                                                        &chara, false, false, false, true); };
     EXPECT_TRUE(eye_owns());
     chara.hold_type = ACTION_HOLD_STONE;
     EXPECT_FALSE(eye_owns());
@@ -398,16 +419,16 @@ class DungeonEyeMouse : public testing::TestWithParam<bool> {};
 TEST_P(DungeonEyeMouse, LookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
     const unsigned old_photo = TakePhotoMode;
     TakePhotoMode = GetParam() ? TAKE_PHOTO_AIM : TAKE_PHOTO_OFF;
-    const int old_loop = PortLoopNo;
-    auto *old_scene = DngMainScene;
-    auto *old_area = BattleAreaScene;
-    auto *old_chara = MainChara__2;
-    const auto old_status = DngStatus;
+    const int   old_loop = PortLoopNo;
+    auto       *old_scene = DngMainScene;
+    auto       *old_area = BattleAreaScene;
+    auto       *old_chara = MainChara__2;
+    const auto  old_status = DngStatus;
     const float old_yaw = viewAngleH__2, old_pitch = viewAngleV__2;
-    CScene scene;
+    CScene      scene;
     scene.event_run = 0;
     DNG_BATTLE_AREA area{};
-    CActionChara chara;
+    CActionChara    chara;
     chara.SetPosition(0, 0, 0);
     chara.menu_flag = 1;
     chara.hold_type = ACTION_HOLD_NONE;
@@ -479,7 +500,7 @@ TEST_P(DungeonEyeMouse, LookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
 INSTANTIATE_TEST_SUITE_P(EyeAndPhoto, DungeonEyeMouse, testing::Bool());
 
 TEST(CameraMouse, EyeLimitsPreserveControllerOvershootAndInvalidSamples) {
-    auto camera = Camera();
+    auto  camera = Camera();
     float heading = 0, tilt = 0.67f;
     EXPECT_TRUE(MouseCameraEye(camera, heading, tilt, 0.1f, 0));
     EXPECT_FLOAT_EQ(tilt, 0.67f);

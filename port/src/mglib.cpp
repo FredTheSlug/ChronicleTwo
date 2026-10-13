@@ -1,19 +1,6 @@
 #define MGLIB_IMPLICIT_TEX0_ASSIGNMENT
 #include "common.h"
 
-#include "mglib.hpp"
-#include "mg_math.hpp"
-#include "mg_drawprim_port.hpp"
-#include "stubs/mglib.hpp"
-
-#include "exitcodes.hpp"
-#include "gfx/gfx.hpp"
-#include "mglib_port.hpp"
-#include "menu_mouse.hpp"
-#include "platform/clock.hpp"
-#include "present.hpp"
-#include "platform/paths.hpp"
-
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -27,6 +14,18 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "exitcodes.hpp"
+#include "gfx/gfx.hpp"
+#include "menu_mouse.hpp"
+#include "mg_drawprim_port.hpp"
+#include "mg_math.hpp"
+#include "mglib.hpp"
+#include "mglib_port.hpp"
+#include "platform/clock.hpp"
+#include "platform/paths.hpp"
+#include "present.hpp"
+#include "stubs/mglib.hpp"
 
 namespace {
 
@@ -306,7 +305,7 @@ bool ReadNow(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &wi
 }
 
 bool WriteScreenshotDisplayFrames() {
-    if (mgPortPreviousList() == nullptr) {
+    if (PresentGetSettings().interpolation && mgPortPreviousList() == nullptr) {
         std::fprintf(stderr, "mglib: frame %d has no previous list, display frames skipped\n", frame_count);
         return true;
     }
@@ -805,7 +804,7 @@ gfx::TextureHandle mgPortSnapshotFrame() {
     int height = 0;
     ScreenSizeForMode(mgScreenMode, &width, &height);
     const gfx::TextureHandle grab = gfx::NamedRenderTarget("mglib frame grab", static_cast<uint32_t>(width),
-                                                         static_cast<uint32_t>(height), false, false, true);
+                                                           static_cast<uint32_t>(height), false, false, true);
     return grab != gfx::kNullTexture && gfx::SnapshotFrame(grab) ? grab : gfx::kNullTexture;
 }
 

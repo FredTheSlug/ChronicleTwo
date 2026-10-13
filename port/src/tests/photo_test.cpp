@@ -1,24 +1,29 @@
+#include "common.h"
+
 #include <gtest/gtest.h>
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 
-#include "common.h"
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
-#include "libgraph.h"
+#include "inventmn.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "padcontrol.hpp"
+#include "photo.hpp"
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
-#include "photo.hpp"
-#include "padcontrol.hpp"
-#include "inventmn.hpp"
 #include "stubs/photo.hpp"
+
+// Register macros must follow the host and test headers.
+// clang-format off
+#include "libgraph.h"
+// clang-format on
 
 using namespace dc::test;
 
@@ -167,7 +172,7 @@ TEST(Photo, ShutterSpriteCapturesTheFrame) {
 
 TEST(Photo, ShutterReadbackContainsTheFirstCaptureAndItsCurrentSubjectDepth) {
     PhotoRenderer renderer;
-    mgCTexture work{};
+    mgCTexture    work{};
     work.Initialize();
     work.width = work.height = 64;
     work.bpp = 16;
@@ -176,7 +181,7 @@ TEST(Photo, ShutterReadbackContainsTheFirstCaptureAndItsCurrentSubjectDepth) {
     work.tex0.PSM = SCE_GS_PSMCT16;
     WorkTex = &work;
     CPadControl pad;
-    auto photos = std::make_unique<CInventUserData>();
+    auto        photos = std::make_unique<CInventUserData>();
     for (float depth : {0.25f, 0.75f}) {
         TakePhotoMode = TAKE_PHOTO_SHUTTER;
         mgBeginFrame(nullptr);

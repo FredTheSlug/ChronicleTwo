@@ -10,8 +10,6 @@
 #include "arena_root.hpp"
 #include "dataread.hpp"
 #include "debug_mode.hpp"
-#include "test_hooks.hpp"
-#include "platform/input.hpp"
 #include "editdata.hpp"
 #include "font.hpp"
 #include "gaiji.hpp"
@@ -21,8 +19,8 @@
 #include "inventmn.hpp"
 #include "main.hpp"
 #include "mainloop.hpp"
-#include "mainloop_port.hpp"
 #include "mainloop3.hpp"
+#include "mainloop_port.hpp"
 #include "mapselect.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
@@ -35,25 +33,16 @@
 #include "padcontrol.hpp"
 #include "platform/arena.hpp"
 #include "platform/config.hpp"
+#include "platform/input.hpp"
 #include "savedata.hpp"
 #include "scene.hpp"
 #include "scenesnd.hpp"
 #include "snd_mngr.hpp"
 #include "sysmes.hpp"
+#include "test_hooks.hpp"
 #include "userdata.hpp"
 #include "vlgr_info.hpp"
 
-extern int           PortNextLoopNo asm("MainLoop_NextLoopNo");
-extern int           PortLoopNo asm("MainLoop_LoopNo");
-extern int           PortPrevLoopNo asm("MainLoop_PrevLoopNo");
-extern int           PortCaptureMode asm("MainLoop_CaptureMode");
-extern int           PortCaptureScreen asm("MainLoop_CaptureScreen");
-extern int           PortPlayTimeCountFlag asm("MainLoop_PlayTimeCountFlag");
-extern CSaveData    *PortActiveSaveData asm("MainLoop_ActiveSaveData");
-extern CSubGameData *PortSubGameSaveData asm("MainLoop_SubGameSaveData");
-extern u_long128     PortSystemSeBuff[400] asm("MainLoop_SystemSeBuff");
-extern u_long128     PortInfoBuff[5000] asm("MainLoop_InfoBuff");
-void PortInitPadTable(int language) asm("MainLoop_InitPadTable");
 int  PortVSyncCallBack(int unused) asm("MainLoop_VSyncCallBack");
 extern u_long128     main_buffer[0x1A0000];
 extern CScene        MainScene;
@@ -62,7 +51,7 @@ extern CFont         Font;
 static constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
 
 void PortDrawFrameBorder() {
-    const auto edge = mgPortVisibleExtent();
+    const auto  edge = mgPortVisibleExtent();
     mgCDrawPrim frame_border;
     frame_border.Initialize(NULL, NULL);
     frame_border.DepthTestEnable(false);
@@ -107,7 +96,9 @@ PORT_OVERRIDE void MainLoop() {
     PortPlayTimeCountFlag = false;
     mgInitVSyncCallBack(PortVSyncCallBack);
     LanguageCode = GameHasJump() ? LANG_ENGLISH : LANG_FRENCH;
-    if (!GameHasJump()) SCElogoFade(0, memory);
+    if (!GameHasJump()) {
+        SCElogoFade(0, memory);
+    }
     PortLoopNo = LOOP_TITLE;
     DebugFlag = false;
     DebugInfo.chara_move = 0;
@@ -204,7 +195,9 @@ PORT_OVERRIDE void MainLoop() {
     CreateGamePadThread(&GamePad__2);
     LoadGameConfig(NULL);
     SetIoErrCallBack(EmergencyMessage);
-    if (!GameHasJump()) SCElogoFade(1, memory);
+    if (!GameHasJump()) {
+        SCElogoFade(1, memory);
+    }
     GamePrepareJump(PortLoopNo, InitArg);
 
     while (1) {

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "vector_scratch_probes.hpp"
+
 #include <cstring>
 #include <memory>
 
@@ -79,4 +81,8 @@ TEST(EffectVector, HandleGetterPreservesCoordinates) {
     EXPECT_EQ(_GET_EOH_POS(args, 4), 1);
     EXPECT_FLOAT_EQ(outputs[0].val.f, 3);
     EXPECT_FLOAT_EQ(outputs[2].val.f, 12);
+}
+
+TEST(EffectVector, ActualScratchDeclarationsHoldEveryWrittenLane) {
+    EXPECT_TRUE(VectorScratchProbe::Effect);
 }

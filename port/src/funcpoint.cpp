@@ -1,7 +1,7 @@
 #include "common.h"
 
-#include <cstring>
 #include <cstddef>
+#include <cstring>
 
 #include "funcpoint.hpp"
 #include "mg_math.hpp"
@@ -32,7 +32,9 @@ PORT_OVERRIDE int CFuncPointMngr::Copy(CFuncPointMngr &dest, mgCMemory *stack) {
     for (int kind = 0; kind < FUNC_POINT_TYPE_NUM; ++kind) {
         for (auto *node = list[kind]; node != nullptr; node = node->next) {
             auto *copy = dest.Add(kind, stack);
-            if (copy == nullptr) break;
+            if (copy == nullptr) {
+                break;
+            }
             auto &source = node->data;
             copy->name = source.name;
             copy->type = source.type;

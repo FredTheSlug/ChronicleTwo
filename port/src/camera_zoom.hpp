@@ -12,10 +12,11 @@ struct CameraZoom {
     static constexpr float wheel_step = 8.0f;
 
     float requested = 0;
-    bool active = false;
-    bool returning = false;
+    bool  active = false;
+    bool  returning = false;
 
     float HeightScale(CCameraControl &camera) const;
-    void Read(CCameraControl &camera, float wheel, bool reset, bool enabled);
-    void Move(CCameraControl &camera, CScene &scene, CCameraControl::Control &control, float *rotation);
+    void  Read(CCameraControl &camera, float wheel, bool reset, bool enabled);
+    void  Move(CCameraControl &camera, CScene &scene, CCameraControl::Control &control, float *rotation,
+               CCPoly *retail_polys = nullptr, int retail_count = 0);
 };

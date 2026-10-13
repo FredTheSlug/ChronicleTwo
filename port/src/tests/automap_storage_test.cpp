@@ -8,11 +8,11 @@
 
 TEST(AutoMapStorage, MiniMapUsesTheEmptyNameTerminatorInThePartTable) {
     DNG_BATTLE_AREA area;
-    auto *previous = BattleAreaScene;
+    auto           *previous = BattleAreaScene;
     BattleAreaScene = &area;
     std::strcpy(area.map_name, "d01f01");
     CMapParts parts[2];
-    char name[] = "way00";
+    char      name[] = "way00";
     parts[0].SetName(name);
     parts[0].SetPartsName(name);
     CMap map;

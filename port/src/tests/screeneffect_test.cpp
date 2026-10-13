@@ -1,16 +1,16 @@
+#include "common.h"
+
 #include <gtest/gtest.h>
 
 #include <cstdint>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <vector>
 
-#include "common.h"
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
-#include "libgraph.h"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
@@ -18,6 +18,11 @@
 #include "platform/window.hpp"
 #include "screeneffect.hpp"
 #include "screeneffect_port.hpp"
+
+// Register macros must follow the host and test headers.
+// clang-format off
+#include "libgraph.h"
+// clang-format on
 
 using namespace dc::test;
 
@@ -294,13 +299,15 @@ TEST(ScreenEffect, DepthOfFieldDisplayKeepsScreenAligned) {
         std::memcpy(constants.mvp, transform.view, sizeof constants.mvp);
         // An offscreen mesh establishes a moving scene without changing the test image.
         const gfx::Vertex3D vertices[3] = {
-            {{100, 100, 0.5f}, {}, {}, {}}, {{101, 100, 0.5f}, {}, {}, {}},
-            {{100, 101, 0.5f}, {}, {}, {}}};
+            {{100, 100, 0.5f}, {}, {}, {}},
+            {{101, 100, 0.5f}, {}, {}, {}},
+            {{100, 101, 0.5f}, {}, {}, {}}
+        };
         const uint32_t indices[3] = {0, 1, 2};
         gfx::SetInterpKey(931);
         gfx::DrawMeshImmediate(vertices, indices, constants, {}, {}, &transform);
         mgCTexture work{};
-        float depths[1] = {1000.0f};
+        float      depths[1] = {1000.0f};
         DepthOfField(1, depths, &work, 1.0f);
         mgEndFrame(nullptr);
     };
@@ -308,13 +315,15 @@ TEST(ScreenEffect, DepthOfFieldDisplayKeepsScreenAligned) {
     record(0.4f);
     auto canonical = ReadMain();
     ASSERT_TRUE(gfx::RenderList(*mgPortLastList(), 0.5f,
-                               {.previous = mgPortPreviousList(), .present = true}));
+                                {.previous = mgPortPreviousList(), .present = true}));
     std::vector<uint8_t> display;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(gfx::ReadbackFrame(display, width, height));
     ASSERT_EQ(width, canonical.width);
     ASSERT_EQ(height, canonical.height);
     size_t different = 0;
-    for (size_t i = 0; i < display.size(); ++i) different += display[i] != canonical.rgba[i];
+    for (size_t i = 0; i < display.size(); ++i) {
+        different += display[i] != canonical.rgba[i];
+    }
     EXPECT_EQ(different, 0u);
 }

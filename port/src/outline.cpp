@@ -55,9 +55,9 @@ void DrawCopy(const OutlineBox &box, int dx, int dy, const uint8_t (&colour)[4],
     // The model image is redrawn with the presentation camera, so the newest tick's box
     // cannot crop it. Sample the visible extent; the matching display clear removes other
     // objects from this shared target. Texture and screen coordinates retain the edge offset.
-    const mgPortExtent extent = mgPortVisibleExtent();
-    const float ox = static_cast<float>(dx) / kUnitsPerPixel;
-    const float oy = static_cast<float>(dy) / kUnitsPerPixel;
+    const mgPortExtent  extent = mgPortVisibleExtent();
+    const float         ox = static_cast<float>(dx) / kUnitsPerPixel;
+    const float         oy = static_cast<float>(dy) / kUnitsPerPixel;
     const gfx::Vertex2D display_quad[4] = {
         corner(extent.left + ox, extent.top + oy, extent.left, extent.top),
         corner(extent.right + ox, extent.top + oy, extent.right, extent.top),

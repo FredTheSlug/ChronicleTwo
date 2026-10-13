@@ -5,23 +5,34 @@
 #include "sceneseq.hpp"
 
 TEST(SplineEndpoint, TimedSamplingStopsAtTerminalKeyWithoutNaN) {
-    float points[3][4] = {{0, 0, 0, 1}, {10, 2, 0, 1}, {20, 0, 5, 1}};
-    int frames[3] = {4, 4, 0};
+    float points[3][4] = {
+        {0,  0, 0, 1},
+        {10, 2, 0, 1},
+        {20, 0, 5, 1}
+    };
+    int       frames[3] = {4, 4, 0};
     C3DSpline spline;
     spline.SetUpSpline(points, frames, 3, 1.0f);
     int finished = 0;
     for (int tick = 0; tick < 8; ++tick) {
         finished = spline.Step();
-        for (float coordinate : spline.now_pos) EXPECT_TRUE(std::isfinite(coordinate));
+        for (float coordinate : spline.now_pos) {
+            EXPECT_TRUE(std::isfinite(coordinate));
+        }
     }
     EXPECT_EQ(finished, 0);
-    for (int axis = 0; axis < 3; ++axis) EXPECT_FLOAT_EQ(spline.now_pos[axis], points[2][axis]);
+    for (int axis = 0; axis < 3; ++axis) {
+        EXPECT_FLOAT_EQ(spline.now_pos[axis], points[2][axis]);
+    }
     EXPECT_EQ(spline.Step(), 1);
 }
 
 TEST(SplineEndpoint, DistanceSamplingStopsAtTerminalKeyWithoutNaN) {
-    float points[2][4] = {{0, 0, 0, 1}, {10, 0, 0, 1}};
-    int frames[2] = {1, 0};
+    float points[2][4] = {
+        {0,  0, 0, 1},
+        {10, 0, 0, 1}
+    };
+    int       frames[2] = {1, 0};
     C3DSpline spline;
     spline.SetUpSpline(points, frames, 2, 20.0f);
     EXPECT_EQ(spline.StepS(), 1);
@@ -33,12 +44,12 @@ TEST(SplineEndpoint, DistanceSamplingStopsAtTerminalKeyWithoutNaN) {
 
 TEST(SplineEndpoint, CameraPathSetupProducesFiniteSpeedsAndFinishes) {
     CCameraPas path;
-    float eye0[4] = {366.48f, 63.99f, -74.02f, 1};
-    float eye1[4] = {376.09f, 64.39f, -74.07f, 1};
-    float eye2[4] = {383.64f, 65.08f, -76.39f, 1};
-    float look0[4] = {504.01f, 35.91f, 19.16f, 1};
-    float look1[4] = {513.62f, 37.39f, 19.11f, 1};
-    float look2[4] = {522.12f, 39.72f, 18.44f, 1};
+    float      eye0[4] = {366.48f, 63.99f, -74.02f, 1};
+    float      eye1[4] = {376.09f, 64.39f, -74.07f, 1};
+    float      eye2[4] = {383.64f, 65.08f, -76.39f, 1};
+    float      look0[4] = {504.01f, 35.91f, 19.16f, 1};
+    float      look1[4] = {513.62f, 37.39f, 19.11f, 1};
+    float      look2[4] = {522.12f, 39.72f, 18.44f, 1};
     path.AddCameraPas(eye0, look0);
     path.AddCameraPas(eye1, look1);
     path.AddCameraPas(eye2, look2);
@@ -66,8 +77,8 @@ TEST(SplineEndpoint, CameraPathSetupProducesFiniteSpeedsAndFinishes) {
 
 TEST(SplineEndpoint, CameraPathSpeedIncludesTheFinalInterval) {
     CCameraPas path;
-    float eye0[4] = {0, 0, 0, 1}, eye1[4] = {10, 0, 0, 1};
-    float look0[4] = {0, 5, 0, 1}, look1[4] = {10, 5, 0, 1};
+    float      eye0[4] = {0, 0, 0, 1}, eye1[4] = {10, 0, 0, 1};
+    float      look0[4] = {0, 5, 0, 1}, look1[4] = {10, 5, 0, 1};
     path.AddCameraPas(eye0, look0);
     path.AddCameraPas(eye1, look1);
     path.SetFrame(10);

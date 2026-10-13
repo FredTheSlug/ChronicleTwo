@@ -44,6 +44,8 @@ FIXUPS = [
 # COFF has no inline-vs-strong resolution: map.cpp's out-of-line CMapParts::CMapParts is the single definition,
 # so the identical inline copies in editeff.cpp/editmap.cpp are blanked rather than kept.
 UNIT_FIXUPS = [
+    # Emit the constructor from the native unit without changing its retail inline spelling.
+    ("inventmn.cpp", "\ninline CMenuInvent::CMenuInvent() {", "\nCMenuInvent::CMenuInvent() {"),
     ("editeff.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     ("editmap.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     ("dng_debug.cpp", "\nvoid CTreasureBox::Initialize() {", "\ninline void CTreasureBox::Initialize() {"),

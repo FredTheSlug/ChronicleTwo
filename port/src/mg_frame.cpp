@@ -1,7 +1,8 @@
 #include "common.h"
 
-#include <cstring>
 #include <libvu0.h>
+
+#include <cstring>
 
 #include "mg_drawenv.hpp"
 #include "mg_frame.hpp"

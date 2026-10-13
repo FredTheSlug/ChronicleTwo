@@ -5,13 +5,13 @@
 #include <string>
 #include <vector>
 
-#include "dataread.hpp"
 #include "actionchara.hpp"
+#include "dataread.hpp"
 #include "inventmn.hpp"
+#include "menuchr.hpp"
 #include "menucls1.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
-#include "menuchr.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
@@ -19,14 +19,17 @@
 
 namespace {
 std::vector<u_int> MenuPack() {
-    const std::string forms = "FORM_MALLOC 1; FORM_OFFSET_NO 0; FORM_SET \"poly_chr0\"; INIT_DRAWLIST;";
-    const std::string recipes = "DATATABLESET 1; DATASET 42,1,2,3,210,5,0,1.0,2.0,3.0,4.0;";
+    const std::string                          forms = "FORM_MALLOC 1; FORM_OFFSET_NO 0; FORM_SET \"poly_chr0\"; INIT_DRAWLIST;";
+    const std::string                          recipes = "DATATABLESET 1; DATASET 42,1,2,3,210,5,0,1.0,2.0,3.0,4.0;";
     const std::pair<const char *, std::string> files[] = {
         {"inv_bg.img", std::string("IMG\0", 4) + std::string(12, '\0')},
-        {"invent.cfg", forms}, {"inv6.lst", recipes}, {"inv_com.cfg", "INIT_END;"}};
+        {"invent.cfg", forms},
+        {"inv6.lst", recipes},
+        {"inv_com.cfg", "INIT_END;"}
+    };
     std::vector<u_int> pack(1024);
-    auto *bytes = reinterpret_cast<char *>(pack.data());
-    std::size_t data = 5 * sizeof(PACK_ENTRY);
+    auto              *bytes = reinterpret_cast<char *>(pack.data());
+    std::size_t        data = 5 * sizeof(PACK_ENTRY);
     for (std::size_t i = 0; i < 4; ++i) {
         PACK_ENTRY entry{};
         std::strcpy(entry.name, files[i].first);
@@ -41,7 +44,7 @@ std::vector<u_int> MenuPack() {
 }
 
 TEST(InventMenu, PendingPhotoPageDoesNotFinishCharacterLoadingBeforeItsFormsExist) {
-    auto menu = std::make_unique<CMenuInvent>();
+    auto         menu = std::make_unique<CMenuInvent>();
     CActionChara character;
     character.Initialize(nullptr);
     MenuActionChara[0] = &character;
@@ -61,19 +64,19 @@ TEST(InventMenu, PendingPhotoPageDoesNotFinishCharacterLoadingBeforeItsFormsExis
     EXPECT_EQ(menu->poly_chr_form[0], nullptr);
     MenuActionChara[0] = nullptr;
 }
-}
+} // namespace
 
 TEST(InventMenu, LoadsPackedFormsAndRecipesBeforeAttachingThePhotoCharacter) {
     std::vector<u_long128> storage(4096), texture_storage(4096);
-    mgCMemory textures;
+    mgCMemory              textures;
     textures.stSetBuffer(texture_storage.data(), texture_storage.size());
     mgTexManager.SetTableBuffer(64, 8, &textures);
     mgTexManager.Initialize(0x1000, -1);
     CMenuPosDataManage positions{};
     positions.Initialize();
-    CMenuMoveItem move;
+    CMenuMoveItem     move;
     CInventDataManage recipes;
-    auto photos = std::make_unique<CInventUserData>();
+    auto              photos = std::make_unique<CInventUserData>();
     photos->ResetAddress();
     auto menu = std::make_unique<CMenuInvent>();
     menu->data_stack.stSetBuffer(storage.data(), storage.size());

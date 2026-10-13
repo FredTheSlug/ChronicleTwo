@@ -2,11 +2,10 @@
 
 #include "dataread.hpp"
 #include "nowload.hpp"
-
-extern NowLoadingInfo PortLoadInfo asm("NowLoad_LoadInfo");
+#include "nowload_port.hpp"
 
 TEST(NowLoadingMemory, CopiesTheSourceStackStateEvenWhenTheImageIsMissing) {
-    NowLoadingInfo info;
+    NowLoadingInfo        info;
     alignas(64) u_long128 storage[1024]{};
     info.memory.stSetBuffer(storage, 1024);
     info.memory.Alloc(7);

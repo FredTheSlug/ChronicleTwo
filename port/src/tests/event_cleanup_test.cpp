@@ -7,20 +7,22 @@
 #include "dng_main.hpp"
 #include "event.hpp"
 #include "event_func.hpp"
+#include "mainloop_port.hpp"
 #include "mg_memory.hpp"
 #include "platform/arena.hpp"
 #include "runscript.hpp"
 #include "stubs/event.hpp"
 
-extern int PortLoopNo asm("MainLoop_LoopNo");
-
 namespace {
 struct CleanupProgram {
     RS_PROG_HEADER header{};
-    RS_PROGDATA entry{100, offsetof(CleanupProgram, function)};
-    funcdata function{};
-    vmcode_t code[3]{{RS_OP_PUSH_CONST, RS_CONST_INT, EVENT_EXT_DNG_EFFECT_ALL_CLEAR},
-                     {RS_OP_EXT, 1, 0}, {RS_OP_END, 0, 0}};
+    RS_PROGDATA    entry{100, offsetof(CleanupProgram, function)};
+    funcdata       function{};
+    vmcode_t       code[3]{
+        {RS_OP_PUSH_CONST, RS_CONST_INT, EVENT_EXT_DNG_EFFECT_ALL_CLEAR},
+        {RS_OP_EXT,        1,            0                             },
+        {RS_OP_END,        0,            0                             }
+    };
 
     CleanupProgram() {
         std::memcpy(header.magic, "SB2", 3);
@@ -41,11 +43,13 @@ protected:
         MachineGun.col_prim_id[0] = 42;
         MachineGun.index = 3;
     }
+
     void TearDown() override {
         SetEventScript(nullptr, nullptr, nullptr);
         FxScriptMan = previous_effects;
         PortLoopNo = previous_mode;
     }
+
     void RunCleanup() {
         SetEventScript(reinterpret_cast<char *>(&program), nullptr, &memory);
         EXPECT_EQ(RunEvent(100, nullptr), 0);
@@ -53,10 +57,11 @@ protected:
         EXPECT_EQ(MachineGun.col_prim_id[0], -1);
         EXPECT_EQ(MachineGun.index, 0);
     }
-    int previous_mode = 0;
+
+    int               previous_mode = 0;
     CEffectScriptMan *previous_effects = nullptr;
-    alignas(64) u_long128 storage[1024]{};
-    mgCMemory memory;
+    alignas(64) u_long128 storage[1024] {};
+    mgCMemory      memory;
     CleanupProgram program;
 };
 } // namespace
@@ -76,8 +81,8 @@ TEST_F(EventCleanup, TownClearDoesNotUseAStaleDungeonManager) {
 TEST_F(EventCleanup, DungeonClearFreesItsLiveEffects) {
     PortLoopNo = LOOP_DUNGEON;
     static char key;
-    auto *buffer = reinterpret_cast<u_long128 *>(ArenaBlock(&key, 4096 * sizeof(u_long128)));
-    mgCMemory work;
+    auto       *buffer = reinterpret_cast<u_long128 *>(ArenaBlock(&key, 4096 * sizeof(u_long128)));
+    mgCMemory   work;
     work.SetHeapMem(buffer, 4096);
     RS_PROG_HEADER effect_program{};
     std::memcpy(effect_program.magic, "SB2", 3);

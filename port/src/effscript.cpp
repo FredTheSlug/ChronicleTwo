@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <limits>
 
 #include "character.hpp"
 #include "effscript.hpp"
@@ -14,6 +15,30 @@ constexpr int Quadwords(std::size_t bytes) {
     return static_cast<int>((bytes + 15) / 16);
 }
 } // namespace
+
+PORT_OVERRIDE int CEffectScriptMan::AssignCharacter(_EFF_SCRIPT *script, int count) {
+    if (count < 0 || count > EFF_SPT_SUB_CHARA_MAX || script == nullptr ||
+        script->chara == nullptr || work_memory == nullptr) {
+        return 0;
+    }
+    const int object_size = Quadwords(sizeof(CCharacter2));
+    // The allocator selects a gap before placement new can grow an allocation.
+    // Budget native objects up front, with room for final 64-byte alignment and
+    // the allocator's strict end-of-stack capacity check.
+    const long long required = count * (static_cast<long long>(object_size) +
+                                       std::max(0, script->chara->GetCopySize())) + 4;
+    if (required > std::numeric_limits<int>::max()) return 0;
+    u_long128 *token = work_memory->StartStackMode(MG_STACK_MODE_FIT, static_cast<int>(required));
+    if (token == nullptr) return 0;
+    for (int i = 0; i < count; ++i) {
+        script->sub_chara[i] = new (work_memory->Alloc(object_size)) CCharacter2;
+        script->chara->Copy(*script->sub_chara[i], work_memory);
+    }
+    script->sub_chara_work = token;
+    work_memory->stAlign64();
+    work_memory->EndStackMode();
+    return 1;
+}
 
 PORT_OVERRIDE _EFF_SCRIPT *CEffectScriptMan::CreateEffSpt(int base_no, int group, int register_in_group) {
     if (base_num <= 0) {

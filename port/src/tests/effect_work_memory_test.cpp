@@ -25,10 +25,10 @@ protected:
         manager.SetWorkBuffer(&memory);
     }
 
-    u_long128 *Fragment() {
-        u_long128 *first = memory.StartStackMode(MG_STACK_MODE_FIT, 161);
+    u_long128 *Fragment(int size = 164) {
+        u_long128 *first = memory.StartStackMode(MG_STACK_MODE_FIT, size);
         EXPECT_NE(first, nullptr);
-        memory.Alloc(164);
+        memory.Alloc(size);
         memory.EndStackMode();
         u_long128 *barrier = memory.StartStackMode(MG_STACK_MODE_FIT, 4);
         EXPECT_NE(barrier, nullptr);
@@ -93,4 +93,27 @@ TEST_F(EffectWorkMemory, RepeatedEffectsKeepTextureOrderAndOwnerSlots) {
     EXPECT_EQ(manager.slot[0][0], nullptr);
     EXPECT_EQ(manager.slot[0][1], nullptr);
     EXPECT_EQ(manager.slot[0][2], nullptr);
+}
+
+TEST_F(EffectWorkMemory, SecondaryCharactersSkipTheUndersizedFirstGap) {
+    u_long128 *barrier = Fragment(128);
+    _EFF_SCRIPT script{};
+    script.chara = &character;
+    ASSERT_TRUE(manager.AssignCharacter(&script, 1));
+    EXPECT_GT(script.sub_chara_work, barrier);
+    ASSERT_NE(script.sub_chara[0], nullptr);
+    const auto *guard = reinterpret_cast<const unsigned char *>(barrier);
+    for (int i = 0; i < 4 * sizeof(u_long128); ++i) EXPECT_EQ(guard[i], 0xA5);
+}
+
+TEST_F(EffectWorkMemory, SecondaryCharactersReserveAllCopies) {
+    _EFF_SCRIPT script{};
+    script.chara = &character;
+    ASSERT_TRUE(manager.AssignCharacter(&script, EFF_SPT_SUB_CHARA_MAX));
+    for (int i = 0; i < EFF_SPT_SUB_CHARA_MAX; ++i) {
+        ASSERT_NE(script.sub_chara[i], nullptr);
+        if (i != 0) EXPECT_GE(reinterpret_cast<char *>(script.sub_chara[i]) -
+                             reinterpret_cast<char *>(script.sub_chara[i - 1]),
+                             static_cast<std::ptrdiff_t>(sizeof(CCharacter2)));
+    }
 }

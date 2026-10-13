@@ -2938,7 +2938,7 @@ static int _EFFECT(SPI_STACK *stack, int count) {
     }
 
     entry = (CHRINFO_EFFECT *) now_stack->stAlloc64(3);
-    manager = (CHARA_EFFECT_MANAGER *) now_stack->stAlloc64(32);
+    manager = (CHARA_EFFECT_MANAGER *) now_stack->stAlloc64(sizeof(CHARA_EFFECT_MANAGER) / 16 + 1);
     manager->Initialize();
     manager->GetBufferNums(script, script_size, &particle_count, &emitter_count);
     manager->particle_pool = (CEffect *) now_stack->Alloc(particle_count * sizeof(CEffect) / 16 + 1);

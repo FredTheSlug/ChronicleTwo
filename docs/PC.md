@@ -831,6 +831,7 @@ Edits to `ps2/src` or `ps2/include` made for the port must leave the PS2 build b
 
 - `ps2/src/event_func.cpp`: event-handle position/rotation, treasure position, random-circle position and minimap-door callbacks reserve four floats for their vector writers.
 - `ps2/src/effscript.cpp`: the distance-pair, scene character/entry-object and event-handle position callbacks reserve four floats for full-vector writers; script vectors still use three scalar arguments.
+- `ps2/src/character.cpp`: the raw character-effect manager allocation uses `sizeof(CHARA_EFFECT_MANAGER) / 16 + 1`, retaining the retail 32 quadwords while accommodating native pointers.
 - `ps2/include/mg_tanime.hpp`: declaration order. The inline `mgRect<float>::mgRect()` moves below the `Set` declaration it calls.
 - `ps2/include/sce` is untouched. Its `libmc.h` and `libpad.h` differ from the other game's transcriptions, and changing a prototype's parameter types changes MWCC's code for the callers, so Kazarov's `libmc.cpp` and `libpad.cpp` take those types from the header they are compiled with (`tools/kazarov/port/sce/sdk_params.hpp`).
 - `ps2/src/editmenu.cpp`, `effect.cpp`, `inventmn.cpp`, `mainloop.cpp`, `menuaqua.cpp`, `title.cpp` and `nd_meswin.cpp`: split initialisations. A `switch` jumps over them, so each becomes a declaration and an assignment.

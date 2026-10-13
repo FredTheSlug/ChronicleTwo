@@ -395,19 +395,21 @@ gfx::TextureHandle FrameGrabAt(uint32_t tbp0) {
 }
 
 // The copy is retail's 1:1 texel copy in logical units; the frame target's mapping brings the window's sides.
-void GrabFrame(const gfx::Rect &source, int32_t dst_x, int32_t dst_y, gfx::TextureHandle target) {
+void GrabFrame(gfx::TextureHandle frame, const gfx::Rect &source, int32_t dst_x, int32_t dst_y,
+               gfx::TextureHandle target) {
     if (target == gfx::kNullTexture) {
         return;
     }
 
-    gfx::BlitTexture(gfx::kMainTarget, source, target, gfx::Rect{dst_x, dst_y, source.w, source.h}, gfx::Filter::Nearest);
+    gfx::BlitTexture(frame, source, target, gfx::Rect{dst_x, dst_y, source.w, source.h}, gfx::Filter::Nearest);
 }
 
-void CopyFrameInto(const mgRect<int> &rect, int dst_x, int dst_y, gfx::TextureHandle target) {
+void CopyFrameInto(gfx::TextureHandle frame, const mgRect<int> &rect, int dst_x, int dst_y,
+                   gfx::TextureHandle target) {
     gfx::Rect source;
 
     if (target != gfx::kNullTexture && InclusiveLogicalRect(rect, source)) {
-        GrabFrame(source, dst_x >> 4, dst_y >> 4, target);
+        GrabFrame(frame, source, dst_x >> 4, dst_y >> 4, target);
     }
 }
 
@@ -1561,8 +1563,10 @@ PORT_OVERRIDE void mgSetPkMoveImage(mgCTexture *source, mgRect<int> rect, mgCTex
         return;
     }
 
-    if (mgPortFindTexture(source).texture == gfx::kMainTarget) {
-        CopyFrameInto(rect, dst_x, dst_y, mgPortRenderTarget(destination, true));
+    const gfx::TextureHandle frame = mgPortFindTexture(source).texture;
+    // Pause captures the completed display buffer; both buffers need the wide frame mapping.
+    if (frame == gfx::kMainTarget || frame == gfx::kPreviousFrame) {
+        CopyFrameInto(frame, rect, dst_x, dst_y, mgPortRenderTarget(destination, true));
         return;
     }
 
@@ -1575,8 +1579,9 @@ PORT_OVERRIDE void mgSetPkMoveImage(sceGsTex0 *src, mgRect<int> src_rect, sceGsT
         return;
     }
 
-    if (mgPortFindTexture(ToRaw(*src)).texture == gfx::kMainTarget) {
-        CopyFrameInto(src_rect, dst_x, dst_y, FrameTargetFor(*dst));
+    const gfx::TextureHandle frame = mgPortFindTexture(ToRaw(*src)).texture;
+    if (frame == gfx::kMainTarget || frame == gfx::kPreviousFrame) {
+        CopyFrameInto(frame, src_rect, dst_x, dst_y, FrameTargetFor(*dst));
         return;
     }
 

@@ -434,7 +434,7 @@ GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mg
 
 ### Images
 
-`mgSetPkMoveImage` with a destination offset copies with `gfx::CopyTexture`, except when the source is the main target: it then grabs into a frame target with `gfx::BlitTexture` (nearest). With a destination rect it stretches with `gfx::BlitTexture` (linear).
+`mgSetPkMoveImage` with a destination offset copies with `gfx::CopyTexture`, except when the source is the main target or the previous display frame: it then grabs that buffer into a frame target with `gfx::BlitTexture` (nearest). This lets the retail pause loop capture the completed scene once and retain its wide sides and presentation resolution while paused. With a destination rect it stretches with `gfx::BlitTexture` (linear).
 
 `mgStoreImage` reads the source back and writes the texture's PSM layout linearly, sampling the source at the texture's size. Inside a frame it uses an on-demand copy cached after a canonical render; it cannot synchronously read the current recording. 16-bit formats keep one alpha bit.
 

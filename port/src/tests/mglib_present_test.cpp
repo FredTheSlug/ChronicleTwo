@@ -679,6 +679,82 @@ TEST(MglibPresent, MoveImageOfTheFrameUsesAFrameTarget) {
     EXPECT_FALSE(plain_info->frame_target);
 }
 
+TEST(MglibPresent, BackBufferCapturePreservesWidePixelsAndHoldsUntilRecaptured) {
+    PresentRenderer renderer(1920, 1080);
+    gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
+    Textures textures;
+    Quads pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
+    mgCTexture *capture = textures.Enter("back_buffer_capture", 512, 480, 32, pixels.data(), nullptr);
+    ASSERT_NE(capture, nullptr);
+    const mgRect<int> whole(0, 0, (mgScreenWidth - 1) * 16, (mgScreenHeight - 1) * 16);
+
+    // Both copy entry points must treat the displayed buffer as a frame, not an ordinary image.
+    for (bool registers : {false, true}) {
+        mgSetBackGround(registers ? 20 : 160, registers ? 160 : 40, 80, 128);
+        mgBeginFrame(nullptr);
+        const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+        gfx::DrawState state;
+        state.depth_test = gfx::DepthTest::Always;
+        state.depth_write = false;
+        // One-pixel stripes across the wide sides and the centre expose any downsampling or stretch.
+        for (int x = 0; x < 1920; x += 2) {
+            const float left = (x - mapping.offset_x) / mapping.scale_x;
+            const float right = (x + 1 - mapping.offset_x) / mapping.scale_x;
+            std::array<gfx::Vertex2D, 4> quad = {
+                QuadCorner(left, 0), QuadCorner(right, 0), QuadCorner(right, 480), QuadCorner(left, 480)};
+            mgPortDraw2D(gfx::Primitive::Quads, quad, {}, state);
+        }
+        mgEndFrame(nullptr);
+        std::vector<uint8_t> expected;
+        uint32_t width = 0, height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, expected, width, height));
+
+        // Begin a different frame: the capture must still read the last completed scene.
+        mgSetBackGround(8, 16, 24, 128);
+        mgBeginFrame(nullptr);
+        mgCTexture back;
+        mgGetFrameBackBuffer(&back);
+        if (registers) {
+            mgSetPkMoveImage(&back.tex0, whole, &capture->tex0, 0, 0, 0);
+        } else {
+            mgSetPkMoveImage(&back, whole, capture, 0, 0, 0);
+        }
+        const auto info = gfx::GetTextureInfo(mgPortFindTexture(capture).texture);
+        ASSERT_TRUE(info.has_value());
+        EXPECT_TRUE(info->frame_target);
+        EXPECT_EQ(info->pixel_width, 1920u);
+        // Texture storage may pad the logical height; its captured 480 rows must still span 1080 pixels.
+        EXPECT_EQ(info->pixel_height, static_cast<uint32_t>(capture->height * 1080 / 480));
+
+        const auto draw_capture = [&] {
+            mgCDrawPrim prim;
+            prim.Initialize(nullptr, nullptr);
+            prim.DepthTestEnable(0);
+            prim.ZMask(MG_Z_MASK_MASKED);
+            prim.AlphaTestEnable(0);
+            prim.AlphaBlendEnable(0);
+            prim.TextureMapEnable(1);
+            prim.Bilinear(0);
+            prim.Begin(MG_PRIM_SPRITE);
+            prim.Texture(capture);
+            prim.Color(128, 128, 128, 128);
+            prim.TextureCrd(0, 0); prim.Vertex(0, 0, 0);
+            prim.TextureCrd(512, 480); prim.Vertex(512, 480, 0);
+            prim.End();
+        };
+        for (int tick = 0; tick < 2; ++tick) {
+            if (tick != 0) mgBeginFrame(nullptr);
+            draw_capture();
+            mgEndFrame(nullptr);
+            std::vector<uint8_t> actual;
+            ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, actual, width, height));
+            EXPECT_TRUE(actual == expected) << "canonical capture changed pixels, registers=" << registers;
+            ASSERT_TRUE(PresentScreenshotDisplay(0.5f, actual, width, height));
+            EXPECT_TRUE(actual == expected) << "display capture changed pixels, registers=" << registers;
+        }
+    }
+}
+
 TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
     PresentRenderer renderer(1280, 720);
     mgSetBackGround(16.0f, 32.0f, 48.0f, 128.0f);

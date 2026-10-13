@@ -103,7 +103,9 @@ TEST_F(EventCleanup, SceneBindingsRetainEveryOtherRetailHandler) {
     SetEventScript(reinterpret_cast<char *>(&program), nullptr, &memory);
     ASSERT_EQ(EventScript.ext_func_num, retail.ext_func_num);
     for (int i = 0; i < retail.ext_func_num; ++i) {
-        if (i == EVENT_EXT_DNG_EFFECT_ALL_CLEAR) {
+        if (i == EVENT_EXT_DNG_EFFECT_ALL_CLEAR || i == EVENT_EXT_DIST_VECTOR ||
+            i == EVENT_EXT_DIST_VECTOR2 || i == EVENT_EXT_AMG_GET_ATTR_STATUS ||
+            i == EVENT_EXT_OBJS_SET_EOH_FRAME_POS) {
             EXPECT_NE(EventScript.ext_func_table[i], retail.ext_func_table[i]);
         } else {
             EXPECT_EQ(EventScript.ext_func_table[i], retail.ext_func_table[i]) << i;

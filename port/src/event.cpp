@@ -5,6 +5,7 @@
 #include "dng_main.hpp"
 #include "event.hpp"
 #include "event_func.hpp"
+#include "event_vector_callbacks.hpp"
 #include "mainloop.hpp"
 #include "runscript.hpp"
 #include "stubs/event.hpp"
@@ -41,12 +42,13 @@ PORT_OVERRIDE void SetEventScript(char *program, char *, mgCMemory *memory) {
     EventScript.load(reinterpret_cast<RS_PROG_HEADER *>(program), values.data(), values.size(),
                               calls.data(), calls.size());
     SetEventFunc(&EventScript);
-    // Keep the retail table intact for other interpreters and replace only the
-    // scene external whose dungeon ownership does not hold in town mode.
+    // The scene owns a private table for native slot arithmetic and the
+    // dungeon external whose ownership does not hold in town mode.
     static std::array<int (*)(RS_STACKDATA *, int), EVENT_EXT_FUNC_NUM> functions;
     for (int i = 0; i < EVENT_EXT_FUNC_NUM; ++i) {
         functions[i] = EventScript.ext_func_table[i];
     }
     functions[EVENT_EXT_DNG_EFFECT_ALL_CLEAR] = ClearDungeonEffects;
+    ReplaceEventVectorCallbacks(functions.data());
     EventScript.ext_func(functions.data(), functions.size());
 }

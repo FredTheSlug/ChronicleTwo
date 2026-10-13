@@ -13,6 +13,7 @@
 #include "mglib.hpp"
 #include "menudraw.hpp"
 #include "mg_drawprim.hpp"
+#include "mg_drawprim_port.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mainloop_port.hpp"
@@ -505,4 +506,52 @@ TEST(MglibAspect, InventBackdropContinuesArtworkAt1920x1080) {
 
 TEST(MglibAspect, InventBackdropContinuesArtworkAt3840x2160) {
     ExpectMenuBackdropContinuation(3840, 2160, 2);
+}
+
+namespace {
+void ExpectMenuTilesCoverWindow(int width, int height) {
+    AspectRenderer renderer(width, height);
+    const auto extent = mgPortVisibleExtent();
+    mgCMemory memory;
+    sceVif1Packet packet{};
+    mgRENDER_INFO info{};
+    mgCDrawManager manager;
+    manager.render_info = &info;
+    mgCDrawPrim prim;
+    prim.draw_manager = &manager;
+    prim.Initialize(&memory, &packet);
+    prim.write = nullptr;
+    prim.Coord(1);
+    for (float scroll : {-1.0f, -127.5f, -255.0f, 40.5f}) {
+        float left = 1e9f, top = 1e9f, right = -1e9f, bottom = -1e9f;
+        mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices,
+                             const gfx::TextureBinding &, const gfx::DrawState &) {
+            for (const auto &v : vertices) {
+                left = std::min(left, v.x); right = std::max(right, v.x);
+                top = std::min(top, v.y); bottom = std::max(bottom, v.y);
+            }
+        });
+        DrawMenuTilePattern(&prim, nullptr, scroll, scroll, {0, 0, 128, 128}, 0, nullptr);
+        mgPortSetPrimSink({});
+        EXPECT_LE(left, extent.left) << scroll;
+        EXPECT_LE(top, extent.top) << scroll;
+        EXPECT_GE(right, extent.right) << scroll;
+        EXPECT_GE(bottom, extent.bottom) << scroll;
+        // Integral sprite coordinates retain the retail truncation of fractional scroll.
+        EXPECT_LE(left, 0);
+        EXPECT_LE(top, 0);
+    }
+}
+} // namespace
+
+TEST(MglibAspect, MenuTilesCoverThirtyTwoNineWithFractionalScroll) {
+    ExpectMenuTilesCoverWindow(2560, 720);
+}
+
+TEST(MglibAspect, MenuTilesCoverNarrowPortraitWithFractionalScroll) {
+    ExpectMenuTilesCoverWindow(320, 1280);
+}
+
+TEST(MglibAspect, MenuTilesKeepFourThreeCoverageWithFractionalScroll) {
+    ExpectMenuTilesCoverWindow(640, 480);
 }

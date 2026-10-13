@@ -156,21 +156,12 @@ PORT_OVERRIDE int MenuCapture(int block, mgCMemory *stack, int draw) {
     return true;
 }
 
-// Largest grid position at or left of -256 that keeps the grid phase. Wide windows show ~171 logical pixels left of the frame.
-float MenuTilePatternFirst(float v, int size) {
-    float k;
-
-    if (size <= 0 || v + 256.0f <= 0.0f) {
-        return v;
+// Move by whole tiles so integer sprite coordinates cover the visible leading edge.
+float MenuTilePatternFirst(float phase, int size, float minimum) {
+    if (size <= 0) {
+        return phase;
     }
-
-    k = (float) (int) ((v + 256.0f) / (float) size);
-
-    if (k * (float) size < v + 256.0f) {
-        k += 1.0f;
-    }
-
-    return v - k * (float) size;
+    return phase - std::ceil((phase - minimum) / size) * size;
 }
 
 // Count of grid positions first, first + size, ... that do not pass limit.
@@ -204,11 +195,12 @@ PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float
         return;
     }
 
-    column_first = MenuTilePatternFirst(x, tex_rect.right);
-    row_first = MenuTilePatternFirst(y - tex_rect.bottom, tex_rect.bottom);
-    column_count = MenuTilePatternCount(column_first, tex_rect.right, (float) mgScreenWidth + 256.0f);
-    // Tall windows show logical y past 480, up to about 695 at 9:16, so rows must run to 480 + 256.
-    row_count = MenuTilePatternCount(row_first, tex_rect.bottom, (float) mgScreenHeight + 256.0f);
+    const auto extent = mgPortVisibleExtent();
+    // One logical pixel protects negative fractional origins from truncation toward zero.
+    column_first = MenuTilePatternFirst(x, tex_rect.right, std::floor(extent.left) - 1.0f);
+    row_first = MenuTilePatternFirst(y - tex_rect.bottom, tex_rect.bottom, std::floor(extent.top) - 1.0f);
+    column_count = MenuTilePatternCount(column_first, tex_rect.right, std::ceil(extent.right));
+    row_count = MenuTilePatternCount(row_first, tex_rect.bottom, std::ceil(extent.bottom));
 
     SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Begin(MG_PRIM_SPRITE);

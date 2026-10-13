@@ -18,6 +18,7 @@
 #include "gamedata.hpp"
 #include "mainloop.hpp"
 #include "platform/paths.hpp"
+#include "scriptinterpreter.hpp"
 #include "texture_source.hpp"
 
 int LoadGameDataAnalyze(char *);
@@ -188,14 +189,18 @@ TEST_F(DataRead, DatapacksOverrideIndexedFilesWithReplacementSizesAndSparseFallb
     EXPECT_EQ(size, 177);
     const auto replacement = MakeBytes(177, 19);
     EXPECT_EQ(std::memcmp(Buffer(), replacement.data(), replacement.size()), 0);
-    EXPECT_EQ(DataReadFind(name), last / "DIR" / "Sub" / "File.BIN");
+    const auto found = DataReadFind(name);
+    ASSERT_TRUE(found.has_value());
+    EXPECT_TRUE(fs::equivalent(*found, last / "DIR" / "Sub" / "File.BIN"));
 
     ASSERT_EQ(Load("small.txt", Buffer(), &size), 1);
     EXPECT_EQ(size, 27);
     const auto sparse = MakeBytes(27, 31);
     EXPECT_EQ(std::memcmp(Buffer(), sparse.data(), sparse.size()), 0);
     ASSERT_EQ(Load("chara/pack.pac", Buffer(), &size), 1);
-    EXPECT_EQ(DataReadFind("chara/pack.pac"), root_ / "chara" / "Pack.PAC");
+    const auto fallback = DataReadFind("chara/pack.pac");
+    ASSERT_TRUE(fallback.has_value());
+    EXPECT_TRUE(fs::equivalent(*fallback, root_ / "chara" / "Pack.PAC"));
 
     std::ofstream(base_ / "datapacks" / "datapacks.json")
         << R"({"schema_version":1,"load_order":["Last pack","First pack"]})";
@@ -556,4 +561,34 @@ TEST_F(DataRead, ItemMessageReloadClearsTheLiveArenaWithoutClearingReboundRoots)
     for (int i = 2; i < 29; ++i) {
         EXPECT_EQ(live[i], 0) << i;
     }
+}
+
+extern SPI_TAG_PARAM PortGameDataTags[25] asm("GameData_Tags");
+
+TEST_F(DataRead, ItemMessagesUseTheSameDispatchTableAsItemData) {
+    fs::create_directories(root_ / "menu/cfg7");
+    std::ofstream(root_ / "menu/cfg7/common.cfg") << "COMINIT 1; COM 11,0,0,0,0,0,0,0,0,\"x\",0;";
+    std::ofstream(root_ / "menu/cfg7/comdatmes7.cfg") << "MES_SHARED 11,\"Shared retail dispatch\";";
+    DataReadIndex(root_);
+    GameItemDataManage.Initialize();
+    char common[] = "common.cfg";
+    ASSERT_TRUE(LoadGameDataAnalyze(common));
+
+    struct RestoreTag {
+        char *name = PortGameDataTags[22].name;
+        int   language = LanguageCode;
+
+        ~RestoreTag() {
+            PortGameDataTags[22].name = name;
+            LanguageCode = language;
+        }
+    } restore;
+
+    ASSERT_STREQ(PortGameDataTags[22].name, "MES_SYS");
+    PortGameDataTags[22].name = const_cast<char *>("MES_SHARED");
+    LanguageCode = 0;
+    ASSERT_TRUE(GameItemDataManage.LoadItemSystemMes(7));
+    auto *record = GameItemDataManage.GetCommonData(11);
+    ASSERT_NE(record, nullptr);
+    EXPECT_STREQ(record->name, "Shared retail dispatch");
 }

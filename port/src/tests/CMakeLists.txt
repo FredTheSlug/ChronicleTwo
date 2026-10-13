@@ -37,9 +37,13 @@ target_link_libraries(darkchronicle_tests PRIVATE GTest::gtest nlohmann_json::nl
 
 # A case is a unit test: it finishes in milliseconds, and one that does not is cut off. The clock
 # cases measure short sleeps, which the parallel gfx cases skew, so they run on their own. The cases that compile
-# pipelines or create a device per case take longer than 5 s under a parallel run, on lavapipe and on Windows, so they get 30 s.
+# pipelines or create a device per case take longer than 5 s under a parallel run, on lavapipe and on Windows, so they get at least 30 s, or CT_TEST_TIMEOUT when it is larger.
 # Cases that need a Vulkan device carry the gpu label: hosted runners have none and exclude them with -LE gpu.
 set(CT_TEST_TIMEOUT 5 CACHE STRING "Seconds a test case may run before it is cut off")
+set(CT_GPU_SLOW_TIMEOUT 30)
+if(CT_TEST_TIMEOUT GREATER CT_GPU_SLOW_TIMEOUT)
+    set(CT_GPU_SLOW_TIMEOUT ${CT_TEST_TIMEOUT})
+endif()
 # These cases share renderer suites but only inspect CPU data and must run on hosted CI.
 set(CT_CPU_TESTS
     MgVisual.FaceMeshListAndStrip
@@ -48,14 +52,14 @@ set(CT_CPU_TESTS
     Vu1Prog0Shader.MirrorWordVectors
     GfxMeshDc2.MeshConstantsKeepChroniclesSize)
 set(CT_GPU_SLOW_TESTS
+    CameraFixedMouseGpu.*
     FontPortGpu.*
     Vu1Prog0Shader.*
-    GfxMeshDc2.*
+    GfxGpu*.*
+    */GfxGpu*.*
     MgTextureGpu.*
     MenuIconGpu.*
     MgTanimeGpu.*
-    GfxDisplayList.Recording*
-    */GfxPresentationOwnership.*
     GfxMisc.PipelineCache)
 set(CT_GPU_TESTS
     TargetPresentation.*
@@ -115,18 +119,18 @@ gtest_discover_tests(darkchronicle_tests
 gtest_discover_tests(darkchronicle_tests
     DISCOVERY_MODE PRE_TEST
     TEST_FILTER ${CT_GPU_SLOW_FILTER}-${CT_CPU_FILTER}
-    PROPERTIES TIMEOUT 30 LABELS gpu)
+    PROPERTIES TIMEOUT ${CT_GPU_SLOW_TIMEOUT} LABELS gpu)
 
 add_dependencies(darkchronicle_tests darkchronicle)
 # ctest reports a process that dies by abort() as failed even when PASS_REGULAR_EXPRESSION matches its
 # output, so the executable runs under a script that checks the run and the file it writes, and the regex
 # judges the script's verdict. Its shader compile loads the CPU, so it runs alone with the clock cases.
-# The smoke data directory holds only an empty manifest.txt (an extraction with no files), so the run passes the
-# first-run data check and stays in the logo fade without game data.
+# The smoke fixture is coherent empty publisher output at the pinned data version, so the run
+# passes the first-run data check and stays in the logo fade without game data.
 set(SMOKE_SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/smoke_headless.cmake)
 file(WRITE ${SMOKE_SCRIPT} [=[
-file(MAKE_DIRECTORY "$ENV{DC2_DATA}")
-file(TOUCH "$ENV{DC2_DATA}/manifest.txt")
+include("${EMPTY_DATA_FIXTURE}")
+ct_empty_data_fixture("${ROOT}" "${DATA_VERSION_SOURCE}")
 file(MAKE_DIRECTORY "$ENV{DC2_SAVE}")
 file(REMOVE "$ENV{DC2_SAVE}/smoke.png")
 execute_process(COMMAND "${EXE}" --headless --offscreen --frames 3 --screenshot "$ENV{DC2_SAVE}/smoke.png"
@@ -145,10 +149,13 @@ if(rc EQUAL 0 AND index_at GREATER -1 AND frame_at GREATER -1 AND sig STREQUAL "
 endif()
 ]=])
 add_test(NAME Smoke.HeadlessFramesScreenshot
-    COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:darkchronicle> -P ${SMOKE_SCRIPT})
+    COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:darkchronicle>
+        -DROOT=${CMAKE_BINARY_DIR}/smoke-fixture
+        -DEMPTY_DATA_FIXTURE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/empty_data.cmake
+        -DDATA_VERSION_SOURCE=${KZ_ROOT}/data_version.json -P ${SMOKE_SCRIPT})
 set_tests_properties(Smoke.HeadlessFramesScreenshot PROPERTIES
     PASS_REGULAR_EXPRESSION "SMOKE_OK"
-    ENVIRONMENT "DC2_SAVE=${CMAKE_BINARY_DIR}/smoke-save;DC2_DATA=${CMAKE_BINARY_DIR}/smoke-data"
+    ENVIRONMENT "DC2_SAVE=${CMAKE_BINARY_DIR}/smoke-fixture/save;DC2_DATA=${CMAKE_BINARY_DIR}/smoke-fixture/data"
     TIMEOUT 120 RUN_SERIAL TRUE LABELS gpu)
 
 file(GLOB ct_stream_cmake CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.cmake)

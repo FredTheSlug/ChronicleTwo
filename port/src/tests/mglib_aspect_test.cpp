@@ -433,8 +433,8 @@ TEST(MglibAspect, MenuFormsHideParkedStatsWithoutClippingEnteringPanel) {
     MenuPosData = saved_layout;
 }
 
-static void ExpectMenuBackdropContinuation(int window_width, int window_height, int page = 0) {
-    const bool             character = page == 1, invent = page == 2;
+static void ExpectMenuBackdropContinuation(int window_width, int window_height, int page = 0, int y_offset = 0) {
+    const bool             character = page == 1, invent = page == 2, options = page == 3;
     AspectRenderer         renderer(window_width, window_height);
     std::vector<u_long128> arena(4096), pixels(1024 * 1024 * 4 / 16);
     mgCMemory              memory;
@@ -445,10 +445,12 @@ static void ExpectMenuBackdropContinuation(int window_width, int window_height, 
     // Distinct interior columns distinguish real continuation from a stretched
     // edge texel. Black is the uncovered target, not part of this texture.
     const int artwork_width = page ? 512 : 700;
-    const int uv_width = character ? 513 : invent ? 512
-                                                  : 704;
-    const int uv_height = character ? 768 : 416;
-    const int uv_top = invent ? 48 : 0;
+    const int uv_width = character ? 513 : (invent || options) ? 512
+                                                               : 704;
+    const int uv_height = character ? 768 : options ? 448
+                                                    : 416;
+    const int uv_top = invent ? 48 : options ? 46
+                                             : 0;
     const int dest_width = invent ? 522 : uv_width;
     for (int y = uv_top; y < uv_top + uv_height; ++y) {
         for (int x = 0; x < artwork_width; ++x) {
@@ -458,15 +460,17 @@ static void ExpectMenuBackdropContinuation(int window_width, int window_height, 
         }
     }
     u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels.data()};
-    char       name[] = "bg16", character_name[] = "chr_bg", invent_name[] = "inv_bg";
+    char       name[] = "bg16", character_name[] = "chr_bg", invent_name[] = "inv_bg", options_name[] = "op_bg";
     auto      *texture = mgTexManager.EnterTexture(0, character ? character_name : invent ? invent_name
+                                                                               : options  ? options_name
                                                                                           : name,
                                                    levels, 1024, 1024, 32, nullptr, 0, 0);
     ASSERT_NE(texture, nullptr);
     const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
-    // Root, an intermediate slide, and the settled Item/Character backdrop.
-    const std::vector<int> positions = character ? std::vector<int>{-2, 0} : invent ? std::vector<int>{1}
-                                                                                    : std::vector<int>{0, -48, -96, -144, -192};
+    // Horizontal entrance/return poses, including both edges away from their settled sides.
+    const std::vector<int> positions = character ? std::vector<int>{-400, -256, -80, -2, 0, 128, 400} : invent ? std::vector<int>{1}
+                                                                                                    : options  ? std::vector<int>{-240, 0, 240}
+                                                                                                               : std::vector<int>{0, -48, -96, -144, -192, 128, 400};
     for (int left : positions) {
         SCOPED_TRACE(left);
         mgSetBackGround(0, 0, 0, 128);
@@ -479,6 +483,8 @@ static void ExpectMenuBackdropContinuation(int window_width, int window_height, 
         prim.Color(128, 128, 128, 128);
         if (character) {
             PrimQuad(&prim, mgRect<float>(left, -315, 513, 883), mgRect<int>(0, 0, uv_width, uv_height));
+        } else if (options) {
+            PrimQuad(&prim, mgRect<float>(left, -8 + y_offset, 512, 502), mgRect<int>(0, uv_top, uv_width, uv_height));
         } else if (invent) {
             PrimQuad(&prim, mgRect<float>(left, 0, 522, 481), mgRect<int>(0, uv_top, uv_width, uv_height));
         } else {
@@ -493,24 +499,41 @@ static void ExpectMenuBackdropContinuation(int window_width, int window_height, 
             const int   sx = static_cast<int>(mapping.offset_x + x * mapping.scale_x);
             const float logical_x = (sx + 0.5f - mapping.offset_x) / mapping.scale_x;
             float       u = (logical_x - left) * uv_width / dest_width;
+            const auto  offset = (static_cast<size_t>(height / 2) * width + sx) * 4;
+            if (options && (240 < -8 + y_offset || 240 >= 494 + y_offset)) {
+                EXPECT_EQ(rgba[offset], 0) << "vertical slide lost its current position at x=" << x;
+                continue;
+            }
+            // Reflection belongs only in the flanks: the field exposed inside
+            // the retail frame during a horizontal slide must remain visible.
+            if (logical_x >= 0 && logical_x < 512 && ((u < 0 && left > 2) || (u > uv_width && left + dest_width < 510))) {
+                EXPECT_EQ(rgba[offset], 0) << "reflection changed the retail slide at x=" << x;
+                continue;
+            }
             if (u < 0) {
                 u = -u;
             }
             if (u > artwork_width) {
                 u = 2 * artwork_width - u;
             }
-            const auto offset = (static_cast<size_t>(height / 2) * width + sx) * 4;
             EXPECT_NEAR(rgba[offset + 1], 20 + static_cast<int>(u) / 3, 2) << "x=" << x;
             EXPECT_GT(rgba[offset], 70) << "bare flank at x=" << x;
         }
         // Bilinear filtering at either join must not sample transparent padding.
-        for (float edge : {static_cast<float>(left), left + static_cast<float>(artwork_width) * dest_width / uv_width}) {
-            const int sx = static_cast<int>(mapping.offset_x + edge * mapping.scale_x);
-            for (int dx = -2; dx <= 2; ++dx) {
-                if (sx + dx < 0 || sx + dx >= static_cast<int>(width)) {
-                    continue;
+        if (!options || (240 >= -8 + y_offset && 240 < 494 + y_offset)) {
+            for (float edge : {static_cast<float>(left), left + static_cast<float>(artwork_width) * dest_width / uv_width}) {
+                const int sx = static_cast<int>(mapping.offset_x + edge * mapping.scale_x);
+                for (int dx = -2; dx <= 2; ++dx) {
+                    if (sx + dx < 0 || sx + dx >= static_cast<int>(width)) {
+                        continue;
+                    }
+                    const float join_x = (sx + dx + 0.5f - mapping.offset_x) / mapping.scale_x;
+                    if (join_x >= 0 && join_x < 512 &&
+                        (join_x < left || join_x > left + static_cast<float>(artwork_width) * dest_width / uv_width)) {
+                        continue;
+                    }
+                    EXPECT_GT(rgba[(static_cast<size_t>(height / 2) * width + sx + dx) * 4], 70);
                 }
-                EXPECT_GT(rgba[(static_cast<size_t>(height / 2) * width + sx + dx) * 4], 70);
             }
         }
     }
@@ -589,4 +612,19 @@ TEST(MglibAspect, MenuTilesCoverNarrowPortraitWithFractionalScroll) {
 
 TEST(MglibAspect, MenuTilesKeepFourThreeCoverageWithFractionalScroll) {
     ExpectMenuTilesCoverWindow(640, 480);
+}
+
+TEST(MglibAspect, OptionsAndHelpBackdropContinueArtworkAt1920x1080) {
+    ExpectMenuBackdropContinuation(1920, 1080, 3);
+}
+
+TEST(MglibAspect, OptionsAndHelpBackdropContinueArtworkAt3840x2160) {
+    ExpectMenuBackdropContinuation(3840, 2160, 3);
+}
+
+TEST(MglibAspect, OptionsAndHelpFlanksFollowVerticalSlide) {
+    for (int offset : {-480, -240, 80, 240, 480}) {
+        SCOPED_TRACE(offset);
+        ExpectMenuBackdropContinuation(1920, 1080, 3, offset);
+    }
 }

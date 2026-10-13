@@ -517,8 +517,8 @@ int CCharacter2::DrawDirect() {
         mgCFrame     *frame;          /**< Frame the outline is drawn around. */
         float         width;          /**< Thickness of the edge. */
         int           depth_from_pos; /**< Non-zero to composite the frame at the screen depth of pos. */
-        float         pos[4];         /**< World position of the character. */
-        float         color[4];       /**< Colour of the edge. */
+        sceVu0FVECTOR pos;            /**< World position of the character. */
+        sceVu0FVECTOR color;          /**< Colour of the edge. */
         int           enable;         /**< Non-zero when the outline is drawn. */
         int           hide_edge;      /**< Non-zero to composite the frame without its edge. */
     };

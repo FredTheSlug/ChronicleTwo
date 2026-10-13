@@ -834,6 +834,7 @@ Edits to `ps2/src` or `ps2/include` made for the port must leave the PS2 build b
 - `ps2/src/character.cpp`: the raw character-effect manager allocation uses `sizeof(CHARA_EFFECT_MANAGER) / 16 + 1`, retaining the retail 32 quadwords while accommodating native pointers.
 - `ps2/src/menusys.cpp`: the item-command target's aligned storage is sized for `CItemUseTarget`, retaining one `u_long` on PS2 and reserving the complete native target.
 - `ps2/src/nowload.cpp`: the memory-manager copy view uses `sizeof(mgCMemory)` rather than twelve words, preserving the native stack state and the original PS2 copy extent.
+- `ps2/src/character.cpp`: the LOD outline copy uses the same aligned vector members as `COutLineDraw`, keeping its member offsets and full extent correct on both targets.
 - `ps2/include/mg_tanime.hpp`: declaration order. The inline `mgRect<float>::mgRect()` moves below the `Set` declaration it calls.
 - `ps2/include/sce` is untouched. Its `libmc.h` and `libpad.h` differ from the other game's transcriptions, and changing a prototype's parameter types changes MWCC's code for the callers, so Kazarov's `libmc.cpp` and `libpad.cpp` take those types from the header they are compiled with (`tools/kazarov/port/sce/sdk_params.hpp`).
 - `ps2/src/editmenu.cpp`, `effect.cpp`, `inventmn.cpp`, `mainloop.cpp`, `menuaqua.cpp`, `title.cpp` and `nd_meswin.cpp`: split initialisations. A `switch` jumps over them, so each becomes a declaration and an assignment.

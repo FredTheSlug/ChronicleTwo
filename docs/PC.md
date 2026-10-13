@@ -351,10 +351,10 @@ reverses those two logical buttons.
 
 Triangle opens the field or dungeon main menu. Inside a menu its meaning belongs
 to that screen: the main menu accepts it as OK, while some submenus treat it as
-Cancel. Enter retains the retail pause/resume action. WASD drives only the left
-stick: it moves the character without changing active-item slots or navigating
-menus. Arrow keys send the D-pad. A physical controller's left stick retains
-retail menu navigation past the game's threshold, including active-item slots.
+Cancel. Enter retains the retail pause/resume action. WASD (or rebound left-stick
+keys) and a controller's left stick navigate menus through the same retail stick
+threshold, including Item and Character pages. In the field, stick movement does
+not change active-item slots. Arrow keys send the D-pad and can select those slots.
 
 ### Mouse menus
 

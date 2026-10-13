@@ -10,11 +10,11 @@
 581
 600 key:Left
 606
-# Only the arrow key may move the selected slot.
+# Keyboard stick and arrow keys both navigate active-item slots inside menus.
 650 key:D
 656
 800 key:Right
 806
-# A controller stick retains retail menu conversion and advances once more.
+# A controller stick uses the same retail menu conversion.
 1000 255 128 128 128
 1006

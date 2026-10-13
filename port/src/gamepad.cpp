@@ -25,8 +25,8 @@ void Neutral(PAD_STATUS &status) {
 int PortReadPad(PAD_STATUS *status, int port, int slot);
 
 PORT_OVERRIDE void CGamePad::UpDate() {
-    // Movement keys own only the stick. Arrows remain independent D-pad buttons,
-    // including on screens that never read movement axes.
+    // Only the retail menu threshold may turn stick axes into D-pad buttons.
+    // Disable the host fallback so movement keys cannot select field slots.
     InputSetKeyboardStickNavigation(false);
     for (int port = 0; port < 2; ++port) {
         previous_pad[port] = pad[port];
@@ -37,23 +37,17 @@ PORT_OVERRIDE void CGamePad::UpDate() {
     if (capture_mode == PAD_CAPTURE_RECORD) Capture(&pad[0]);
     if (playback) Play(&pad[0]);
 
-    // Retail applies pad 0's left stick to both configured thresholds. Preserve
-    // that behavior, but only convert axes whose winning source is not a key.
-    // Raw pad recordings have no host provenance and retain retail conversion.
-    const auto source = InputGetPad(0);
+    // Retail applies pad 0's left stick to both configured thresholds, regardless
+    // of which host device supplies each axis. MenuModeOff disables conversion.
     for (int port = 0; port < 2; ++port) {
         const int threshold = axis_threshold[port];
         if (threshold <= 0) continue;
-        if (playback || !source.left_x_from_keys) {
-            const int x = GetLX();
-            if (x > threshold) pad[port].button |= PAD_RIGHT;
-            if (x < -threshold) pad[port].button |= PAD_LEFT;
-        }
-        if (playback || !source.left_y_from_keys) {
-            const int y = GetLY();
-            if (y > threshold) pad[port].button |= PAD_DOWN;
-            if (y < -threshold) pad[port].button |= PAD_UP;
-        }
+        const int x = GetLX();
+        const int y = GetLY();
+        if (x > threshold) pad[port].button |= PAD_RIGHT;
+        if (x < -threshold) pad[port].button |= PAD_LEFT;
+        if (y > threshold) pad[port].button |= PAD_DOWN;
+        if (y < -threshold) pad[port].button |= PAD_UP;
     }
 
     for (int port = 0; port < 2; ++port) {

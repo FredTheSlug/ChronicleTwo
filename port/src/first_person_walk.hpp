@@ -12,3 +12,5 @@ bool                  DungeonFirstPersonOwns(CCameraControl *camera);
 bool                  FirstPersonLookOwns();
 bool                  TownFirstPersonWalk(CScene *scene, CPadControl *pad);
 void                  DungeonFirstPersonWalk(CCameraControl &camera);
+
+bool DungeonFirstPersonCheckEvents(CCameraControl &camera);

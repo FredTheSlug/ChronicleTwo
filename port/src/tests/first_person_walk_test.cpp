@@ -265,7 +265,18 @@ TEST(FirstPersonWalk, TownGatesSpecialOwnersAndKeepsPadLook) {
     EXPECT_GT(GamePad__2.GetLXf(), 0.5f);
     PortEditViewMode = EDIT_VIEW_MODE_PHOTO;
     EXPECT_LT(GamePad__2.GetLYf(), -0.5f);
+    GamePad__2.pad[0].left_x = GamePad__2.pad[0].left_y = 128;
+    PortEditViewMode = EDIT_VIEW_MODE_EYE;
     InputScriptInstall({});
+    InputPadState centered{.connected = true};
+    InputSetOverride(0, &centered);
+    GamePad__2.pad[0].button = PAD_RIGHT | PAD_UP;
+    EXPECT_FLOAT_EQ(GamePad__2.GetLXf(), 1);
+    EXPECT_FLOAT_EQ(GamePad__2.GetLYf(), -1);
+    GamePad__2.pad[0].button = PAD_LEFT | PAD_DOWN;
+    EXPECT_FLOAT_EQ(GamePad__2.GetLXf(), -1);
+    EXPECT_FLOAT_EQ(GamePad__2.GetLYf(), 1);
+    InputSetOverride(0, nullptr);
 }
 
 TEST(FirstPersonWalk, DungeonGatesPhotoRidepodPauseEventsAndActions) {
@@ -296,6 +307,40 @@ TEST(FirstPersonWalk, DungeonGatesPhotoRidepodPauseEventsAndActions) {
     PortDungeonDebugPause = GamePad__2.key_lock = DebugInfo.debug_camera = 0;
     TakePhotoMode = TAKE_PHOTO_OFF;
     ASSERT_TRUE(DungeonFirstPersonOwns(&camera));
+    chara.move_check.landed = 1;
+    class TouchMap : public CMap {
+    public:
+        bool touch = false;
+        CFuncPoint point{};
+        CFuncPoint *GetEvent(float *, int kind, MapEventInfo *info) override {
+            *info = {};
+            return touch && kind == MAP_EVENT_CHECK_TOUCH ? &point : nullptr;
+        }
+    } map;
+    scene.AssignMap(0, &map, const_cast<char *>("map"));
+    scene.map[0].status |= SCENE_DATA_ACTIVE;
+    RandomCircle.Clear();
+    GeoStone.flag = 0;
+    EXPECT_FALSE(DungeonFirstPersonCheckEvents(camera));
+    for (int event = 0; event < 3; ++event) {
+        DngStatus.eye_view = 1;
+        camera.FollowOff();
+        PortDungeonEyeInitialized = 0;
+        if (event == 0) RandomCircle.SetCircle(chara.position);
+        if (event == 1) map.touch = true;
+        if (event == 2) {
+            GeoStone.flag = 1;
+            GeoStone.SetPosition(chara.position[0], chara.position[1] + 20, chara.position[2]);
+        }
+        EXPECT_TRUE(DungeonFirstPersonCheckEvents(camera)) << event;
+        EXPECT_EQ(DngStatus.eye_view, 0);
+        EXPECT_TRUE(camera.follow_on);
+        RandomCircle.Clear();
+        map.touch = false;
+        GeoStone.flag = 0;
+    }
+    DngStatus.eye_view = 1;
+    camera.FollowOff();
     for (int gate = 0; gate < 8; ++gate) {
         if (gate == 0) {
             TakePhotoMode = TAKE_PHOTO_AIM;

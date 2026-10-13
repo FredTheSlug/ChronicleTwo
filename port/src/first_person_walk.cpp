@@ -98,10 +98,11 @@ PORT_OVERRIDE float CGamePad::GetLXf() {
     if (this == &GamePad__2 && walking_script) {
         return script_stick.x;
     }
-    if (this == &GamePad__2 && InputGetPad(0).keyboard_left && FirstPersonLookOwns()) {
+    if (this == &GamePad__2 && FirstPersonLookOwns()) {
         CGamePad look = *this;
         look.pad[0].left_x = InputGetLookPad(0).left_x;
-        return look.GetLX() / 128.0f;
+        const float stick = look.GetLX() / 128.0f;
+        return stick != 0 ? stick : float(On(PAD_RIGHT) - On(PAD_LEFT));
     }
     return GetLX() / 128.0f;
 }
@@ -110,10 +111,11 @@ PORT_OVERRIDE float CGamePad::GetLYf() {
     if (this == &GamePad__2 && walking_script) {
         return script_stick.y;
     }
-    if (this == &GamePad__2 && InputGetPad(0).keyboard_left && FirstPersonLookOwns()) {
+    if (this == &GamePad__2 && FirstPersonLookOwns()) {
         CGamePad look = *this;
         look.pad[0].left_y = InputGetLookPad(0).left_y;
-        return look.GetLY() / 128.0f;
+        const float stick = look.GetLY() / 128.0f;
+        return stick != 0 ? stick : float(On(PAD_DOWN) - On(PAD_UP));
     }
     return GetLY() / 128.0f;
 }
@@ -143,6 +145,24 @@ bool TownFirstPersonWalk(CScene *scene, CPadControl *pad) {
     if (!scene->event_run && PortEditLadderMode == EDIT_LADDER_MODE_NONE) {
         PortEditViewMode = EDIT_VIEW_MODE_EYE;
     }
+    return true;
+}
+
+bool DungeonFirstPersonCheckEvents(CCameraControl &camera) {
+    if (!DungeonFirstPersonOwns(&camera) || !MainChara__2->move_check.landed ||
+        !MainChara__2->CheckRunEvent()) {
+        return false;
+    }
+    sceVu0FVECTOR position;
+    MainChara__2->GetPosition(position);
+    CSceneEventData event{};
+    if (RandomCircle.CheckEvent(position) < 0 && !GeoStone.CheckEvent(position) &&
+        !DngMainScene->GetMapEvent(position, MAP_EVENT_CHECK_TOUCH, &event)) {
+        return false;
+    }
+    // Restore the translated follow eye before retail's next field event pass.
+    // The normal event runner keeps its health, status and event-priority gates.
+    ResetEyeView(MainChara__2);
     return true;
 }
 
@@ -188,6 +208,7 @@ void DungeonFirstPersonWalk(CCameraControl &camera) {
         camera.next_ref[i] += delta;
     }
     camera.mgCCamera::Step(0);
+    DungeonFirstPersonCheckEvents(camera);
     if (keys.x == 0 && keys.y == 0 && MainChara__2->CheckRunEvent()) {
         walking_chara = nullptr;
         walking_scene = nullptr;

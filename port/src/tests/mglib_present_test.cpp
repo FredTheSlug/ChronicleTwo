@@ -1014,7 +1014,7 @@ void ExpectNewestAtEveryAlpha() {
 }
 }
 
-TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
+TEST(TargetPresentation, WorldLifeGaugeInterpolatesPositionAndHealthAndReuseCuts) {
     PresentRenderer renderer(640, 480);
     PresentSetSettings(PresentSettings{.interpolation = true});
     mgCMemory memory;
@@ -1047,8 +1047,11 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     EXPECT_EQ(std::memcmp(&state, &gauge, sizeof(gauge)), 0);
     EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    before = after;
     record(280, 25);
-    ExpectNewestAtEveryAlpha(); // HP changes stay tick-exact.
+    after = DamageVertices(*mgPortLastList());
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+    CheckDamageBlend(*mgPortLastList(), before, after, newest);
     gauge.Initialize(0);
     gauge.SetView(1);
     gauge.scale = 1;

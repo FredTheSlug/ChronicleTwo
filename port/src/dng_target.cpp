@@ -151,8 +151,9 @@ PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
     if (position[1] < 89) position[1] = 88;
     int half_width = static_cast<int>(34.0f * scale);
     auto &emission = gauges[this];
-    // A new HP value is discrete game information; never blend its fill with the old value.
-    if (emission.hp != hp || emission.max_hp != max_hp || emission.screen != screen) {
+    // Health and projected position follow the same interval. A hit must not cut
+    // the entire gauge away from the still-interpolating monster.
+    if (emission.max_hp != max_hp || emission.screen != screen) {
         emission.content = ++next_generation;
         emission.hp = hp;
         emission.max_hp = max_hp;

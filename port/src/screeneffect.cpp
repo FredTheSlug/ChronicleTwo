@@ -71,6 +71,7 @@ void DrawBlurLevel(gfx::TextureHandle level, const DepthOfFieldLevel &size, int 
     state.blend = true;
     state.alpha = gfx::GsBlend{0, 1, 0, 1, 0};
     state.depth_test = gfx::DepthTest::GEqual;
+    state.screen_space = true;
     state.depth_write = false;
     state.alpha_test = false;
     state.texa_aem = false;

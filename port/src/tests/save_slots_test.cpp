@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "mainloop.hpp"
+#include "inventmn.hpp"
 #include "gamepad.hpp"
 #include "menuaqua.hpp"
 #include "menucls1.hpp"
@@ -429,4 +430,31 @@ TEST_F(SaveSlotTest, DurableSaveRemainsSuccessfulWhenPostWriteScanFails) {
     EXPECT_TRUE(SaveSlots.read_failed);
     ASSERT_EQ(SaveSlotRead(SaveSlotPath(0), *image), SaveSlotState::Ready);
     EXPECT_EQ(image->save_data.map_no, 21);
+}
+
+TEST_F(SaveSlotTest, VersionTwoLoadsAndUsesRetailInventionConversion) {
+    std::strcpy(image->version, "dc2Ver2");
+    // Retail's old INVENT_CREATED_ITEM record is twelve bytes; conversion
+    // copies the first two shorts of each of its 128 entries to four-byte cards.
+    struct OldCard { short item_id; unsigned short flags; unsigned char unused[8]; };
+    static_assert(sizeof(OldCard) == 12);
+    auto *source = image->save_data.GetUserDataManager()->GetInventUserData();
+    for (int i = 0; i < 128; ++i) {
+        const OldCard card{static_cast<short>(i + 1), static_cast<unsigned short>(i + 100), {}};
+        auto *bytes = reinterpret_cast<char *>(source) + offsetof(CInventUserData, created_item);
+        std::memcpy(bytes + i * sizeof(OldCard), &card, sizeof(card));
+    }
+    image->check_digit = image->check_digit_half = 999999; // Retail does not check Ver2 digits.
+    Write(Legacy(0, 7));
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(SaveSlots.saves.size(), 1);
+    EXPECT_EQ(SaveSlots.saves[0].state, SaveSlotState::Ready);
+    ASSERT_EQ(manager.LoadFromMc(0), MC_STEP_DONE);
+    ASSERT_EQ(manager.error.code, MC_ERROR_NONE);
+    auto *converted = live->GetUserDataManager()->GetInventUserData();
+    for (int i = 0; i < 128; ++i) {
+        EXPECT_EQ(converted->created_item[i].item_id, i + 1);
+        EXPECT_EQ(converted->created_item[i].unk_2, i + 100);
+    }
+    EXPECT_EQ(live->map_no, 10);
 }

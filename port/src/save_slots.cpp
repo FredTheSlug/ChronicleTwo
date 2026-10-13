@@ -72,7 +72,8 @@ SaveSlotState ReadHeader(const fs::path &path, std::uintmax_t size, SAVEDATA_INF
     file.seekg(offsetof(SAVEDATA_FORMAT, save_data) + offsetof(CSaveData, game_progress));
     file.read(reinterpret_cast<char *>(&image->save_data.game_progress), sizeof(image->save_data.game_progress));
     if (!file) return SaveSlotState::Unreadable;
-    if (std::memcmp(image->version, "dc2Ver4", 8) != 0) return SaveSlotState::WrongVersion;
+    if (std::memcmp(image->version, "dc2Ver4", 8) != 0 &&
+        std::memcmp(image->version, "dc2Ver2", 8) != 0) return SaveSlotState::WrongVersion;
     if (image->incomplete) return SaveSlotState::Incomplete;
     info.state = 1;
     info.map_no = image->map_no;
@@ -179,8 +180,11 @@ SaveSlotState SaveSlotRead(const fs::path &path, SAVEDATA_FORMAT &image) {
     if (error) return SaveSlotState::Unreadable;
     if (size != sizeof(image)) return SaveSlotState::WrongSize;
     if (FilesRead(path, &image, sizeof(image)) != sizeof(image)) return SaveSlotState::Unreadable;
-    if (std::memcmp(image.version, "dc2Ver4", 8) != 0) return SaveSlotState::WrongVersion;
+    const bool old_version = std::memcmp(image.version, "dc2Ver2", 8) == 0;
+    if (!old_version && std::memcmp(image.version, "dc2Ver4", 8) != 0) return SaveSlotState::WrongVersion;
     if (image.incomplete) return SaveSlotState::Incomplete;
+    // Retail accepts Ver2 without check digits before converting its cards.
+    if (old_version) return SaveSlotState::Ready;
     const char *data = reinterpret_cast<const char *>(&image.save_data);
     // Retail permits zero check digits in older images.
     if ((image.check_digit && image.check_digit != CheckDigit(data, sizeof(CSaveData))) ||

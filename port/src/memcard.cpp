@@ -7,6 +7,7 @@
 
 #include "platform/files.hpp"
 #include "mainloop.hpp"
+#include "inventmn.hpp"
 #include "save_slots.hpp"
 #include "title.hpp"
 #include "userdata.hpp"
@@ -178,6 +179,10 @@ PORT_OVERRIDE int CMemoryCardManager::LoadFromMc(int row) {
     // address rebinding still runs when its menu opens.
     auto *save = GetSaveData();
     std::memcpy(save, &image->save_data, sizeof(*save));
+    if (std::memcmp(image->version, "dc2Ver2", 8) == 0) {
+        TranslateInventUserData(image->save_data.GetUserDataManager()->GetInventUserData(),
+                               save->GetUserDataManager()->GetInventUserData());
+    }
     load_program_loop_no = image->program_loop_no;
     load_map_no = image->map_no;
     load_dungeon_no = image->dungeon_no;

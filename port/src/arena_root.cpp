@@ -27,7 +27,7 @@ u_long128 *ArenaRoot(const void *key, int quadwords, const char *name) {
 }
 
 u_long128 *ArenaRootFromBuffer(const u_long128 *buffer, int quadwords, const char *name) {
-    u_long128 *base = ArenaRoot(buffer, quadwords, name);
+    u_long128                       *base = ArenaRoot(buffer, quadwords, name);
     static std::vector<const void *> imported;
 
     // After the first import the game owns the mapped contents. Rebinding a cursor to the

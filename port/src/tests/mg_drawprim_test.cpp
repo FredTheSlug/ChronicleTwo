@@ -378,7 +378,7 @@ TEST(MgDrawPrim, HostTextureFlushesInOrderWithoutChangingRetailBinding) {
     rig.prim.Vertex(1, 2, 0);
     rig.prim.Vertex(11, 12, 0);
     EXPECT_TRUE(rig.batches.empty());
-    const gfx::TextureBinding texture{.texture = 123};
+    const gfx::TextureBinding          texture{.texture = 123};
     const std::array<gfx::Vertex2D, 4> quad{};
     mgPortPrimSubmitTexture(rig.prim, quad, texture);
     ASSERT_EQ(rig.batches.size(), 2u);

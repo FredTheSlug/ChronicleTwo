@@ -7,13 +7,13 @@ using Clock = PresentPacer::Clock;
 using Action = PresentPacer::Action;
 using namespace std::chrono_literals;
 const auto origin = Clock::time_point{} + 1s;
-}
+} // namespace
 
 TEST(PresentTiming, RenderTimeIsPartOfTheCapPeriod) {
     for (double rate : {60.0, 120.0, 240.0}) {
         PresentPacer pacer;
-        auto now = origin;
-        const auto period = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1 / rate));
+        auto         now = origin;
+        const auto   period = std::chrono::duration_cast<Clock::duration>(std::chrono::duration<double>(1 / rate));
         ASSERT_TRUE(pacer.Present([&] { now += 2ms; return true; }, [&] { return now; }));
         const auto decision = pacer.Next(now, origin + 40ms, rate);
         EXPECT_EQ(decision.action, Action::Wait);
@@ -24,7 +24,7 @@ TEST(PresentTiming, RenderTimeIsPartOfTheCapPeriod) {
 
 TEST(PresentTiming, SlowRenderAndStallSkipExpiredSlotsWithoutCatchUpBursts) {
     PresentPacer pacer;
-    auto now = origin;
+    auto         now = origin;
     ASSERT_TRUE(pacer.Present([&] { now += 13ms; return true; }, [&] { return now; }));
     EXPECT_EQ(pacer.Next(now, origin + 40ms, 240).action, Action::Display);
     now += 200ms;
@@ -38,7 +38,7 @@ TEST(PresentTiming, SlowRenderAndStallSkipExpiredSlotsWithoutCatchUpBursts) {
 
 TEST(PresentTiming, DueGameFieldWinsEvenWithoutADisplay) {
     PresentPacer pacer;
-    auto now = origin;
+    auto         now = origin;
     ASSERT_TRUE(pacer.Present([] { return true; }, [&] { return now; }));
     EXPECT_EQ(pacer.Next(now, now + 2ms, 240).action, Action::Tick);
     EXPECT_EQ(pacer.Next(now + 20ms, now + 20ms, 0).action, Action::Tick);
@@ -48,7 +48,7 @@ TEST(PresentTiming, DueGameFieldWinsEvenWithoutADisplay) {
 
 TEST(PresentTiming, UnlimitedAndFailedPresentDoNotAccumulateWaits) {
     PresentPacer pacer;
-    auto now = origin;
+    auto         now = origin;
     ASSERT_TRUE(pacer.Present([&] { now += 2ms; return true; }, [&] { return now; }));
     EXPECT_EQ(pacer.Next(now, origin + 20ms, 0).action, Action::Display);
     now = origin + 10ms;

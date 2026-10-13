@@ -8,16 +8,13 @@
 #include <system_error>
 #include <vector>
 
+#include "audio/soundtrack.hpp"
 #include "dataread.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
 #include "identity.hpp"
-#include "test_hooks.hpp"
 #include "mainloop.hpp"
 #include "mglib_port.hpp"
-#include "present.hpp"
-#include "sound_port.hpp"
-#include "audio/soundtrack.hpp"
 #include "platform/clock.hpp"
 #include "platform/config.hpp"
 #include "platform/display.hpp"
@@ -28,7 +25,10 @@
 #include "platform/paths.hpp"
 #include "platform/settings.hpp"
 #include "platform/window.hpp"
+#include "present.hpp"
 #include "sce/threads.hpp"
+#include "sound_port.hpp"
+#include "test_hooks.hpp"
 
 // The audio branch adds audio_init.hpp; until it lands the port builds without audio.
 #if __has_include("audio_init.hpp")
@@ -44,9 +44,9 @@ constexpr float kLogicalWidth = 512.0f;
 constexpr float kLogicalHeight = 480.0f;
 
 struct Options {
-    const char *jump = nullptr;
-    const char *give = nullptr;
-    bool fast_load = false;
+    const char           *jump = nullptr;
+    const char           *give = nullptr;
+    bool                  fast_load = false;
     bool                  headless = false;
     bool                  offscreen = false;
     int                   frames = 0;
@@ -239,7 +239,9 @@ void ApplyConfigChange(const HostSettings &before, const HostSettings &after) {
     }
     InputApplyConfig(after);
     SoundApplySettings();
-    if (before.soundtrack != after.soundtrack) audio::SoundtrackReload();
+    if (before.soundtrack != after.soundtrack) {
+        audio::SoundtrackReload();
+    }
     // HostSettings has no interpolation or aspect, so the present settings come from ConfigGet, which
     // already holds the new values. This also resets an F3 toggle of show_fps to the config's value.
     PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));
@@ -250,10 +252,12 @@ int Run(int argc, const char **argv) {
     argc = PathsConsumeArgs(argc, argv);
     g_options = ParseOptions(argc, argv);
     const Options &options = g_options;
-    const char *jump = options.jump ? options.jump : SettingsEnv("JUMP");
-    const char *give = options.give ? options.give : SettingsEnv("GIVE");
+    const char    *jump = options.jump ? options.jump : SettingsEnv("JUMP");
+    const char    *give = options.give ? options.give : SettingsEnv("GIVE");
     if ((jump && (options.jump || *jump) && !GameSetJump(jump)) ||
-        (give && (options.give || *give) && !GameSetGive(give))) Usage(argv[0]);
+        (give && (options.give || *give) && !GameSetGive(give))) {
+        Usage(argv[0]);
+    }
     const char *fast = SettingsEnv("FAST_LOAD");
     GameSetFastLoad(options.fast_load || (fast && *fast && *fast != '0'));
     InputScript   input_script;

@@ -16,8 +16,7 @@ TEST(MenuChapter, MissingNarrationTimesOutAndReopeningRestartsFade) {
     const auto root = std::filesystem::temp_directory_path() / "dc2_chapter_test";
     std::filesystem::create_directories(root);
     std::ofstream(root / "manifest.txt");
-    PathsConfigure({.app_dir = "dc2-chapter-test", .env_data = "DC2_CHAPTER_TEST_DATA",
-                    .env_save = "DC2_CHAPTER_TEST_SAVE"});
+    PathsConfigure({.app_dir = "dc2-chapter-test", .env_data = "DC2_CHAPTER_TEST_DATA", .env_save = "DC2_CHAPTER_TEST_SAVE"});
     PathsSetDataRoot(root);
     InitCDFile();
     auto scene = std::unique_ptr<CScene, decltype(&std::free)>(
@@ -26,7 +25,7 @@ TEST(MenuChapter, MissingNarrationTimesOutAndReopeningRestartsFade) {
     auto *saved_scene = MenuMainScene;
     MenuMainScene = scene.get();
     std::vector<u_long128> storage(0x4000);
-    mgCMemory stack;
+    mgCMemory              stack;
     stack.stSetBuffer(storage.data(), static_cast<int>(storage.size()));
     int blocks[] = {1, 2};
     MenuChapterInit(&stack, blocks, 0, 0);

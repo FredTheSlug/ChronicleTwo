@@ -9,17 +9,16 @@
 #include <span>
 #include <vector>
 
-#include "ezbgm.hpp"
-#include "ezmidi.hpp"
-#include "sound.hpp"
-#include "sound_port.hpp"
-
 #include "audio/hdbank.hpp"
 #include "audio/mixer.hpp"
-#include "audio/sq.hpp"
 #include "audio/soundtrack.hpp"
+#include "audio/sq.hpp"
 #include "audio/trace.hpp"
+#include "ezbgm.hpp"
+#include "ezmidi.hpp"
 #include "platform/settings.hpp"
+#include "sound.hpp"
+#include "sound_port.hpp"
 
 namespace {
 
@@ -37,7 +36,7 @@ struct PortState {
     std::array<std::shared_ptr<const audio::Bank>, MIDI_PORT_BANK_MAX> bank{};
     int                                                               bank_count = 0;
     std::vector<std::shared_ptr<const audio::SqFile>>                 sequence;
-    std::vector<std::string>                                         sequence_name;
+    std::vector<std::string>                                           sequence_name;
     std::shared_ptr<const audio::SqFile>                              resident_sequence;
     int                                                               linked_port = -1;
     std::vector<int>                                                  dependent_port;

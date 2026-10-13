@@ -1,8 +1,11 @@
+#include "common.h"
+
+#include <SDL3/SDL.h>
 #include <gtest/gtest.h>
 
 #include <array>
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -11,35 +14,38 @@
 #include <string>
 #include <vector>
 
-#include "common.h"
+#include "actionchara.hpp"
+#include "dataread.hpp"
+#include "dng_hud.hpp"
+#include "dng_main.hpp"
+#include "dng_object.hpp"
+#include "dng_pickup_port.hpp"
+#include "effectlist.hpp"
+#include "gfx/displaylist.hpp"
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
-#include "effectlist.hpp"
-#include "libgraph.h"
-#include "mg_memory.hpp"
+#include "mainloop.hpp"
+#include "maintex.hpp"
 #include "mg_drawprim.hpp"
+#include "mg_drawprim_port.hpp"
+#include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "monster.hpp"
+#include "nd_meswin.hpp"
 #include "platform/clock.hpp"
+#include "platform/paths.hpp"
 #include "platform/window.hpp"
 #include "present.hpp"
-#include "dng_hud.hpp"
-#include "mg_drawprim_port.hpp"
-#include "gfx/displaylist.hpp"
 #include "scenesnd.hpp"
-#include "maintex.hpp"
-#include "dataread.hpp"
-#include "dng_object.hpp"
-#include "dng_pickup_port.hpp"
-#include "actionchara.hpp"
-#include "monster.hpp"
-#include "dng_main.hpp"
 #include "userdata.hpp"
-#include "nd_meswin.hpp"
-#include "mainloop.hpp"
-#include "platform/paths.hpp"
+
+// Register macros must follow the host and test headers.
+// clang-format off
+#include "libgraph.h"
+// clang-format on
 
 using namespace dc::test;
 
@@ -724,8 +730,8 @@ TEST(MglibPresent, MoveImageOfTheFrameUsesAFrameTarget) {
 TEST(MglibPresent, BackBufferCapturePreservesWidePixelsAndHoldsUntilRecaptured) {
     PresentRenderer renderer(1920, 1080);
     gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
-    Textures textures;
-    Quads pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
+    Textures    textures;
+    Quads       pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
     mgCTexture *capture = textures.Enter("back_buffer_capture", 512, 480, 32, pixels.data(), nullptr);
     ASSERT_NE(capture, nullptr);
     const mgRect<int> whole(0, 0, (mgScreenWidth - 1) * 16, (mgScreenHeight - 1) * 16);
@@ -734,21 +740,21 @@ TEST(MglibPresent, BackBufferCapturePreservesWidePixelsAndHoldsUntilRecaptured) 
     for (bool registers : {false, true}) {
         mgSetBackGround(registers ? 20 : 160, registers ? 160 : 40, 80, 128);
         mgBeginFrame(nullptr);
-        const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+        const auto     mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
         gfx::DrawState state;
         state.depth_test = gfx::DepthTest::Always;
         state.depth_write = false;
         // One-pixel stripes across the wide sides and the centre expose any downsampling or stretch.
         for (int x = 0; x < 1920; x += 2) {
-            const float left = (x - mapping.offset_x) / mapping.scale_x;
-            const float right = (x + 1 - mapping.offset_x) / mapping.scale_x;
+            const float                  left = (x - mapping.offset_x) / mapping.scale_x;
+            const float                  right = (x + 1 - mapping.offset_x) / mapping.scale_x;
             std::array<gfx::Vertex2D, 4> quad = {
                 QuadCorner(left, 0), QuadCorner(right, 0), QuadCorner(right, 480), QuadCorner(left, 480)};
             mgPortDraw2D(gfx::Primitive::Quads, quad, {}, state);
         }
         mgEndFrame(nullptr);
         std::vector<uint8_t> expected;
-        uint32_t width = 0, height = 0;
+        uint32_t             width = 0, height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, expected, width, height));
 
         // Begin a different frame: the capture must still read the last completed scene.
@@ -780,12 +786,16 @@ TEST(MglibPresent, BackBufferCapturePreservesWidePixelsAndHoldsUntilRecaptured) 
             prim.Begin(MG_PRIM_SPRITE);
             prim.Texture(capture);
             prim.Color(128, 128, 128, 128);
-            prim.TextureCrd(0, 0); prim.Vertex(0, 0, 0);
-            prim.TextureCrd(512, 480); prim.Vertex(512, 480, 0);
+            prim.TextureCrd(0, 0);
+            prim.Vertex(0, 0, 0);
+            prim.TextureCrd(512, 480);
+            prim.Vertex(512, 480, 0);
             prim.End();
         };
         for (int tick = 0; tick < 2; ++tick) {
-            if (tick != 0) mgBeginFrame(nullptr);
+            if (tick != 0) {
+                mgBeginFrame(nullptr);
+            }
             draw_capture();
             mgEndFrame(nullptr);
             std::vector<uint8_t> actual;
@@ -806,7 +816,10 @@ TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
             std::array<gfx::Vertex2D, 4> quad = {
                 QuadCorner(0, 324), QuadCorner(512, 324), QuadCorner(512, 384), QuadCorner(0, 384)};
             for (auto &v : quad) {
-                v.color[0] = r; v.color[1] = g; v.color[2] = b; v.color[3] = 128;
+                v.color[0] = r;
+                v.color[1] = g;
+                v.color[2] = b;
+                v.color[3] = 128;
             }
             gfx::DrawState state;
             state.depth_test = gfx::DepthTest::Always;
@@ -829,15 +842,17 @@ TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
         prim.Texture(&frame);
         prim.Color(128, 128, 128, 64);
         // The logo fade's source and destination bands differ.
-        prim.TextureCrd(0, 324); prim.Vertex(0, 176, 0);
-        prim.TextureCrd(512, 384); prim.Vertex(512, 236, 0);
+        prim.TextureCrd(0, 324);
+        prim.Vertex(0, 176, 0);
+        prim.TextureCrd(512, 384);
+        prim.Vertex(512, 236, 0);
         prim.End();
         source(16, 240, 48);
         mgEndFrame(nullptr);
         std::vector<uint8_t> rgba;
-        uint32_t width = 0, height = 0;
+        uint32_t             width = 0, height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
-        const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+        const auto   mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
         const size_t x = static_cast<size_t>(256 * mapping.scale_x + mapping.offset_x);
         const size_t y = static_cast<size_t>(200 * mapping.scale_y + mapping.offset_y);
         const size_t p = (y * width + x) * 4;
@@ -850,14 +865,16 @@ TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
 TEST(MglibPresent, CrossFadeRecapturesCompletedSceneAfterUncapturedTicks) {
     PresentRenderer renderer(1280, 720);
     gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
-    Textures textures;
-    Quads pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
+    Textures    textures;
+    Quads       pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
     mgCTexture *texture = textures.Enter("cross_capture", 512, 480, 32, pixels.data(), nullptr);
     ASSERT_NE(texture, nullptr);
     CFadeInOut fade;
     fade.SetCrossTexture(texture, pixels.data());
 
-    const std::array<std::array<uint8_t, 3>, 3> scenes = {{{160, 40, 20}, {20, 160, 40}, {40, 20, 160}}};
+    const std::array<std::array<uint8_t, 3>, 3> scenes = {
+        {{160, 40, 20}, {20, 160, 40}, {40, 20, 160}}
+    };
     for (const auto &scene : scenes) {
         // Several unrelated ticks pass without asking the CPU readback cache for a frame.
         for (int tick = 0; tick < 4; ++tick) {
@@ -883,7 +900,7 @@ TEST(MglibPresent, CrossFadeRecapturesCompletedSceneAfterUncapturedTicks) {
             }
         };
         std::vector<uint8_t> rgba;
-        uint32_t width = 0, height = 0;
+        uint32_t             width = 0, height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
         check(rgba, width, height);
         ASSERT_TRUE(PresentScreenshotDisplay(0.5f, rgba, width, height));
@@ -901,8 +918,8 @@ TEST(MglibPresent, CrossFadeRecapturesCompletedSceneAfterUncapturedTicks) {
 TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
     PresentRenderer renderer(1280, 720);
     gfx::SetFrameLayout({gfx::AspectMode::Letterbox, 1.0f});
-    Textures textures;
-    Quads old_pixels = Pack(Fill(64 * 64, 0, 180, 0, 128));
+    Textures    textures;
+    Quads       old_pixels = Pack(Fill(64 * 64, 0, 180, 0, 128));
     mgCTexture *old = textures.Enter("effect_work", 64, 64, 32, old_pixels.data(), nullptr);
     ASSERT_NE(old, nullptr);
     const uint32_t key = static_cast<uint32_t>(old->tex0.TBP0);
@@ -913,7 +930,7 @@ TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
     const gfx::TextureHandle stale = mgPortFindTexture(Tex0Bits(old)).texture;
     ASSERT_TRUE(gfx::GetTextureInfo(stale)->render_target);
     textures.Delete(old);
-    Quads glow_pixels = Pack(Fill(64 * 64, 96, 64, 16, 128));
+    Quads       glow_pixels = Pack(Fill(64 * 64, 96, 64, 16, 128));
     mgCTexture *glow = textures.Enter("glow", 64, 64, 32, glow_pixels.data(), nullptr);
     ASSERT_NE(glow, nullptr);
     ASSERT_EQ(static_cast<uint32_t>(glow->tex0.TBP0), key);
@@ -934,12 +951,14 @@ TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
     prim.Begin(MG_PRIM_SPRITE);
     prim.Texture(glow);
     prim.Color(128, 128, 128, 128);
-    prim.TextureCrd(0, 0); prim.Vertex(240, 224, 0);
-    prim.TextureCrd(64, 64); prim.Vertex(272, 256, 0);
+    prim.TextureCrd(0, 0);
+    prim.Vertex(240, 224, 0);
+    prim.TextureCrd(64, 64);
+    prim.Vertex(272, 256, 0);
     prim.End();
     mgEndFrame(nullptr);
     std::vector<uint8_t> rgba;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
     const size_t p = (static_cast<size_t>(height / 2) * width + width / 2) * 4;
     EXPECT_NEAR(rgba[p], 96, 1);
@@ -950,9 +969,10 @@ TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
 namespace {
 struct DamagePrimSink {
     DamagePrimSink() {
-        mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
-                            const gfx::TextureBinding &, const gfx::DrawState &s) { mgPortDraw2D(p, v, {}, s); });
+        mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D>   v,
+                             const gfx::TextureBinding &, const gfx::DrawState &s) { mgPortDraw2D(p, v, {}, s); });
     }
+
     ~DamagePrimSink() { mgPortSetPrimSink({}); }
 };
 
@@ -967,17 +987,19 @@ void DamageProjection(float x) {
 
 std::vector<gfx::Vertex2D> DamageVertices(const gfx::DisplayList &list) {
     for (const auto &entry : list.entries) {
-        if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) return draw->vertices;
+        if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
+            return draw->vertices;
+        }
     }
     return {};
 }
-}
+} // namespace
 
 namespace {
 void CheckDamageBlend(const gfx::DisplayList &list, const std::vector<gfx::Vertex2D> &before,
                       const std::vector<gfx::Vertex2D> &after, const std::vector<uint8_t> &newest) {
     std::vector<uint8_t> actual, expected;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
         ASSERT_TRUE(PresentScreenshotDisplay(alpha, actual, width, height));
         gfx::BeginRecording();
@@ -990,7 +1012,7 @@ void CheckDamageBlend(const gfx::DisplayList &list, const std::vector<gfx::Verte
                     v.x = before[i].x + (after[i].x - before[i].x) * alpha;
                     v.y = before[i].y + (after[i].y - before[i].y) * alpha;
                     v.color[3] = static_cast<uint8_t>(std::lround(before[i].color[3] +
-                                                    (float(after[i].color[3]) - before[i].color[3]) * alpha));
+                                                                  (float(after[i].color[3]) - before[i].color[3]) * alpha));
                 }
             }
             gfx::detail::RecordEntry(std::move(copy));
@@ -999,20 +1021,22 @@ void CheckDamageBlend(const gfx::DisplayList &list, const std::vector<gfx::Verte
         ASSERT_TRUE(gfx::RenderList(*reference, 1, {}));
         ASSERT_TRUE(gfx::ReadbackFrame(expected, width, height));
         EXPECT_EQ(actual, expected) << alpha;
-        if (alpha == 1) EXPECT_EQ(actual, newest);
+        if (alpha == 1) {
+            EXPECT_EQ(actual, newest);
+        }
     }
 }
 
 void ExpectNewestAtEveryAlpha() {
     std::vector<uint8_t> canonical, display;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
     for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
         ASSERT_TRUE(PresentScreenshotDisplay(alpha, display, width, height));
         EXPECT_EQ(display, canonical) << alpha;
     }
 }
-}
+} // namespace
 
 TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
     PresentRenderer renderer(640, 480);
@@ -1027,7 +1051,7 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
     gauge.SetView(1);
     gauge.scale = 1;
     float position[4] = {0, 0, 1, 1};
-    auto record = [&](float x, int hp = 75, int screen = 0) {
+    auto  record = [&](float x, int hp = 75, int screen = 0) {
         mgBeginFrame(nullptr);
         DamageProjection(x);
         gauge.Set(position, 100, hp, 0, screen);
@@ -1041,7 +1065,7 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
     ASSERT_EQ(before.size(), 12u);
     ASSERT_EQ(after.size(), before.size());
     std::vector<uint8_t> newest;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     const auto state = gauge;
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
@@ -1056,7 +1080,9 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesAndContentChangesCut) {
     ExpectNewestAtEveryAlpha(); // A monster slot was reused with identical content.
     record(304, 25, 1);
     for (const auto &entry : mgPortLastList()->entries) {
-        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) EXPECT_EQ(draw->interpolation.key, 0u);
+        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
+            EXPECT_EQ(draw->interpolation.key, 0u);
+        }
     }
     ExpectNewestAtEveryAlpha(); // Screen-space boss HUD remains untagged.
 }
@@ -1069,14 +1095,14 @@ TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     DamagePrimSink sink;
-    auto scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
-    auto user = std::unique_ptr<CUserDataManager, decltype(&std::free)>(static_cast<CUserDataManager *>(std::calloc(1, sizeof(CUserDataManager))), &std::free);
-    auto *saved_user = DngUserData;
+    auto           scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
+    auto           user = std::unique_ptr<CUserDataManager, decltype(&std::free)>(static_cast<CUserDataManager *>(std::calloc(1, sizeof(CUserDataManager))), &std::free);
+    auto          *saved_user = DngUserData;
     DngUserData = user.get();
     user->active_chr_no = USER_CHARA_MAX;
-    CActionChara player;
+    CActionChara   player;
     CActiveMonster target;
-    mgCFrame frame;
+    mgCFrame       frame;
     frame.SetPosition(0, 0, 1);
     target.CObjectFrame::frame = &frame;
     target.entry_object[0].frame = &frame;
@@ -1090,7 +1116,9 @@ TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
     target.body_height = 0;
     target.life_gage.Initialize(0);
     scene->chara_num = 3;
-    for (int i = 0; i < 3; ++i) scene->chara[i].status = 1;
+    for (int i = 0; i < 3; ++i) {
+        scene->chara[i].status = 1;
+    }
     scene->chara[0].chara = &player;
     scene->chara[1].chara = scene->chara[2].chara = &target;
     player.target_no = 1;
@@ -1112,7 +1140,7 @@ TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
     ASSERT_EQ(before.size(), 16u);
     ASSERT_EQ(after.size(), before.size());
     std::vector<uint8_t> newest;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     player.target_no = 2; // A different scene identity, even if storage is reused.
@@ -1146,10 +1174,12 @@ void CheckOverlayBlend(const std::vector<gfx::detail::Entry> &before, const std:
                        const std::vector<uint8_t> &newest) {
     std::vector<const gfx::detail::Draw2DEntry *> previous;
     for (const auto &entry : before) {
-        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) previous.push_back(draw);
+        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
+            previous.push_back(draw);
+        }
     }
     std::vector<uint8_t> actual, expected;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
         ASSERT_TRUE(PresentScreenshotDisplay(alpha, actual, width, height));
         gfx::BeginRecording();
@@ -1165,7 +1195,7 @@ void CheckOverlayBlend(const std::vector<gfx::detail::Entry> &before, const std:
                     v.x = old->vertices[i].x + (v.x - old->vertices[i].x) * alpha;
                     v.y = old->vertices[i].y + (v.y - old->vertices[i].y) * alpha;
                     v.color[3] = static_cast<uint8_t>(std::lround(old->vertices[i].color[3] +
-                        (float(v.color[3]) - old->vertices[i].color[3]) * alpha));
+                                                                  (float(v.color[3]) - old->vertices[i].color[3]) * alpha));
                 }
             }
             gfx::detail::RecordEntry(std::move(copy));
@@ -1174,10 +1204,12 @@ void CheckOverlayBlend(const std::vector<gfx::detail::Entry> &before, const std:
         ASSERT_TRUE(gfx::RenderList(*reference, 1, {}));
         ASSERT_TRUE(gfx::ReadbackFrame(expected, width, height));
         EXPECT_EQ(actual, expected) << alpha;
-        if (alpha == 1) EXPECT_EQ(actual, newest);
+        if (alpha == 1) {
+            EXPECT_EQ(actual, newest);
+        }
     }
 }
-}
+} // namespace
 
 TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
     PresentRenderer renderer(640, 480);
@@ -1187,16 +1219,18 @@ TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     // Isolate the actual retail marks from the independently keyed HP triangles.
-    mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
-                        const gfx::TextureBinding &, const gfx::DrawState &s) {
-        if (p == gfx::Primitive::Quads) mgPortDraw2D(p, v, {}, s);
+    mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D>   v,
+                         const gfx::TextureBinding &, const gfx::DrawState &s) {
+        if (p == gfx::Primitive::Quads) {
+            mgPortDraw2D(p, v, {}, s);
+        }
     });
     CEnemyLifeGage gauge;
     gauge.Initialize(3);
     gauge.SetView(1);
     gauge.scale = 1;
     float position[4] = {0, 0, 1, 1};
-    auto record = [&](float x, int hp, int count) {
+    auto  record = [&](float x, int hp, int count) {
         mgBeginFrame(nullptr);
         DamageProjection(x);
         gauge.Set(position, 100, hp, count, 0);
@@ -1207,9 +1241,9 @@ TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
     auto check_pair = [&](float x, int hp, int count) {
         auto before = mgPortLastList()->entries;
         record(x, hp, count);
-        auto after = mgPortLastList()->entries;
+        auto                 after = mgPortLastList()->entries;
         std::vector<uint8_t> newest;
-        uint32_t width = 0, height = 0;
+        uint32_t             width = 0, height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
         const auto state = gauge;
         CheckOverlayBlend(before, after, newest);
@@ -1218,7 +1252,7 @@ TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
     };
     record(256, 100, 3);
     check_pair(264, 80, 3); // Damage changes the HP generation, not surviving marks.
-    record(272, 60, 2); // A mark begins breaking, with a new additive halo.
+    record(272, 60, 2);     // A mark begins breaking, with a new additive halo.
     check_pair(280, 60, 2); // Both the mark and its halo rise between game ticks.
     gauge.ResetGekirin(3);
     record(300, 60, 3);
@@ -1244,7 +1278,7 @@ TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
     gauge.SetView(1);
     gauge.scale = 1;
     float position[4] = {0, 0, 1, 1};
-    auto record = [&](float x, bool hidden = false) {
+    auto  record = [&](float x, bool hidden = false) {
         mgBeginFrame(nullptr);
         DamageProjection(x);
         gauge.Set(position, 100, 100, 3, 0);
@@ -1258,7 +1292,9 @@ TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
         std::vector<gfx::detail::Draw2DEntry> marks;
         for (const auto &entry : mgPortLastList()->entries) {
             if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry);
-                draw && draw->primitive == gfx::Primitive::Quads) marks.push_back(*draw);
+                draw && draw->primitive == gfx::Primitive::Quads) {
+                marks.push_back(*draw);
+            }
         }
         return marks;
     };
@@ -1267,8 +1303,9 @@ TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
     for (size_t i = 0; i < before.size(); ++i) {
         EXPECT_NE(before[i].interpolation.key, 0u);
         EXPECT_EQ(before[i].occurrence, 0u);
-        for (size_t j = 0; j < i; ++j)
+        for (size_t j = 0; j < i; ++j) {
             EXPECT_NE(before[i].interpolation.key, before[j].interpolation.key);
+        }
     }
     // Finish one mark's real break animation, leaving its neighbours alive.
     gauge.gekirin[0].state = GEKIRIN_STATE_BREAK;
@@ -1291,12 +1328,20 @@ TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
 
 TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     const char *data = std::getenv("DC2_DATA");
-    if (!data) GTEST_SKIP() << "DC2_DATA supplies the retail font table";
+    if (!data) {
+        GTEST_SKIP() << "DC2_DATA supplies the retail font table";
+    }
+
     struct RestoreFontData {
         std::filesystem::path root = PathsDataRoot();
-        int language = LanguageCode;
-        ~RestoreFontData() { PathsSetDataRoot(root); LanguageCode = language; }
+        int                   language = LanguageCode;
+
+        ~RestoreFontData() {
+            PathsSetDataRoot(root);
+            LanguageCode = language;
+        }
     } restore;
+
     PathsSetDataRoot(data);
     LanguageCode = LANG_ENGLISH;
     LoadFontTblBin();
@@ -1307,18 +1352,20 @@ TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     bool emit = false;
-    mgPortSetPrimSink([&](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
-                           const gfx::TextureBinding &, const gfx::DrawState &state) {
-        if (emit) mgPortDraw2D(p, v, {}, state);
+    mgPortSetPrimSink([&](gfx::Primitive p, std::span<const gfx::Vertex2D>   v,
+                          const gfx::TextureBinding &, const gfx::DrawState &state) {
+        if (emit) {
+            mgPortDraw2D(p, v, {}, state);
+        }
     });
-    auto scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
-    auto user = std::unique_ptr<CUserDataManager, decltype(&std::free)>(static_cast<CUserDataManager *>(std::calloc(1, sizeof(CUserDataManager))), &std::free);
+    auto  scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
+    auto  user = std::unique_ptr<CUserDataManager, decltype(&std::free)>(static_cast<CUserDataManager *>(std::calloc(1, sizeof(CUserDataManager))), &std::free);
     auto *saved_user = DngUserData;
     DngUserData = user.get();
     user->active_chr_no = USER_CHARA_MAX;
-    CActionChara player;
+    CActionChara   player;
     CActiveMonster target;
-    mgCFrame frame;
+    mgCFrame       frame;
     frame.SetPosition(0, 0, 1);
     target.CObjectFrame::frame = &frame;
     target.entry_object[0].frame = &frame;
@@ -1332,7 +1379,9 @@ TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     target.body_height = 0;
     target.life_gage.Initialize(0);
     scene->chara_num = 3;
-    for (int i = 0; i < 3; ++i) scene->chara[i].status = 1;
+    for (int i = 0; i < 3; ++i) {
+        scene->chara[i].status = 1;
+    }
     scene->chara[0].chara = &player;
     scene->chara[1].chara = scene->chara[2].chara = &target;
     player.target_no = 1;
@@ -1363,7 +1412,7 @@ TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     ASSERT_NE(message.mes_no, -1);
     ASSERT_FALSE(DamageVertices(*mgPortLastList()).empty());
     std::vector<uint8_t> newest;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     const auto message_state = message;
     CheckOverlayBlend(before, after, newest);
@@ -1400,15 +1449,20 @@ TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     DamagePrimSink sink;
-    CDamageScore damage;
-    float position[4] = {0, 0, 1, 1};
+    CDamageScore   damage;
+    float          position[4] = {0, 0, 1, 1};
     damage.SetValue(position, 123);
     damage.SetColor(128, 0, 0);
-    damage.digit_w = 12; damage.digit_h = 18; damage.digit_u = 0; damage.digit_v = 0;
-    for (int i = 0; i < 4; i++) damage.Step();
+    damage.digit_w = 12;
+    damage.digit_h = 18;
+    damage.digit_u = 0;
+    damage.digit_v = 0;
+    for (int i = 0; i < 4; i++) {
+        damage.Step();
+    }
     std::vector<gfx::Vertex2D> before, after;
-    std::vector<uint8_t> earlier, newest;
-    uint32_t width = 0, height = 0;
+    std::vector<uint8_t>       earlier, newest;
+    uint32_t                   width = 0, height = 0;
     for (int k = 0; k < 2; k++) {
         mgBeginFrame(nullptr);
         DamageProjection(256.0f + 8.0f * k);
@@ -1422,35 +1476,42 @@ TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
     ASSERT_EQ(after.size(), before.size());
     ASSERT_NE(earlier, newest);
     const auto *list = mgPortLastList();
-    const auto state_before = damage;
+    const auto  state_before = damage;
     CheckDamageBlend(*list, before, after, newest);
     EXPECT_EQ(std::memcmp(&damage, &state_before, sizeof(damage)), 0);
 }
 
 TEST(DamagePresentation, RetailLifetimesRemainInGameSteps) {
-    float position[4] = {0, 0, 1, 1};
+    float        position[4] = {0, 0, 1, 1};
     CDamageScore damage;
     damage.SetValue(position, 123);
     int steps = 0;
-    while (damage.active && steps < 500) { damage.Step(); ++steps; }
+    while (damage.active && steps < 500) {
+        damage.Step();
+        ++steps;
+    }
     EXPECT_EQ(steps, 50);
     CDamageScore2 other;
     other.SetValue(0, 123, 20);
     steps = 0;
-    while (other.phase != DAMAGE_SCORE2_PHASE_NONE && steps < 500) { other.Step(); ++steps; }
+    while (other.phase != DAMAGE_SCORE2_PHASE_NONE && steps < 500) {
+        other.Step();
+        ++steps;
+    }
     EXPECT_EQ(steps, 37);
 }
 
-
 TEST(PickupPresentation, EmissionPreservesRetailReuseAndTrailAllocation) {
     CPullItem pickup{};
-    float position[4] = {4, 5, 6, 1};
-    float velocity[4] = {1, 2, 3, 0};
+    float     position[4] = {4, 5, 6, 1};
+    float     velocity[4] = {1, 2, 3, 0};
     pickup.anim_frame = 13;
     pickup.wait_time = 77;
     pickup.exp = 9.0f;
     pickup.num = 3;
-    for (auto &wire : afterWire) wire.SetMode(true);
+    for (auto &wire : afterWire) {
+        wire.SetMode(true);
+    }
     afterWire[3].SetMode(false);
     afterWire[7].SetMode(false);
     pickup.SetItem(position, velocity, PULL_ITEM_WEAPON_EXP);
@@ -1477,22 +1538,24 @@ TEST(PickupPresentation, EmissionPreservesRetailReuseAndTrailAllocation) {
     EXPECT_EQ(pickup.tex_v, 0x21);
     EXPECT_EQ(pickup.tex_w, 30);
     EXPECT_EQ(pickup.tex_h, 30);
-    for (auto &wire : afterWire) wire.SetMode(false);
+    for (auto &wire : afterWire) {
+        wire.SetMode(false);
+    }
 }
 
 TEST(PickupPresentation, RetailEmissionsTagCoinsAbsAndFloatingItems) {
     PresentRenderer renderer(640, 480);
-    mgCMemory memory;
-    u_long128 backing[512]{};
+    mgCMemory       memory;
+    u_long128       backing[512]{};
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
-    CPullItem pickup{};
-    float position[4] = {0, 0, 1, 1};
-    float velocity[4] = {1, 2, 3, 0};
-    uint64_t previous_generation = 0;
+    CPullItem                  pickup{};
+    float                      position[4] = {0, 0, 1, 1};
+    float                      velocity[4] = {1, 2, 3, 0};
+    uint64_t                   previous_generation = 0;
     std::vector<gfx::Interp2D> tags;
-    DamagePrimSink sink_reset;
-    mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices,
+    DamagePrimSink             sink_reset;
+    mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D>     vertices,
                           const gfx::TextureBinding &, const gfx::DrawState &state) {
         EXPECT_FALSE(vertices.empty());
         EXPECT_NE(state.depth_test, gfx::DepthTest::Always);
@@ -1502,7 +1565,7 @@ TEST(PickupPresentation, RetailEmissionsTagCoinsAbsAndFloatingItems) {
     for (int kind : {PULL_ITEM_MONEY, PULL_ITEM_WEAPON_EXP, PULL_ITEM_GATE_KEY,
                      PULL_ITEM_MONEY_LARGE, PULL_ITEM_ITEM, PULL_ITEM_ITEM2, PULL_ITEM_BADGE, PULL_ITEM_STOLEN}) {
         pickup.SetItem(position, velocity, kind);
-        const auto retail_state = pickup;
+        const auto    retail_state = pickup;
         gfx::Interp2D tag;
         {
             mgPortPickupScope scope(&pickup);
@@ -1532,7 +1595,6 @@ TEST(PickupPresentation, RetailEmissionsTagCoinsAbsAndFloatingItems) {
     mgPortSetPrimSink({});
 }
 
-
 TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
     PresentRenderer renderer(640, 480);
     PresentSetSettings(PresentSettings{.interpolation = true});
@@ -1541,9 +1603,9 @@ TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     DamagePrimSink sink;
-    auto scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
-    CCharacter2 character;
-    mgCFrame frame;
+    auto           scene = std::unique_ptr<CScene, decltype(&std::free)>(static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
+    CCharacter2    character;
+    mgCFrame       frame;
     frame.SetPosition(0, 0, 1);
     character.CObjectFrame::frame = &frame;
     scene->chara_num = 1;
@@ -1552,9 +1614,9 @@ TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
     CDamageScore2 damage;
     damage.SetValue(0, 123, 0);
     std::vector<gfx::Vertex2D> before, after;
-    std::vector<uint8_t> newest;
-    uint32_t width = 0, height = 0;
-    auto record = [&](float x) {
+    std::vector<uint8_t>       newest;
+    uint32_t                   width = 0, height = 0;
+    auto                       record = [&](float x) {
         mgBeginFrame(nullptr);
         DamageProjection(x);
         damage.Draw(scene.get());
@@ -1595,32 +1657,41 @@ TEST(DamagePresentation, SpriteHealClippingAndPause) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     DamagePrimSink sink;
-    CDamageScore damage;
-    float position[4] = {0, 0, 1, 1};
+    CDamageScore   damage;
+    float          position[4] = {0, 0, 1, 1};
     damage.SetValue(position, 123);
     damage.SetColor(64, 128, 64); // healing uses the same glyph path
-    damage.digit_w = 12; damage.digit_h = 17; damage.digit_u = 0; damage.digit_v = 202;
+    damage.digit_w = 12;
+    damage.digit_h = 17;
+    damage.digit_u = 0;
+    damage.digit_v = 202;
     auto record = [&](float x, bool clipped = false) {
         mgBeginFrame(nullptr);
         DamageProjection(x);
-        if (clipped) mgRenderInfo.clip_max[2] = 0;
+        if (clipped) {
+            mgRenderInfo.clip_max[2] = 0;
+        }
         damage.Draw();
         mgEndFrame(nullptr);
     };
-    damage.Step(); record(256);
+    damage.Step();
+    record(256);
     auto before = DamageVertices(*mgPortLastList());
-    damage.Step(); record(264);
-    auto after = DamageVertices(*mgPortLastList());
+    damage.Step();
+    record(264);
+    auto                 after = DamageVertices(*mgPortLastList());
     std::vector<uint8_t> newest;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     damage.SetSprite(position, 192, 22, 18, 18);
-    damage.Step(); record(280);
+    damage.Step();
+    record(280);
     ASSERT_EQ(DamageVertices(*mgPortLastList()).size(), 4u);
     ExpectNewestAtEveryAlpha(); // sprite mode/emission changed
     before = DamageVertices(*mgPortLastList());
-    damage.Step(); record(288);
+    damage.Step();
+    record(288);
     after = DamageVertices(*mgPortLastList());
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
@@ -1632,7 +1703,8 @@ TEST(DamagePresentation, SpriteHealClippingAndPause) {
     record(288); // newly visible after clipping
     ExpectNewestAtEveryAlpha();
     damage.SetValue(position, 1);
-    damage.Step(); record(296);
+    damage.Step();
+    record(296);
     ExpectNewestAtEveryAlpha(); // glyph-count change
     mgBeginFrame(nullptr);
     DamageProjection(304);
@@ -1645,41 +1717,50 @@ TEST(DamagePresentation, SpriteHealClippingAndPause) {
 
 TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
     const char *data = std::getenv("DC2_DATA");
-    if (!data) GTEST_SKIP() << "DC2_DATA supplies the extracted glyph atlas";
-    const auto path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
+    if (!data) {
+        GTEST_SKIP() << "DC2_DATA supplies the extracted glyph atlas";
+    }
+    const auto    path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
     std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file) GTEST_SKIP() << "Extracted system texture archive unavailable";
-    const size_t bytes = static_cast<size_t>(file.tellg());
+    if (!file) {
+        GTEST_SKIP() << "Extracted system texture archive unavailable";
+    }
+    const size_t           bytes = static_cast<size_t>(file.tellg());
     std::vector<u_long128> archive((bytes + 15) / 16);
     file.seekg(0);
     ASSERT_TRUE(file.read(reinterpret_cast<char *>(archive.data()), bytes));
-    int member_size = 0;
-    char member_name[] = "frame_basic.img";
+    int   member_size = 0;
+    char  member_name[] = "frame_basic.img";
     auto *image = GetPackFile(reinterpret_cast<u_int *>(archive.data()), member_name, &member_size);
     ASSERT_NE(image, nullptr);
     PresentRenderer renderer(640, 480);
     PresentSetSettings(PresentSettings{.interpolation = true});
     std::vector<u_long128> backing(131072);
-    mgCMemory memory;
+    mgCMemory              memory;
     memory.stSetBuffer(backing.data(), static_cast<int>(backing.size()));
     mgCTextureManager manager;
     manager.SetTableBuffer(64, 8, &memory);
     manager.Initialize(0x1000, -1);
     manager.EnterIMGFile(reinterpret_cast<u_char *>(image), 0, &memory, nullptr);
     auto *saved = TEX_SystenFrame;
-    char texture_name[] = "frame";
+    char  texture_name[] = "frame";
     TEX_SystenFrame = manager.GetTexture(texture_name, -1);
     ASSERT_NE(TEX_SystenFrame, nullptr);
     mgSetDataBuffer(&memory, &memory, 0);
     CDamageScore damage;
-    float position[4] = {0, 0, 1, 1};
+    float        position[4] = {0, 0, 1, 1};
     damage.SetValue(position, 123);
     damage.SetColor(128, 0, 0);
-    damage.digit_w = 12; damage.digit_h = 17; damage.digit_u = 0; damage.digit_v = 202;
-    for (int i = 0; i < 14; ++i) damage.Step();
+    damage.digit_w = 12;
+    damage.digit_h = 17;
+    damage.digit_u = 0;
+    damage.digit_v = 202;
+    for (int i = 0; i < 14; ++i) {
+        damage.Step();
+    }
     std::vector<gfx::Vertex2D> before, after;
-    std::vector<uint8_t> newest, earlier;
-    uint32_t width = 0, height = 0;
+    std::vector<uint8_t>       newest, earlier;
+    uint32_t                   width = 0, height = 0;
     for (int k = 0; k < 2; ++k) {
         mgBeginFrame(nullptr);
         DamageProjection(256 + 8 * k);

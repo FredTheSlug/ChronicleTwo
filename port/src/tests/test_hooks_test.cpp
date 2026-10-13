@@ -1,14 +1,16 @@
 #include <gtest/gtest.h>
 
-#include "test_hooks.hpp"
-#include "gamepad.hpp"
-#include "nowload.hpp"
-#include "platform/input.hpp"
-#include "platform/config.hpp"
-#include "platform/paths.hpp"
-#include "platform_fixture.hpp"
 #include <filesystem>
 #include <format>
+
+#include "gamepad.hpp"
+#include "nowload.hpp"
+#include "nowload_port.hpp"
+#include "platform/config.hpp"
+#include "platform/input.hpp"
+#include "platform/paths.hpp"
+#include "platform_fixture.hpp"
+#include "test_hooks.hpp"
 
 namespace {
 class GamePadSingleDebug : public testing::Test {
@@ -20,10 +22,12 @@ protected:
         config.debug_mode = true;
         ASSERT_TRUE(ConfigChange(config));
     }
+
     void TearDown() override {
         ConfigChange(Config{});
         std::filesystem::remove_all(root);
     }
+
     std::filesystem::path root;
 };
 } // namespace
@@ -40,7 +44,9 @@ TEST(TestHooks, JumpAcceptsModesAndBounds) {
     EXPECT_EQ(jump.map, 6);
     EXPECT_TRUE(GameParseJump("event:26010", jump));
     EXPECT_EQ(jump.event, 26010);
-    for (auto mode : {"title", "opening", "menu"}) EXPECT_TRUE(GameParseJump(mode, jump));
+    for (auto mode : {"title", "opening", "menu"}) {
+        EXPECT_TRUE(GameParseJump(mode, jump));
+    }
     for (auto bad : {"", "bogus", "title:0", "town:", "town:-1", "town:189", "town:1junk",
                      "dungeon:", "dungeon:7", "dungeon:0:0", "dungeon:0:9", "dungeon:6:39", "dungeon:0:100", "dungeon:0:1:2",
                      "event", "event:0", "event:-1", "event:2147483648"}) {
@@ -131,9 +137,6 @@ TEST_F(GamePadSingleDebug, DeveloperMenuChordUsesHostInputPastTheGameLockAndOnly
     GamePad__2.key_lock = 0;
 }
 
-extern NowLoadingInfo PortLoadInfo asm("NowLoad_LoadInfo");
-extern int PortProgBarCnt asm("NowLoad_ProgBarCnt");
-extern float PortProgBarWidthStep asm("NowLoad_ProgBarWidthStep");
 TEST(TestHooks, FastLoadingOnlyChangesTheLoadingBarCompletionRate) {
     PortLoadInfo.step_count = 15;
     GameSetFastLoad(false);
@@ -146,4 +149,3 @@ TEST(TestHooks, FastLoadingOnlyChangesTheLoadingBarCompletionRate) {
     EXPECT_FLOAT_EQ(PortProgBarWidthStep, 1.0f);
     GameSetFastLoad(false);
 }
-

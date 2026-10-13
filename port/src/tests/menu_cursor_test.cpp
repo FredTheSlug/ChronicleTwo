@@ -10,9 +10,9 @@
 TEST(MenuCursor, BothBandsKeepTheCursorTextureAndColor) {
     mgRENDER_INFO info{};
     sceVif1Packet packet{};
-    auto *saved_info = mgDrawManager.render_info;
-    auto *saved_packet = mgVif1Packet;
-    const int saved_width = mgScreenWidth, saved_height = mgScreenHeight;
+    auto         *saved_info = mgDrawManager.render_info;
+    auto         *saved_packet = mgVif1Packet;
+    const int     saved_width = mgScreenWidth, saved_height = mgScreenHeight;
     mgScreenWidth = 512;
     mgScreenHeight = 480;
     mgDrawManager.render_info = &info;
@@ -22,10 +22,16 @@ TEST(MenuCursor, BothBandsKeepTheCursorTextureAndColor) {
     });
     int horizontal = 0, vertical = 0;
     mgPortSetPrimSink([&](gfx::Primitive kind, std::span<const gfx::Vertex2D> vertices,
-                         const gfx::TextureBinding &binding, const gfx::DrawState &) {
-        if (vertices.empty()) return;
-        if (kind == gfx::Primitive::Quads) ++horizontal;
-        if (kind == gfx::Primitive::Triangles) ++vertical;
+                          const gfx::TextureBinding &binding, const gfx::DrawState &) {
+        if (vertices.empty()) {
+            return;
+        }
+        if (kind == gfx::Primitive::Quads) {
+            ++horizontal;
+        }
+        if (kind == gfx::Primitive::Triangles) {
+            ++vertical;
+        }
         EXPECT_EQ(binding.texture, 42u);
         for (const auto &vertex : vertices) {
             EXPECT_EQ(vertex.color[0], 90);

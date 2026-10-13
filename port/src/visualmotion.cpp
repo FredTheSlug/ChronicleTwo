@@ -6,8 +6,8 @@
 #include "visualmotion.hpp"
 
 PORT_OVERRIDE int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mgCVMotionData *motion,
-                                                        mgCMemory *memory, mgCMemory *work,
-                                                        mgCTextureManager *textures) {
+                                                          mgCMemory *memory, mgCMemory *work,
+                                                          mgCTextureManager *textures) {
     if (work == nullptr) {
         return 0;
     }

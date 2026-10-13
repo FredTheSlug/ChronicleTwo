@@ -14,16 +14,16 @@
 #include <string>
 #include <string_view>
 
-#include "ezbgm.hpp"
-#include "audio_init.hpp"
-#include "sound.hpp"
-#include "sound_port.hpp"
 #include "audio/mixer.hpp"
 #include "audio/stream.hpp"
+#include "audio_init.hpp"
+#include "dataread_port.hpp"
+#include "ezbgm.hpp"
 #include "platform/audio.hpp"
 #include "platform/paths.hpp"
 #include "platform/settings.hpp"
-#include "dataread_port.hpp"
+#include "sound.hpp"
+#include "sound_port.hpp"
 
 namespace fs = std::filesystem;
 

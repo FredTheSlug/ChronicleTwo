@@ -12,16 +12,16 @@
 
 namespace {
 
-bool g_tick_audio = false;
+bool         g_tick_audio = false;
 std::int64_t g_last_tick = 0;
-double g_fraction = 0.0;
-double g_span_fraction = 0.0;
-double g_tick_rate = 0.0;
+double       g_fraction = 0.0;
+double       g_span_fraction = 0.0;
+double       g_tick_rate = 0.0;
 std::int64_t g_span_start = 0;
 std::int64_t g_span_frames = 0;
 
 void RenderTicks() {
-    const auto tick = ClockTickCount();
+    const auto   tick = ClockTickCount();
     const double rate = ClockTickRate();
     if (rate != g_tick_rate || tick < g_last_tick) {
         g_span_start = tick < g_last_tick ? tick : g_last_tick;
@@ -34,8 +34,8 @@ void RenderTicks() {
     // Compute the cumulative budget before truncation, so fractional samples cannot lose a whole
     // sample through repeated addition. Keep the remainder when the tick rate changes.
     const double budget = g_span_fraction + static_cast<double>(tick - g_span_start) * mixer.Rate() / rate;
-    const auto total = static_cast<std::int64_t>(budget);
-    auto frames = total - g_span_frames;
+    const auto   total = static_cast<std::int64_t>(budget);
+    auto         frames = total - g_span_frames;
     g_span_frames = total;
     g_fraction = budget - static_cast<double>(total);
     std::array<float, 2048> samples;

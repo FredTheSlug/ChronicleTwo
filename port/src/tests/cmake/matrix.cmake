@@ -23,3 +23,8 @@ add_test(NAME Matrix.Runner
     COMMAND "${Python3_EXECUTABLE}" -m unittest discover
         -s "${CMAKE_SOURCE_DIR}/scripts/port" -p test_matrix.py)
 set_tests_properties(Matrix.Runner PROPERTIES TIMEOUT 10)
+
+add_test(NAME NativeUnitFixups
+    COMMAND "${Python3_EXECUTABLE}" -m unittest discover
+        -s "${CMAKE_SOURCE_DIR}/scripts/port" -p test_header_fixups.py)
+set_tests_properties(NativeUnitFixups PROPERTIES TIMEOUT 10)

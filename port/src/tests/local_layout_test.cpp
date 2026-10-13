@@ -3,8 +3,8 @@
 #include <cstddef>
 
 #include "gamedata.hpp"
-#include "outline.hpp"
 #include "local_layout_probes.hpp"
+#include "outline.hpp"
 
 TEST(LocalLayout, ItemCommandTargetFitsTheTypedWrite) {
     EXPECT_GE(LocalLayoutProbe::TargetSize(), sizeof(CItemUseTarget));

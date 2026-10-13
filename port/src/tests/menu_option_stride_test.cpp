@@ -14,11 +14,11 @@
 
 TEST(MenuOptionStride, MinimapChoicesUseTheirFullPointerWidth) {
     CMenuPosDataManage layout = {};
-    CMenuPosDataForm form = {};
+    CMenuPosDataForm   form = {};
     form.name = const_cast<char *>("Op_Switch");
     form.active = 1;
     MENUFORMPARTS_TYPE parts[OPTION_ITEM_MAX * OPTION_BUTTON_NUM] = {};
-    char names[OPTION_ITEM_MAX * OPTION_BUTTON_NUM][16] = {};
+    char               names[OPTION_ITEM_MAX * OPTION_BUTTON_NUM][16] = {};
     for (int row = 0; row < OPTION_ITEM_MAX; ++row) {
         for (int choice = 0; choice < OPTION_BUTTON_NUM; ++choice) {
             int index = row * OPTION_BUTTON_NUM + choice;
@@ -44,7 +44,7 @@ TEST(MenuOptionStride, MinimapChoicesUseTheirFullPointerWidth) {
     int blocks[] = {0, -1};
     for (int selected = 0; selected < OPTION_BUTTON_NUM; ++selected) {
         std::vector<u_long128> storage(4096);
-        mgCMemory memory;
+        mgCMemory              memory;
         memory.stSetBuffer(storage.data(), storage.size());
         memory.Alloc(4); // Leave the empty pack header before the menu's local allocations.
         config.map = selected;

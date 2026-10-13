@@ -1,11 +1,5 @@
 #include "common.h"
 
-#include "mg_texture.hpp"
-#include "mg_texture_port.hpp"
-#include "mglib.hpp"
-
-#include "gfx/tim2.hpp"
-
 #include <algorithm>
 #include <climits>
 #include <cstddef>
@@ -19,6 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include "gfx/tim2.hpp"
+#include "mg_texture.hpp"
+#include "mg_texture_port.hpp"
+#include "mglib.hpp"
+
 // The rendering seam is installed only once the mglib stream has landed its header.
 #if __has_include("mglib_port.hpp")
 #include "mglib_port.hpp"
@@ -31,7 +30,7 @@ static_assert(static_cast<uint32_t>(MG_TEXTURE_LEVEL_MAX) == gfx::tim2::kMaxLeve
 
 struct Entry {
     const mgCTextureManager *owner = nullptr;
-    const mgCTexture *atlas = nullptr;
+    const mgCTexture        *atlas = nullptr;
     uint32_t                 key = 0;
     gfx::TextureHandle       image = gfx::kNullTexture;
     gfx::TextureHandle       palette = gfx::kNullTexture;
@@ -398,13 +397,13 @@ void InstallSeam() {}
 } // namespace
 
 void MgTextureRegisterPaletteVariant(mgCTexture *variant, const mgCTexture *atlas) {
-    auto &registry = Registry();
+    auto      &registry = Registry();
     const auto base = registry.entries.find(atlas);
     if (variant == nullptr || variant == atlas || base == registry.entries.end()) {
         return;
     }
     const auto *owner = base->second.owner;
-    const auto atlas_key = base->second.key;
+    const auto  atlas_key = base->second.key;
     if (const auto found = registry.entries.find(variant); found != registry.entries.end()) {
         if (found->second.atlas == atlas && variant->tex0.CBP == found->second.key) {
             Resolve(variant, found->second, false);

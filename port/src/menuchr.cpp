@@ -1,8 +1,8 @@
+#include "menuchr.hpp"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#include "menuchr.hpp"
 
 namespace {
 

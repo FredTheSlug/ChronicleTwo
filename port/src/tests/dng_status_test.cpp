@@ -21,8 +21,8 @@
 namespace {
 struct HudBatch {
     std::vector<gfx::Vertex2D> vertices;
-    gfx::UiAnchor anchor;
-    gfx::TextureHandle texture;
+    gfx::UiAnchor              anchor;
+    gfx::TextureHandle         texture;
 };
 
 class HumanHudRig {
@@ -58,10 +58,15 @@ public:
             battle->GetNowAccessAbs(i)->now = 75.0f;
         }
         mgPortSetPrimSink([this](gfx::Primitive, std::span<const gfx::Vertex2D> vertices,
-                                const gfx::TextureBinding &binding, const gfx::DrawState &) {
-            batches.push_back({{vertices.begin(), vertices.end()}, gfx::CurrentUiAnchor(), binding.texture});
+                                 const gfx::TextureBinding &binding, const gfx::DrawState &) {
+            batches.push_back({
+                {vertices.begin(), vertices.end()},
+                gfx::CurrentUiAnchor(),
+                binding.texture
+            });
         });
     }
+
     ~HumanHudRig() {
         mgPortSetPrimSink({});
         mgPortSetTextureLookup(nullptr, nullptr);
@@ -77,27 +82,28 @@ public:
         mgScreenOffx = saved_offx;
         mgScreenOffy = saved_offy;
     }
+
     std::vector<HudBatch> batches;
-    DNG_BATTLE_AREA area{};
+    DNG_BATTLE_AREA       area{};
 
 private:
-    mgRENDER_INFO *saved_info = mgDrawManager.render_info;
-    sceVif1Packet *saved_packet = mgVif1Packet;
-    CScene *saved_scene = DngMainScene;
-    CUserDataManager *saved_user = DngUserData;
-    DNG_BATTLE_AREA *saved_area = BattleAreaScene;
-    mgCTexture *saved_texture = TEX_SystenFrame;
-    CBattleCharaInfo saved_battle = *GetBattleCharaInfo();
-    int saved_width = mgScreenWidth, saved_height = mgScreenHeight;
-    int saved_offx = mgScreenOffx, saved_offy = mgScreenOffy;
+    mgRENDER_INFO                                *saved_info = mgDrawManager.render_info;
+    sceVif1Packet                                *saved_packet = mgVif1Packet;
+    CScene                                       *saved_scene = DngMainScene;
+    CUserDataManager                             *saved_user = DngUserData;
+    DNG_BATTLE_AREA                              *saved_area = BattleAreaScene;
+    mgCTexture                                   *saved_texture = TEX_SystenFrame;
+    CBattleCharaInfo                              saved_battle = *GetBattleCharaInfo();
+    int                                           saved_width = mgScreenWidth, saved_height = mgScreenHeight;
+    int                                           saved_offx = mgScreenOffx, saved_offy = mgScreenOffy;
     std::unique_ptr<CScene, decltype(&std::free)> scene{
         static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free};
     std::unique_ptr<CUserDataManager, decltype(&std::free)> user{
         static_cast<CUserDataManager *>(std::calloc(1, sizeof(CUserDataManager))), &std::free};
     mgRENDER_INFO render_info{};
     sceVif1Packet packet{};
-    mgCTexture texture;
-    COMMON_GAGE hp{};
+    mgCTexture    texture;
+    COMMON_GAGE   hp{};
     CGameDataUsed equip[2]{};
     CGameDataUsed items[3]{};
 };
@@ -109,9 +115,10 @@ int AnchorX(const HudBatch &batch) {
         hi = std::max(hi, vertex.x);
     }
     const float centre = (lo + hi) * 0.5f;
-    return centre < batch.anchor.left_until ? -1 : centre >= batch.anchor.right_from ? 1 : 0;
+    return centre < batch.anchor.left_until ? -1 : centre >= batch.anchor.right_from ? 1
+                                                                                     : 0;
 }
-}
+} // namespace
 
 TEST(DngStatus, HumanPanelsKeepTheirOwnScreenSide) {
     HumanHudRig rig;
@@ -137,7 +144,7 @@ TEST(DngStatus, HumanPanelsKeepTheirOwnScreenSide) {
 }
 
 TEST(DngStatus, WarningIconsFollowTheirPanel) {
-    HumanHudRig rig;
+    HumanHudRig   rig;
     CWarningGage2 warning{};
     warning.layout = WARNING_GAGE_LAYOUT_MAIN;
     warning.time = 20;

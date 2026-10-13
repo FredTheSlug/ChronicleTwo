@@ -75,12 +75,12 @@ Row Resolution() {
         return std::format("{} x {}", c.window_width, c.window_height);
     };
     row.step = [](Config &c, int direction) {
-        auto sizes = ResolutionList(g_sizes, c.window_width, c.window_height);
+        auto       sizes = ResolutionList(g_sizes, c.window_width, c.window_height);
         const auto it = std::ranges::find_if(sizes, [&](auto s) {
             return s.width == c.window_width && s.height == c.window_height;
         });
-        const int index = it == sizes.end() ? 0 : static_cast<int>(it - sizes.begin());
-        auto next = sizes[(index + direction + sizes.size()) % sizes.size()];
+        const int  index = it == sizes.end() ? 0 : static_cast<int>(it - sizes.begin());
+        auto       next = sizes[(index + direction + sizes.size()) % sizes.size()];
         c.window_width = next.width;
         c.window_height = next.height;
     };

@@ -1,22 +1,23 @@
 #include "common.h"
 #include "mw_runtime.h"
-#include "dng_pickup_port.hpp"
-#include "dng_effect.hpp"
-#include "dng_main.hpp"
-#include "dng_object.hpp"
-#include "gfx/gfx.hpp"
-#include "mglib.hpp"
-#include "prespr.hpp"
 
 #include <cmath>
 #include <unordered_map>
 
+#include "dng_effect.hpp"
+#include "dng_main.hpp"
+#include "dng_object.hpp"
+#include "dng_pickup_port.hpp"
+#include "gfx/gfx.hpp"
+#include "mglib.hpp"
+#include "prespr.hpp"
+
 namespace {
 std::unordered_map<const void *, uint64_t> generations;
-uint64_t next_generation = 0;
+uint64_t                                   next_generation = 0;
 // Retail advances one shared glow phase for every active pickup draw, even coins.
 float glow_phase = 0.0f;
-}
+} // namespace
 
 void mgPortEmitPickup(const void *pickup) { generations[pickup] = ++next_generation; }
 
@@ -27,8 +28,11 @@ mgPortPickupScope::mgPortPickupScope(const void *pickup) {
     world_corners_ = previous.world_corners;
     teleport_distance_ = previous.teleport_distance;
     const auto found = generations.find(pickup);
-    if (found == generations.end()) gfx::SetInterp2D({});
-    else gfx::SetInterp2D({static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(pickup)), found->second, true, 200.0f});
+    if (found == generations.end()) {
+        gfx::SetInterp2D({});
+    } else {
+        gfx::SetInterp2D({static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(pickup)), found->second, true, 200.0f});
+    }
 }
 
 mgPortPickupScope::~mgPortPickupScope() {
@@ -36,9 +40,11 @@ mgPortPickupScope::~mgPortPickupScope() {
 }
 
 PORT_OVERRIDE void CPullItem::Draw(mgCTexture *texture) {
-    if (state == PULL_ITEM_STATE_FREE) return;
+    if (state == PULL_ITEM_STATE_FREE) {
+        return;
+    }
     mgPortPickupScope interpolation(this);
-    CPreSprite sprite;
+    CPreSprite        sprite;
     sprite.Initialize(nullptr, nullptr);
     sprite.AlphaBlend(glow ? MG_ALPHA_BLEND_ADD : MG_ALPHA_BLEND_NORMAL);
     sprite.AlphaBlendEnable(1);
@@ -56,12 +62,15 @@ PORT_OVERRIDE void CPullItem::Draw(mgCTexture *texture) {
 
     pos[3] = 1.0f;
     const int draw_u = tex_u + (anim_frame / 4) * 16;
-    float center[4];
+    float     center[4];
     sceVu0CopyVector(center, pos);
     center[1] += height / 2.0f;
     center[1] += bob_height * sinf(angle);
-    if (glow_phase > PI) glow_phase = 0.0f;
-    else glow_phase += PI / 15.0f;
+    if (glow_phase > PI) {
+        glow_phase = 0.0f;
+    } else {
+        glow_phase += PI / 15.0f;
+    }
     const float shadow_width = width + width * sinf(glow_phase);
     const float shadow_height = height + height * sinf(glow_phase);
     sceVu0CopyVector(draw_pos, center);
@@ -159,7 +168,9 @@ PORT_OVERRIDE void CPullItem::SetItem(float *position, float *new_velocity, int 
             pull_accel = 0.1f;
             glow = true;
             for (int i = 0; i < DNG_AFTER_WIRE_NUM; ++i) {
-                if (afterWire[i].mode) continue;
+                if (afterWire[i].mode) {
+                    continue;
+                }
                 afterWire[i].SetMode(true);
                 wire_index = i;
                 return;

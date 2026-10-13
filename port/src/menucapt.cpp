@@ -1,7 +1,10 @@
 #include "common.h"
 
-#include "menucapt.hpp"
+#include <algorithm>
+#include <cstdio>
+
 #include "dataread.hpp"
+#include "menucapt.hpp"
 #include "menucommon.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
@@ -12,21 +15,18 @@
 #include "snd_mngr.hpp"
 #include "sound.hpp"
 
-#include <algorithm>
-#include <cstdio>
-
 namespace {
-mgCMemory chapter_memory;
-mgCMemory sound_memory;
+mgCMemory          chapter_memory;
+mgCMemory          sound_memory;
 MENU_CHAPTER_INFO *chapter_info;
-mgCTexture *background;
-mgCTexture *logo;
-unsigned int sound_id;
-MenuChapterModeID mode;
-int sound_frames;
-int narration_frames;
-bool narration_finished;
-}
+mgCTexture        *background;
+mgCTexture        *logo;
+unsigned int       sound_id;
+MenuChapterModeID  mode;
+int                sound_frames;
+int                narration_frames;
+bool               narration_finished;
+} // namespace
 
 PORT_OVERRIDE void MenuChapterInit(mgCMemory *stack, int *tex_block, int open_type, int chapter) {
     static const char *voices[] = {"0060600.wav", "2070310.wav", "3060260.wav", "4020120.wav",
@@ -38,7 +38,7 @@ PORT_OVERRIDE void MenuChapterInit(mgCMemory *stack, int *tex_block, int open_ty
     char name[32];
     std::snprintf(name, sizeof(name), "chap%d.img", chapter);
     auto *image = chapter_memory.stGetTop();
-    int size = LoadFileMenu(name, image, MENU_FILE_LOAD_DIRECT);
+    int   size = LoadFileMenu(name, image, MENU_FILE_LOAD_DIRECT);
     if (size <= 0) {
         char fallback[] = "chap0.img";
         size = LoadFileMenu(fallback, image, MENU_FILE_LOAD_DIRECT);
@@ -75,7 +75,9 @@ PORT_OVERRIDE void MenuChapterInit(mgCMemory *stack, int *tex_block, int open_ty
 }
 
 PORT_OVERRIDE int MenuChapterKey() {
-    if (!chapter_info) return 0;
+    if (!chapter_info) {
+        return 0;
+    }
     const bool fade_done = MenuMainScene->fade.FadeCheck() != 0;
     if (mode == MENU_CHAPTER_MODE_FADE_IN && fade_done) {
         if (++sound_frames == 2) {
@@ -92,7 +94,9 @@ PORT_OVERRIDE int MenuChapterKey() {
         ++chapter_info->show_cnt;
         ++narration_frames;
         const int state = CSnd.StreamGetState(1);
-        if (state == SND_STREAM_STATE_END || narration_frames > 1500) narration_finished = true;
+        if (state == SND_STREAM_STATE_END || narration_frames > 1500) {
+            narration_finished = true;
+        }
         if (narration_finished && state == 0) {
             if (sound_frames == 0) {
                 CSnd.StreamStop(1);
@@ -100,7 +104,9 @@ PORT_OVERRIDE int MenuChapterKey() {
             }
             ++sound_frames;
         }
-        if (sound_frames == 36) sndSePlay(sound_id, 0, 0);
+        if (sound_frames == 36) {
+            sndSePlay(sound_id, 0, 0);
+        }
         if (chapter_info->show_cnt > 300 && sound_frames >= 346) {
             MenuMainScene->fade.FadeOut(60, 0, 0, 0);
             mode = MENU_CHAPTER_MODE_FADE_OUT;
@@ -112,7 +118,9 @@ PORT_OVERRIDE int MenuChapterKey() {
 }
 
 PORT_OVERRIDE void MenuChapterDraw() {
-    if (!chapter_info) return;
+    if (!chapter_info) {
+        return;
+    }
     mgTexManager.ReloadTexture(chapter_info->tex_block[0], static_cast<sceVif1Packet *>(nullptr));
     DrawMenuFillBox(128, 0, 0, 0);
     mgCDrawPrim prim;

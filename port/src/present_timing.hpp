@@ -8,9 +8,14 @@
 class PresentPacer {
 public:
     using Clock = std::chrono::steady_clock;
-    enum class Action { Tick, Wait, Display };
+    enum class Action {
+        Tick,
+        Wait,
+        Display
+    };
+
     struct Decision {
-        Action action;
+        Action            action;
         Clock::time_point deadline;
     };
 

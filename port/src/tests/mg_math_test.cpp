@@ -99,12 +99,17 @@ TEST(MgMath, ZeroVectorAcceptsFloatAlignedMembersAndPreservesNeighbors) {
         float before;
         float vector[4];
         float after;
-    } storage{17.0f, {1.0f, -2.0f, 3.0f, -4.0f}, 23.0f};
+    } storage{
+        17.0f, {1.0f, -2.0f, 3.0f, -4.0f},
+         23.0f
+    };
 
     mgZeroVector(storage.vector);
 
     expect_lanes(storage.vector, {0, 0, 0, 0});
-    for (float lane : storage.vector) EXPECT_FALSE(std::signbit(lane));
+    for (float lane : storage.vector) {
+        EXPECT_FALSE(std::signbit(lane));
+    }
     EXPECT_FLOAT_EQ(storage.before, 17.0f);
     EXPECT_FLOAT_EQ(storage.after, 23.0f);
 }

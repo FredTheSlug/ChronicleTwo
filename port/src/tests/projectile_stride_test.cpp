@@ -6,8 +6,8 @@
 
 TEST(ProjectileStride, RocketInitializationVisitsEveryHostObject) {
     CRocketLauncherMan manager = {};
-    mgCFrame model;
-    mgCTexture texture;
+    mgCFrame           model;
+    mgCTexture         texture;
     manager.Initialize(&model, 37, &texture);
     for (const auto &rocket : manager.rocket) {
         EXPECT_EQ(rocket.state, SHOT_STATE_FREE);
@@ -20,8 +20,8 @@ TEST(ProjectileStride, RocketInitializationVisitsEveryHostObject) {
 
 TEST(ProjectileStride, LaserInitializationVisitsEveryHostObject) {
     CLaserGunMan manager = {};
-    mgCFrame model;
-    mgCTexture texture;
+    mgCFrame     model;
+    mgCTexture   texture;
     manager.Initialize(&model, 41, &texture);
     for (const auto &laser : manager.laser) {
         EXPECT_EQ(laser.state, SHOT_STATE_FREE);

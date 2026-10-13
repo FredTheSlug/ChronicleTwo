@@ -18,24 +18,26 @@ struct GaugeEmission {
     uint64_t life = 0;
     uint64_t content = 0;
     uint64_t rage = 0;
-    int hp = 0, max_hp = 0, screen = 0;
-    char brackets = 0, label = 0;
+    int      hp = 0, max_hp = 0, screen = 0;
+    char     brackets = 0, label = 0;
 };
+
 struct TargetEmission {
     CActiveMonster *target = nullptr;
-    int slot = -1;
-    uint64_t life = 0, generation = 0;
-    bool locked = false;
-    std::string name;
+    int             slot = -1;
+    uint64_t        life = 0, generation = 0;
+    bool            locked = false;
+    std::string     name;
 };
+
 std::unordered_map<CEnemyLifeGage *, GaugeEmission> gauges;
-std::unordered_map<CLockOnModel *, TargetEmission> targets;
-uint64_t next_generation = 0;
+std::unordered_map<CLockOnModel *, TargetEmission>  targets;
+uint64_t                                            next_generation = 0;
 
 gfx::Interp2D Tag(const void *identity, uint64_t generation) {
     return {static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(identity)), generation};
 }
-}
+} // namespace
 
 void mgPortHideTarget(CLockOnModel *lock) {
     auto &state = targets[lock];
@@ -44,7 +46,7 @@ void mgPortHideTarget(CLockOnModel *lock) {
 }
 
 void mgPortTrackTarget(CLockOnModel *lock, CActiveMonster *target, int slot, bool locked) {
-    auto &state = targets[lock];
+    auto      &state = targets[lock];
     const auto life = gauges[&target->life_gage].life;
     if (state.target != target || state.slot != slot || state.life != life || state.locked != locked ||
         state.name != target->tbl->name) {
@@ -107,7 +109,9 @@ PORT_OVERRIDE void CLockOnModel::Initialize(CScene *new_scene) {
 }
 
 PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
-    if (scale <= 0 || (max_hp == 0 && hp == 0)) return;
+    if (scale <= 0 || (max_hp == 0 && hp == 0)) {
+        return;
+    }
     if (screen != 0) {
         CPreSprite prim;
         prim.Initialize(nullptr, nullptr);
@@ -118,7 +122,9 @@ PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
         int y = mgScreenHeight - 44;
         prim.Color(128, 128, 128, 128);
         prim.SetIRect(16, y, 34, 34, 210, 146);
-        for (int i = 0; i < 15; ++i) prim.SetIRect(50 + i * 10, y, 10, 34, 244, 146);
+        for (int i = 0; i < 15; ++i) {
+            prim.SetIRect(50 + i * 10, y, 10, 34, 244, 146);
+        }
         prim.SetIRect(200, y, 34, 34, 254, 146);
         prim.End();
         prim.Initialize(nullptr, nullptr);
@@ -128,7 +134,7 @@ PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
         prim.Shading(1);
         prim.Begin(MG_PRIM_TRIANGLE_STRIP);
         float hp_width = 170.0f * (static_cast<float>(hp) / max_hp);
-        int width = static_cast<int>(hp_width * scale);
+        int   width = static_cast<int>(hp_width * scale);
         y = mgScreenHeight - 39;
         prim.Color(255, 96, 0, 128);
         prim.Vertex(48, y + 12, 0);
@@ -144,12 +150,16 @@ PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
     }
 
     int position[4];
-    if (!mgTransWorldScreen(position, pos)) return;
+    if (!mgTransWorldScreen(position, pos)) {
+        return;
+    }
     position[0] /= 16;
     position[1] /= 16;
     position[1] -= 24;
-    if (position[1] < 89) position[1] = 88;
-    int half_width = static_cast<int>(34.0f * scale);
+    if (position[1] < 89) {
+        position[1] = 88;
+    }
+    int   half_width = static_cast<int>(34.0f * scale);
     auto &emission = gauges[this];
     // A new HP value is discrete game information; never blend its fill with the old value.
     if (emission.hp != hp || emission.max_hp != max_hp || emission.screen != screen) {
@@ -221,7 +231,9 @@ PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
 }
 
 PORT_OVERRIDE void CLockOnModel::DrawMess(int tex_block) {
-    if (!name) return;
+    if (!name) {
+        return;
+    }
     if (!mes->MakeAnd3DPosSet(name, pos, 0, -48)) {
         mes->draw_speed = mes->GetDrawSpeedDef();
         mes->mes_no = -1;

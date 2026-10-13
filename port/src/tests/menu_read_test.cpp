@@ -24,11 +24,11 @@ TEST(MenuRead, ReadsEveryHostPointerAndAlignsEachFile) {
     DataReadIndex(root);
     LanguageCode = 1;
     std::vector<u_long128> storage(512);
-    mgCMemory memory;
+    mgCMemory              memory;
     memory.stSetBuffer(storage.data(), storage.size());
     auto *base = reinterpret_cast<char *>(memory.stGetTop());
-    char first_name[] = "first.bin";
-    char second_name[] = "second.bin";
+    char  first_name[] = "first.bin";
+    char  second_name[] = "second.bin";
     char *names[] = {first_name, second_name, nullptr};
 
     EXPECT_EQ(MenuCommonReadData(&memory, names, MENU_FILE_LOAD_DIRECT), 50);

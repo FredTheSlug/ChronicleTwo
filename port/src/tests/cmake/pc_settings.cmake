@@ -7,6 +7,6 @@ if(Python3_EXECUTABLE)
                 --exe $<TARGET_FILE:darkchronicle>
                 --work "${CMAKE_BINARY_DIR}/pc-settings-replays" --case "${case}")
         set_tests_properties(PcSettingsReplay.${case} PROPERTIES
-            SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE LABELS replay)
+            SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE LABELS "replay;gpu")
     endforeach()
 endif()

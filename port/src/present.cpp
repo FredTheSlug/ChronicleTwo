@@ -7,6 +7,7 @@
 #include <thread>
 #include <utility>
 
+#include "camera_fixed.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
 #include "menu_mouse.hpp"
@@ -83,6 +84,18 @@ void NotePresented() {
     }
 }
 
+double DisplaySeconds(bool intermediate = false) {
+    if (ClockUnbounded()) {
+        const int displays = intermediate ? std::max(1, settings.display_per_tick) : 1;
+        return std::max(1, wait_frames) / ClockTickRate() / displays;
+    }
+    static Clock::time_point before = Clock::now();
+    const auto               now = Clock::now();
+    const double             seconds = std::chrono::duration<double>(now - before).count();
+    before = now;
+    return seconds;
+}
+
 bool DisplayFrame(float alpha, bool present) {
     const gfx::DisplayList *list = mgPortLastList();
 
@@ -95,7 +108,7 @@ bool DisplayFrame(float alpha, bool present) {
     options.present = present;
     options.overlay = present ? DisplayOverlayList() : nullptr;
     options.suppressed_2d_key = present && MenuMousePointerVisible() ? kMenuMouseHandKey : 0;
-    const bool shown = gfx::RenderList(*list, alpha, options);
+    const bool shown = MouseFixedRender(*list, alpha, options, DisplaySeconds(!present));
 
     if (shown) {
         ++stats.display_frames;
@@ -110,14 +123,17 @@ bool DisplayFrame(float alpha, bool present) {
 
 bool PresentCanonicalFrame() {
     const gfx::DisplayList *overlay_list = DisplayOverlayList();
-    bool shown = false;
+    const double            seconds = ClockUnbounded() && settings.display_per_tick > 0 ? 0 : DisplaySeconds();
+    const bool              fixed = MouseFixedActive(seconds);
+    const bool              pointer = MenuMousePointerVisible();
+    bool                    shown = false;
 
-    if (MenuMousePointerVisible()) {
+    if (fixed || pointer) {
         gfx::RenderOptions options;
         options.present = true;
         options.overlay = overlay_list;
-        options.suppressed_2d_key = kMenuMouseHandKey;
-        shown = pacer.Present([&] { return gfx::RenderList(*mgPortLastList(), 1.0f, options); }, Clock::now);
+        options.suppressed_2d_key = pointer ? kMenuMouseHandKey : 0;
+        shown = pacer.Present([&] { return MouseFixedRender(*mgPortLastList(), 1, options, 0); }, Clock::now);
     } else if (overlay_list != nullptr) {
         gfx::RenderOptions options;
         options.present = true;
@@ -146,7 +162,7 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
 
     PollFpsToggle();
 
-    if (!settings.interpolation && !MenuMouseActive()) {
+    if (!settings.interpolation && !MenuMouseActive() && !TownMouseFixedOwner()) {
         if (!tick_shown) {
             PresentCanonicalFrame();
             tick_shown = true;
@@ -165,7 +181,7 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
     }
 
     // A game frame spans mgFrameRate ticks, so alpha is the fraction of the game frame elapsed, not of the tick.
-    const float alpha = PresentFrameAlpha(static_cast<double>(ClockTickCount() - wait_start), fraction, wait_frames);
+    const float alpha = settings.interpolation ? PresentFrameAlpha(static_cast<double>(ClockTickCount() - wait_start), fraction, wait_frames) : 1.0f;
 
     if (!pacer.Present([&] { return DisplayFrame(alpha, true); }, Clock::now)) {
         return false;
@@ -268,6 +284,11 @@ bool PresentScreenshotDisplay(float alpha, std::vector<uint8_t> &rgba, uint32_t 
 
     // Interpolation off presents the canonical image once per tick; alpha must not blend it with the previous tick.
     if (!settings.interpolation) {
+        if (MouseFixedActive(0)) {
+            gfx::RenderOptions options;
+            options.present = true;
+            return MouseFixedRender(*list, 1, options, 0) && gfx::ReadbackFrame(rgba, width, height);
+        }
         return gfx::PresentCanonical() && gfx::ReadbackFrame(rgba, width, height);
     }
 
@@ -279,7 +300,7 @@ bool PresentScreenshotDisplay(float alpha, std::vector<uint8_t> &rgba, uint32_t 
     options.previous = previous;
     options.present = true;
 
-    return gfx::RenderList(*list, alpha, options) && gfx::ReadbackFrame(rgba, width, height);
+    return MouseFixedRender(*list, alpha, options, 0) && gfx::ReadbackFrame(rgba, width, height);
 }
 
 bool PresentScreenshotFps(std::vector<uint8_t> &rgba, uint32_t &width, uint32_t &height) {

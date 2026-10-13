@@ -1,0 +1,195 @@
+#include <gtest/gtest.h>
+#include "camera_fixed.hpp"
+#include "cameracontrol.hpp"
+#include "scenesnd.hpp"
+#include "gfx/displaylist.hpp"
+#include "platform/config.hpp"
+#include "options/rows.hpp"
+#include "editloop.hpp"
+#include "editctrl.hpp"
+#include "mainloop.hpp"
+
+#include <cmath>
+#include <algorithm>
+#include <numbers>
+
+TEST(CameraFixedMouse, BoundsDecayAndDisplayRateIndependence) {
+    FixedMouseLook look;
+    look.Update(true, 1, 100, -100, 0);
+    EXPECT_NEAR(look.yaw, 15 * std::numbers::pi_v<float> / 180, 1e-6f);
+    EXPECT_NEAR(look.pitch, -10 * std::numbers::pi_v<float> / 180, 1e-6f);
+    auto fast = look, slow = look;
+    for (int frame = 0; frame < 144; ++frame) fast.Update(true, 1, 100, -100, 1.0 / 144);
+    for (int frame = 0; frame < 25; ++frame) slow.Update(true, 1, 100, -100, 1.0 / 25);
+    EXPECT_NEAR(fast.yaw, slow.yaw, 1e-6f);
+    EXPECT_NEAR(fast.pitch, slow.pitch, 1e-6f);
+    EXPECT_GT(slow.yaw, 0);
+    EXPECT_LT(slow.yaw, look.yaw * 0.02f);
+    for (int frame = 0; frame < 4 * 144; ++frame) fast.Update(true, 1, 100, -100, 1.0 / 144);
+    EXPECT_FALSE(fast.Active());
+    // Smaller display steps visibly ease even without another pad read.
+    look.Update(true, 1, 100, -100, 1.0 / 144);
+    EXPECT_LT(look.yaw, 15 * std::numbers::pi_v<float> / 180);
+}
+
+TEST(CameraFixedMouse, RejectedOwnersDropMotionAndInvalidSamplesDoNotPoisonTheView) {
+    FixedMouseLook look;
+    look.Update(false, 1, 1, 1, 0);
+    look.Update(true, 1, 1, 1, 0);
+    EXPECT_FALSE(look.Active());
+    look.Update(true, 2, 0.2f, 0.1f, 0);
+    EXPECT_TRUE(look.Active());
+    look.Update(true, 3, NAN, INFINITY, NAN);
+    EXPECT_FLOAT_EQ(look.yaw, 0.1f);
+    EXPECT_FLOAT_EQ(look.pitch, 0.05f);
+    look.Update(false, 4, 1, 1, 0);
+    EXPECT_FALSE(look.Active());
+    look.Update(true, 4, 1, 1, 0);
+    EXPECT_FALSE(look.Active());
+}
+
+TEST(CameraFixedMouse, OwnershipExcludesEventsMenusControllableCamerasAndDisabledSetting) {
+    CScene scene;
+    CCameraControl camera;
+    CPadControl pad{};
+    camera.ControlOff();
+    scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+    scene.active_camera = 0;
+    EXPECT_TRUE(TownMouseFixedOwns(&camera, &scene, &pad, true, true, false, true));
+    EXPECT_FALSE(TownMouseFixedOwns(&camera, &scene, &pad, false, true, false, true));
+    EXPECT_FALSE(TownMouseFixedOwns(&camera, &scene, &pad, true, false, false, true));
+    EXPECT_FALSE(TownMouseFixedOwns(&camera, &scene, &pad, true, true, true, true));
+    EXPECT_FALSE(TownMouseFixedOwns(&camera, &scene, &pad, true, true, false, false));
+    scene.event_run = 1;
+    EXPECT_FALSE(TownMouseFixedOwns(&camera, &scene, &pad, true, true, false, true));
+    scene.event_run = 0;
+    camera.ControlOn();
+    EXPECT_FALSE(TownMouseFixedOwns(&camera, &scene, &pad, true, true, false, true));
+    camera.ControlOff();
+    camera.suspended = 1;
+    EXPECT_FALSE(TownMouseFixedOwns(&camera, &scene, &pad, true, true, false, true));
+}
+
+TEST(CameraFixedMouse, OptionDefaultsOnAndRoundTripsThroughItsSettingsRow) {
+    EXPECT_TRUE(ConfigParse("{}").mouse_fixed_look);
+    auto config = ConfigParse(R"({"input":{"mouse_fixed_look":false}})");
+    EXPECT_FALSE(config.mouse_fixed_look);
+    EXPECT_EQ(ConfigParse(ConfigSerialize(config)), config);
+    bool found = false;
+    for (const auto &page : options::Pages()) for (const auto &row : page.rows) {
+        if (row.key != "input.mouse_fixed_look") continue;
+        found = true;
+        EXPECT_STREQ(page.name, "Controls");
+        EXPECT_TRUE(options::StepRow(row, config, 1));
+        EXPECT_TRUE(config.mouse_fixed_look);
+    }
+    EXPECT_TRUE(found);
+}
+
+TEST(CameraFixedMouse, DisplayRotationKeepsEyePositionGameplayListUiAndOtherViewsUnchanged) {
+    gfx::DisplayList source, turned;
+    auto identity = gfx::IdentityMeshTransform();
+    gfx::detail::Mat4 view;
+    std::copy_n(identity.view, 16, view.data());
+    view[12] = -10; view[13] = -20; view[14] = -30;
+    source.cameras = {view, gfx::detail::Mat4{}};
+    source.doomed_textures.push_back(123);
+    gfx::detail::MeshRecord record;
+    record.has_transform = true;
+    std::copy_n(identity.projection, 16, record.projection.data());
+    std::copy_n(identity.middle, 16, record.middle.data());
+    std::copy_n(identity.model, 16, record.model.data());
+    std::copy_n(identity.local, 16, record.local.data());
+    record.entry = 0;
+    source.records.push_back(record);
+    gfx::detail::MeshEntry mesh;
+    mesh.record = 0;
+    mesh.prog0 = 0;
+    source.entries.push_back(mesh);
+    gfx::Prog0Constants block;
+    std::copy(view.begin(), view.end(), block.clip_or_view);
+    source.prog0_blocks.push_back(block);
+    gfx::detail::Draw2DEntry ui;
+    ui.vertices.resize(1);
+    ui.vertices[0].x = 123;
+    source.entries.push_back(ui);
+    MouseFixedDisplayList(source, turned, 0.2f, 0.1f);
+    gfx::detail::Mat4 place;
+    ASSERT_TRUE(gfx::detail::InvertAffine(turned.cameras[0], place));
+    EXPECT_NEAR(place[12], 10, 1e-5);
+    EXPECT_NEAR(place[13], 20, 1e-5);
+    EXPECT_NEAR(place[14], 30, 1e-5);
+    EXPECT_EQ(source.cameras[0], view);
+    EXPECT_EQ(source.cameras[1], turned.cameras[1]);
+    EXPECT_TRUE(turned.doomed_textures.empty());
+    EXPECT_FLOAT_EQ(std::get<gfx::detail::Draw2DEntry>(turned.entries[1]).vertices[0].x, 123);
+    EXPECT_NE(std::get<gfx::detail::MeshEntry>(turned.entries[0]).constants.mvp[0], mesh.constants.mvp[0]);
+    EXPECT_NEAR(turned.prog0_blocks[0].clip_or_view[0], turned.cameras[0][0], 1e-6);
+    MouseFixedDisplayList(source, turned, 0, 0);
+    EXPECT_EQ(turned.cameras, source.cameras);
+    EXPECT_FLOAT_EQ(std::get<gfx::detail::MeshEntry>(turned.entries[0]).constants.mvp[0], mesh.constants.mvp[0]);
+}
+
+extern int PortLoopNo asm("MainLoop_LoopNo");
+extern int PortEditFixedCamera asm("EditCtrl_FixedCamera");
+extern int PortTownLoopMode asm("EditLoop_Mode");
+extern int PortTownControlMode asm("EditLoop_Control");
+extern int PortTownLockChara asm("EditLoop_PlayerLock");
+extern int PortTownPause asm("EditLoop_Pause");
+extern int PortEditLadderMode asm("EditCtrl_LadderMode");
+extern EditViewMode PortEditViewMode asm("EditCtrl_ViewMode");
+
+TEST(CameraFixedMouse, RetailTownModesGateBothPointAndPathCameras) {
+    CScene &scene = *GetMainScene();
+    const auto old_slot = *scene.GetSceneCamera(0);
+    const int old_active = scene.active_camera;
+    const int old_event = scene.event_run;
+    const auto old_view = PortEditViewMode;
+    const auto old_key = GamePad__2.key_lock;
+    const auto old_debug = DebugInfo.debug_camera;
+    const bool old_option = ConfigGet().mouse_fixed_look;
+    int *flags[] = {&PortLoopNo, &PortEditFixedCamera, &PortTownLoopMode, &PortTownControlMode,
+                   &PortTownLockChara, &PortTownPause, &PortEditLadderMode};
+    int saved[7];
+    for (int i = 0; i < 7; ++i) saved[i] = *flags[i];
+    CCameraControl camera;
+    camera.ControlOff();
+    scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+    auto reset = [&] {
+        PortLoopNo = LOOP_EDIT;
+        PortEditFixedCamera = 1;
+        PortTownLoopMode = EDIT_LOOP_WALK;
+        PortTownControlMode = EDIT_CONTROL_PLAYER;
+        PortTownLockChara = PortTownPause = PortEditLadderMode = 0;
+        PortEditViewMode = EDIT_VIEW_MODE_WALK;
+        scene.active_camera = scene.event_run = 0;
+        GamePad__2.key_lock = DebugInfo.debug_camera = 0;
+        const_cast<Config &>(ConfigGet()).mouse_fixed_look = true;
+        camera.ControlOff();
+    };
+    reset();
+    EXPECT_EQ(TownMouseFixedOwner(), &camera);
+    PortEditFixedCamera = 2;
+    EXPECT_EQ(TownMouseFixedOwner(), &camera);
+    for (int other = 0; other < 9; ++other) {
+        reset();
+        if (other == 0) PortTownLoopMode = EDIT_LOOP_WALK_MENU;
+        if (other == 1) PortTownControlMode = EDIT_CONTROL_EVENT;
+        if (other == 2) PortTownPause = 1;
+        if (other == 3) PortTownLockChara = 1;
+        if (other == 4) PortEditViewMode = EDIT_VIEW_MODE_PHOTO;
+        if (other == 5) PortEditLadderMode = EDIT_LADDER_MODE_BOTTOM;
+        if (other == 6) camera.ControlOn();
+        if (other == 7) const_cast<Config &>(ConfigGet()).mouse_fixed_look = false;
+        if (other == 8) scene.event_run = 1;
+        EXPECT_EQ(TownMouseFixedOwner(), nullptr) << other;
+    }
+    *scene.GetSceneCamera(0) = old_slot;
+    scene.active_camera = old_active;
+    scene.event_run = old_event;
+    PortEditViewMode = old_view;
+    GamePad__2.key_lock = old_key;
+    DebugInfo.debug_camera = old_debug;
+    const_cast<Config &>(ConfigGet()).mouse_fixed_look = old_option;
+    for (int i = 0; i < 7; ++i) *flags[i] = saved[i];
+}

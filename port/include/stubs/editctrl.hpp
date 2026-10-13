@@ -4,6 +4,7 @@
 
 // Give the native caller access to the retail eye state and static control
 // helpers, using the same linkage seam as the main-loop port stubs.
+extern int          FixCameraFlag asm("EditCtrl_FixedCamera");
 extern int          LadderMode asm("EditCtrl_LadderMode");
 extern EditViewMode ViewMode asm("EditCtrl_ViewMode");
 extern float        viewAngleH asm("EditCtrl_EyeHeading");

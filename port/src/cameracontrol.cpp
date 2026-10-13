@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include "camera_control_port.hpp"
+#include "first_person_walk.hpp"
 
 #define CAMERA_CONTROL_USE_RETAIL_ASSIGNMENT
 #include "cameracontrol.hpp"
@@ -179,10 +180,10 @@ PORT_OVERRIDE void CCameraControl::Step(int frames) {
         return;
     }
     consumed_eye_read = look.read;
+    DungeonFirstPersonWalk(*this);
     if (!DungeonMouseCameraOwns(this, DngMainScene, &PadCtrl, DngStatus, BattleAreaScene,
                                 MainChara__2, SubGameRunning(), GamePad__2.key_lock,
-                                DebugInfo.debug_camera != 0, true) ||
-        NowTakePhoto()) {
+                                DebugInfo.debug_camera != 0, true)) {
         return;
     }
     // InitEyeCamera first disables follow, then the next gameplay update places

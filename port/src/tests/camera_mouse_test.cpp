@@ -11,8 +11,10 @@
 #include "mainloop_port.hpp"
 #include "map.hpp"
 #include "padcontrol.hpp"
+#include "photo.hpp"
 #include "platform/input.hpp"
 #include "scenesnd.hpp"
+#include "stubs/photo.hpp"
 
 namespace {
 CCameraControl Camera() {
@@ -412,7 +414,11 @@ TEST(CameraMouse, DungeonOwnershipKeepsAuthoredModesButAllowsPlayerActions) {
     EXPECT_FALSE(eye_owns());
 }
 
-TEST(CameraMouse, DungeonEyeLookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
+class DungeonEyeMouse : public testing::TestWithParam<bool> {};
+
+TEST_P(DungeonEyeMouse, LookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
+    const unsigned old_photo = TakePhotoMode;
+    TakePhotoMode = GetParam() ? TAKE_PHOTO_AIM : TAKE_PHOTO_OFF;
     const int   old_loop = PortLoopNo;
     auto       *old_scene = DngMainScene;
     auto       *old_area = BattleAreaScene;
@@ -488,7 +494,10 @@ TEST(CameraMouse, DungeonEyeLookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
     DngStatus = old_status;
     viewAngleH__2 = old_yaw;
     viewAngleV__2 = old_pitch;
+    TakePhotoMode = old_photo;
 }
+
+INSTANTIATE_TEST_SUITE_P(EyeAndPhoto, DungeonEyeMouse, testing::Bool());
 
 TEST(CameraMouse, EyeLimitsPreserveControllerOvershootAndInvalidSamples) {
     auto  camera = Camera();

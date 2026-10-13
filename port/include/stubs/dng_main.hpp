@@ -4,3 +4,5 @@
 #define MainBuffer MainBuffer__2
 #define BuffWorkData BuffWorkData__2
 #define EventCamera EventCamera__2
+
+extern int DebugPause asm("DngMain_DebugPause");

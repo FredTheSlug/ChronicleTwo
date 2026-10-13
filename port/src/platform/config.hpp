@@ -23,6 +23,7 @@ struct Config : HostSettings {
     ConfigAspect aspect = ConfigAspect::Auto;
     float        ui_scale = 1.0f;
     bool         font_sharp = false;
+    bool         mouse_fixed_look = true;
 
     bool operator==(const Config &) const = default;
 };

@@ -4,11 +4,16 @@
 #include "editctrl_port.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
+#include "photo.hpp"
 #include "platform/input.hpp"
+#include "stubs/photo.hpp"
 
-void TownMouseEyeAfterControl(CScene *, CPadControl *);
+class TownEyeMouse : public testing::TestWithParam<bool> {};
 
-TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion) {
+TEST_P(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion) {
+    const bool     photo = GetParam();
+    const unsigned old_photo = TakePhotoMode;
+    TakePhotoMode = photo ? TAKE_PHOTO_AIM : TAKE_PHOTO_OFF;
     const int   old_loop = PortLoopNo;
     const auto  old_mode = PortEditViewMode;
     const float old_heading = PortEditEyeHeading, old_tilt = PortEditEyeTilt;
@@ -28,7 +33,7 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
     scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
     scene.active_camera = 0;
     PortLoopNo = LOOP_EDIT;
-    PortEditViewMode = EDIT_VIEW_MODE_EYE;
+    PortEditViewMode = photo ? EDIT_VIEW_MODE_PHOTO : EDIT_VIEW_MODE_EYE;
     PortEditLadderMode = EDIT_LADDER_MODE_NONE;
     PortEditEyeHeading = PortEditEyeTilt = 0;
     DebugInfo.debug_camera = GamePad__2.key_lock = 0;
@@ -49,7 +54,10 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
     EXPECT_FLOAT_EQ(PortEditEyeHeading, heading);
     for (int owner = 0; owner < 10; ++owner) {
         PortEditViewMode = owner == 0 ? EDIT_VIEW_MODE_WALK : owner == 1 ? EDIT_VIEW_MODE_PHOTO
-                                                                         : EDIT_VIEW_MODE_EYE;
+                                                                         : (photo ? EDIT_VIEW_MODE_PHOTO : EDIT_VIEW_MODE_EYE);
+        if (owner == 1) {
+            TakePhotoMode = TAKE_PHOTO_OFF;
+        }
         scene.event_run = owner == 2;
         GamePad__2.key_lock = owner == 3;
         DebugInfo.debug_camera = owner == 4;
@@ -59,7 +67,8 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
         camera.follow_on = owner == 8;
         InputLatchPad(0);
         TownMouseEyeAfterControl(&scene, owner == 9 ? nullptr : &pad);
-        PortEditViewMode = EDIT_VIEW_MODE_EYE;
+        TakePhotoMode = photo ? TAKE_PHOTO_AIM : TAKE_PHOTO_OFF;
+        PortEditViewMode = photo ? EDIT_VIEW_MODE_PHOTO : EDIT_VIEW_MODE_EYE;
         scene.event_run = GamePad__2.key_lock = DebugInfo.debug_camera = 0;
         camera.suspended = camera.follow_on = scene.active_camera = 0;
         PortEditLadderMode = EDIT_LADDER_MODE_NONE;
@@ -79,4 +88,7 @@ TEST(TownEyeMouse, NativeStateAndBothLookTargetsTurnOnceAndDropOtherOwnersMotion
     GamePad__2.key_lock = old_lock;
     DebugInfo.debug_camera = old_debug;
     PortEditLadderMode = old_ladder;
+    TakePhotoMode = old_photo;
 }
+
+INSTANTIATE_TEST_SUITE_P(EyeAndPhoto, TownEyeMouse, testing::Bool());

@@ -9,3 +9,11 @@ extern float        PortEditEyeTilt asm("EditCtrl_EyeTilt");
 void                PortEditLadderControl(CScene *, CPadControl *);
 void                PortEditCharaControl(CScene *, CPadControl *);
 void                PortEditCameraControl(CScene *, CPadControl *);
+
+extern int PortEditFixedCamera asm("EditCtrl_FixedCamera");
+extern int PortTownLoopMode asm("EditLoop_Mode");
+extern int PortTownControlMode asm("EditLoop_Control");
+extern int PortTownLockChara asm("EditLoop_PlayerLock");
+extern int PortTownPause asm("EditLoop_Pause");
+
+void TownMouseEyeAfterControl(CScene *, CPadControl *);

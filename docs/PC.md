@@ -466,7 +466,7 @@ same follow controls.
 lifts a rock in Mt. Gundor using R1 and Cross, then turns the mouse camera while
 carrying it (capture at frame 2374).
 
-In towns and dungeons, R2 first-person view also accepts direct mouse yaw and pitch. The
+In towns and dungeons, R2 first-person view also accepts direct mouse yaw and pitch. Max's photo view in towns and dungeons uses the same mouse aiming and retail pitch limits. Photo aiming has the retail constant turn scale at every zoom level; the right stick retains photo zoom. The
 eye stays at the retail character position, pitch stays within the retail
 `-1.0` to `0.65` radian limits, and controller look retains its existing behavior.
 The port camera step applies a sample only after the retail eye pose is placed;
@@ -513,6 +513,24 @@ active-slot placement (1100), active-slot moves (1300), and return after a drop
 outside the menu (1550). `item-menu-mouse-dungeon.input` reaches the dungeon's
 Item page and opens Bread's commands by frame 2850. These two scripts also use
 1280x720; scale `mouse:dx,dy` counts with the window dimensions for other sizes.
+
+### Fixed camera mouse look
+
+`input.mouse_fixed_look` defaults to `true` and appears as **Fixed camera mouse look**
+in PC SETTINGS > Controls. In town rooms whose map supplies a fixed point/path
+camera, mouse motion adds a gentle view rotation, limited to 15 degrees horizontally
+and 10 degrees vertically. The view eases back exponentially when the mouse rests;
+the decay advances on every displayed frame, including with interpolation disabled.
+The camera stays at its retail position, and character movement uses the unchanged
+retail camera. Events, dialogue, menus, pause, ladders, Georama, debug cameras and
+user-controllable cameras keep their own view. Turning the option off drops the offset.
+
+An untouched mouse takes the original rendering path. The offset changes only display
+renders; gameplay, scene culling, canonical captures and depth queries retain retail's
+view. `tools/input/town-mouse-fixed.input`, with `--jump town:31 --fast-load`, reaches
+Morton's Sundries directly. Use `--display-per-tick 4 --screenshot-display 2` and inspect
+the `-display-*.png` captures at frame 609 for motion and 900 for return. The companion
+canonical PNG remains the retail view even during mouse motion.
 
 ### Mouse wheel zoom
 
@@ -1070,3 +1088,9 @@ After any edit to `ps2/`, run `./build.sh ps2-pal`, then `BUILD_DIR=build/pal py
 `scripts/port/matrix.py` compares logical-frame PSNR across resolutions, plain and `--display-per-tick 4` identity, and letterbox geometry. Below-35 dB PSNR is advisory unless `--psnr-gate` is supplied; run failures, display-per-tick pixel differences and letterbox failures are hard failures. There are no HUD probe claims.
 
 Each fresh run explicitly disables debug in its config and removes `DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` from the launch environment. It records the exact process exit status, duration, binary/input hashes, launch config hash, saved config hash, frame count, window, aspect, data path and display-per-tick mode in `result.json`. `--no-run` requires matching identities and retains a failed or timed-out status even when a PNG exists. Changing extracted data in place is outside this provenance check; use the same verified extraction for comparisons. `Matrix.Title` and `Matrix.Costume` carry `matrix;gpu` labels. `Matrix.Runner` checks the runner synthetically without game data or a device.
+
+Keyboard movement in normal first-person view (R by default) is always enabled:
+W/S move forward/back and A/D strafe relative to the view, including remapped
+movement keys and normalized diagonals. Movement uses the normal character
+collision and speed rules. Controller sticks retain retail first-person look.
+Photo aiming, fishing, Ridepod, menus and scripted control keep their own controls.

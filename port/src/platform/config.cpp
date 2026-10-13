@@ -401,6 +401,10 @@ bool ConfigSave() {
     std::filesystem::create_directories(path.parent_path(), error);
     Json root = Json::object();
     if (std::filesystem::exists(path, error)) {
+        // A directory opens as a stream on Linux and only fails when parsed.
+        if (!std::filesystem::is_regular_file(path, error)) {
+            return g_saved = false;
+        }
         std::ifstream file(path, std::ios::binary);
         if (!file) return g_saved = false;
         root = Json::parse(file, nullptr, false, true);

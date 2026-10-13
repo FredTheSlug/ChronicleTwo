@@ -17,3 +17,21 @@ For reproducible measurements:
 5. Use multiple trials and report median and spread. Record host load and distinguish process/container startup from compilation or rendering.
 
 The [headless timing contract](headless-replays.md) explains mixer ownership. Unit timing and screenshot identity qualify their tested paths; they do not measure complete campaign behavior or interactive camera coverage.
+
+## Windows launcher measurements
+
+Measured on the working Windows checkout on 2026-10-14 with PowerShell 7.6.5, CMake 4.4, Ninja 1.13.2, llvm-mingw 20260922, Rust 1.99.0 and Corrosion 0.6.1. The configuration was `windows-x64` (Debug), `CT_DEBUG_OPT=OFF`, with 12 compile jobs. Timings below start inside PowerShell and exclude shell/process startup. Other work was active on the host, so these are diagnostic observations rather than an isolated benchmark or a before/after speedup claim.
+
+| Work | Observed time | Work performed |
+| --- | ---: | --- |
+| First catch-up build | 128.6 s | 493 scheduled steps, including Rust GUI dependencies, generated units and C++ compilation |
+| Settled direct builds | 2.54 s, 2.26 s | Cargo freshness check, Rust archive comparison/copy, runtime DLL comparison; no C++ compile or relink |
+| Cached launcher build | 2.6 s | Dependency/cache checks plus the same settled build |
+| `build.bat windows-x64` | 3.1 s | Same settled build through the public entry point |
+| Controlled source timestamp update | 4.7 s | `identity.cpp` recompile and executable relink; a concurrent `mainloop.cpp` edit also rebuilt |
+
+The first observation used the existing build tree; it was not a clean build. A separate configure catch-up took about 4.8 s. CMake's initial scheduled-step count can shrink after unchanged generated outputs are checked; it does not mean every listed unit will compile.
+
+Ninja's log attributes about 1.0 s to the settled Cargo command and 0.9 s to Corrosion's subsequent comparison/copy of a 239 MiB static archive. Runtime DLL comparisons take about 0.6 s and overlap Cargo. Cargo reports 0.5–0.8 s internally. These checks retain Cargo dependency discovery and restoration of missing runtime DLLs. The measured settled cost does not justify bypassing them. No compile-job or optimization changes were made from these observations.
+
+The launcher streams native stdout and stderr to the console and `build.log`, and prints the build duration and exit status. A delayed native fixture verifies that both streams arrive before completion, that more than 65 lines survive in the log, and that exits 0 and 23 propagate. The native process stays in PowerShell's foreground pipeline; interactive Ctrl+C was not exercised by the automated checks. PowerShell 7.0/7.1's redirected-stderr compatibility path is included, but execution was verified with 7.6.5. Release, clean-build and first-run dependency-download timings were not measured.

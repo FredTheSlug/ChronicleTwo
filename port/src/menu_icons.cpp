@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include <array>
+#include <cstdio>
 #include <cstring>
 
 #include "gamedata.hpp"
@@ -10,6 +11,26 @@
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "userdata.hpp"
+
+PORT_OVERRIDE void CMenuPosDataManage::MallocPallet(mgCMemory *) {
+    // Native atlases are RGBA. Build the retail icon colour modes from their pixels;
+    // neither a PS2 CLUT nor a bytewise copy of a registered texture is usable here.
+    constexpr MgTextureColorMode modes[] = {MgTextureColorMode::IconHighlight,
+        MgTextureColorMode::Grey, MgTextureColorMode::Sepia};
+    for (int sheet = 0; sheet < 2; ++sheet) {
+        for (int mode = 0; mode < 3; ++mode) {
+            pallet[mode][sheet] = nullptr;
+            char name[32];
+            std::snprintf(name, sizeof name, "menu_icon_%d_%d", sheet, mode);
+            item_icon_tex[mode + 1][sheet] = MgTextureCreateColorVariant(item_icon_tex[0][sheet], name, modes[mode]);
+        }
+    }
+}
+
+PORT_OVERRIDE void CMenuPosDataManage::SearchTransPalletNo() {
+    // Transparency is carried by each RGBA pixel; there is no palette index to find.
+    trans_pallet_no[0] = trans_pallet_no[1] = 0;
+}
 
 PORT_OVERRIDE mgCTexture *GetMenuItemIconTexInfo(int item_no, int mode) {
     PortIconSheet = -1;
@@ -30,9 +51,6 @@ PORT_OVERRIDE mgCTexture *GetMenuItemIconTexInfo(int item_no, int mode) {
     GetMenuItemIconTexGetXY(item_no, source);
     PortIconUV[PortIconSheet] = {static_cast<short>(source.left), static_cast<short>(source.top),
                                  static_cast<short>(source.right), static_cast<short>(source.bottom)};
-    if (mode != 0) {
-        MgTextureRegisterPaletteVariant(texture, MenuPosData->item_icon_tex[0][PortIconSheet]);
-    }
     return texture;
 }
 
@@ -63,21 +81,15 @@ PORT_OVERRIDE int CopyActiveIconTexture(mgCTexture **textures, int chara_no, u_i
     for (int sheet = 0; sheet < 2; ++sheet) {
         mgCTexture       *dest = textures[sheet];
         const mgCTexture *source = sheets[sheet];
-        if (dest == nullptr || source == nullptr || dest->image[0] == nullptr || dest->clut == nullptr ||
-            source->image[0] == nullptr || source->clut == nullptr || dest->bpp != 8 || source->bpp != 8) {
+        if (dest == nullptr || source == nullptr || dest->image[0] == nullptr ||
+            source->image[0] == nullptr || dest->bpp != 32 || source->bpp != 32) {
             continue;
-        }
-        std::memcpy(dest->clut, source->clut, 1024);
-        const auto *palette = reinterpret_cast<const u8 *>(dest->clut);
-        u8          transparent = 0;
-        for (int index = 0; index < 256; ++index) {
-            if (palette[index * 4 + 3] == 0) {
-                transparent = static_cast<u8>(index);
-                break;
-            }
         }
         auto       *pixels = reinterpret_cast<u8 *>(dest->image[0]);
         const auto *atlas = reinterpret_cast<const u8 *>(source->image[0]);
+        bool        changed_cpu_pixels = false;
+        const bool  enlarged = MgTexturePhysicalExtent(source).width > (1u << source->tex0.TW) ||
+                               MgTexturePhysicalExtent(dest).width > (1u << dest->tex0.TW);
         for (int slot = 0; slot < counts[sheet]; ++slot) {
             const int x = (slot % 2) * 32, y = (slot / 2) * 32;
             if (x + 32 > dest->width || y + 32 > dest->height) {
@@ -87,17 +99,23 @@ PORT_OVERRIDE int CopyActiveIconTexture(mgCTexture **textures, int chara_no, u_i
             const int  icon = item > 0 ? GetItemIconNo(item) : -1;
             const int  src_x = (icon % 8) * 32, src_y = (icon / 8) * 32;
             const bool valid = icon >= 0 && src_x + 32 <= source->width && src_y + 32 <= source->height;
+            if (enlarged && MgTextureCopyRegion(valid ? source : nullptr, src_x, src_y, dest, x, y, 32, 32)) {
+                continue;
+            }
+            changed_cpu_pixels = true;
             for (int row = 0; row < 32; ++row) {
-                u8 *out = pixels + (y + row) * dest->width + x;
+                u8 *out = pixels + ((y + row) * dest->width + x) * 4;
                 if (valid) {
-                    std::memcpy(out, atlas + (src_y + row) * source->width + src_x, 32);
+                    std::memcpy(out, atlas + ((src_y + row) * source->width + src_x) * 4, 32 * 4);
                 } else {
-                    std::memset(out, transparent, 32);
+                    std::memset(out, 0, 32 * 4);
                 }
             }
         }
-        // Both images and CLUTs changed in place: a pointer-only cache cannot see the copy.
-        MgTexturePixelsChanged(dest);
+        // The baked RGBA destination changed in place; refresh the renderer's uploaded pixels.
+        if (changed_cpu_pixels) {
+            MgTexturePixelsChanged(dest);
+        }
     }
     return 1;
 }

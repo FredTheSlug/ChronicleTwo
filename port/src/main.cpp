@@ -65,16 +65,16 @@ Options g_options;
 
 [[noreturn]] void Usage(const char *program) {
     std::fprintf(stderr,
-                 "usage: %s [--data DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n"
+                 "usage: %s [--data DIR] [--run-dir DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n"
                  "          [--frames N] [--screenshot PATH] [--input SCRIPT] [--display-per-tick N]\n"
                  "          [--show-fps] [--log-fps] [--screenshot-display N] [--screenshot-fps]\n"
                  "  --jump MODE[:ARG]  start in town:<map>, dungeon:<n>[:<floor>], event:<id>, title, opening, menu (DC2_JUMP)\n"
                  "  --fast-load        shorten loading-screen holds (DC2_FAST_LOAD=1)\n"
                  "  --give ITEM,...    give missing items and weapons on arrival (DC2_GIVE)\n"
-                 "  --data DIR         the extracted game data (default: DC2_DATA, then ./data, then data/ beside\n"
-                 "                     the executable)\n"
-                 "  --save DIR         saves and the pipeline cache (default: DC2_SAVE, then ./save, then save/\n"
-                 "                     beside the executable)\n"
+                 "  --run-dir DIR      game root containing data/, port_data/ and saves/\n"
+                 "                     (default: the per-user chronicletwo app data directory)\n"
+                 "  --data DIR         override the extracted data/ subdirectory (DC2_DATA)\n"
+                 "  --save DIR         override the saves/ subdirectory (DC2_SAVE)\n"
                  "  --headless         render offscreen (SDL offscreen driver, VK_EXT_headless_surface)\n"
                  "  --offscreen        --headless without a Vulkan surface: render to an image only\n"
                  "  --frames N         exit after frame N of the game's main loop (N a positive integer)\n"

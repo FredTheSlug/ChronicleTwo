@@ -11,7 +11,7 @@ endif()
 set(DATA "${WORK}/data")
 file(REMOVE_RECURSE "${WORK}")
 file(MAKE_DIRECTORY "${DATA}")
-file(TOUCH "${DATA}/manifest.txt")
+file(WRITE "${DATA}/manifest.json" "{\"schema_version\":1,\"files\":{}}")
 
 function(run_headless name)
     set(save "${WORK}/${name}-save")

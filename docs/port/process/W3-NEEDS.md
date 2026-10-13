@@ -20,7 +20,7 @@
 
 ## uptr / W2.u
 - s/uptr lands at W2.u before W3 integration; W3 streams rebase onto it (CreatePacket return types become uptr in ps2/include + one-token port/src follow-ups).
-- Kazarov tools/kazarov/port/tests/gfx_validation_test.cpp: unused `kLayerMissing` warning on Windows (movies-base file) — fix (-Wall clean rule).
+- Kazarov tools/kazarov/src/cpp/tests/gfx_validation_test.cpp: unused `kLayerMissing` warning on Windows (movies-base file) — fix (-Wall clean rule).
 
 ## prog0 (finished; worktrees ChronicleTwo-prog0 s/prog0, Kazarov-prog0 kz/prog0)
 - s/prog0 carries COPIES of present-core (8a97575 84de7d1 d537867 023a274) and draw2d (6fad5a4 56a311e[CMake part] cb9e212 031f24b 1309723) commits; kz/prog0 carries a copy of draw2d's a27ddbe as 092b706. Merge present-core and draw2d first, then: `git rebase --onto port/pc 0fec622 s/prog0` and `git rebase --onto main 092b706 kz/prog0` (drops the copies). Mine: 8c01e89 (pin), e3c4a19 (prog0 CPU model test-oracle only), 0fa3d0e (MDT visuals as GPU meshes); Kazarov 7d51f2f (prog0 constants split: MeshConstants back to 400 B; DC2 prog0 block at set 2 via gfx::DrawMeshProg0/DrawMeshImmediateProg0; bone palette 32 model-space affine matrices recorded per draw).

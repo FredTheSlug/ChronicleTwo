@@ -22,6 +22,7 @@
 #include "menu_mouse.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_math.hpp"
+#include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
@@ -63,6 +64,7 @@ struct RenderTargetEntry {
     int height;
     int psm;
     bool frame_target;
+    float texture_scale = 1.0f; /**< Physical canvas texels per retail texture texel. */
 };
 
 bool ready = false;
@@ -380,6 +382,34 @@ bool InclusiveLogicalRect(const mgRect<int> &rect, gfx::Rect &out) {
     return true;
 }
 
+/**
+ * Finds the texel scale of a converted texture image or its animation target.
+ */
+float TextureScale(gfx::TextureHandle handle) {
+    for (const auto &[key, target] : render_targets) {
+        if (target.handle == handle) return target.texture_scale;
+    }
+    return MgTextureImageScale(handle);
+}
+
+/**
+ * Maps a retail texture rectangle onto its physical canvas.
+ */
+gfx::Rect ScaleRectangle(gfx::Rect rect, float scale) {
+    return {static_cast<int>(rect.x * scale), static_cast<int>(rect.y * scale),
+            static_cast<int>(rect.w * scale), static_cast<int>(rect.h * scale)};
+}
+
+/**
+ * Applies the current animation target's physical scale to the draw scissor.
+ */
+gfx::DrawState TargetDrawState(gfx::DrawState state) {
+    const float scale = TextureScale(current_target);
+    auto &rect = state.scissor_rect;
+    rect = {rect.x * scale, rect.y * scale, rect.w * scale, rect.h * scale};
+    return state;
+}
+
 void CopyRectangle(gfx::TextureHandle src, const mgRect<int> &rect, gfx::TextureHandle dst, int dst_x, int dst_y) {
     if (src == gfx::kNullTexture || dst == gfx::kNullTexture) {
         return;
@@ -387,7 +417,11 @@ void CopyRectangle(gfx::TextureHandle src, const mgRect<int> &rect, gfx::Texture
 
     gfx::Rect source;
     if (InclusiveLogicalRect(rect, source)) {
-        gfx::CopyTexture(src, source, dst, dst_x >> 4, dst_y >> 4);
+        const float src_scale = TextureScale(src);
+        const float dst_scale = TextureScale(dst);
+        const gfx::Rect destination{dst_x >> 4, dst_y >> 4, source.w, source.h};
+        gfx::BlitTexture(src, ScaleRectangle(source, src_scale), dst,
+                         ScaleRectangle(destination, dst_scale), gfx::Filter::Nearest);
     }
 }
 
@@ -454,8 +488,8 @@ void StretchInto(gfx::TextureHandle src, const mgRect<int> &src_rect, const sceG
     };
 
     if (dst != gfx::kNullTexture && !is_empty(src_rect) && !is_empty(dst_rect)) {
-        const gfx::Rect from = to_rect(src_rect);
-        const gfx::Rect to = to_rect(dst_rect);
+        const gfx::Rect from = ScaleRectangle(to_rect(src_rect), TextureScale(src));
+        const gfx::Rect to = ScaleRectangle(to_rect(dst_rect), TextureScale(dst));
         gfx::BlitTexture(src, from, dst, to, gfx::Filter::Linear);
     }
 
@@ -530,7 +564,10 @@ mgPortProjection mgPortCurrentProjection() {
 }
 
 void mgPortEyeToClip(const mgPortProjection &projection, gfx::TextureHandle target, float out[16]) {
-    const gfx::LogicalMapping mapping = gfx::GetLogicalMapping(target);
+    gfx::LogicalMapping mapping = gfx::GetLogicalMapping(target);
+    const float scale = TextureScale(target);
+    mapping.scale_x *= scale;
+    mapping.scale_y *= scale;
 
     if (!(projection.eye > 0.0f) || !(projection.far_z > projection.near_z) || mapping.pixel_width == 0 ||
         mapping.pixel_height == 0) {
@@ -596,7 +633,9 @@ mgPortExtent mgPortVisibleExtent(gfx::TextureHandle target) {
         const gfx::LogicalRect rect = gfx::VisibleLogicalRect(target);
 
         if (rect.w > 0.0f && rect.h > 0.0f) {
-            return ExtentOf(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
+            const float scale = TextureScale(target);
+            return ExtentOf(rect.x / scale, rect.y / scale, (rect.x + rect.w) / scale,
+                            (rect.y + rect.h) / scale);
         }
     }
 
@@ -782,20 +821,10 @@ gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1) {
     return BindingFor(GrabFrameIfSampled(mgPortFindTexture(tex0)), tex0, tex1);
 }
 
-void CopyPalette(gfx::TextureHandle src, gfx::TextureHandle dst) {
-    if (src == gfx::kNullTexture || dst == gfx::kNullTexture) {
-        return;
+void mgPortAdoptColorVariant(const mgCTexture *src, mgCTexture *dst) {
+    if (src != nullptr && dst != nullptr) {
+        MgTextureSelectVariant(dst, MgTexturePaletteSource(src));
     }
-
-    gfx::CopyTexture(src, gfx::Rect{0, 0, 256, 1}, dst, 0, 0);
-}
-
-void mgPortCopyPalette(const mgCTexture *src, const mgCTexture *dst) {
-    CopyPalette(mgPortFindTexture(src).palette, mgPortFindTexture(dst).palette);
-}
-
-void mgPortCopyPalette(uint64_t src_tex0, uint64_t dst_tex0) {
-    CopyPalette(mgPortFindTexture(src_tex0).palette, mgPortFindTexture(dst_tex0).palette);
 }
 
 // Render targets
@@ -814,6 +843,10 @@ gfx::TextureHandle mgPortSnapshotFrame() {
 
 gfx::TextureHandle mgPortCurrentTarget() {
     return current_target;
+}
+
+float mgPortTextureScale(gfx::TextureHandle texture) {
+    return TextureScale(texture);
 }
 
 gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int psm, bool frame_target) {
@@ -845,8 +878,13 @@ gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture, bool frame_targ
 
     const uint32_t tbp0 = static_cast<uint32_t>(texture->tex0.TBP0);
     texture_targets[texture] = tbp0;
-    return mgPortRenderTarget(tbp0, texture->width, texture->height, static_cast<int>(texture->tex0.PSM),
-                              frame_target);
+    const auto physical = MgTexturePhysicalExtent(texture);
+    const float scale = static_cast<float>(physical.width) / (1u << texture->tex0.TW);
+    const int width = !frame_target && scale > 1 ? physical.width : texture->width;
+    const int height = !frame_target && scale > 1 ? physical.height : texture->height;
+    const auto handle = mgPortRenderTarget(tbp0, width, height, static_cast<int>(texture->tex0.PSM), frame_target);
+    render_targets[tbp0].texture_scale = frame_target ? 1.0f : scale;
+    return handle;
 }
 
 void mgPortReleaseTextureTarget(uint32_t tbp0) {
@@ -867,7 +905,36 @@ void mgPortDraw2D(gfx::Primitive primitive, std::span<const gfx::Vertex2D> verti
         return;
     }
 
-    gfx::Draw2D(primitive, vertices, texture, state, presentation);
+    const float source_scale = TextureScale(texture.texture);
+    const float target_scale = TextureScale(current_target);
+    if (source_scale == 1.0f && target_scale == 1.0f) {
+        gfx::Draw2D(primitive, vertices, texture, state, presentation);
+        return;
+    }
+    std::vector<gfx::Vertex2D> scaled(vertices.begin(), vertices.end());
+    for (auto &vertex : scaled) {
+        vertex.x *= target_scale;
+        vertex.y *= target_scale;
+        vertex.u *= source_scale;
+        vertex.v *= source_scale;
+    }
+    gfx::DrawState scaled_state = state;
+    scaled_state.scissor_rect = {state.scissor_rect.x * target_scale, state.scissor_rect.y * target_scale,
+                                  state.scissor_rect.w * target_scale, state.scissor_rect.h * target_scale};
+    std::vector<gfx::Vertex2D> presentation_vertices;
+    gfx::Presentation2D scaled_presentation;
+    if (presentation) {
+        presentation_vertices.assign(presentation->vertices.begin(), presentation->vertices.end());
+        for (auto &vertex : presentation_vertices) {
+            vertex.x *= target_scale; vertex.y *= target_scale;
+            vertex.u *= source_scale; vertex.v *= source_scale;
+        }
+        scaled_presentation.vertices = presentation_vertices;
+        scaled_presentation.state = presentation->state;
+        auto &rect = scaled_presentation.state.scissor_rect;
+        rect = {rect.x * target_scale, rect.y * target_scale, rect.w * target_scale, rect.h * target_scale};
+    }
+    gfx::Draw2D(primitive, scaled, texture, scaled_state, presentation ? &scaled_presentation : nullptr);
 }
 
 void mgPortDrawMesh(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
@@ -877,7 +944,7 @@ void mgPortDrawMesh(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_c
         return;
     }
 
-    gfx::DrawMesh(mesh, first_index, index_count, constants, texture, state, transform);
+    gfx::DrawMesh(mesh, first_index, index_count, constants, texture, TargetDrawState(state), transform);
 }
 
 void mgPortDrawMeshImmediate(std::span<const gfx::Vertex3D> vertices, std::span<const uint32_t> indices,
@@ -887,7 +954,7 @@ void mgPortDrawMeshImmediate(std::span<const gfx::Vertex3D> vertices, std::span<
         return;
     }
 
-    gfx::DrawMeshImmediate(vertices, indices, constants, texture, state, transform);
+    gfx::DrawMeshImmediate(vertices, indices, constants, texture, TargetDrawState(state), transform);
 }
 
 void mgPortDrawMeshProg0(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
@@ -898,7 +965,7 @@ void mgPortDrawMeshProg0(gfx::MeshHandle mesh, uint32_t first_index, uint32_t in
         return;
     }
 
-    gfx::DrawMeshProg0(mesh, first_index, index_count, constants, prog0, texture, state, transform);
+    gfx::DrawMeshProg0(mesh, first_index, index_count, constants, prog0, texture, TargetDrawState(state), transform);
 }
 
 void mgPortDrawMeshImmediateProg0(std::span<const gfx::Vertex3D> vertices, std::span<const uint32_t> indices,
@@ -909,7 +976,7 @@ void mgPortDrawMeshImmediateProg0(std::span<const gfx::Vertex3D> vertices, std::
         return;
     }
 
-    gfx::DrawMeshImmediateProg0(vertices, indices, constants, prog0, texture, state, transform);
+    gfx::DrawMeshImmediateProg0(vertices, indices, constants, prog0, texture, TargetDrawState(state), transform);
 }
 
 int mgPortVuProg() {
@@ -1397,7 +1464,8 @@ gfx::TextureHandle RegisteredFrameTarget(const mgCTexture *texture) {
     const auto record = registered_targets.find(texture);
 
     if (record == registered_targets.end() || record->second.seeded_from != image) {
-        const gfx::Rect whole{0, 0, texture->width, texture->height};
+        const int scale = MgTexturePhysicalExtent(texture).width / (1u << texture->tex0.TW);
+        const gfx::Rect whole{0, 0, texture->width * scale, texture->height * scale};
         gfx::BlitTexture(image, whole, target, whole, gfx::Filter::Nearest);
         registered_targets[texture] = RegisteredTarget{static_cast<uint32_t>(texture->tex0.TBP0), image};
     }
@@ -1649,17 +1717,26 @@ PORT_OVERRIDE int mgStoreImage(mgCTexture *texture, u_long128 *buffer) {
     std::vector<uint8_t> rgba;
     uint32_t src_width = 0;
     uint32_t src_height = 0;
+    const auto source = mgPortFindTexture(texture).texture;
     const bool has_source = bytes > 0 &&
-                            mgPortReadColor(mgPortFindTexture(texture).texture, rgba, src_width, src_height) &&
+                            mgPortReadColor(source, rgba, src_width, src_height) &&
                             src_width > 0 && src_height > 0 &&
                             rgba.size() >= static_cast<size_t>(src_width) * src_height * 4;
 
     if (has_source) {
+        uint32_t content_width = src_width;
+        uint32_t content_height = src_height;
+        const auto info = gfx::GetTextureInfo(source);
+        const float scale = TextureScale(source);
+        if (info && scale > 1.0f) {
+            content_width = static_cast<uint32_t>(width * scale * src_width / info->width);
+            content_height = static_cast<uint32_t>(height * scale * src_height / info->height);
+        }
         for (int y = 0; y < height; ++y) {
-            const uint32_t sy = (2u * y + 1) * src_height / (2u * height);
+            const uint32_t sy = (2u * y + 1) * content_height / (2u * height);
 
             for (int x = 0; x < width; ++x) {
-                const uint32_t sx = (2u * x + 1) * src_width / (2u * width);
+                const uint32_t sx = (2u * x + 1) * content_width / (2u * width);
                 const uint8_t *pixel = &rgba[(static_cast<size_t>(sy) * src_width + sx) * 4];
                 WriteTexel(out + (static_cast<size_t>(y) * width + x) * bytes_per_texel, psm, pixel);
             }

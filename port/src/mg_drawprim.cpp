@@ -16,6 +16,7 @@
 
 #include "mg_drawprim.hpp"
 #include "mg_drawprim_port.hpp"
+#include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 
@@ -155,15 +156,34 @@ void AssembleSprite(const mgCDrawPrim &self, PrimRun &run, const gfx::Vertex2D &
     float bu = b.u;
     float av = a.v;
     float bv = b.v;
+    const float target_scale = mgPortTextureScale(mgPortCurrentTarget());
+    const auto physical = MgTexturePhysicalExtent(self.texture.tex0_bits);
+    const auto logical = MgTextureLogicalExtent(self.texture.tex0_bits);
+    const float source_scale = static_cast<float>(physical.width) / logical.width;
 
-    if (self.prim.TME != 0 && self.prim.FST != 0 && mgPortFilter(self.texture.tex1_bits) == gfx::Filter::Nearest) {
-        std::tie(au, bu) = mgPortSpriteTexelSpan(a.x, b.x, a.u, b.u);
-        std::tie(av, bv) = mgPortSpriteTexelSpan(a.y, b.y, a.v, b.v);
+    if (self.prim.TME != 0 && self.prim.FST != 0 && mgPortFilter(self.texture.tex1_bits) == gfx::Filter::Linear) {
+        // The GS evaluates UV at integer pixel positions. Vulkan's pixel centres
+        // are half a physical destination pixel later: compensate by the sprite's UV slope,
+        // including stretched and flipped sprites. Texture sampling itself still
+        // applies the usual half-texel bilinear footprint; that is a separate shift.
+        const float du = b.x != a.x ? 0.5f * (b.u - a.u) / ((b.x - a.x) * target_scale) : 0.0f;
+        const float dv = b.y != a.y ? 0.5f * (b.v - a.v) / ((b.y - a.y) * target_scale) : 0.0f;
+        au -= du;
+        bu -= du;
+        av -= dv;
+        bv -= dv;
+    } else if (self.prim.TME != 0 && self.prim.FST != 0 && mgPortFilter(self.texture.tex1_bits) == gfx::Filter::Nearest) {
+        std::tie(au, bu) = mgPortSpriteTexelSpan(a.x * target_scale, b.x * target_scale,
+                                               a.u * source_scale, b.u * source_scale);
+        std::tie(av, bv) = mgPortSpriteTexelSpan(a.y * target_scale, b.y * target_scale,
+                                               a.v * source_scale, b.v * source_scale);
         // The GPU can interpolate a hair under an exact texel boundary, where the GS takes the texel after it.
         au += kMgPortNearestTexelBias;
         bu += kMgPortNearestTexelBias;
         av += kMgPortNearestTexelBias;
         bv += kMgPortNearestTexelBias;
+        au /= source_scale; bu /= source_scale;
+        av /= source_scale; bv /= source_scale;
     }
 
     const gfx::Vertex2D quad[4] = {
@@ -460,6 +480,7 @@ PORT_OVERRIDE void mgCDrawPrim::Direct(unsigned long long reg, unsigned long lon
 
 PORT_OVERRIDE void mgCDrawPrim::Texture(mgCTexture *source) {
     FlushPending(this);
+    source = MgTextureDrawVariant(source);
 
     if (source == NULL) {
         return;

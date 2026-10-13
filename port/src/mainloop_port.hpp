@@ -19,3 +19,9 @@ extern CSubGameData *PortSubGameSaveData asm("MainLoop_SubGameSaveData");
 extern u_long128     PortSystemSeBuff[400] asm("MainLoop_SystemSeBuff");
 extern u_long128     PortInfoBuff[5000] asm("MainLoop_InfoBuff");
 void                 PortInitPadTable(int language) asm("MainLoop_InitPadTable");
+
+class CScene;
+/**
+ * Saves town edits and releases the active town's event, sub-game and audio state.
+ */
+void PreExitLoop(CScene *scene);

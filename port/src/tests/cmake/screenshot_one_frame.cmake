@@ -1,7 +1,7 @@
 set(one_frame_script ${CMAKE_CURRENT_BINARY_DIR}/screenshot_one_frame.cmake)
 file(WRITE ${one_frame_script} [=[
 file(MAKE_DIRECTORY "${ROOT}/data" "${ROOT}/save")
-file(TOUCH "${ROOT}/data/manifest.txt")
+file(WRITE "${ROOT}/data/manifest.json" "{\"schema_version\":1,\"files\":{}}")
 file(WRITE "${ROOT}/save/config.json" "{\"video\":{\"interpolation\":false}}")
 file(REMOVE "${ROOT}/frame.png" "${ROOT}/frame-display-0.png" "${ROOT}/frame-display-1.png")
 execute_process(COMMAND "${EXE}" --headless --offscreen --data "${ROOT}/data" --save "${ROOT}/save"

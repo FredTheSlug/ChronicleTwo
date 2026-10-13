@@ -17,7 +17,7 @@ Boot code: `port/src/debug_mode.cpp` (`DebugModeBoot`), called from `port/src/ma
 
 Hold L1, L2, R1 and R2 on pad 1, then press R3. This toggles `DebugFlag`, the same switch as pad 2 Circle. It needs `debug_mode` true and `MasterDebugCode == MASTER_DEBUG_CODE`. It works while pad 2 is locked.
 
-Keyboard (Kazarov `tools/kazarov/port/platform/input.cpp`, pad 1 bindings): L1 `Z`, L2 `Q`, R1 `F` or `X`, R2 `R`, R3 `B`. `Mouse3` also feeds R3, but it is also bound to `zoom_reset`.
+Keyboard (Kazarov `tools/kazarov/src/cpp/platform/input.cpp`, pad 1 bindings): L1 `Z`, L2 `Q`, R1 `F` or `X`, R2 `R`, R3 `B`. `Mouse3` also feeds R3, but it is also bound to `zoom_reset`.
 
 `DebugFlag` starts off on ordinary boots. A `--jump` enables it for that run. Turn it on with the chord or with pad 2 Circle. The pad-1 controls below need it on.
 
@@ -42,6 +42,30 @@ lock. Loading between modes finishes first. The chord acts once per press;
 release both buttons before using it again. While frame-paused, modified Start
 captures instead. The existing four-shoulder/R3 toggle remains available.
 
+## Start+Select transition
+
+The native main loop checks the host chord in the gameplay loop and the blocking
+pause loop. Start may open the pause overlay before Select arrives; checking only
+outside that overlay leaves the chord unreachable until the game resumes.
+The frame-pause loop also checks the chord, except while modified Start is being
+used for frame capture. The latch re-arms only after both buttons are released.
+
+Before switching to the developer menu, the port restores paused audio through
+`PauseEnd` and performs the active mode's cleanup. Town uses `PreExitLoop` to save
+edits and release event, background-read, sub-game and audio state. Dungeon runs
+its exit state through `LoopDungeonMain`; its `FinishDungeonMain` callback alone
+does not perform that cleanup. Title runs its Start+Select exit branch so an
+active attract movie is terminated. The menu destination is selected after this
+cleanup, and the normal `LoopExit` callback still runs.
+
+Regression replays `tools/input/debug-start-first.input` and
+`tools/input/debug-select-first.input` press the two buttons six frames apart.
+Run either with `--jump town:10 --fast-load --frames 420 --screenshot menu.png`
+and a separate save root. Both reach the Ver0.334 developer menu; the Start-first
+replay previously remained on the pause overlay. The same Start-first replay
+also exercises the dungeon floor list with `--jump dungeon:0:1` and the title
+with `--jump title`.
+
 ## Retail pad-2 controls
 
 These work with the pad-2 Circle toggle. Pad 2 is locked unless the boot unlock above succeeds.
@@ -63,7 +87,7 @@ These work with the pad-2 Circle toggle. Pad 2 is locked unless the boot unlock 
 
 ## PC gaps
 
-- The keyboard feeds pad 1 only (`tools/kazarov/port/platform/input.cpp`, `Compose`); L2+Select makes its debug button reads available too.
+- The keyboard feeds pad 1 only (`tools/kazarov/src/cpp/platform/input.cpp`, `Compose`); L2+Select makes its debug button reads available too.
 - `developer_menu` (paddle 2) and `debug_menu` (paddle 1) are bound in `input.cpp` but nothing reads them.
 - GyoRace hits the `sgLoopGyoRace` stub (`port/src/gyorace.cpp`).
 

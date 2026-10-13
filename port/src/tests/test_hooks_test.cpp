@@ -119,6 +119,34 @@ TEST_F(GamePadSingleDebug, DeveloperMenuChordUsesHostInputPastTheGameLockAndOnly
     GamePad__2.key_lock = 0;
 }
 
+TEST_F(GamePadSingleDebug, DeveloperMenuChordRequiresBothButtonsReleasedToRearm) {
+    InputPadState input;
+    input.buttons = 0;
+    InputSetOverride(0, &input);
+    EXPECT_FALSE(GameDeveloperMenuRequested(LOOP_EDIT));
+    input.buttons = kInputStart;
+    InputSetOverride(0, &input);
+    EXPECT_FALSE(GameDeveloperMenuRequested(LOOP_EDIT));
+    input.buttons |= kInputSelect;
+    InputSetOverride(0, &input);
+    EXPECT_TRUE(GameDeveloperMenuRequested(LOOP_EDIT));
+    for (auto remaining : {kInputStart, kInputSelect}) {
+        input.buttons = remaining;
+        InputSetOverride(0, &input);
+        EXPECT_FALSE(GameDeveloperMenuRequested(LOOP_MENU));
+        input.buttons = kInputStart | kInputSelect;
+        InputSetOverride(0, &input);
+        EXPECT_FALSE(GameDeveloperMenuRequested(LOOP_EDIT));
+    }
+    input.buttons = 0;
+    InputSetOverride(0, &input);
+    EXPECT_FALSE(GameDeveloperMenuRequested(LOOP_EDIT));
+    input.buttons = kInputStart | kInputSelect;
+    InputSetOverride(0, &input);
+    EXPECT_TRUE(GameDeveloperMenuRequested(LOOP_EDIT));
+    InputSetOverride(0, nullptr);
+}
+
 TEST(TestHooks, FastLoadingOnlyChangesTheLoadingBarCompletionRate) {
     PortLoadInfo.step_count = 15;
     GameSetFastLoad(false);

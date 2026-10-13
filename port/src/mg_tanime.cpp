@@ -5,6 +5,7 @@
 #include "mg_drawprim.hpp"
 #include "mg_tanime.hpp"
 #include "mg_texture.hpp"
+#include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 
@@ -61,7 +62,8 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
 
         // Records that wait no frames play together with the record after them.
         for (;;) {
-            if (data->dest_tex->bpp >= MG_TEX_ANIME_BPP_TRUE_COLOUR) {
+            MgTexturePrepareAnimationDestination(data->src_tex, data->dest_tex);
+            if (MgTextureSourceBpp(data->dest_tex) >= MG_TEX_ANIME_BPP_TRUE_COLOUR) {
                 if (data->bilinear != 0) {
                     prim.Bilinear(1);
                 } else {
@@ -85,15 +87,16 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
 
             mgCTexture *src = data->src_tex;
 
-            if (src->bpp == MG_TEX_ANIME_BPP_INDEXED && data->dest_tex->bpp == MG_TEX_ANIME_BPP_INDEXED &&
+            if (MgTextureSourceBpp(src) == MG_TEX_ANIME_BPP_INDEXED &&
+                MgTextureSourceBpp(data->dest_tex) == MG_TEX_ANIME_BPP_INDEXED &&
                 (data->clut_copy != 0 || (data->src_w == src->width && data->src_h == src->height))) {
-                mgPortCopyPalette(src, data->dest_tex);
+                mgPortAdoptColorVariant(src, data->dest_tex);
             }
 
             if (data->type == MG_TEX_ANIME_TYPE_COPY) {
                 mgCTexture *dest = data->dest_tex;
 
-                if (dest->bpp < MG_TEX_ANIME_BPP_TRUE_COLOUR) {
+                if (MgTextureSourceBpp(dest) < MG_TEX_ANIME_BPP_TRUE_COLOUR) {
                     mgSetPkMoveImage(&data->src_tex->tex0,
                                      mgRect<int>(data->src_x, data->src_y,
                                                  data->src_x + data->src_w - MG_TEX_ANIME_SUBTEXEL,
@@ -125,7 +128,7 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
                 int dest_end_x;
                 int dest_end_y;
 
-                if (data->dest_tex->bpp < MG_TEX_ANIME_BPP_TRUE_COLOUR) {
+                if (MgTextureSourceBpp(data->dest_tex) < MG_TEX_ANIME_BPP_TRUE_COLOUR) {
                     int src_left = data->src_x / MG_TEX_ANIME_SUBTEXEL;
                     int src_top = data->src_y / MG_TEX_ANIME_SUBTEXEL;
                     int src_width = data->src_w / MG_TEX_ANIME_SUBTEXEL;
@@ -239,7 +242,7 @@ PORT_OVERRIDE void mgCTextureAnime::TexAnime(int texb, sceVif1Packet *) {
                     dest_split_y = data->dest_y + offset_y;
                 }
 
-                if (data->dest_tex->bpp < MG_TEX_ANIME_BPP_TRUE_COLOUR) {
+                if (MgTextureSourceBpp(data->dest_tex) < MG_TEX_ANIME_BPP_TRUE_COLOUR) {
                     mgRect<int> src_rect(0, 0, 0, 0);
 
                     src_rect.Set(data->src_x, data->src_y, src_split_x, src_split_y);

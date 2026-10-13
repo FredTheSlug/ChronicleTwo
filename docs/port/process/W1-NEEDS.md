@@ -19,7 +19,7 @@ Full reports: in the main session; summaries above. Stream logs in <scratchpad>/
 8. Chronicle (in Chronicle-phase0, when bumping its pin): W0 found the JOBS positional-parameter bug at Chronicle tools/windows/kazarov.ps1:96 (fixed in ChronicleTwo as d6e4963 "Build: pass JOBS to the Windows build as a named parameter"); apply the same fix in Chronicle and verify `build.bat windows-x64` with JOBS set.
 
 ## Gate notes
-- Kazarov pytest: the Windows host gives 31 failures even on base (bash scripts WinError 193 etc.) — not meaningful. Run pytest in the Linux container with a throwaway venv (e.g. `tools/kazarov/bin/kazarov shell bash -c "python3 -m venv /tmp/v && /tmp/v/bin/pip -q install pytest && cd tools/kazarov && /tmp/v/bin/python -m pytest tests -q"`); base result was 76 passed / 14 skipped.
+- Kazarov pytest: the Windows host gives 31 failures even on base (bash scripts WinError 193 etc.) — not meaningful. Run pytest in the Linux container with a throwaway venv (e.g. `tools/kazarov/scripts/kazarov shell bash -c "python3 -m venv /tmp/v && /tmp/v/bin/pip -q install pytest && cd tools/kazarov && /tmp/v/bin/python -m pytest tests -q"`); base result was 76 passed / 14 skipped.
 - Linux data-dependent checks (DataRead.RealData*, Dc2Data.RealDisc*, headless index line) must be run in the MAIN checkout (no junction there).
 - No Vulkan validation layer is installed on either host, so "no validation messages" in gfx tests is vacuous. Record as open issue (W2 movies-base changes the Dockerfile anyway: add vulkan-validationlayers there; Windows: Vulkan SDK). Do not install system software yourself.
 - ps2-pal gate in the main checkout at the end (no stream edited ps2/, but run it anyway).

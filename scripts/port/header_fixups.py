@@ -44,6 +44,40 @@ FIXUPS = [
 # COFF has no inline-vs-strong resolution: map.cpp's out-of-line CMapParts::CMapParts is the single definition,
 # so the identical inline copies in editeff.cpp/editmap.cpp are blanked rather than kept.
 UNIT_FIXUPS = [
+    # Replace party-ring palette copies with independently registered RGBA pixels.
+    ("menuchr.cpp", """    MenuCharaChangeCLUT = palette.clut;
+    tex_manager->ReloadTexture(block, (sceVif1Packet *) NULL);
+
+    if (MenuCharaChangeCLUT_Tex == NULL) {
+        MenuCharaChangeCLUT_Tex = new (MenuChangeMemory.Alloc(9)) mgCTexture;
+    }
+
+    memcpy(MenuCharaChangeCLUT_Tex, MenuCharaChangeBase_Tex, sizeof(mgCTexture));
+    memcpy(MenuCharaChangeCLUT, MenuCharaChangeBase_Tex->clut, sizeof(palette.clut));
+    MenuCharaChangeCLUT_Tex->clut = (u_long128 *) MenuCharaChangeCLUT;
+
+    // Darken the copied palette into brightness bands, keeping each colour's alpha.
+    for (palette_index = 0, color = MenuCharaChangeCLUT; palette_index < CHR_CNG_CLUT_NUM; palette_index++, color++) {
+        float luminance = (float) ((color->r + color->g + color->b) / 3);
+        int   step = 1;
+
+        do {
+            if (8.0f * (float) (step - 1) <= luminance && luminance < 8.0f * (float) step) {
+                break;
+            }
+
+            step++;
+        } while (step < CHR_CNG_CLUT_BAND_NUM + 1);
+
+        color->r = (u8) (7.75f * (float) step);
+        color->g = (u8) (5.625f * (float) step);
+        color->b = (u8) (4.6875f * (float) step);
+    }
+""", """    MenuCharaChangeCLUT_Tex = MgTextureCreateColorVariant(MenuCharaChangeBase_Tex,
+        const_cast<char *>("party_locked"), MgTextureColorMode::PartyLocked);
+    MgTextureSetDrawVariant(MenuCharaChangeBase_Tex, nullptr);
+    tex_manager->ReloadTexture(block, (sceVif1Packet *) NULL);
+"""),
     # Emit the constructor from the native unit without changing its retail inline spelling.
     ("inventmn.cpp", "\ninline CMenuInvent::CMenuInvent() {", "\nCMenuInvent::CMenuInvent() {"),
     ("editeff.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
@@ -112,7 +146,9 @@ def fixup_unit_text(name: str, text: str) -> str:
         count = text.count(old)
         if count != 1:
             sys.exit(f"header_fixups: {name} has {count} occurrences of {old!r}, expected exactly 1")
-        text = text.replace(old, new)
+        # Keep diagnostics and debug locations aligned with the retail source.
+        replacement = new + "\n" * max(0, old.count("\n") - new.count("\n"))
+        text = text.replace(old, replacement)
     return text
 
 

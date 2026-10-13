@@ -7,6 +7,7 @@
 
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
+#include "menudraw.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_texture.hpp"
@@ -114,4 +115,96 @@ TEST(MgDrawPrimRender, TileSeamHasNoForeignTexel) {
     }
     EXPECT_EQ(red, 0u) << "first red pixel at window " << first_red_x << "," << first_red_y;
     EXPECT_GT(green, 0u);
+}
+
+TEST(MgDrawPrimRender, LinearAtlasCellsKeepTopOutlinesWithoutSamplingTheNextCell) {
+    dc::test::GfxFixture gfx(160, 120, 1.0f, true, 64, 48);
+    const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    ASSERT_FLOAT_EQ(mapping.scale_x, 2.5f);
+    ASSERT_FLOAT_EQ(mapping.scale_y, 2.5f);
+
+    constexpr uint32_t width = 16, height = 64;
+    const std::array<uint32_t, 4> palette = {
+        dc::test::Rgba(0, 0, 0, 0), dc::test::Rgba(0, 0, 0),
+        dc::test::Rgba(255, 0, 0), dc::test::Rgba(0, 255, 0),
+    };
+    std::vector<uint8_t> indices(width * height);
+    std::vector<uint32_t> rgba(width * height);
+    for (int top : {2, 22, 42}) {
+        for (int y = top + 1; y <= top + 9; ++y) {
+            for (int x = 2; x < 10; ++x) {
+                // One transparent row before the outline, three after the artwork,
+                // then a bright sentinel representing the next cell's outline.
+                indices[y * width + x] = y == top + 1 ? 1 : y <= top + 5 ? 2 : y == top + 9 ? 3 : 0;
+            }
+        }
+    }
+    for (size_t i = 0; i < indices.size(); ++i) {
+        rgba[i] = palette[indices[i]];
+    }
+    const auto color = gfx::CreateTexture({width, height, gfx::TextureFormat::Rgba8});
+    const auto index = gfx::CreateTexture({width, height, gfx::TextureFormat::Index8});
+    const auto clut = gfx::CreatePalette();
+    ASSERT_NE(color, gfx::kNullTexture);
+    ASSERT_NE(index, gfx::kNullTexture);
+    ASSERT_NE(clut, gfx::kNullTexture);
+    ASSERT_TRUE(gfx::UpdateTextureNow(color, 0, 0, 0, width, height, rgba.data()));
+    ASSERT_TRUE(gfx::UpdateTextureNow(index, 0, 0, 0, width, height, indices.data()));
+    ASSERT_TRUE(gfx::UpdatePalette(clut, palette.data(), 0, palette.size()));
+
+    mgCMemory memory;
+    sceVif1Packet packet{};
+    mgRENDER_INFO info{};
+    mgCDrawManager manager;
+    mgCDrawPrim prim;
+    prim.draw_manager = &manager;
+    manager.render_info = &info;
+    prim.Initialize(&memory, &packet);
+    prim.write = nullptr;
+    prim.Coord(1);
+    prim.TextureMapEnable(1);
+    prim.Bilinear(1);
+    mgCTexture source;
+    prim.Texture(&source);
+    PrimSinkReset reset;
+
+    for (int top : {2, 22, 42}) {
+        std::vector<uint8_t> reference;
+        for (bool indexed : {false, true}) {
+            mgPortSetPrimSink([&](gfx::Primitive kind, std::span<const gfx::Vertex2D> vertices,
+                                  const gfx::TextureBinding &binding, const gfx::DrawState &) {
+                EXPECT_EQ(binding.filter, gfx::Filter::Linear);
+                gfx::TextureBinding texture = binding;
+                texture.texture = indexed ? index : color;
+                texture.palette = indexed ? clut : gfx::kNullTexture;
+                texture.ignore_alpha = false;
+                gfx::DrawState state;
+                state.blend = true;
+                state.depth_test = gfx::DepthTest::Always;
+                state.depth_write = false;
+                gfx::Draw2D(kind, vertices, texture, state);
+            });
+            gfx.Frame({255, 255, 255, 255}, [&] {
+                prim.Begin(MG_PRIM_SPRITE);
+                prim.Color(128, 128, 128, 128);
+                PrimQuad(&prim, 3.0f, 4.0f, {2, top, 8, 8});
+                prim.End2();
+            });
+            SCOPED_TRACE(testing::Message() << "atlas row " << top << ", indexed " << indexed);
+            EXPECT_TRUE(gfx.PixelNear(17, 13, 153, 153, 153, 3)); // GS integer-location top outline
+            EXPECT_TRUE(gfx.PixelNear(17, 20, 255, 0, 0, 3)); // artwork
+            EXPECT_TRUE(gfx.PixelNear(17, 29, 255, 255, 255, 3)); // transparent bottom gutter
+            if (!indexed) {
+                reference = gfx.pixels;
+            } else {
+                ASSERT_EQ(gfx.pixels.size(), reference.size());
+                for (size_t i = 0; i < reference.size(); ++i) {
+                    ASSERT_LE(std::abs(int(gfx.pixels[i]) - int(reference[i])), 2) << "byte " << i;
+                }
+            }
+        }
+    }
+    gfx::DestroyTexture(color);
+    gfx::DestroyTexture(index);
+    gfx::DestroyTexture(clut);
 }

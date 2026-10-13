@@ -16,7 +16,7 @@ def main():
     args = parser.parse_args()
     rows = []
     totals = []
-    for base in ("port/src", "tools/kazarov/port/sce"):
+    for base in ("port/src", "tools/kazarov/src/cpp/sce"):
         total = 0
         for path in sorted((ROOT / base).rglob("*.cpp")):
             if "tests" in path.parts:

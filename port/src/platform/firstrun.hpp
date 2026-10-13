@@ -6,5 +6,7 @@
 bool        FirstRunDataMissing(const std::filesystem::path &root);
 std::string FirstRunDataMessage(const std::filesystem::path &root);
 
-// Exits with kExitNoData when the data root is not an extraction. A headless run has no desktop to show a dialog on.
+/**
+ * Prepares missing data in a desktop setup window, or exits with kExitNoData if unavailable or cancelled.
+ */
 void FirstRunRequireData(const std::filesystem::path &root, bool headless);

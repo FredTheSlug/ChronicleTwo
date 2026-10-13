@@ -128,13 +128,16 @@ mgPortTexture mgPortFindTexture(uint64_t tex0);
 // Current CLAMP and the texture's TEX1/TCC applied.
 gfx::TextureBinding mgPortBinding(const mgCTexture *texture);
 gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1);
-// Retail moves a 16x16 CLUT cell; here the cell is the whole 256-entry palette.
-void mgPortCopyPalette(const mgCTexture *src, const mgCTexture *dst);
-void mgPortCopyPalette(uint64_t src_tex0, uint64_t dst_tex0);
+// Adopt the source's baked colour variant for a texture animation destination.
+void mgPortAdoptColorVariant(const mgCTexture *src, mgCTexture *dst);
 
 // Render targets
 
 gfx::TextureHandle mgPortCurrentTarget();
+/**
+ * Returns the host texel scale of a registered image or animation target.
+ */
+float mgPortTextureScale(gfx::TextureHandle texture);
 // Records a grab of the main frame at this point in the draw stream, including Fill's sides.
 // A draw into the main frame must sample this handle rather than the main target itself.
 gfx::TextureHandle mgPortSnapshotFrame();

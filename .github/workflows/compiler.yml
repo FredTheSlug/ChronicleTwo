@@ -20,11 +20,11 @@ jobs:
           submodules: true
 
       - name: Build toolchain image
-        run: tools/kazarov/bin/kazarov image
+        run: tools/kazarov/scripts/kazarov image
 
       - name: Test pinned compiler hooks
         run: |
-          tools/kazarov/bin/kazarov shell sh -ec '
+          tools/kazarov/scripts/kazarov shell sh -ec '
             export SATANSFIDDLE_TEST_COMPILER_300=/work/chronicletwo/tools/compilers/mw/3.0-011126/mwccps2.exe
             export SATANSFIDDLE_TEST_EXECUTABLE=/usr/local/bin/satansfiddle
             export SATANSFIDDLE_TEST_FAULT_EXECUTABLE=/usr/local/libexec/satansfiddle-tests/satansfiddle-fault-test
@@ -35,6 +35,6 @@ jobs:
 
       - name: Test object and profile verification
         run: |
-          tools/kazarov/bin/kazarov shell sh -ec '
+          tools/kazarov/scripts/kazarov shell sh -ec '
             python3 -m unittest discover -s scripts/build -p "test_*.py"
           '

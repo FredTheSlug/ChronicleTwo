@@ -36,5 +36,6 @@ ctx.c
 AGENTS.md
 
 /port/build/
+/port/run/
 /data/
 /save/

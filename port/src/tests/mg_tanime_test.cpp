@@ -35,15 +35,15 @@ Quads Pack(const std::vector<uint8_t> &bytes) {
     return quads;
 }
 
-std::vector<uint8_t> Clut8() {
-    std::vector<uint8_t> clut(256 * 4);
-    for (size_t p = 0; p < 256; p++) {
-        clut[p * 4] = static_cast<uint8_t>(p);
-        clut[p * 4 + 1] = static_cast<uint8_t>(255 - p);
-        clut[p * 4 + 2] = 0x30;
-        clut[p * 4 + 3] = 0x80;
+std::vector<uint8_t> RgbaPixels(uint8_t value) {
+    std::vector<uint8_t> pixels(kSide * kSide * 4);
+    for (size_t i = 0; i < pixels.size(); i += 4) {
+        pixels[i] = value;
+        pixels[i + 1] = static_cast<uint8_t>(255 - value);
+        pixels[i + 2] = 0x30;
+        pixels[i + 3] = 0xff;
     }
-    return clut;
+    return pixels;
 }
 
 class Harness {
@@ -78,27 +78,10 @@ public:
     StateReset &operator=(const StateReset &) = delete;
 };
 
-mgCTexture *Enter(Harness &h, std::string name, u_long128 *pixels, u_long128 *clut) {
-    Levels levels{};
-    levels[0] = pixels;
-    return h.manager.EnterTexture(0, name.data(), levels.data(), kSide, kSide, 8, clut, 0, 0);
-}
-
 mgCTexture *Enter32(Harness &h, std::string name, u_long128 *pixels) {
     Levels levels{};
     levels[0] = pixels;
     return h.manager.EnterTexture(0, name.data(), levels.data(), kSide, kSide, 32, nullptr, 0, 0);
-}
-
-std::vector<uint8_t> ClutSolid() {
-    std::vector<uint8_t> clut(256 * 4);
-    for (size_t p = 0; p < 256; p++) {
-        clut[p * 4] = 0x20;
-        clut[p * 4 + 1] = 0x40;
-        clut[p * 4 + 2] = 0x60;
-        clut[p * 4 + 3] = 0x80;
-    }
-    return clut;
 }
 
 void SetCopy(mgCTexAnimeData &data, mgCTexture *src, mgCTexture *dest, int wait) {
@@ -122,11 +105,10 @@ void SetCopy(mgCTexAnimeData &data, mgCTexture *src, mgCTexture *dest, int wait)
 TEST(MgTanime, CopyRecordHoldsTwoCallsThenAdvances) {
     StateReset reset;
     Harness    h;
-    Quads      clut = Pack(Clut8());
-    Quads      src_px = Pack(std::vector<uint8_t>(kSide * kSide, 0x21));
-    Quads      dst_px = Pack(std::vector<uint8_t>(kSide * kSide, 0x55));
-    mgCTexture *src = Enter(h, "tanime_src", src_px.data(), clut.data());
-    mgCTexture *dst = Enter(h, "tanime_dst", dst_px.data(), clut.data());
+    Quads      src_px = Pack(RgbaPixels(0x21));
+    Quads      dst_px = Pack(RgbaPixels(0x55));
+    mgCTexture *src = Enter32(h, "tanime_src", src_px.data());
+    mgCTexture *dst = Enter32(h, "tanime_dst", dst_px.data());
     ASSERT_NE(src, nullptr);
     ASSERT_NE(dst, nullptr);
 
@@ -166,11 +148,10 @@ TEST(MgTanime, CopyRecordHoldsTwoCallsThenAdvances) {
 TEST(MgTanime, StopAnimeFreezesGroup) {
     StateReset reset;
     Harness    h;
-    Quads      clut = Pack(Clut8());
-    Quads      src_px = Pack(std::vector<uint8_t>(kSide * kSide, 0x21));
-    Quads      dst_px = Pack(std::vector<uint8_t>(kSide * kSide, 0x55));
-    mgCTexture *src = Enter(h, "tanime_stop_src", src_px.data(), clut.data());
-    mgCTexture *dst = Enter(h, "tanime_stop_dst", dst_px.data(), clut.data());
+    Quads      src_px = Pack(RgbaPixels(0x21));
+    Quads      dst_px = Pack(RgbaPixels(0x55));
+    mgCTexture *src = Enter32(h, "tanime_stop_src", src_px.data());
+    mgCTexture *dst = Enter32(h, "tanime_stop_dst", dst_px.data());
     ASSERT_NE(src, nullptr);
     ASSERT_NE(dst, nullptr);
 
@@ -210,169 +191,6 @@ protected:
     dc::test::GfxFixture gfx_;
     Harness              h_;
 };
-
-TEST_F(MgTanimeGpu, CopyRecordMovesPixels) {
-    StateReset reset;
-    Quads      clut = Pack(Clut8());
-    std::vector<uint8_t> src_bytes(kSide * kSide);
-    for (size_t i = 0; i < src_bytes.size(); i++) {
-        src_bytes[i] = static_cast<uint8_t>(i * 7 + 3);
-    }
-    Quads src_px = Pack(src_bytes);
-    Quads dst_px = Pack(std::vector<uint8_t>(kSide * kSide, 0x55));
-
-    mgCTexture *src = Enter(h_, "tanime_gpu_src", src_px.data(), clut.data());
-    mgCTexture *dst = Enter(h_, "tanime_gpu_dst", dst_px.data(), clut.data());
-    ASSERT_NE(src, nullptr);
-    ASSERT_NE(dst, nullptr);
-    const MgTextureHandles src_handles = MgTextureLookup(src);
-    const MgTextureHandles dst_handles = MgTextureLookup(dst);
-    ASSERT_NE(src_handles.texture, gfx::kNullTexture);
-    ASSERT_NE(dst_handles.texture, gfx::kNullTexture);
-
-    CList<mgCTexAnimeData> node;
-    SetCopy(node.data, src, dst, -1);
-    mgCTextureAnime anime;
-    anime.list[0] = &node;
-    anime.now[0] = &node;
-    anime.enable[0] = 1;
-
-    gfx_.Frame({0x10, 0x20, 0x30, 0x80}, [&anime] { anime.TexAnime(0, nullptr); });
-
-    std::vector<uint8_t> pixels;
-    uint32_t             width = 0;
-    uint32_t             height = 0;
-    ASSERT_TRUE(gfx::ReadbackTexture(dst_handles.texture, pixels, width, height));
-    ASSERT_EQ(width, static_cast<uint32_t>(kSide));
-    ASSERT_EQ(height, static_cast<uint32_t>(kSide));
-
-    for (int y = 0; y < kSide; y++) {
-        for (int x = 0; x < kSide; x++) {
-            const bool inside = x >= kCopyOrigin && x < kCopyOrigin + kCopySide && y >= kCopyOrigin &&
-                                y < kCopyOrigin + kCopySide;
-            const uint8_t expected =
-                inside ? src_bytes[static_cast<size_t>(y - kCopyOrigin) * kSide + (x - kCopyOrigin)] : 0x55;
-            EXPECT_EQ(pixels[static_cast<size_t>(y) * width + x], expected) << "texel " << x << "," << y;
-        }
-    }
-}
-
-TEST_F(MgTanimeGpu, BlockReloadRestoresOpenEyesBeforeSelfCopy) {
-    StateReset           reset;
-    Quads                clut = Pack(Clut8());
-    std::vector<uint8_t> original(kSide * kSide);
-    for (size_t i = 0; i < original.size(); ++i) {
-        original[i] = static_cast<uint8_t>(i * 7 + 3);
-    }
-    Quads       face_pixels = Pack(original);
-    Quads       closed_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x22));
-    Quads       half_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x33));
-    mgCTexture *face = Enter(h_, "blink_face", face_pixels.data(), clut.data());
-    mgCTexture *closed = Enter(h_, "blink_closed", closed_pixels.data(), clut.data());
-    mgCTexture *half = Enter(h_, "blink_half", half_pixels.data(), clut.data());
-    ASSERT_NE(face, nullptr);
-    ASSERT_NE(closed, nullptr);
-    ASSERT_NE(half, nullptr);
-    const auto handles = MgTextureLookup(face);
-
-    CList<mgCTexAnimeData> records[3];
-    SetCopy(records[0].data, face, face, 1);
-    // Retail's open-eye record copies the live face region onto itself, after its RAM upload.
-    records[0].data.src_x = records[0].data.dest_x;
-    records[0].data.src_y = records[0].data.dest_y;
-    SetCopy(records[1].data, closed, face, 1);
-    SetCopy(records[2].data, half, face, 1);
-    for (int i = 0; i < 3; ++i) {
-        records[i].data.bug_patch = 1;
-        if (i < 2) {
-            records[i].next = &records[i + 1];
-            records[i + 1].prev = &records[i];
-        }
-    }
-    mgCTextureAnime anime;
-    anime.list[0] = anime.now[0] = records;
-    anime.enable[0] = 1;
-    h_.manager.blocks[0].anime = &anime;
-
-    ClockSetUnbounded(true);
-    mgInit(MG_SCREEN_MODE_512X480, 3);
-    for (int tick = 0; tick < 8; ++tick) {
-        mgBeginFrame(nullptr);
-        h_.manager.ReloadTexture(1, static_cast<sceVif1Packet *>(nullptr));
-        h_.manager.ReloadTexture(0, static_cast<sceVif1Packet *>(nullptr));
-        // Selecting the same block again must neither restore it nor advance the blink.
-        auto *next = anime.now[0];
-        h_.manager.ReloadTexture(0, static_cast<sceVif1Packet *>(nullptr));
-        EXPECT_EQ(anime.now[0], next);
-        mgEndFrame(nullptr);
-
-        std::vector<uint8_t> pixels;
-        uint32_t             width = 0, height = 0;
-        ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, pixels, width, height));
-        ASSERT_EQ(pixels.size(), original.size());
-        for (int y = 0; y < kSide; ++y) {
-            for (int x = 0; x < kSide; ++x) {
-                const size_t  offset = static_cast<size_t>(y) * kSide + x;
-                const bool    inside = x >= kCopyOrigin && x < kCopyOrigin + kCopySide &&
-                                       y >= kCopyOrigin && y < kCopyOrigin + kCopySide;
-                const uint8_t expected = inside && tick % 3 != 0 ? (tick % 3 == 1 ? 0x22 : 0x33) : original[offset];
-                EXPECT_EQ(pixels[offset], expected) << "tick " << tick << " texel " << x << "," << y;
-            }
-        }
-        EXPECT_EQ(MgTextureLookup(face).texture, handles.texture);
-    }
-    // Stopping the group still restores the original RAM image at the next block upload.
-    anime.DisableAll();
-    mgBeginFrame(nullptr);
-    h_.manager.ReloadTexture(1, static_cast<sceVif1Packet *>(nullptr));
-    h_.manager.ReloadTexture(0, static_cast<sceVif1Packet *>(nullptr));
-    mgEndFrame(nullptr);
-    std::vector<uint8_t> pixels;
-    uint32_t             width = 0, height = 0;
-    ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, pixels, width, height));
-    EXPECT_EQ(pixels, original);
-    h_.manager.blocks[0].anime = nullptr;
-}
-
-TEST_F(MgTanimeGpu, ClutCopyCopiesPalette) {
-    StateReset reset;
-    Quads      src_clut = Pack(Clut8());
-    Quads      dst_clut = Pack(ClutSolid());
-    Quads      src_px = Pack(std::vector<uint8_t>(kSide * kSide, 0x21));
-    Quads      dst_px = Pack(std::vector<uint8_t>(kSide * kSide, 0x55));
-
-    mgCTexture *src = Enter(h_, "tanime_clut_src", src_px.data(), src_clut.data());
-    mgCTexture *dst = Enter(h_, "tanime_clut_dst", dst_px.data(), dst_clut.data());
-    ASSERT_NE(src, nullptr);
-    ASSERT_NE(dst, nullptr);
-    const gfx::TextureHandle src_palette = mgPortFindTexture(src).palette;
-    const gfx::TextureHandle dst_palette = mgPortFindTexture(dst).palette;
-    ASSERT_NE(src_palette, gfx::kNullTexture);
-    ASSERT_NE(dst_palette, gfx::kNullTexture);
-
-    // The whole-texture size is in subtexels, so it never equals src->width: the palette copy takes the flag.
-    CList<mgCTexAnimeData> node;
-    SetCopy(node.data, src, dst, -1);
-    node.data.src_x = node.data.src_y = node.data.dest_x = node.data.dest_y = 0;
-    node.data.src_w = node.data.src_h = node.data.dest_w = node.data.dest_h = kSide * MG_TEX_ANIME_SUBTEXEL;
-    node.data.clut_copy = 1;
-
-    mgCTextureAnime anime;
-    anime.list[0] = &node;
-    anime.now[0] = &node;
-    anime.enable[0] = 1;
-
-    gfx_.Frame({0x10, 0x20, 0x30, 0x80}, [&anime] { anime.TexAnime(0, nullptr); });
-
-    std::vector<uint8_t> src_palette_px;
-    std::vector<uint8_t> dst_palette_px;
-    uint32_t             width = 0;
-    uint32_t             height = 0;
-    ASSERT_TRUE(gfx::ReadbackTexture(src_palette, src_palette_px, width, height));
-    ASSERT_TRUE(gfx::ReadbackTexture(dst_palette, dst_palette_px, width, height));
-    ASSERT_EQ(src_palette_px.size(), 256u * 4u);
-    EXPECT_EQ(dst_palette_px, src_palette_px);
-}
 
 TEST_F(MgTanimeGpu, TrueColourRecordDrawsIntoRegisteredTexture) {
     StateReset reset;

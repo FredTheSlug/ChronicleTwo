@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([string]$Root, [switch]$VulkanLoader)
+param([string]$Root, [switch]$VulkanLoader = $true)
 $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot/common.ps1"
 $root = Resolve-WindowsRoot $Root
@@ -22,17 +22,25 @@ $downloads | ForEach-Object -Parallel {
     $name,$url,$expected = $_
     $archive = Join-Path $using:archives "$name.zip"
     $target = Join-Path $using:deps $name
+    $timer = [Diagnostics.Stopwatch]::StartNew()
     if (!(Test-Path $archive)) {
+        Write-Host "kazarov: downloading $name (log: $(Join-Path $using:archives "$name-download.log"))"
         & curl.exe -fL --retry 3 -o $archive $url 2> (Join-Path $using:archives "$name-download.log")
         if ($LASTEXITCODE) { throw "Download failed: $url" }
     }
+    Write-Host "kazarov: verifying $name"
     $hash = Get-FileHash $archive -Algorithm SHA256
     if ($hash.Hash -ne $expected) { throw "SHA-256 mismatch: $archive (expected $expected, got $($hash.Hash))" }
+    Write-Host "kazarov: extracting $name (log: $(Join-Path $using:archives "$name-extract.log"))"
     & $using:sevenZip x -y "-o$target" $archive > (Join-Path $using:archives "$name-extract.log")
     if ($LASTEXITCODE) { throw "Extract failed: $archive" }
+    Write-Host ("kazarov: {0} ready in {1:N1}s" -f $name, $timer.Elapsed.TotalSeconds)
     $hash | Select-Object Path,Hash
 } -ThrottleLimit 4
 $ffmpegLicense = Join-Path $deps 'ffmpeg/ffmpeg-n7.1.1-5-g276bd388f3-win64-lgpl-shared-7.1/LICENSE.txt'
 if ((Get-Content -LiteralPath $ffmpegLicense -TotalCount 1).Trim() -ne 'GNU LESSER GENERAL PUBLIC LICENSE') {
     throw "FFmpeg archive is not the LGPL variant: $ffmpegLicense"
 }
+Write-Host 'kazarov: preparing Rust and locked Cargo dependencies'
+& "$PSScriptRoot/acquire-rust.ps1" -Root $root
+if ($LASTEXITCODE) { exit $LASTEXITCODE }

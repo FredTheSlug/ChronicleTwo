@@ -237,9 +237,15 @@ void GameGiveOnArrival(int mode) {
 bool GameDeveloperMenuRequested(int mode) {
     static bool    held_before = false;
     constexpr auto chord = kInputStart | kInputSelect;
-    bool           held = (InputGetPad(0).buttons & chord) == chord;
+    const auto     buttons = InputGetPad(0).buttons;
+    bool           held = (buttons & chord) == chord;
     bool           pressed = held && !held_before;
-    held_before = held;
+    // A partial release must not re-arm a chord carried across a mode change.
+    if ((buttons & chord) == 0) {
+        held_before = false;
+    } else if (held) {
+        held_before = true;
+    }
     return pressed && GameDebugEnabled() && mode != LOOP_MENU;
 }
 

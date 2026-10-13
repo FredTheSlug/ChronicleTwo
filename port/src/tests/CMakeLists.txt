@@ -12,8 +12,14 @@ set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
+add_test(NAME PalettePaths.Check
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/port/check_palette_paths.py
+        ${CMAKE_BINARY_DIR}/ps2_src ${CMAKE_SOURCE_DIR}/port/src)
+
 file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*_test.cpp)
 add_executable(darkchronicle_tests ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp ${TEST_SOURCES})
+# Decoder fixtures remain available in tests without linking proprietary texture decoding into the game.
+target_sources(darkchronicle_tests PRIVATE ${KZ_ROOT}/src/cpp/gfx/tim2.cpp)
 set_target_properties(darkchronicle_tests PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_include_directories(darkchronicle_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 set(LOCAL_LAYOUT_PROBES ${CMAKE_CURRENT_BINARY_DIR}/local_layout_probes.hpp)
@@ -82,7 +88,7 @@ list(JOIN CT_CPU_TESTS ":" CT_CPU_FILTER)
 
 # Catch direct device helpers and renderer-owning fixtures in new test suites at configure time.
 execute_process(COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/port/gpu_test_labels.py
-    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/tools/kazarov/port/tests
+    ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR}/tools/kazarov/src/cpp/tests
     --filters ${CT_GPU_FILTER}:${CT_GPU_SLOW_FILTER}
     --cpu-filters ${CT_CPU_FILTER}
     RESULT_VARIABLE gpu_label_result OUTPUT_VARIABLE gpu_label_output ERROR_VARIABLE gpu_label_error)

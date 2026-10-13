@@ -10,6 +10,7 @@
 #include "arena_root.hpp"
 #include "dataread.hpp"
 #include "debug_mode.hpp"
+#include "dng_main.hpp"
 #include "editdata.hpp"
 #include "font.hpp"
 #include "gaiji.hpp"
@@ -261,13 +262,39 @@ PORT_OVERRIDE void MainLoop() {
 
         NextLoop(LOOP_MENU, next_arg);
 
+        bool developer_menu_requested = false;
+        auto request_developer_menu = [&]() {
+            if (!GameDeveloperMenuRequested(PortLoopNo)) {
+                return false;
+            }
+            developer_menu_requested = true;
+            PauseEnd();
+            PauseCancel();
+            return true;
+        };
+
         while (1) {
-            if (GameDeveloperMenuRequested(PortLoopNo)) {
-                INIT_LOOP_ARG menu_arg;
+            request_developer_menu();
+            if (developer_menu_requested) {
                 DebugFlag = 1;
                 GamePad__2.KeyLock(0);
-                NextLoop(LOOP_MENU, menu_arg);
+                if (PortLoopNo == LOOP_EDIT) {
+                    PreExitLoop(GetMainScene());
+                } else if (PortLoopNo == LOOP_DUNGEON || PortLoopNo == LOOP_TITLE) {
+                    // These loops own cleanup that their LoopExit callbacks do not perform.
+                    const int buttons = GamePad__2.pad[0].button;
+                    GamePad__2.pad[0].button = PAD_START | PAD_SELECT;
+                    if (PortLoopNo == LOOP_DUNGEON) {
+                        DngStatus.mode = DNG_STATUS_EXIT;
+                    }
+                    mgBeginFrame(NULL);
+                    LoopMain[PortLoopNo]();
+                    mgEndFrame(NULL);
+                    GamePad__2.pad[0].button = buttons;
+                }
                 PauseCancel();
+                INIT_LOOP_ARG menu_arg;
+                NextLoop(LOOP_MENU, menu_arg);
                 break;
             }
             if (GamePad__2.On(PAD_CIRCLE)) {
@@ -334,6 +361,12 @@ PORT_OVERRIDE void MainLoop() {
                         sceGsSyncV(0);
                         GamePad__2.UpDate();
 
+                        // Modified Start is reserved for frame capture while paused.
+                        if (!GamePad__2.On2(PAD_START) && request_developer_menu()) {
+                            pause = false;
+                            break;
+                        }
+
                         if (GameDebugPauseResumeRequested(GamePad__2)) {
                             pause = false;
                             break;
@@ -352,7 +385,8 @@ PORT_OVERRIDE void MainLoop() {
                 }
             }
 
-            while (PauseLoop() != 0) {
+            while (!developer_menu_requested && PauseLoop() != 0) {
+                request_developer_menu();
             }
 
             PauseCount();

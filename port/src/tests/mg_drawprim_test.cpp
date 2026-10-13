@@ -631,9 +631,16 @@ TEST(MgDrawPrim, EqualUvSpriteCoversOneTexel) {
     EXPECT_FLOAT_EQ(mgPortSpriteTexelSpan(0.0f, 10.0f, 5.5f, 5.5f).second, 6.0f);
 }
 
-TEST(MgDrawPrim, LinearFontSpriteKeepsUvExtent) {
+TEST(MgDrawPrim, LinearFontSpriteSamplesAtGsIntegerPixelLocations) {
     PrimRig rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 1, {136.0f, 248.0f, 144.0f, 268.0f}, {0, 0, 9, 21});
 
-    ExpectQuadUv(q, 0.0f, 9.0f, 0.0f, 21.0f);
+    ExpectQuadUv(q, -0.5625f, 8.4375f, -0.525f, 20.475f);
+}
+
+TEST(MgDrawPrim, LinearSpriteOffsetFollowsScaledAndFlippedUvSlopes) {
+    PrimRig rig;
+    const auto q = DrawTexturedSprite(rig, 1, {10, 20, 42, 28}, {24, 40, 8, 72});
+    // Half a destination pixel corresponds to -0.25 U and +2 V here.
+    ExpectQuadUv(q, 24.25f, 8.25f, 38, 70);
 }

@@ -53,12 +53,12 @@ jobs:
 
       - name: Build toolchain image
         if: env.HAS_PRIVATE == 'true'
-        run: tools/kazarov/bin/kazarov image
+        run: tools/kazarov/scripts/kazarov image
 
       - name: Build and generate objdiff report
         if: env.HAS_PRIVATE == 'true'
         run: |
-          ./build.sh ps2-pal elf objdiff && tools/kazarov/bin/kazarov shell python3 scripts/build/progress_report.py
+          ./build.sh ps2-pal elf objdiff && tools/kazarov/scripts/kazarov shell python3 scripts/build/progress_report.py
 
       - name: Summarize progress
         if: env.HAS_PRIVATE == 'true'

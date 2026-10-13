@@ -2,7 +2,7 @@
 #
 # ps2/src holds the game's code as the PS2 build compiles it. A definition port/src tags PORT_OVERRIDE
 # replaces the one ps2/src gives the same name: each unit of ps2/src is compiled without those
-# definitions (tools/kazarov/scripts/port_override.py) and linked with port/src. That is how the PS2-only
+# definitions (tools/kazarov/scripts/build/port_override.py) and linked with port/src. That is how the PS2-only
 # parts are replaced: the SDK, the Metrowerks runtime, the functions that touch the hardware and the
 # functions written in assembly.
 
@@ -22,7 +22,21 @@ if(NOT EXISTS ${KZ_ROOT}/include/kazarov/port.h)
     message(FATAL_ERROR "${KZ_ROOT} is empty: run git submodule update --init tools/kazarov")
 endif()
 
+# One version source is shared by the publisher and native runtime.
+file(READ ${KZ_ROOT}/data_version.json KZ_DATA_VERSION_JSON)
+string(JSON KZ_DATA_SCHEMA_VERSION GET "${KZ_DATA_VERSION_JSON}" schema_version)
+string(JSON KZ_DATA_VERSION GET "${KZ_DATA_VERSION_JSON}" data_version)
+if(NOT KZ_DATA_SCHEMA_VERSION EQUAL 1)
+    message(FATAL_ERROR "Unsupported tools/kazarov/data_version.json schema")
+endif()
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated/include/kazarov)
+configure_file(${KZ_ROOT}/include/kazarov/data_version.hpp.in
+    ${CMAKE_BINARY_DIR}/generated/include/kazarov/data_version.hpp @ONLY)
+
 include(${KZ_ROOT}/cmake/KazarovPort.cmake)
+
+# Retail textures are converted offline; the native executable only loads PNG assets.
+set(KZ_PORT_BUILD_TIM2 OFF CACHE BOOL "Build legacy TIM2 decoding into the native runtime" FORCE)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 kz_port_host_library(ct_host)
@@ -76,7 +90,7 @@ list(APPEND port_override_defines --long-is-64)
 # The names port/src's PORT_OVERRIDE definitions link under. PORT_OVERRIDE_SOURCES is written only when
 # its content changes, and a unit or stub header appearing or vanishing changes no timestamp, so it is a
 # dependency of its own.
-set(PORT_OVERRIDE_SCRIPT ${KZ_ROOT}/scripts/port_override.py)
+set(PORT_OVERRIDE_SCRIPT ${KZ_ROOT}/scripts/build/port_override.py)
 set(UNIT_COPY_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/port/unit_copy.py)
 set(PORT_OVERRIDES ${CMAKE_BINARY_DIR}/port_overrides.txt)
 set(PORT_OVERRIDE_SOURCES ${CMAKE_BINARY_DIR}/port_override_sources.txt)
@@ -136,7 +150,8 @@ add_custom_command(OUTPUT ${PORT_OVERRIDES_CHECKED}
 add_library(ct_options INTERFACE)
 target_compile_definitions(ct_options INTERFACE ${PORT_DEFINITIONS})
 target_include_directories(ct_options INTERFACE
-    ${CMAKE_SOURCE_DIR}/port/include ${KZ_ROOT}/include ${PS2_INCLUDE_DIR} ${PS2_INCLUDE_DIR}/sce)
+    ${CMAKE_BINARY_DIR}/generated/include ${CMAKE_SOURCE_DIR}/port/include ${KZ_ROOT}/include
+    ${PS2_INCLUDE_DIR} ${PS2_INCLUDE_DIR}/sce)
 target_compile_options(ct_options INTERFACE
     "SHELL:-include \"${CMAKE_SOURCE_DIR}/port/include/port.h\""
     -fms-extensions -ffunction-sections -fdata-sections
@@ -155,6 +170,7 @@ endif()
 
 add_library(ct_ps2 OBJECT ${PS2_UNITS} ${PORT_OVERRIDES_CHECKED})
 target_link_libraries(ct_ps2 PRIVATE ct_options)
+target_compile_definitions(ct_ps2 PRIVATE CT_PS2_TEXTURE_COPY)
 add_dependencies(ct_ps2 ps2_include)
 # The game reads locals it never sets and falls off the end of functions that return a value, and
 # ps2/src keeps both because the match depends on them. MWCC gave each a defined if arbitrary result;
@@ -178,9 +194,13 @@ list(FILTER PORT_LIB_SOURCES EXCLUDE REGEX "/tests/|/main\\.cpp$")
 kz_port_sce_sources(CT_SCE_SOURCES LIBS libvu0 libpad libmc sifdev sifrpc eekernel libcdvd libgraph libdma libpkt
     eekernel_threads libdev libmpeg libsdr modmsin sifdma)
 add_library(ct_port OBJECT ${PORT_LIB_SOURCES} ${CT_SCE_SOURCES})
-target_link_libraries(ct_port PRIVATE ct_options SDL3::SDL3 Vulkan::Vulkan nlohmann_json::nlohmann_json kz_port_headers)
+target_link_libraries(ct_port PRIVATE ct_options SDL3::SDL3 Vulkan::Vulkan nlohmann_json::nlohmann_json kz_port_headers kazarov_bridge)
 add_dependencies(ct_port ps2_include)
 target_include_directories(ct_port PRIVATE ${PORT_DIR})
+# Datapack PNGs use the host's decoder with ordinary PNG colour formats.
+find_path(CT_STB_IMAGE_INCLUDE_DIR stb_image.h
+    PATHS ${KZ_PORT_VENDOR_DIRS} ${CMAKE_BINARY_DIR}/kz_port/vendor NO_DEFAULT_PATH REQUIRED)
+target_include_directories(ct_port PRIVATE ${CT_STB_IMAGE_INCLUDE_DIR})
 target_compile_options(ct_port PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-label
     -Wno-overloaded-virtual -Wno-unused-function)
 
@@ -210,11 +230,15 @@ endif()
 function(ct_link_game target)
     target_sources(${target} PRIVATE $<TARGET_OBJECTS:ct_port> $<TARGET_OBJECTS:ct_host> $<TARGET_OBJECTS:ct_ps2>)
     add_dependencies(${target} ps2_include)
-    target_link_libraries(${target} PRIVATE ct_options kz_port_headers SDL3::SDL3 Vulkan::Vulkan)
+    target_link_libraries(${target} PRIVATE ct_options kz_port_headers SDL3::SDL3 Vulkan::Vulkan kazarov_bridge kazarov_core)
     target_include_directories(${target} PRIVATE ${PORT_DIR})
     target_compile_options(${target} PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-label
         -Wno-overloaded-virtual -Wno-unused-function)
     target_link_options(${target} PRIVATE ${CT_LINK_OPTIONS})
+    if(WIN32)
+        # The Rust host UI uses Windows input, theme, OpenGL and desktop-composition APIs.
+        target_link_libraries(${target} PRIVATE imm32 uxtheme opengl32 dwmapi)
+    endif()
 endfunction()
 
 add_executable(darkchronicle ${PORT_DIR}/main.cpp)
@@ -236,3 +260,13 @@ file(GLOB ct_stream_cmake CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.
 foreach(f IN LISTS ct_stream_cmake)
     include(${f})
 endforeach()
+
+if(WIN32)
+    include(${KZ_ROOT}/cmake/KazarovWindowsRuntime.cmake)
+    kz_windows_runtime(darkchronicle INSTALL EXECUTABLES dc2data)
+    kz_windows_runtime(dc2data)
+    kz_windows_runtime(dc2data_bridge_test)
+    if(TARGET darkchronicle_tests)
+        kz_windows_runtime(darkchronicle_tests)
+    endif()
+endif()

@@ -6,24 +6,24 @@ Source counts include unreachable functions. They count explicit `PS2_UNIMPLEMEN
 rather than empty implementations or successful host substitutes.
 
 - `port/src`: 2 abort-stub bodies.
-- `tools/kazarov/port/sce`: 89 abort-stub bodies.
+- `tools/kazarov/src/cpp/sce`: 89 abort-stub bodies.
 
 | Source | Abort-stub bodies |
 |---|---:|
 | `port/src/gyorace.cpp` | 1 |
 | `port/src/mg_visual.cpp` | 1 |
-| `tools/kazarov/port/sce/eekernel_threads.cpp` | 7 |
-| `tools/kazarov/port/sce/libcdvd.cpp` | 10 |
-| `tools/kazarov/port/sce/sifdev.cpp` | 2 |
-| `tools/kazarov/port/sce/sifrpc.cpp` | 8 |
-| `tools/kazarov/port/sce/stubs/libdev.cpp` | 5 |
-| `tools/kazarov/port/sce/stubs/libdma.cpp` | 6 |
-| `tools/kazarov/port/sce/stubs/libgraph.cpp` | 11 |
-| `tools/kazarov/port/sce/stubs/libmpeg.cpp` | 9 |
-| `tools/kazarov/port/sce/stubs/libpkt.cpp` | 24 |
-| `tools/kazarov/port/sce/stubs/libsdr.cpp` | 2 |
-| `tools/kazarov/port/sce/stubs/modmsin.cpp` | 3 |
-| `tools/kazarov/port/sce/stubs/sifdma.cpp` | 2 |
+| `tools/kazarov/src/cpp/sce/eekernel_threads.cpp` | 7 |
+| `tools/kazarov/src/cpp/sce/libcdvd.cpp` | 10 |
+| `tools/kazarov/src/cpp/sce/sifdev.cpp` | 2 |
+| `tools/kazarov/src/cpp/sce/sifrpc.cpp` | 8 |
+| `tools/kazarov/src/cpp/sce/stubs/libdev.cpp` | 5 |
+| `tools/kazarov/src/cpp/sce/stubs/libdma.cpp` | 6 |
+| `tools/kazarov/src/cpp/sce/stubs/libgraph.cpp` | 11 |
+| `tools/kazarov/src/cpp/sce/stubs/libmpeg.cpp` | 9 |
+| `tools/kazarov/src/cpp/sce/stubs/libpkt.cpp` | 24 |
+| `tools/kazarov/src/cpp/sce/stubs/libsdr.cpp` | 2 |
+| `tools/kazarov/src/cpp/sce/stubs/modmsin.cpp` | 3 |
+| `tools/kazarov/src/cpp/sce/stubs/sifdma.cpp` | 2 |
 
 ## Linked executable
 

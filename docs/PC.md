@@ -12,16 +12,16 @@ The PC controls include keyboard menu navigation, mouse menus and item drag/drop
 
 ```sh
 ./build.sh linux-x64
-tools/kazarov/bin/kazarov shell ctest --test-dir port/build/pc --output-on-failure -j4
+tools/kazarov/scripts/kazarov shell ctest --test-dir port/build/pc --output-on-failure -j4
 ```
 
 `./build.sh linux-x64` builds in the Kazarov container, from the image in `tools/kazarov/image` (built locally the first time), with the Debug preset into `port/build/pc`. `linux-x64-release` builds Release into `port/build/pc-release`. `CLEAN=1` discards the build directory first; `JOBS=N` sets the parallel job count.
 
-Without the container, `cmake --preset linux-x64`, `cmake --build --preset linux-x64` and `ctest --preset linux-x64` do the same work. The host needs what the image provides: clang 20 or newer with lld, CMake 3.25 or newer (the presets need it), Ninja, `glslangValidator`, SDL3 3.4, the Vulkan 1.4 headers and loader, and Python 3.
+Without the container, `cmake --preset linux-x64`, `cmake --build --preset linux-x64` and `ctest --preset linux-x64` do the same work. The host needs what the image provides: clang 20 or newer with lld, CMake 3.25 or newer (the presets need it), Ninja, `glslangValidator`, SDL3 3.4, the Vulkan 1.4 headers and loader, Python 3, and Rust 1.99 (provided by the container and Windows toolchain setup).
 
-The renderer's cases need a Vulkan device with the features `tools/kazarov/port/gfx/README.md` lists under "Device". The container's Mesa lavapipe provides them, so no GPU is needed there.
+The renderer's cases need a Vulkan device with the features `tools/kazarov/src/cpp/gfx/README.md` lists under "Device". The container's Mesa lavapipe provides them, so no GPU is needed there.
 
-`./run.sh linux-x64` builds, then runs `port/build/pc/darkchronicle` on a Linux host. It first extracts `data/` from `rom/pal/Dark Chronicle (PAL).iso` (or `rom/pal/extracted/iso`) with `dc2data`, under `.kazarov/locks/port-data.lock`, and skips the extraction when `data/.kazarov-data` matches the source and `dc2data`. The game holds the lock shared while it runs.
+`./run.sh linux-x64` builds, then runs `port/build/pc/darkchronicle` on a Linux host. It extracts the PAL source into the ignored `port/run/` root with `dc2data`, under `.kazarov/locks/port-data.lock`. The game holds the lock shared while it runs. The extractor verifies source and output hashes on each launch and skips publication when both already match.
 
 ### Windows
 
@@ -30,9 +30,11 @@ The renderer's cases need a Vulkan device with the features `tools/kazarov/port/
 .\run.bat windows-x64
 ```
 
-`build.bat` and `run.bat` pass the configuration through Kazarov's host launcher to `tools/windows/kazarov.ps1`. That script builds into `port/build/<configuration>`. The first run fetches the toolchain into `.kazarov/windows`, through `tools/windows/acquire.ps1`: llvm-mingw 20260922 (clang and lld), Ninja 1.13.2, SDL3 3.4.18 (MinGW), FFmpeg n7.1.1 (the LGPL shared build), glslang 16.6.0 and the Vulkan 1.4.363.0 headers. Each archive is checked against its SHA-256 before it is extracted. `windows-x64` is a Debug build; `windows-x64-release` (and `windows`) is RelWithDebInfo.
+`build.bat` and `run.bat` pass the configuration through Kazarov's host launcher to `tools/windows/kazarov.ps1`. That script builds into `port/build/<configuration>`. The first run fetches the toolchain into `.kazarov/windows`, through `tools/windows/acquire.ps1`: llvm-mingw 20260922 (clang and lld), Ninja 1.13.2, SDL3 3.4.18 (MinGW), FFmpeg n7.1.1 (the LGPL shared build), glslang 16.6.0, the Vulkan 1.4.363.0 headers, and Rust 1.99.0 for the llvm-mingw UCRT target. `acquire-rust.ps1` verifies the official Rust and rustfmt archives, caches the locked crates, and installs `cxxbridge-cmd` 1.0.205; Corrosion 0.6.1 integrates Rust with CMake. Each downloaded archive is checked against its SHA-256 before extraction. `windows-x64` is a Debug build; `windows-x64-release` (and `windows`) is RelWithDebInfo.
 
-`run.bat` extracts `data\` from `rom/pal/Dark Chronicle (PAL).iso` (or `rom/pal/extracted/iso`) with `dc2data.exe` before launching, under the `port-data.lock` lock, and skips it when `data\.kazarov-data` matches the source and `dc2data.exe`, as the Linux launcher does. The game holds the lock shared while it runs.
+The Windows launcher prints elapsed stages for dependency checks, configuration and the build, and announces any lock wait. Compiler and Cargo output appears live, with the complete latest build output retained in `port/build/<configuration>/build.log`; failures preserve the native exit code. First-run downloads, archive verification and extraction announce their stages and log paths. `JOBS=N` sets the compile job count (12 by default). See [build measurements](port/buildperf.md) for the measured incremental costs. `pwsh -NoProfile -File tools/windows/test-build.ps1` checks live stdout/stderr, full logging and successful/failing exit codes without requiring a toolchain.
+
+`run.bat` uses the same ignored `port/run/` extraction and version checks before launching, under the `port-data.lock` lock. The game holds the lock shared while it runs.
 
 The scripts need PowerShell 7, 7-Zip, CMake and Python 3. Python 3 is found through the `py` launcher or on `PATH`. 7-Zip and CMake are also looked for at their default install locations under `Program Files`.
 
@@ -44,7 +46,9 @@ The test build is separate. After a `build.bat` run has fetched the toolchain:
 ctest --test-dir port/build/windows-x64-tests --output-on-failure -j4
 ```
 
-`configure-tests.ps1` links the Vulkan loader from `System32`. CI, whose runner may have no loader there, calls `configure.ps1 -Tests -VulkanLibrary` with the runtime it downloads. The executables need `vulkan-1.dll` beside them; CI copies it into the build directory.
+Windows builds include the SDL, FFmpeg, C++/Rust runtime DLLs and the pinned redistributable Vulkan loader beside the executables. Acquisition includes the loader by default. CMake restores the runtime files on every build, including direct `cmake --build` calls; `cmake --install` also installs them. Running the built game requires no separate application runtime installation. A compatible graphics driver is still required.
+
+`tools/windows/package.ps1 -BuildDirectory port/build/windows-x64-tests -Destination chronicletwo-windows-x64.zip` packages only CMake's explicit list of executables and runtime DLLs. It audits each binary's imports and fails if a non-Windows dependency is missing. Neither the build packaging nor installation includes retail assets, `data`, `port_data`, saves or disc images. First-run setup extracts the user's disc data after launch.
 
 ### macOS
 
@@ -74,7 +78,7 @@ BUILD_DIR=build/pal python3 scripts/build/verify.py -c
 `.github/workflows/pc.yml` runs on pushes to `master` and on pull requests, in three jobs:
 
 - Linux (`ubuntu-26.04`): configures `linux-x64` with `-DCT_TEST_TIMEOUT=60` (lavapipe renders on the CPU), builds it in the Kazarov container, checks that the clang Python bindings import, runs the full `ctest`, runs `scripts/port/native_gate.py` on the binary, and checks that `darkchronicle` is position-independent. Without the bindings, `Truncations.Check` and `Records.Check` skip, and a skip counts as a pass.
-- macOS (`macos-26`, Homebrew libraries): builds `macos-arm64`, runs `ctest --preset macos-arm64`, and uploads the packaged binary and a `vulkaninfo` summary. The pinned shared code carries the executable bit for `tools/kazarov/bin/kz-ffmpeg`.
+- macOS (`macos-26`, Homebrew libraries): builds `macos-arm64`, runs `ctest --preset macos-arm64`, and uploads the packaged binary and a `vulkaninfo` summary. The pinned shared code carries the executable bit for `tools/kazarov/scripts/build/kz-ffmpeg`.
 - Windows (`windows-2025`): fetches the toolchain and the Vulkan runtime with `acquire.ps1 -VulkanLoader`, configures the test build with `configure.ps1 -Tests -VulkanLibrary`, builds it, runs `ctest -LE gpu`, and uploads the zipped build.
 
 Cases that need a Vulkan device carry the CTest label `gpu`. The hosted Windows runner has no device, so its job excludes them with `-LE gpu`. `ctest -L gpu -N` lists them. Local runs run every case.
@@ -88,26 +92,92 @@ dc2data extract <iso-or-directory> <data-directory>
 dc2data list <iso-or-directory>
 dc2data sound <iso-or-directory>
 dc2data check <data-directory>
+dc2data current <iso-or-directory> <data-directory>
 ```
 
-The source of `extract` is an image of the Dark Chronicle disc, or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and a `MOVIE` directory. `extract` writes the files that `DATA.HD4` names (their contents from `DATA.DAT`), the movies under `movie/`, `sound/sound.dat` and `sound/sound.hd3`, and the sound files under `sound/` that `SOUND.HD3` names. It then writes `manifest.txt`, one line per file: its size, a tab, and its path relative to the data directory. A later `extract` removes the files the previous manifest listed that it no longer writes, then checks the result against the manifest. `check` checks a data directory against its manifest. Exit status: 0 on success, 1 on an error or a check problem, 2 on a usage error.
+`extract` uses up to 32 workers by default; `--jobs N` accepts 1 through 64.
+`current` compares the source's path and file metadata with the versioned marker and verifies both manifests exist; it returns 0 only when extraction can be skipped. `check` performs the full hash and payload audit.
+
+The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and `MOVIE`. Give it `<game-root>/data` as the output. The C++ command-line program calls the Rust extractor through a `cxx` bridge for `extract`, `list`, `sound`, and `check`; the conversion runs in process without Python. It writes non-texture files under `data/`, converted PNGs and their catalog under sibling `port_data/`, and a version marker at `<game-root>/data.json`. Each retail texture group has an `.img` bundle folder preserving the hierarchy above it; all PNGs are direct children of that folder, and its versioned JSON maps their filenames to logical items, pictures, mips and colour variants. Proprietary texture payloads are excluded, including those embedded in mixed PACK files and other retail wrappers; catalog keys retain their original filenames and embedded offsets. Comment-free JSON manifests in `data/` and `port_data/` record SHA-256 hashes; `dc2data check <game-root>/data` verifies both trees and the version marker. Extraction stages both trees before publication and restores the previous output on failure. Exit status: 0 on success, 1 on an error or failed check, 2 on usage error.
+
+Each texture variant is a full-colour RGBA PNG. When retail animation scripts copy colours between textures, extraction bakes the finite source-colour variants into separate destination PNGs and records their selection in the catalog. Source palettes are used only during extraction; runtime textures and generated render targets use RGBA pixels without palette files or palette uploads. `data.json` carries the current `data_version`, and the game rejects an older extraction so the launcher can rebuild it.
+
+`run.sh` and `run.bat` pass `--run-dir <checkout>/port/run`, giving them `port/run/data`, `port/run/port_data` and `port/run/saves`. A direct executable launch defaults to the per-user `chronicletwo` application data root with the same three subdirectories. Explicit `--run-dir DIR` selects a different root.
+
+### Datapacks and replacement textures
+
+Put texture packs in a `datapacks/` directory beside the selected `port_data/`
+directory. The launch scripts therefore use `port/run/datapacks/`; `--data DIR`
+uses `DIR/../datapacks/`. Each pack is a folder with any single folder name,
+including spaces or Unicode characters. Copy the paths inside `port_data/`
+directly into that folder, replacing the PNGs you want to change:
+
+```text
+<game-root>/
+  data/
+  port_data/
+    menu/example.img/texture.png
+  datapacks/
+    datapacks.json
+    My texture pack/
+      menu/example.img/texture.png
+    Menu tweaks/
+      menu/example.img/texture.png
+```
+
+Activate packs and set their priority in `datapacks/datapacks.json`:
+
+```json
+{
+  "schema_version": 1,
+  "load_order": ["My texture pack", "Menu tweaks"]
+}
+```
+
+Later entries win when multiple packs replace the same PNG. Packs may contain
+just one file: missing files fall through to earlier packs, then to `port_data/`.
+Unlisted folders are inactive. Packs use the existing catalog and do not need
+their own catalog, bundle JSON or manifest. Folder names must stay within the
+`datapacks/` directory; paths and `..` are rejected. Missing configuration leaves
+the retail textures active; invalid configuration disables the packs and prints
+a diagnostic. Restart the game after changing configuration or pack files.
+
+Replacement PNGs may use the original dimensions or enlarge both dimensions by
+the same power of two, such as 2×, 4× or 8×. The texture keeps its original size
+and UV layout in the game while the renderer uses the larger image. A corrupt
+PNG, unsupported scale or invalid mip level prints a diagnostic and falls back
+to the next available image. A pack can replace only the base PNG of a mipmapped
+texture: missing enlarged mip levels are generated from the replacement image.
+Explicit replacement mip levels must match the enlarged mip chain. Colour
+variants are separate PNGs, so copy each variant you want to replace.
+PNG inputs are limited to 256 MiB each, padded canvases to 16,384 pixels per
+dimension, and decoded mip chains to 256 MiB. GPU texture dimensions must also
+fit the active device's limits.
+
+Packs can also replace ordinary files read by the game's file loader. Put these
+at the path relative to `data/`, directly inside the same pack folder; for
+example, `data/edit.cfg` is replaced by `datapacks/My texture pack/edit.cfg`.
+These file paths follow the loader's case-insensitive matching, and replacement
+file sizes are used when loading. Only existing indexed game files are replaced;
+the separate movie and sound readers and extraction metadata are not overlaid.
 
 The data root is the first of these that applies:
 
 1. `--data DIR`
-2. `DC2_DATA`
-3. `data/` in the working directory, then `data/` beside the executable
+2. `--run-dir DIR` plus `/data`
+3. `DC2_DATA`
 4. the per-user data directory: `%LOCALAPPDATA%\chronicletwo\data` on Windows, `$XDG_DATA_HOME/chronicletwo/data` or `~/.local/share/chronicletwo/data` elsewhere
 
 The save root is the first of these that applies. It is created when first resolved.
 
 1. `--save DIR`
-2. `DC2_SAVE`
-3. `save/` in the working directory, then `save/` beside the executable
-4. `save/` beside a local `data/`
-5. the per-user save directory: `%LOCALAPPDATA%\chronicletwo\save` on Windows, `$XDG_DATA_HOME/chronicletwo/save` or `~/.local/share/chronicletwo/save` elsewhere
+2. `--run-dir DIR` plus `/saves`
+3. `DC2_SAVE`
+4. the per-user save directory: `%LOCALAPPDATA%\chronicletwo\saves` on Windows, `$XDG_DATA_HOME/chronicletwo/saves` or `~/.local/share/chronicletwo/saves` elsewhere
 
-A data root is missing when it is not a directory, or has no regular file `manifest.txt`. The game then prints on stderr that no extracted data is at the root, with the `dc2data extract` command, and that `--data` or `DC2_DATA` can point at an existing extraction. A windowed run shows the same text in a message box; a `--headless` run does not. The game exits with status 3.
+A data root is missing when it is not a directory, lacks either the data or converted-assets manifest, or has no current parent `data.json` marker. A windowed run opens Kazarov's Rust setup window before creating the game window. The editable path accepts a disc image or a disc folder; **Choose folder** opens the operating system's folder picker. **Okay** starts extraction on a worker thread. The progress bar tracks completed raw files and texture conversions, reserving 100% for successful publication. The setup window then closes automatically and normal game startup continues. Existing current data skips setup on subsequent launches. Extraction errors remain visible for correction and retry; closing setup before extraction exits with status 3. During extraction the window stays open until the worker finishes. Headless runs still print the `dc2data extract` command and exit with status 3.
+
+The setup uses an eframe desktop window and an rfd native folder dialog on Windows, Linux and macOS. Linux folder selection requires an XDG desktop portal and its desktop backend. Extraction uses the same staged publication and manifests as `dc2data`; the output must be outside the selected source folder. A typed ISO path is supported without mounting the image.
 
 `run.sh` with no configuration boots the PS2 build in PCSX2 on Linux, and runs `macos-arm64-release` on macOS. `run.bat` with no configuration runs `windows-x64-release`. A PC configuration name extracts the data first, as described above, and then runs the port.
 
@@ -221,7 +291,7 @@ Exit statuses (`port/src/exitcodes.hpp`, and `port/src/mglib.cpp` for the screen
 
 A `PS2_UNIMPLEMENTED` stub aborts instead of exiting, so a debugger or a core dump stops at it: SIGABRT on Linux (status 134 from a shell) and `0xC0000409` on Windows. Other internal aborts stop the same way.
 
-The test `Smoke.HeadlessFramesScreenshot` (`port/src/tests/CMakeLists.txt`) runs `darkchronicle --headless --offscreen --frames 3 --screenshot` on a data directory holding only an empty `manifest.txt`. It passes when the run exits 0, prints `dataread: indexed` and `mglib: frame 3 written to`, and writes a PNG. It is labelled `gpu`. It runs under a generated CMake script, because ctest counts a process killed by `abort()` as failed even when `PASS_REGULAR_EXPRESSION` matches its output; the script checks the exit status and the file.
+The test `Smoke.HeadlessFramesScreenshot` (`port/src/tests/CMakeLists.txt`) runs `darkchronicle --headless --offscreen --frames 3 --screenshot` on a data directory with a versioned empty `manifest.json` and parent `data.json`. It passes when the run exits 0, prints `dataread: indexed` and `mglib: frame 3 written to`, and writes a PNG. It is labelled `gpu`. It runs under a generated CMake script, because ctest counts a process killed by `abort()` as failed even when `PASS_REGULAR_EXPRESSION` matches its output; the script checks the exit status and the file.
 
 ### Test hooks
 
@@ -272,7 +342,7 @@ Fixtures and extracted game data stay outside the repository.
 1. `GameSetIdentity` (`port/src/identity.cpp`) sets the `DC2` environment prefix, the game's directory names and the window title. `PathsConsumeArgs` takes `--data` and `--save` out of the arguments.
 2. `ParseOptions` reads the other options. A usage error exits with status 2. `--input` loads its script here, and a bad script exits with status 2.
 3. `ConfigLoad` reads `config.json` from the save root (see "config.json").
-4. `FirstRunRequireData` checks the data root and exits with status 3 when it is not an extraction (see "Game data and first run").
+4. `FirstRunRequireData` checks the data root and opens setup when extraction is needed, or exits with status 3 in headless mode (see "Game data and first run").
 5. The window opens, or the offscreen surface with `--headless`. Input initialises, and the input script is installed.
 6. The renderer starts (`gfx::RendererInit`) with a logical size of 512x480 at a 4:3 display aspect. It builds every pipeline, uses `<save root>/pipeline_cache.bin` as its pipeline cache, and prints `compiling shaders n/total` as it goes.
 7. `AudioInit(options.headless)` selects device-driven or tick-driven mixer ownership (see "Audio"). `AudioShutdown` is registered with `atexit`.
@@ -280,7 +350,7 @@ Fixtures and extracted game data stay outside the repository.
 9. The main thread takes priority 10, and `InitCDFile` (`port/src/dataread.cpp`) indexes the data root, printing `dataread: indexed N files under <dir>`. The PAL disc's `DATA.DAT` holds 8751 files.
 10. The `--frames` limit and screenshot, if any, are set, and `MainLoop()` (`port/src/mainloop.cpp`) runs the retail sequence (see "MainLoop").
 
-Before `main`, the game's static constructors run. The three VU0 helpers they need, `mgUnitMatrix`, `mgZeroMatrix` and `mgZeroVectorW` (`port/src/mg_math.cpp`), are real C++. On the PS2 the constructors run after the IOP set-up inside `mwInit`; on the host `mwInit` is empty (`port/src/runtime.cpp`). An SIF RPC client that no game code has bound yet gets an answer from `sceSifCheckStatRpc` and `sceSifCallRpc` instead of an abort, because the constructors reach the RPC layer before the game binds its clients (`tools/kazarov/port/sce/sifrpc.cpp`).
+Before `main`, the game's static constructors run. The three VU0 helpers they need, `mgUnitMatrix`, `mgZeroMatrix` and `mgZeroVectorW` (`port/src/mg_math.cpp`), are real C++. On the PS2 the constructors run after the IOP set-up inside `mwInit`; on the host `mwInit` is empty (`port/src/runtime.cpp`). An SIF RPC client that no game code has bound yet gets an answer from `sceSifCheckStatRpc` and `sceSifCallRpc` instead of an abort, because the constructors reach the RPC layer before the game binds its clients (`tools/kazarov/src/cpp/sce/sifrpc.cpp`).
 
 ### Memory
 
@@ -296,7 +366,7 @@ Launch hooks prepare an explicit scene jump and give requested items on arrival.
 
 ## config.json
 
-The configuration is `<save root>/config.json`, with the sections `game`, `video`, `audio` and `input`. They fill Kazarov's `HostSettings` (`tools/kazarov/port/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
+The configuration is `<save root>/config.json`, with the sections `game`, `video`, `audio` and `input`. They fill Kazarov's `HostSettings` (`tools/kazarov/include/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
 
 - Missing: the file is written with the defaults.
 - Unreadable (it exists but cannot be read, or is not a regular file): the defaults are used, `config: could not read <path>; using defaults and leaving it untouched` goes to stderr, and the file is not written in that session.
@@ -637,7 +707,7 @@ PS2 kernel threads run as cooperative fibers on one OS thread, so the retail thr
 
 ## Arenas
 
-The blocks come from `ArenaBlock` in Kazarov's `tools/kazarov/port/platform/arena.hpp`, the same code Dark Cloud 1 uses. Each block is zeroed, 64-byte aligned and followed by a guard page, and holds `kArenaHeadroom` (4) times the quadwords retail asked for. A debug build checks that a block lies above 4 GiB, so a mapping that drifted low cannot hide a pointer the game truncates (see "Pointers and 32-bit integers"). `port/src/tests/arena_test.cpp` covers roots, children, the guard page and placement growth.
+The blocks come from `ArenaBlock` in Kazarov's `tools/kazarov/include/platform/arena.hpp`, the same code Dark Cloud 1 uses. Each block is zeroed, 64-byte aligned and followed by a guard page, and holds `kArenaHeadroom` (4) times the quadwords retail asked for. A debug build checks that a block lies above 4 GiB, so a mapping that drifted low cannot hide a pointer the game truncates (see "Pointers and 32-bit integers"). `port/src/tests/arena_test.cpp` covers roots, children, the guard page and placement growth.
 
 Retail buffers that lie inside no mapped block become blocks. `MainLoop` maps `main_buffer` (`MainBuffer`), `InfoBuff` (`InfoStack`) and `SystemSeBuff` (`SystemSeStack`) explicitly through `ArenaRoot` (`port/src/arena_root.cpp`). `mgCMemory::stSetBuffer` and `SetHeapMem` treat any other buffer that lies outside every block the same way: retail statics, function-local arrays and member arrays (`editdata.cpp`, `gamedata.cpp`, `inventmn.cpp`, `character.cpp`, `mg_visual.cpp`, `menuaqua.cpp`, `scenesnd.cpp`, `event_func.cpp` and others) are roots. A root is keyed by the retail buffer's address, takes a copy of the retail bytes (`gamedata.cpp` memsets its buffer before handing it over), and gets four times the quadwords. Each mapping is logged once, as `arena: <name> <bytes> bytes at <address>`, followed by ` (above 4 GiB)` or ` (below 4 GiB)` according to the address.
 
@@ -683,7 +753,7 @@ The reason for this design: the retail thread loops (`GamePadStep`, `NowLoadingL
 
 - One game frame is one pass of the game's loop, and one recorded list. It spans `mgFrameRate` clock ticks: 2 on the 50 Hz tick, so 25 game frames a second. `mgFrameRate` keeps its meaning.
 - After the canonical render, `mgEndFrame` calls `PresentWaitFrame`. It waits the same tick count `WaitVSync` waited for; the rotating-thread and pump behaviour is unchanged. Meanwhile `present.cpp` renders display frames from the newest list and the one before it. Each display frame's alpha is the elapsed fraction of the game frame: the ticks since the frame began plus the fraction of the current tick, over `mgFrameRate`. An alpha from the clock tick alone would run 0 to 1 twice per game frame at `mgFrameRate` 2. Display frames are presented as fast as `video.present_mode` and `video.max_fps` allow (`max_fps` 0 is unlimited). A game frame whose wait presented nothing presents its canonical image afterwards (`PresentTickEnd`).
-- Interpolated: the models of tagged mesh draws, and the camera (`tools/kazarov/port/gfx/README.md`, "Display lists"). A draw is tagged with `mgPortInterpScope(object, teleport_distance, blend_vertices, no_interpolation)`, keyed by the `mgCFrame` or, outside a frame, the visual's record. `kMgPortFrameTeleportDistance` is 200 units. Skinned prog0 draws blend their 32-bone model-space palette (`gfx::Prog0Constants::bones`) per bone: translation lerped, rotation slerped from the Gram-Schmidt rotation, scale and shear lerped in its frame. A bone that moved further than the draw's teleport distance keeps the newest pose. The rest of the per-draw block follows the interpolated model and camera: `model_world` is the interpolated model, `clip_or_view` and the object-space eye are re-based through the tick's and the interpolated object-to-eye transforms, and point lights shift with the object's origin. Dark Cloud 1's port, which shares the renderer, records no prog0 block, so it takes no such path.
+- Interpolated: the models of tagged mesh draws, and the camera (`tools/kazarov/src/cpp/gfx/README.md`, "Display lists"). A draw is tagged with `mgPortInterpScope(object, teleport_distance, blend_vertices, no_interpolation)`, keyed by the `mgCFrame` or, outside a frame, the visual's record. `kMgPortFrameTeleportDistance` is 200 units. Skinned prog0 draws blend their 32-bone model-space palette (`gfx::Prog0Constants::bones`) per bone: translation lerped, rotation slerped from the Gram-Schmidt rotation, scale and shear lerped in its frame. A bone that moved further than the draw's teleport distance keeps the newest pose. The rest of the per-draw block follows the interpolated model and camera: `model_world` is the interpolated model, `clip_or_view` and the object-space eye are re-based through the tick's and the interpolated object-to-eye transforms, and point lights shift with the object's origin. Dark Cloud 1's port, which shares the renderer, records no prog0 block, so it takes no such path.
 - Depth-tested screen effects set `gfx::DrawState::screen_space` so the depth-of-field layers stay screen-aligned while sampling the display camera's refreshed grabs. World sprites retain camera reprojection.
 - Dungeon pickup sprites (`CPullItem`, including coins, ABS and floating items) opt into keyed world-corner interpolation. `SetItem` starts a new emission generation; matched corners blend in world space under the display camera, including bobbing, glow size and opacity. Atlas animation stays newest. Reused slots, unmatched/incompatible draws, motion beyond 200 units, near-plane crossings and multi-camera lists keep newest own motion. Canonical and alpha-1 rendering remain exact.
 - Enemy anger-counter marks (`CEnemyGekirin`) have independent screen-space keys, so their movement and break-away bounce interpolate even when HP changes or neighbouring marks disappear. `ResetGekirin` starts a new generation for refills and reused monsters. Game steps, rage counts and canonical rendering are unchanged.
@@ -703,7 +773,7 @@ No packet is built or sent, so there are no packet buffers. `mgInitVif1Packet` a
 
 ### Sprites and window backings
 
-- The GS evaluates a sprite's UV at integer pixel positions and a nearest filter takes `floor(u)`; the GPU samples at pixel centres of an upscaled window. For nearest-filtered UV sprites, `AssembleSprite` (`port/src/mg_drawprim.cpp`) therefore maps the quad onto exactly the texels the GS reads (`mgPortSpriteTexelSpan`) and adds `kMgPortNearestTexelBias` (1/64 texel) so a sample exactly on a texel boundary takes the texel after it, as the GS does. This keeps the font's one-texel-wider UV rects (`set2DSpriteEasyFont`) from bleeding the next glyph, and 1:1 background tiles from showing a black seam at 2.5x. Sprites with a linear filter, or with TME or FST off, keep their UVs (`MgDrawPrim.*`, `MgDrawPrimRender.TileSeamHasNoForeignTexel`).
+- The GS evaluates a sprite's UV at integer pixel positions and a nearest filter takes `floor(u)`; the GPU samples at pixel centres of an upscaled window. For nearest-filtered UV sprites, `AssembleSprite` (`port/src/mg_drawprim.cpp`) therefore maps the quad onto exactly the texels the GS reads (`mgPortSpriteTexelSpan`) and adds `kMgPortNearestTexelBias` (1/64 texel) so a sample exactly on a texel boundary takes the texel after it, as the GS does. This keeps the font's one-texel-wider UV rects (`set2DSpriteEasyFont`) from bleeding the next glyph, and 1:1 background tiles from showing a black seam at 2.5x. Linear-filtered UV sprites subtract half a destination pixel times the UV slope from both corners, so their samples also correspond to the GS integer pixel locations rather than Vulkan pixel centres. This handles stretched and flipped sprites without identifying textures or changing atlas rectangles. TME/FST-off draws keep their UVs. `MgDrawPrim.*` checks the slopes; `MgDrawPrimRender.LinearAtlasCellsKeepTopOutlinesWithoutSamplingTheNextCell` checks RGBA and indexed atlas cells at 2.5x. The bilinear sampler's half-texel footprint is separate from this pixel-location correction.
 - Deliberate deviation from retail: every `DrawVersatileWin` variant (`ps2/src/drawwin.cpp`) puts its translucent backing at +13/+16 from the window origin in `DrawVersatileWin_yesno`, `_1` and `_3`, and at +13/+12 in `_4`. The gaiji frame's opening lies one pixel up and left of the backing, which leaves an undarkened line along the opening's top and left edges on the PS2 too. `port/src/nd_meswin.cpp` overrides `FillRect`, whose only callers are those windows, to draw one pixel up and left. To restore retail's output, delete that file and `port/src/tests/nd_meswin_test.cpp`.
 - The menu background tile grid (`DrawMenuTilePattern`, `port/src/menudraw.cpp`) starts at or left of x = -256 and runs to 256 past the right edge, with rows reaching 256 past the bottom, so 16:9 and 9:16 windows show no uncovered flank. The 4:3 letterbox clips the extra tiles, so the canonical image is unchanged; `port/src/tests/menudraw_tile_test.cpp` covers the column range.
 
@@ -717,7 +787,7 @@ No packet is built or sent, so there are no packet buffers. `mgInitVif1Packet` a
 
 GS Z is `depth * 1.67e7`, or `depth * 65000` for 16-bit Z (`mgPortDepth` and `mgPortGsDepth`).
 
-Menu tile patterns derive phase-preserving coverage from `mgPortVisibleExtent()` on both axes, including 32:9 and narrow portrait Fill windows. Integer sprite rounding is retained. Icon draws sample immutable atlas cells; effect descriptors share atlas pixels but own independent palette handles, so normal CLUT restoration cannot recolor an effect during display replay.
+Menu tile patterns derive phase-preserving coverage from `mgPortVisibleExtent()` on both axes, including 32:9 and narrow portrait Fill windows. Integer sprite rounding is retained. Icon draws sample immutable RGBA atlas cells; effect descriptors select their baked colour variants independently, so restoring another icon cannot recolor an effect during display replay.
 
 ### Render targets
 
@@ -790,7 +860,7 @@ Draws are recorded into display lists (see "Ticks and display frames").
 
 ## Audio
 
-The sound driver runs on Kazarov's shared audio stack. `CSound` in `port/src/sound.cpp`, with `snd_mngr.cpp`, `ezmidi.cpp` and `ezbgm.cpp`, plays through `audio::DefaultMixer()` (`tools/kazarov/port/audio/mixer.hpp`). The port has no IOP, no SIF RPC and no SPU2 path. The mixer's 48-voice synth stands in for the SPU2.
+The sound driver runs on Kazarov's shared audio stack. `CSound` in `port/src/sound.cpp`, with `snd_mngr.cpp`, `ezmidi.cpp` and `ezbgm.cpp`, plays through `audio::DefaultMixer()` (`tools/kazarov/include/audio/mixer.hpp`). The port has no IOP, no SIF RPC and no SPU2 path. The mixer's 48-voice synth stands in for the SPU2.
 
 `AudioInit(bool headless)` and `AudioShutdown()` (`port/src/audio_init.cpp`) own mixer advancement and output. Interactive runs use the playback device callback. Headless runs without WAV capture register a logic-clock pump hook that renders the full mixer using cumulative sample budgets, including fractional samples and tick-rate changes. Voice levels, synth state and stream completion therefore follow game ticks. `DC2_AUDIO=off` suppresses playback but retains headless audio state.
 
@@ -907,7 +977,7 @@ PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
 
 `port/CMakeLists.txt` builds the two halves on every platform, with `PORT` and `PAL` defined:
 
-1. `tools/kazarov/scripts/port_override.py list` reads the tags in `port/src` and writes the name each tagged definition links under to `port/build/pc/port_overrides.txt`.
+1. `tools/kazarov/scripts/build/port_override.py list` reads the tags in `port/src` and writes the name each tagged definition links under to `port/build/pc/port_overrides.txt`.
 2. `scripts/port/unit_copy.py`, run once per unit, writes a copy of each `ps2/src` unit under `<build dir>/ps2_src` (for example `port/build/windows-x64/ps2_src`) without the overridden definitions (`port_override`'s `strip_unit`), then with the unit fixups and long64 applied. Each copy opens with a `#line 1` marker naming its `ps2/src` source, so lines keep their numbers and diagnostics point into `ps2/src`.
 3. `port_override.py check` stops the build if a tagged name is defined by no unit of `ps2/src`, since its replacement would be unused wherever the signatures differ.
 4. The copies are compiled with `PORT` defined, and the units in `port/src` are linked with them.
@@ -1082,8 +1152,8 @@ An address passed through an `int` parameter is fixed by replacing the callee an
 ### The check
 
 ```sh
-tools/kazarov/bin/kazarov shell python3 scripts/port/truncations.py --build port/build/pc --check
-tools/kazarov/bin/kazarov shell python3 -m unittest scripts/port/test_truncations.py
+tools/kazarov/scripts/kazarov shell python3 scripts/port/truncations.py --build port/build/pc --check
+tools/kazarov/scripts/kazarov shell python3 -m unittest scripts/port/test_truncations.py
 ```
 
 `truncations.py` runs libclang over `compile_commands.json` and parses each `ps2/src` unit as compiled. Header fixups and long64 are applied in memory, so replaced functions are seen too.

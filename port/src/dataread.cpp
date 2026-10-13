@@ -18,7 +18,10 @@
 
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "platform/datapacks.hpp"
 #include "platform/paths.hpp"
+#include "platform/texture_catalog.hpp"
+#include "texture_source.hpp"
 
 namespace fs = std::filesystem;
 
@@ -32,7 +35,7 @@ constexpr std::size_t kExpectedFiles = 10240;
 
 // The index replaces DATA.HD4, which never listed these: manifest.txt and the movie/ and sound/ trees
 // are dc2data output that their own subsystems read, not dataread.
-constexpr std::array<std::string_view, 3> kExcludedRootNames = {"manifest.txt", "movie", "sound"};
+constexpr std::array<std::string_view, 5> kExcludedRootNames = {"manifest.txt", "manifest.json", "movie", "sound", "port_data"};
 
 struct IndexedFile {
     fs::path path;
@@ -200,9 +203,26 @@ int ReadSaveFile(const char *name, void *buffer, bool size_only) {
 // The save tree is searched before the index for host names, so a file WriteFile wrote shadows the
 // extracted copy. Returns -1 when neither has the name.
 int ResolveFile(const char *name, const std::string &key, void *buffer, bool size_only) {
+    if (!index_built) {
+        InitCDFile();
+    }
+    if (const auto *source = texture_catalog::Find(key)) {
+        if (buffer && !size_only) {
+            // A converted texture source is an opaque runtime handle. No IMG/TIM2 bytes are made
+            // available to the game; source identity travels alongside copies via texture_source.
+            constexpr std::array<char, 16> handle = {'K', 'Z', 'T', 'X', ':', 'a', 's', 's', 'e', 't', 0, 0, 0, 0, 0, 0};
+            std::memcpy(buffer, handle.data(), handle.size());
+            ZeroSectorTail(buffer, handle.size());
+            TextureSourceRegister(buffer, source->source, handle.size());
+        }
+        return 16;
+    }
     if (IsHostName(name)) {
         int size = ReadSaveFile(name, buffer, size_only);
         if (size >= 0) {
+            if (buffer && !size_only) {
+                TextureSourceRegister(buffer, key, static_cast<std::size_t>(size));
+            }
             return size;
         }
     }
@@ -212,7 +232,11 @@ int ResolveFile(const char *name, const std::string &key, void *buffer, bool siz
         return -1;
     }
     if (!size_only) {
-        return ReadWhole(*file, buffer);
+        const int size = ReadWhole(*file, buffer);
+        if (size >= 0) {
+            TextureSourceRegister(buffer, key, static_cast<std::size_t>(size));
+        }
+        return size;
     }
     std::optional<std::uintmax_t> sized = FileSize(*file);
     if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
@@ -297,7 +321,8 @@ void BuildIndex(const fs::path &root) {
         for (char c : relative) {
             key.push_back(FoldChar(c));
         }
-        file_index.insert_or_assign(std::move(key), IndexedFile{entry.path()});
+        const auto replacement = datapacks::Resolve(fs::path(relative));
+        file_index.insert_or_assign(std::move(key), IndexedFile{replacement.value_or(entry.path())});
     }
 
     if (error) {
@@ -309,6 +334,14 @@ void BuildIndex(const fs::path &root) {
 } // namespace
 
 void DataReadIndex(const fs::path &root) {
+    TextureSourceClear();
+    std::string error;
+    const fs::path data_root = root.has_filename() ? root : root.parent_path();
+    const fs::path catalog = data_root.parent_path() / "port_data" / "catalog.json";
+    if (!texture_catalog::Load(catalog, error) && fs::exists(catalog)) {
+        std::fprintf(stderr, "dataread: %s\n", error.c_str());
+    }
+    datapacks::Load(catalog.parent_path());
     BuildIndex(root);
 }
 
@@ -372,6 +405,7 @@ PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
     if (!name || *name == '\0' || !buffer) {
         return 0;
     }
+    TextureSourceForget(buffer);
 
     BG_READ_INFO *info = BgFreeSlot();
     if (!info) {
@@ -382,6 +416,7 @@ PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
 
     if (CacheSlot *cached = CacheFind(CacheKey(name))) {
         std::memcpy(buffer, cached->address, static_cast<std::size_t>(cached->size));
+        TextureSourceCopy(cached->address, buffer, static_cast<std::size_t>(cached->size));
         cached->ref_count--;
         size = cached->size;
     } else {
@@ -476,10 +511,14 @@ PORT_OVERRIDE int LoadFile2(char *path, void *buffer, int *out_size, int mode) {
     if (!path || *path == '\0' || (mode != LOAD_FILE_SIZE && !buffer)) {
         return 0;
     }
+    if (mode != LOAD_FILE_SIZE) {
+        TextureSourceForget(buffer);
+    }
 
     if (CacheSlot *cached = CacheFind(CacheKey(path))) {
         if (mode != LOAD_FILE_SIZE) {
             std::memcpy(buffer, cached->address, static_cast<std::size_t>(cached->size));
+            TextureSourceCopy(cached->address, buffer, static_cast<std::size_t>(cached->size));
         }
         if (mode == LOAD_FILE_READ) {
             cached->ref_count--;
@@ -561,6 +600,7 @@ PORT_OVERRIDE u_long128 *SearchFileCache(char *path, int *out_size) {
     if (out_size) {
         *out_size = cached->size;
     }
+    TextureSourceRegister(cached->address, IndexKey(path), static_cast<std::size_t>(cached->size));
     return cached->address;
 }
 

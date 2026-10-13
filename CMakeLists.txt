@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.22)
 project(chronicletwo NONE)
 
 # PLATFORM picks what is built: PS2 builds and verifies the retail executable

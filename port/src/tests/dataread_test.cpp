@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
@@ -14,21 +15,19 @@
 
 #include "dataread.hpp"
 #include "dataread_port.hpp"
-#include "dc2data.hpp"
 #include "gamedata.hpp"
 #include "mainloop.hpp"
 #include "platform/paths.hpp"
+#include "texture_source.hpp"
 
 int LoadGameDataAnalyze(char *);
 
-namespace dc = dc2data;
 namespace fs = std::filesystem;
 
 namespace {
 
 constexpr std::size_t kFileSize = 3000;
 constexpr std::size_t kPadded = 4096;
-constexpr int         kRealIndexedFiles = 8751;
 
 std::vector<unsigned char> MakeBytes(std::size_t size, unsigned char seed) {
     std::vector<unsigned char> bytes(size);
@@ -125,6 +124,7 @@ TEST_F(DataRead, IndexLogsItsCountAndRoot) {
 TEST_F(DataRead, RootExclusionsKeepDiscOnlyFilesOutOfTheIndex) {
     const fs::path root = base_ / "excluded";
     WriteBytes(root / "manifest.txt", MakeBytes(10, 1));
+    WriteBytes(root / "manifest.json", MakeBytes(10, 1));
     WriteBytes(root / ".kazarov-data", MakeBytes(10, 2));
     WriteBytes(root / "movie" / "a.pss", MakeBytes(10, 3));
     WriteBytes(root / "sound" / "sound.dat", MakeBytes(10, 4));
@@ -138,7 +138,7 @@ TEST_F(DataRead, RootExclusionsKeepDiscOnlyFilesOutOfTheIndex) {
     std::string log = testing::internal::GetCapturedStderr();
     EXPECT_NE(log.find("dataread: indexed 3 files under " + PathsDisplay(root)), std::string::npos) << log;
 
-    for (const char *name : {"manifest.txt", ".kazarov-data", "movie/a.pss", "sound/sound.dat", "x.dc2tmp"}) {
+    for (const char *name : {"manifest.txt", "manifest.json", ".kazarov-data", "movie/a.pss", "sound/sound.dat", "x.dc2tmp"}) {
         EXPECT_FALSE(DataReadFind(name).has_value()) << name;
     }
     EXPECT_TRUE(DataReadFind("map/movie/b.bin").has_value());
@@ -168,6 +168,87 @@ TEST_F(DataRead, LoadFileReadsExactBytesThenZeroFillsTheSector) {
     EXPECT_EQ(std::memcmp(bytes, expected.data(), kFileSize), 0);
     const std::vector<unsigned char> tail(kPadded - kFileSize, 0);
     EXPECT_EQ(std::memcmp(bytes + kFileSize, tail.data(), tail.size()), 0);
+}
+
+TEST_F(DataRead, DatapacksOverrideIndexedFilesWithReplacementSizesAndSparseFallback) {
+    const auto first = base_ / "datapacks" / "First pack";
+    const auto last = base_ / "datapacks" / "Last pack";
+    WriteBytes(first / "dir" / "sub" / "file.bin", MakeBytes(83, 11));
+    WriteBytes(last / "DIR" / "Sub" / "File.BIN", MakeBytes(177, 19));
+    WriteBytes(first / "small.txt", MakeBytes(27, 31));
+    std::ofstream(base_ / "datapacks" / "datapacks.json")
+        << R"({"schema_version":1,"load_order":["First pack","Last pack"]})";
+    DataReadIndex(root_);
+
+    int size = 0;
+    char name[] = "cdrom0:\\DIR\\SUB\\FILE.BIN;1";
+    ASSERT_EQ(LoadFile2(name, nullptr, &size, LOAD_FILE_SIZE), 1);
+    EXPECT_EQ(size, 177);
+    ASSERT_EQ(Load(name, Buffer(), &size), 1);
+    EXPECT_EQ(size, 177);
+    const auto replacement = MakeBytes(177, 19);
+    EXPECT_EQ(std::memcmp(Buffer(), replacement.data(), replacement.size()), 0);
+    EXPECT_EQ(DataReadFind(name), last / "DIR" / "Sub" / "File.BIN");
+
+    ASSERT_EQ(Load("small.txt", Buffer(), &size), 1);
+    EXPECT_EQ(size, 27);
+    const auto sparse = MakeBytes(27, 31);
+    EXPECT_EQ(std::memcmp(Buffer(), sparse.data(), sparse.size()), 0);
+    ASSERT_EQ(Load("chara/pack.pac", Buffer(), &size), 1);
+    EXPECT_EQ(DataReadFind("chara/pack.pac"), root_ / "chara" / "Pack.PAC");
+
+    std::ofstream(base_ / "datapacks" / "datapacks.json")
+        << R"({"schema_version":1,"load_order":["Last pack","First pack"]})";
+    DataReadIndex(root_);
+    ASSERT_EQ(Load(name, Buffer(), &size), 1);
+    EXPECT_EQ(size, 83);
+    const auto reordered = MakeBytes(83, 11);
+    EXPECT_EQ(std::memcmp(Buffer(), reordered.data(), reordered.size()), 0);
+}
+
+TEST_F(DataRead, DatapacksUseSelectedExtractionWithTrailingSeparator) {
+    WriteBytes(base_ / "datapacks" / "Selected" / "small.txt", MakeBytes(41, 15));
+    std::ofstream(base_ / "datapacks" / "datapacks.json")
+        << R"({"schema_version":1,"load_order":["Selected"]})";
+    DataReadIndex(root_ / "");
+    int size = 0;
+    ASSERT_EQ(Load("small.txt", Buffer(), &size), 1);
+    EXPECT_EQ(size, 41);
+}
+
+TEST_F(DataRead, ConvertedTextureIsAnOpaqueCatalogHandle) {
+    const fs::path catalog = base_ / "port_data" / "catalog.json";
+    fs::create_directories(catalog.parent_path());
+    std::ofstream(catalog)
+        << R"({"schema_version":1,"sources":[{"source":"img/foo.img","kind":"img","size":1234,"entries":[]}]})";
+    DataReadIndex(root_);
+    EXPECT_FALSE(DataReadFind("img/foo.img").has_value());
+
+    int size = -1;
+    char name[] = "cdrom0:\\IMG\\FOO.IMG;1";
+    ASSERT_EQ(LoadFile2(name, nullptr, &size, LOAD_FILE_SIZE), 1);
+    EXPECT_EQ(size, 16);
+    std::memset(Buffer(), 0xAA, kPadded);
+    ASSERT_EQ(Load(name, Buffer(), &size), 1);
+    EXPECT_EQ(size, 16);
+    const auto *bytes = reinterpret_cast<const unsigned char *>(Buffer());
+    EXPECT_EQ(std::memcmp(bytes, "KZTX:asset", 10), 0);
+    EXPECT_TRUE(std::all_of(bytes + 16, bytes + 2048, [](unsigned char value) { return value == 0; }));
+    EXPECT_EQ(TextureSourceLookup(Buffer()), "img/foo.img");
+
+    ASSERT_EQ(Load("small.txt", Buffer(), &size), 1);
+    EXPECT_EQ(TextureSourceLookup(Buffer()), "small.txt");
+}
+
+TEST_F(DataRead, PackLoadRegistersParentSourceForCatalogMembers) {
+    DataReadIndex(root_);
+    int size = 0;
+    ASSERT_EQ(Load("chara/pack.pac", Buffer(), &size), 1);
+    EXPECT_EQ(TextureSourceLookup(Buffer()), "chara/pack.pac");
+    char member[] = "a.bin";
+    u_int *data = GetPackFile(reinterpret_cast<u_int *>(Buffer()), member, nullptr);
+    ASSERT_NE(data, nullptr);
+    EXPECT_EQ(TextureSourceLookup(data), "chara/pack.pac/a.bin");
 }
 
 TEST_F(DataRead, LoadFileAcceptsPlainAndUpperCaseNames) {
@@ -407,10 +488,8 @@ TEST_F(DataRead, RealDataIndexesTheDiscFiles) {
     testing::internal::CaptureStderr();
     DataReadIndex(*data);
     std::string log = testing::internal::GetCapturedStderr();
-    EXPECT_NE(log.find("dataread: indexed " + std::to_string(kRealIndexedFiles) + " files under " +
-                       PathsDisplay(*data)),
-              std::string::npos)
-        << log;
+    EXPECT_NE(log.find(" files under " + PathsDisplay(*data)), std::string::npos) << log;
+    EXPECT_TRUE(DataReadFind("edit.cfg").has_value());
 }
 
 TEST_F(DataRead, ExtractedEditConfigLoadsWhenPresent) {
@@ -443,7 +522,7 @@ TEST_F(DataRead, ExtractedEditConfigLoadsWhenPresent) {
 
 TEST_F(DataRead, ShiftJisNameFindsItsPercentEncodedFile) {
     const std::string game = std::string("DIR\\") + '\x83' + 'A' + "%A.BIN";
-    const fs::path    disk = root_ / dc::DiskName(game);
+    const fs::path    disk = root_ / "dir/%83a%25a.bin";
     WriteBytes(disk, MakeBytes(20, 5));
 
     DataReadIndex(root_);

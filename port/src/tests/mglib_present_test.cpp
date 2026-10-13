@@ -525,60 +525,6 @@ TEST(MglibPresent, DisplayPerTickLeavesCanonicalImage) {
     EXPECT_EQ(with_display, without_display);
 }
 
-TEST(MglibSeam, CopyPaletteCopiesEntries) {
-    PresentRenderer renderer(640, 480);
-    Textures        textures;
-
-    Quads indices = Pack(std::vector<uint8_t>(16, 1));
-    Quads clut_a = Pack(Clut8());
-    Quads clut_b = Pack(std::vector<uint8_t>(256 * 4, 0x66));
-    mgCTexture *a = textures.Enter("seam_pal_a", 4, 4, 8, indices.data(), clut_a.data());
-    mgCTexture *b = textures.Enter("seam_pal_b", 4, 4, 8, indices.data(), clut_b.data());
-    ASSERT_NE(a, nullptr);
-    ASSERT_NE(b, nullptr);
-
-    const gfx::TextureHandle a_palette = mgPortFindTexture(a).palette;
-    const gfx::TextureHandle b_palette = mgPortFindTexture(b).palette;
-    ASSERT_NE(a_palette, gfx::kNullTexture);
-    ASSERT_NE(b_palette, gfx::kNullTexture);
-
-    uint32_t              width = 0;
-    uint32_t              height = 0;
-    const std::vector<uint8_t> source = ReadTexture(a_palette, width, height);
-    const std::vector<uint8_t> before = ReadTexture(b_palette, width, height);
-    ASSERT_EQ(source.size(), 256u * 4u);
-    ASSERT_NE(before, source);
-
-    mgPortCopyPalette(a, b);
-    EXPECT_EQ(ReadTexture(b_palette, width, height), source);
-}
-
-TEST(MglibSeam, CopyPaletteByTex0CopiesEntries) {
-    PresentRenderer renderer(640, 480);
-    Textures        textures;
-
-    Quads indices = Pack(std::vector<uint8_t>(16, 1));
-    Quads clut_a = Pack(Clut8());
-    Quads clut_b = Pack(std::vector<uint8_t>(256 * 4, 0x66));
-    mgCTexture *a = textures.Enter("seam_tex0_a", 4, 4, 8, indices.data(), clut_a.data());
-    mgCTexture *b = textures.Enter("seam_tex0_b", 4, 4, 8, indices.data(), clut_b.data());
-    ASSERT_NE(a, nullptr);
-    ASSERT_NE(b, nullptr);
-
-    const gfx::TextureHandle a_palette = mgPortFindTexture(a).palette;
-    const gfx::TextureHandle b_palette = mgPortFindTexture(b).palette;
-    ASSERT_NE(a_palette, gfx::kNullTexture);
-    ASSERT_NE(b_palette, gfx::kNullTexture);
-
-    uint32_t                   width = 0;
-    uint32_t                   height = 0;
-    const std::vector<uint8_t> source = ReadTexture(a_palette, width, height);
-    ASSERT_NE(ReadTexture(b_palette, width, height), source);
-
-    mgPortCopyPalette(Tex0Bits(a), Tex0Bits(b));
-    EXPECT_EQ(ReadTexture(b_palette, width, height), source);
-}
-
 TEST(MglibSeam, DrawIntoRegisteredTextureSeedsAndResolves) {
     PresentRenderer renderer(640, 480);
     Textures        textures;

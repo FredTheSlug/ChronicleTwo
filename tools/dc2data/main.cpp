@@ -1,113 +1,81 @@
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 #include <exception>
+#include <filesystem>
+#include <string>
+#include <thread>
 
-#include "dc2data.hpp"
+#include "kazarov_bridge/rust/lib.h"
 
 namespace {
-
-namespace dc = dc2data;
 namespace fs = std::filesystem;
 
+#ifdef _WIN32
+using ArgChar = wchar_t;
+bool ArgEquals(const ArgChar *arg, const wchar_t *value) { return std::wcscmp(arg, value) == 0; }
+#define ARG_LITERAL(value) L##value
+#else
+using ArgChar = char;
+bool ArgEquals(const ArgChar *arg, const char *value) { return std::strcmp(arg, value) == 0; }
+#define ARG_LITERAL(value) value
+#endif
+
+std::string Utf8Path(const fs::path &path) {
+    const auto bytes = path.u8string();
+    return {reinterpret_cast<const char *>(bytes.data()), bytes.size()};
+}
+
 int Usage() {
-    std::fputs("usage: dc2data extract <iso-or-directory> <data-directory>\n"
+    std::fputs("usage: dc2data extract <iso-or-directory> <data-directory> [--jobs N]\n"
                "       dc2data list <iso-or-directory>\n"
                "       dc2data sound <iso-or-directory>\n"
-               "       dc2data check <data-directory>\n",
-               stderr);
+               "       dc2data check <data-directory>\n"
+               "       dc2data current <iso-or-directory> <data-directory>\n", stderr);
     return 2;
 }
-
-void Describe(const dc::Archive &archive) {
-    dc::Log(stdout, "source: {} ({})\n", archive.source.string(), archive.image ? "ISO 9660 image" : "directory");
-    dc::Log(stdout, "DATA.DAT: {} bytes, DATA.HD4: {} bytes, SOUND.DAT: {} bytes\n", archive.dat.size,
-            archive.hd4.size, archive.sound_dat.size);
-}
-
-int List(const fs::path &source) {
-    dc::Archive                     archive = dc::OpenArchive(source);
-    std::vector<dc::Record>         records = dc::ReadIndex(archive);
-    std::size_t                     duplicates = 0;
-    std::vector<const dc::Record *> reachable = dc::Reachable(records, stderr, &duplicates);
-    std::uint64_t                   bytes = 0;
-    for (const dc::Record &record : records) {
-        dc::Log(stdout, "{}\t{}\t{}\n", record.name.empty() ? std::string("<no name>") : record.name, record.size,
-                record.sector);
-    }
-    for (const dc::Record *record : reachable) {
-        bytes += record->size;
-    }
-    dc::Log(stderr, "{} entries, {} files, {} duplicates, {} bytes\n", records.size(), reachable.size(),
-            duplicates, bytes);
-    return 0;
-}
-
-int Sound(const fs::path &source) {
-    dc::Archive    archive = dc::OpenArchive(source);
-    dc::SoundIndex index = dc::ReadSoundIndex(archive);
-    std::uint64_t  bytes = 0;
-    std::uint64_t  padded = 0;
-    auto           account = [&](const dc::SoundEntry &entry) {
-        bytes += entry.size;
-        padded += std::uint64_t{entry.sectors} * dc::kSector;
-    };
-    for (const dc::SoundEntry &entry : index.entries) {
-        dc::Log(stdout, "{}\t{}\t{}\t{}\n", entry.name, entry.size, entry.sector, entry.sectors);
-        account(entry);
-    }
-    for (const dc::SoundEntry &entry : index.shadowed) {
-        dc::Log(stdout, "shadowed\t{}\t{}\t{}\t{}\n", entry.name, entry.size, entry.sector, entry.sectors);
-        account(entry);
-    }
-    dc::Log(stdout, "sound: {} entries, {} shadowed, {} bytes, {} bytes in sectors, SOUND.DAT {} bytes\n",
-            index.entries.size(), index.shadowed.size(), bytes, padded, archive.sound_dat.size);
-    return 0;
-}
-
-int Extract(const fs::path &source, const fs::path &out) {
-    dc::Archive archive = dc::OpenArchive(source);
-    Describe(archive);
-    dc::Summary summary = dc::Extract(archive, out, stderr);
-    dc::Log(stdout, "index: {} records, {} files, {} duplicates, {} bytes\n", summary.records, summary.files,
-            summary.duplicates, summary.bytes);
-    if (summary.written == 0 && summary.removed == 0 && !summary.manifest_changed) {
-        dc::Log(stdout, "nothing changed: {} files already in {}\n", summary.kept, out.string());
-    } else {
-        dc::Log(stdout, "wrote {} files ({} bytes), kept {} already in place, removed {} stale, manifest {}\n",
-                summary.written, summary.written_bytes, summary.kept, summary.removed,
-                summary.manifest_changed ? "updated" : "unchanged");
-    }
-    dc::Log(stdout, "verified {} files in {}\n", summary.verified, out.string());
-    return 0;
-}
-
-int Check(const fs::path &out) {
-    dc::CheckReport report = dc::CheckManifest(out);
-    if (!report.problems.empty()) {
-        for (const std::string &problem : report.problems) {
-            dc::Log(stderr, "{}\n", problem);
-        }
-        return 1;
-    }
-    dc::Log(stdout, "checked {} files\n", report.checked);
-    return 0;
-}
-
 } // namespace
 
-int main(int argc, char **argv) {
+int Run(int argc, ArgChar **argv) {
     try {
-        if (argc == 4 && std::strcmp(argv[1], "extract") == 0) {
-            return Extract(argv[2], argv[3]);
+        if ((argc == 4 || argc == 6) && ArgEquals(argv[1], ARG_LITERAL("extract"))) {
+            unsigned jobs = std::clamp(std::thread::hardware_concurrency(), 1u, 32u);
+            if (argc == 6) {
+                if (!ArgEquals(argv[4], ARG_LITERAL("--jobs"))) return Usage();
+                unsigned parsed_jobs = 0;
+                for (const ArgChar *digit = argv[5]; *digit; ++digit) {
+                    if (*digit < ARG_LITERAL('0') || *digit > ARG_LITERAL('9') || parsed_jobs > 64) return Usage();
+                    parsed_jobs = parsed_jobs * 10 + static_cast<unsigned>(*digit - ARG_LITERAL('0'));
+                }
+                if (parsed_jobs == 0 || parsed_jobs > 64) return Usage();
+                jobs = parsed_jobs;
+            }
+            const auto report = kazarov::extract(Utf8Path(argv[2]), Utf8Path(argv[3]), jobs);
+            std::printf("converted %llu reachable files (%llu source bytes), %llu texture sources, %llu PNGs\n",
+                        static_cast<unsigned long long>(report.files),
+                        static_cast<unsigned long long>(report.bytes),
+                        static_cast<unsigned long long>(report.texture_sources),
+                        static_cast<unsigned long long>(report.pngs));
+            return 0;
         }
-        if (argc == 3 && std::strcmp(argv[1], "list") == 0) {
-            return List(argv[2]);
+        if (argc == 3 && ArgEquals(argv[1], ARG_LITERAL("list"))) {
+            const auto result = kazarov::list(Utf8Path(argv[2]));
+            std::fwrite(result.data(), 1, result.size(), stdout);
+            return 0;
         }
-        if (argc == 3 && std::strcmp(argv[1], "sound") == 0) {
-            return Sound(argv[2]);
+        if (argc == 3 && ArgEquals(argv[1], ARG_LITERAL("sound"))) {
+            const auto result = kazarov::sound(Utf8Path(argv[2]));
+            std::fwrite(result.data(), 1, result.size(), stdout);
+            return 0;
         }
-        if (argc == 3 && std::strcmp(argv[1], "check") == 0) {
-            return Check(argv[2]);
+        if (argc == 3 && ArgEquals(argv[1], ARG_LITERAL("check"))) {
+            const auto report = kazarov::check(Utf8Path(argv[2]));
+            std::printf("verified %llu PNG textures\n", static_cast<unsigned long long>(report.textures));
+            return 0;
+        }
+        if (argc == 4 && ArgEquals(argv[1], ARG_LITERAL("current"))) {
+            return kazarov::current(Utf8Path(argv[2]), Utf8Path(argv[3])) ? 0 : 1;
         }
         return Usage();
     } catch (const std::exception &error) {
@@ -115,3 +83,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 }
+
+#ifdef _WIN32
+int wmain(int argc, wchar_t **argv) { return Run(argc, argv); }
+#else
+int main(int argc, char **argv) { return Run(argc, argv); }
+#endif

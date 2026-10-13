@@ -6,14 +6,20 @@
 #include <limits>
 
 #include "menu_mouse_item.hpp"
+#include "menuchr.hpp"
 #include "menudraw.hpp"
 #include "menudraw_port.hpp"
 #include "menumain.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
+#include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+
+PORT_OVERRIDE void MenuReloadCLUT(int index) {
+    MgTextureSetDrawVariant(MenuCharaChangeBase_Tex, index == 0 ? MenuCharaChangeCLUT_Tex : nullptr);
+}
 
 PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
                                     int alpha, int red, int green, int blue) {

@@ -25,13 +25,13 @@ orchestrator or reviewed by it before and after.
   container plus `scripts/build/verify.py -c` must pass after every phase.
 - **Shared with Chronicle through Kazarov.** The renderer, the audio stack,
   the game-agnostic platform layer and the game-agnostic SDK replacements
-  live in the Kazarov submodule (`tools/kazarov/port/`) and are consumed by
+  live in the Kazarov submodule (`tools/kazarov/src/cpp/`) and are consumed by
   both games. ChronicleTwo never copies code that Chronicle already has; it
   consumes it, and extends it in Kazarov where the extension is generic
   (section 3.5). Chronicle's build and tests stay green throughout.
 - **Replacement through `PORT_OVERRIDE` only.** A definition in `port/src`
   tagged `PORT_OVERRIDE` replaces the one in `ps2/src`; the build strips the
-  original (`tools/kazarov/scripts/port_override.py list/strip/check`). Every
+  original (`tools/kazarov/scripts/build/port_override.py list/strip/check`). Every
   replacement is written from scratch. A `static` function cannot be replaced,
   so its non-static callers are replaced instead. The one exception is a
   `static` function written in assembly: it is guarded `#ifndef PORT` and the
@@ -89,7 +89,7 @@ The Kazarov submodule (pinned at `main`) has `port_override.py`,
 `include/kazarov/port.h` (`PORT_INIT/RETURN/FIX`, the empty `PORT_OVERRIDE`
 marker) and a container image with clang/lld 23, SDL3, Vulkan, Mesa
 lavapipe, glslang and GoogleTest. Since Phase 0, Kazarov holds the shared host code in
-`tools/kazarov/port/{gfx,audio,platform,sce,tests}` and
+`tools/kazarov/src/cpp/{gfx,audio,platform,sce,tests}` and
 `cmake/KazarovPort.cmake`, and Chronicle consumes it from there. ChronicleTwo and Chronicle pin Kazarov
 `main` (see `docs/port/HANDOFF.md` for the sha).
 
@@ -186,9 +186,9 @@ docs/vu1/<program>.md     behavioural specs of the six VU1 programs (the source 
 scripts/port/             vu1dis.py (VU1 disassembler), truncations.py (pointer-cast audit)
 ```
 
-Rules: nothing under `tools/kazarov/port/gfx`, `audio`, `platform` includes
+Rules: nothing under `tools/kazarov/src/cpp/gfx`, `audio`, `platform` includes
 a game header; they build as `ct_host` without `port.h`.
-`tools/kazarov/port/sce` is compiled by each consumer with its own
+`tools/kazarov/src/cpp/sce` is compiled by each consumer with its own
 `ps2/include/sce` headers and `port.h` (section 3.3). Replacement units in
 `port/src` are the only place game types and host services meet.
 
@@ -199,13 +199,13 @@ a game header; they build as `ct_host` without `port.h`.
 `glyphs/` until the options work needs them) and the host side taken from
 Kazarov:
 
-- `kz_port_host_library(ct_host)` builds `tools/kazarov/port/{gfx,audio,
+- `kz_port_host_library(ct_host)` builds `tools/kazarov/src/cpp/{gfx,audio,
   platform}` as an object library: finds SDL3, Vulkan 1.4, glslang and
   nlohmann_json, fetches the pinned stb/dr_libs single-file decoders (or
   uses a directory the consumer names, for Flatpak), compiles the shaders
   to SPIR-V headers.
 - `kz_port_sce_sources(out LIBS libvu0 libpad libmc ...)` returns the
-  selected `tools/kazarov/port/sce` sources to add to the game-side target.
+  selected `tools/kazarov/src/cpp/sce` sources to add to the game-side target.
   Each file includes only its own SDK header, so a consumer selects only the
   families its `ps2/include/sce` has.
 - `kz_port_tests(darkchronicle_tests)` adds the host-side test cases.
@@ -245,7 +245,7 @@ with llvm-mingw. `ps2-pal` is unchanged.
 - `ExitHandler()` is guarded `#ifndef PORT` in `ps2/include/sce/eekernel.h`,
   expanding to `((void) 0)` under `PORT`: an assembly definition in an SDK
   header copy, the same exception, and the PS2 build does not change.
-- Shared SDK replacements (`tools/kazarov/port/sce/*.cpp`) are compiled by
+- Shared SDK replacements (`tools/kazarov/src/cpp/sce/*.cpp`) are compiled by
   each game with `port.h` force-included and that game's `ps2/include/sce`
   on the include path. Where a game's transcribed header disagrees with the
   real SDK prototype, the transcription is corrected (an SDK-true header
@@ -261,7 +261,7 @@ with llvm-mingw. `ps2-pal` is unchanged.
 
 ### 3.4 Platform layer
 
-Shared (`tools/kazarov/port/platform`): `clock` (logic tick, `ClockPump`,
+Shared (`tools/kazarov/src/cpp/platform`): `clock` (logic tick, `ClockPump`,
 `ClockSyncV`, `ClockWaitNextTick`), `files`, `memory`, `paths`, `window`,
 `display`, `input` + `gamepad_map` + `input_script`, `mouse`, `touchpad`,
 `overlay` (+ its font), `imagefile`, `ttffont`, `glyphs`, `audio` (SDL3
@@ -416,7 +416,7 @@ repositories, which carry no licence file (Q12). The distribution packages
 are not usable: Debian's `libavcodec` and Homebrew's `ffmpeg` are built
 `--enable-gpl`, so the port builds its own minimal LGPL FFmpeg:
 
-- **Configuration** (`tools/kazarov/bin/kz-ffmpeg`, a build script over a
+- **Configuration** (`tools/kazarov/scripts/build/kz-ffmpeg`, a build script over a
   pinned source tarball with its SHA-256; FFmpeg 7.1.1):
   `--disable-everything --disable-programs --disable-doc --disable-network
   --disable-autodetect --disable-avformat --disable-avfilter
@@ -491,7 +491,7 @@ building and `darkcloud_tests` green on the pinned commit.
 
 ### Phase 0: the shared code moves into Kazarov
 
-Goal: `tools/kazarov/port/` holds the renderer, audio, platform and sce code;
+Goal: `tools/kazarov/src/cpp/` holds the renderer, audio, platform and sce code;
 Chronicle consumes it with its tests and CI green; ChronicleTwo pins the
 same commit. Done in the Chronicle checkout and the Kazarov clone; nothing
 in ChronicleTwo's `port/` depends on copies.
@@ -740,7 +740,7 @@ behaviour is implemented; nothing from Chronicle is copied.
 - Depends: 1.4, 1.5. Parallel-safe. Size: ~500.
 
 **WP1.7 SDK stubs Chronicle lacks [mechanical, Kazarov branch `shared`]**
-- Create in `tools/kazarov/port/sce/stubs/`: `libdev.cpp` (`sceDevCons*`),
+- Create in `tools/kazarov/src/cpp/sce/stubs/`: `libdev.cpp` (`sceDevCons*`),
   `libmpeg.cpp` (every `sceMpeg*` referenced), `libsdr.cpp`
   (`sceSdRemote`, `sceSdRemoteInit`), `modmsin.cpp` (`sceMSIn_Init`,
   `PutMsg`, `PutHsMsg`), `sifdma.cpp` (`sceSifSetDma`, `sceSifDmaStat`,
@@ -796,7 +796,7 @@ behaviour is implemented; nothing from Chronicle is copied.
   `MainThreadPriority = 10` and `MainLoop()`. `InitCDFile()` is not called
   (WP2.4). After `MainLoop` returns: renderer, input, window shutdown.
 - Inputs: `ps2/src/main.cpp`, `Chronicle/port/src/main.cpp` (`Run`,
-  `wmain`), `tools/kazarov/port/gfx/gfx.hpp`, `platform/window.hpp`,
+  `wmain`), `tools/kazarov/include/gfx/gfx.hpp`, `platform/window.hpp`,
   `platform/paths.hpp`.
 - Acceptance: with WP1.10, `darkchronicle --headless` prints the pipeline
   progress, then the `PS2_UNIMPLEMENTED` line naming `sceDmaReset` (reached
@@ -818,7 +818,7 @@ behaviour is implemented; nothing from Chronicle is copied.
   `.\build.bat windows-x64` links; `./build.sh ps2-pal` byte-identical;
   Chronicle green on any Kazarov commit this WP produced; `git diff --stat
   ps2/` listed with justifications in the report.
-- Depends: 1.1-1.9. Not parallel. Size: ≤ 1,000, mostly one-liners.
+- Depends: 1.1-1.9. Not parallel. Size: â‰¤ 1,000, mostly one-liners.
 
 **WP1.11 Phase gate and docs [mechanical]**
 - Create `docs/PC.md` (build instructions for three OSes, the override
@@ -972,7 +972,7 @@ are non-blocking counters. The now-loading hook's draw calls are gated by a
 "renderer ready" flag until phase 4. Tests: a scripted spin on `sceGsSyncV`
 advances the count; a registered thread runs once per tick. Inputs:
 `ps2/src/mglib.cpp:300-400`, `nowload.cpp:180-300`, `gamepad.cpp:790-840`,
-`fishing.cpp:1300-1380`, `tools/kazarov/port/platform/clock.hpp`. Depends:
+`fishing.cpp:1300-1380`, `tools/kazarov/include/platform/clock.hpp`. Depends:
 2.5. Size: ~600.
 
 **WP2.7 Pads and cards glue [mechanical]** `port/src/gamepad.cpp` overrides
@@ -1067,7 +1067,7 @@ Phase 2 parallel groups: {2.1, 2.2, 2.3, 2.4, 2.5} then {2.6, 2.8} then
 
 **WP3.1 VU1 disassembler [mechanical]** `scripts/port/vu1dis.py`: reads
 the retail ELF (`rom/pal/extracted/iso/SCES_511.90`, via
-`tools/kazarov/python/kazarov_elf`), slices `.vutext`/`.vudata` by the
+`tools/kazarov/scripts/kazarov_elf`), slices `.vutext`/`.vudata` by the
 symbol table (`ps2/config/pal/main.symbols.txt:7910-8059, 8971`), walks the
 DMA tags and VIF codes (`MPG` gives load address and word count;
 `UNPACK`/`DIRECT` in `My_dma_start0` printed as data), prints each 64-bit
@@ -1331,7 +1331,7 @@ run on `L5LOGO.PSS` reports the sequence extension flags (progressive or
 not). Tests: a hand-built two-packet stream. Depends: none. Size: ~400.
 
 **WP6.2 Minimal LGPL FFmpeg acquisition [mechanical, Kazarov branch
-`shared`]** Create `tools/kazarov/bin/kz-ffmpeg` (downloads the FFmpeg
+`shared`]** Create `tools/kazarov/scripts/build/kz-ffmpeg` (downloads the FFmpeg
 7.1.1 tarball from ffmpeg.org, checks its SHA-256, configures with the
 flags of 3.9, builds `libavcodec.a`/`libavutil.a` into `--out DIR`, writes
 a stamp with the version and flags so `kz-cached` can skip it),
@@ -1420,7 +1420,7 @@ Depends: 2.5. Size: ~600.
 shop, invention, photo), DUNGEON (floors, spheda, ridepod), fishing,
 Gyorace, buggy, menus, saves with scripted input; replace each
 `Ps2Unimplemented` hit from its unit with the pattern of its phase. Each
-round ≤ 1,000 lines, named by the units it covers. Depends: 4.11, 5.4, 6.4.
+round â‰¤ 1,000 lines, named by the units it covers. Depends: 4.11, 5.4, 6.4.
 
 **WP7.5 64-bit audit and crutches [mechanical]** `truncations.md` has no
 unresolved round trip in linked code; PIE; arenas above 4 GiB in tests.
@@ -1508,7 +1508,7 @@ Q8 `EZBGM.IRX` may be disassembled for format understanding.
   FFmpeg source or offer must accompany binaries).
 - **Q9 Windows build scripts in Kazarov.** `tools/windows/*.ps1` are copied
   per game in this plan (they are build scripts, not port code). They could
-  live in `tools/kazarov/host/` with the project and executable names read
+  live in `tools/kazarov/scripts/` with the project and executable names read
   from `kazarov.conf`; worth one WP if a third copy ever appears.
 - **Q10 `port/src/video` location.** Written in ChronicleTwo; move to
   Kazarov `port/video` if a second consumer appears, or now for symmetry

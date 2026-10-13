@@ -22,7 +22,7 @@ Branches (no push):
 Chronicle-phase0 on kz `c937490` (submodule now restored to `ce459c1`):
 - Linux build OK, ctest 284/284 passed; ps2-pal OK, verify `-c` 3442/3442 perfect, data perfect; Windows `build.bat windows-x64` OK.
 - `darkcloud --headless --data data --save port/build/chronicle-save --frames 3 --screenshot` is byte-identical (`cmp`) to `baseline/chronicle-3.png` (sha256 `30db72bb...e289`, 1280x960, taken on `ce459c1` before anything else and checked deterministic across two runs).
-- On raw `0b81463` Chronicle did **not** compile: `tools/kazarov/port/tests/platform_mc_test.cpp: use of undeclared identifier 'sceMcSeek'/'sceMcEnd'` (Dark Cloud's `libmc.h` lacks them). Fixed in `c937490`: both are declared `extern "C"` in Kazarov `port/sce/libmc.cpp` and the test. Chronicle-safe construction: Chronicle's game code never calls either function. The only change is the linkage of two unused symbols, and the screenshot proves it.
+- On raw `0b81463` Chronicle did **not** compile: `tools/kazarov/src/cpp/tests/platform_mc_test.cpp: use of undeclared identifier 'sceMcSeek'/'sceMcEnd'` (Dark Cloud's `libmc.h` lacks them). Fixed in `c937490`: both are declared `extern "C"` in Kazarov `port/sce/libmc.cpp` and the test. Chronicle-safe construction: Chronicle's game code never calls either function. The only change is the linkage of two unused symbols, and the screenshot proves it.
 
 ## Per file (p2-wip 5db69a0 + Kazarov 0b81463)
 

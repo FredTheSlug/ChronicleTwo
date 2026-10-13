@@ -23,7 +23,7 @@ so Docker or Podman must be installed.
   rebuilds from scratch.
 - `./run.sh` builds, masters a disc image and boots it in PCSX2.
 - `build.bat` and `run.bat` do the same on Windows.
-- `tools/kazarov/bin/kazarov shell` opens a shell in the build container, with the
+- `tools/kazarov/scripts/kazarov shell` opens a shell in the build container, with the
   project at `/work/chronicletwo`.
 
 ## Diffing

@@ -48,6 +48,8 @@ struct Point {
 Point PointerToUi(float x, float y, int window_width, int window_height, const gfx::LogicalMapping &mapping);
 Point PointerPosition();
 bool  Pointing();
+// Handles PC options input and forwards retail Options cancel to the pad edge.
+bool  Run();
 Hit   HitTest(const State &state, float x, float y);
 void  SelectPage(State &state, int page);
 void  MoveRow(State &state, int direction);

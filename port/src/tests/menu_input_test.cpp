@@ -253,3 +253,37 @@ TEST_F(MenuInput, FieldMovementKeysDoNotSuppressDpadRepeatOrSecondPadLock) {
 }
 
 } // namespace
+
+TEST_F(MenuInput, MouseMotionCannotReachMenuSticksOrRetailDirectionConversion) {
+    GamePad__2.MenuModeOn(120);
+    constexpr int directions = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
+    const std::string_view x[] = {"MouseX"}, y[] = {"MouseY"};
+    ASSERT_TRUE(InputBindKeys("lx", x));
+    ASSERT_TRUE(InputBindKeys("ly", y));
+    for (float motion : {-10000.0f, 10000.0f}) {
+        const auto pad = InputApplyKeyboardMouse({}, {.mouse_dx = motion, .mouse_dy = motion});
+        EXPECT_EQ(pad.left_x, 128);
+        EXPECT_EQ(pad.left_y, 128);
+        EXPECT_EQ(pad.right_x, 128);
+        EXPECT_EQ(pad.right_y, 128);
+        EXPECT_EQ(pad.buttons & directions, 0);
+    }
+}
+
+TEST_F(MenuInput, ScriptedMenuMotionLeavesRetailAxesDirectionsAndCameraNeutral) {
+    InputScript script;
+    std::string error;
+    ASSERT_TRUE(InputScriptParse("0 pad1\n0 pad2\n4 mouse:10000,10000\n5 mouse:-10000,-10000\n", script, error)) << error;
+    InputScriptInstall(std::move(script));
+    ClockSetUnbounded(true); ClockReset(); GamePad__2.Init();
+    for (int frame = 0; frame < 4; ++frame) { InputScriptApply(frame); GamePad__2.UpDate(); }
+    GamePad__2.MenuModeOn(120);
+    for (int frame = 4; frame < 6; ++frame) {
+        InputScriptApply(frame); GamePad__2.UpDate();
+        EXPECT_EQ(GamePad__2.GetLX(), 0); EXPECT_EQ(GamePad__2.GetLY(), 0);
+        EXPECT_EQ(GamePad__2.GetRX(), 0); EXPECT_EQ(GamePad__2.GetRY(), 0);
+        EXPECT_EQ(GamePad__2.pad[0].button & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT), 0);
+        EXPECT_FLOAT_EQ(InputGetMouseLook().yaw, 0);
+        EXPECT_FLOAT_EQ(InputGetMouseLook().pitch, 0);
+    }
+}

@@ -439,3 +439,141 @@ TEST_F(ItemMouse, ControllerOnlyItemPageDoesNotMoveTheSharedPointerOrigin) {
     EXPECT_FLOAT_EQ(MenuMouseTake().x, 266);
     EXPECT_FLOAT_EQ(MenuMouseTake().y, 240);
 }
+
+TEST_F(ItemMouse, CommandRowsFollowDrawnLinePositionsAndWidths) {
+    auto &menu = class_menu_item_info;
+    menu.mode = MENU_ASK_MODE_ITEM_COMMAND;
+    menu.ask_para = {};
+    menu.ask_para.form = &command;
+    menu.ask_para.mes_no = 5;
+    menu.ask_para.cmd_num = 3;
+    command.draw_flag = true;
+    message.text_x = 250; message.text_y = 100; message.text_w = 50;
+    message.font_h = 24;
+    message.cursor = 0;
+    message.line_pos_on[2] = 1;
+    message.line_pos[2][0] = 300; message.line_pos[2][1] = 210;
+    message.line_w[2] = 100;
+    Tick(65, 100, 1); // (340,212), in the drawn third row, outside text_w.
+    EXPECT_EQ(message.GetMsgCursor(), 2);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
+}
+
+TEST_F(ItemMouse, WeaponAndRodStatsHoverBothColumnsUsingMovedForms) {
+    auto &menu = class_menu_item_info;
+    MENUFORMPARTS_TYPE stats[10]{};
+    char names[10][16];
+    CMenuPosDataForm stat_form{};
+    stat_form.x = 30; stat_form.y = 40;
+    stat_form.draw_flag = true;
+    stat_form.parts = stats; stat_form.parts_num = 10;
+    for (int i = 0; i < 10; ++i) {
+        std::snprintf(names[i], sizeof(names[i]), "index%d", i);
+        stats[i].name = names[i];
+        stats[i].x = 70 + (i % 2) * 110;
+        stats[i].y = 130 + (i / 2) * 24;
+        stats[i].w = 104; stats[i].h = 20;
+        stats[i].draw_flag = true;
+    }
+    menu.view_mode = MENU_ITEM_VIEW_WEAPON;
+    menu.view_form[2] = &stat_form;
+    Tick(-142, 98); // Bag centre (262,75) -> first stat (120,173).
+    EXPECT_EQ(menu.key_arg_no, ITEM_MENU_PANEL_WEAPON_STATS);
+    EXPECT_EQ(keys.cursor, 0);
+    for (int i = 1; i < 10; ++i) {
+        Tick(i % 2 ? 110 : -110, i % 2 ? 0 : 24);
+        EXPECT_EQ(keys.cursor, i);
+        EXPECT_EQ(keys.select_pos[0], i);
+        EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    }
+    Tick(0, 0, 2);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CIRCLE);
+    menu.view_mode = MENU_ITEM_VIEW_FISHING_ROD;
+    menu.view_form[5] = &stat_form;
+    for (int i = 0; i < 5; ++i) {
+        stats[i].x = 70; stats[i].y = 130 + i * 24;
+    }
+    Tick(-110, -96);
+    EXPECT_EQ(menu.key_arg_no, ITEM_MENU_PANEL_FISHING_ROD_STATS);
+    EXPECT_EQ(keys.cursor, 0);
+    Tick(0, 96);
+    EXPECT_EQ(keys.cursor, 4);
+}
+
+TEST_F(ItemMouse, UnmappedQuestionClickConfirmsCurrentSelection) {
+    class_menu_item_info.mode = MENU_ASK_MODE_EXTEND;
+    class_menu_item_info.step = 1;
+    class_menu_item_info.ask_para.mes_no = -1;
+    Tick(10, 10, 1);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    EXPECT_EQ(keys.cursor, 0);
+    Tick(0, 0, 2);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CIRCLE);
+}
+
+TEST_F(ItemMouse, QuantityClickAwayFromArrowsConfirmsInsteadOfDisappearing) {
+    class_menu_item_info.mode = MENU_ASK_MODE_HOW_MUCH;
+    keys.how_much_form = &command;
+    command.draw_flag = true;
+    command.parts = parts; command.parts_num = 2;
+    parts[0].name = const_cast<char *>("up"); parts[0].x = 250; parts[0].y = 70;
+    parts[1].name = const_cast<char *>("down"); parts[1].x = 250; parts[1].y = 110;
+    Tick(-150, 0, 1);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+}
+
+TEST_F(ItemMouse, FollowupYesNoUsesVisibleMessageInsteadOfStaleAskId) {
+    class_menu_item_info.mode = MENU_ASK_MODE_EXTEND;
+    class_menu_item_info.ask_para.mes_no = -1;
+    CDC2Mes followup;
+    const auto saved = MenuDCMsg[7]; const auto saved_form = MenuMesForm[7];
+    MenuDCMsg[7] = &followup; MenuMesForm[7] = &command;
+    command.draw_flag = true;
+    followup.font_h = 24; followup.cursor = 0; followup.window_mode = MES_WIN_YESNO;
+    followup.choice_pos[0][0] = 210; followup.choice_pos[0][1] = 150;
+    followup.choice_pos[1][0] = 290; followup.choice_pos[1][1] = 150;
+    Tick(40, 85, 1);
+    EXPECT_EQ(followup.cursor, 1);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    MenuDCMsg[7] = saved; MenuMesForm[7] = saved_form;
+}
+
+TEST_F(ItemMouse, CommandExplanationStillAcceptsConfirmAndCancel) {
+    class_menu_item_info.mode = MENU_ASK_MODE_ITEM_COMMAND;
+    class_menu_item_info.step = 1;
+    class_menu_item_info.ask_para.mes_no = -1;
+    Tick(1, 0, 1);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    Tick(0, 0, 2);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CIRCLE);
+}
+
+TEST_F(ItemMouse, RidepodSlotsUseTheirMovedFormPositions) {
+    class_menu_item_info.view_mode = MENU_ITEM_VIEW_ROBO;
+    class_menu_item_info.view_form[3] = &character;
+    parts[0].name = const_cast<char *>("c_w0"); parts[0].x = 40; parts[0].y = 180;
+    parts[1].name = const_cast<char *>("c_w1"); parts[1].x = 130; parts[1].y = 180;
+    Tick(-202, 115);
+    EXPECT_EQ(class_menu_item_info.key_arg_no, ITEM_MENU_PANEL_RIDEPOD_PARTS);
+    EXPECT_EQ(keys.cursor, 0);
+    Tick(90, 0, 1);
+    EXPECT_EQ(keys.cursor, 1);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+}
+
+TEST_F(ItemMouse, BuildUpListHoverSelectsBeforeClickConfirms) {
+    const auto saved = BuildUpWeaponInfo;
+    s16 saved_pos[3][2]; std::copy(&BuildUpNameXY[0][0], &BuildUpNameXY[0][0] + 6, &saved_pos[0][0]);
+    class_menu_item_info.mode = MENU_ASK_MODE_EXTEND;
+    class_menu_item_info.ask_para.ask_mode = MENU_ITEM_EXTEND_BUILD_UP;
+    BuildUpWeaponInfo.select_num = 3; BuildUpWeaponInfo.select_no = 0;
+    for (int i = 0; i < 3; ++i) { BuildUpNameXY[i][0] = 220; BuildUpNameXY[i][1] = 100 + 40 * i; }
+    Tick(1, 115);
+    EXPECT_EQ(BuildUpWeaponInfo.select_no, 2);
+    EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+    Tick(0, 0, 1);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    BuildUpWeaponInfo = saved;
+    std::copy(&saved_pos[0][0], &saved_pos[0][0] + 6, &BuildUpNameXY[0][0]);
+}

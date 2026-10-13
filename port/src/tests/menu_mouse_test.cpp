@@ -5,6 +5,7 @@
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
+#include "options/screen.hpp"
 #include "menu_mouse.hpp"
 #include "save_slots.hpp"
 #include "menusys.hpp"
@@ -383,4 +384,37 @@ TEST_F(MenuMouseInput, MenuWheelCannotZoomOrLeakBackIntoGameplay) {
     InputLatchPad(0);
     EXPECT_FLOAT_EQ(InputGetMouseLook().zoom, -1);
     InputApplyConfig(HostSettings{});
+}
+
+TEST_F(MenuMouseInput, OptionsRightClickCancelsRetailPcAndBindingPages) {
+    const int language = LanguageCode;
+    LanguageCode = LANG_ENGLISH;
+    MenuMouseEnable(true);
+    options::g_screen = {};
+    InputSetScriptedDevices({.mouse_buttons = 2});
+    EXPECT_FALSE(options::Run());
+    EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CIRCLE);
+    EXPECT_FALSE(options::g_screen.open);
+    for (int page = 0; page < 4; ++page) {
+        InputSetScriptedDevices({}); Tick(); options::Run();
+        options::g_screen.open = true;
+        options::g_screen.page = page;
+        InputSetScriptedDevices({.mouse_buttons = 2}); Tick();
+        EXPECT_TRUE(options::Run());
+        EXPECT_FALSE(options::g_screen.open);
+        EXPECT_EQ(options::g_screen.page, page);
+        EXPECT_EQ(MenuMouseButtons(), 0);
+    }
+    InputSetScriptedDevices({}); Tick(); options::Run();
+    options::g_screen.open = true;
+    options::g_screen.binding = 0;
+    InputBeginBindCapture();
+    InputSetScriptedDevices({.mouse_buttons = 2}); Tick();
+    EXPECT_TRUE(options::Run());
+    EXPECT_EQ(options::g_screen.binding, -1);
+    EXPECT_TRUE(options::g_screen.open);
+    EXPECT_EQ(MenuMouseButtons(), 0);
+    options::g_screen = {};
+    InputSetScriptedDevices({}); Tick(); options::Run();
+    LanguageCode = language;
 }

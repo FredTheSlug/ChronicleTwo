@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
 #include <SDL3/SDL.h>
 
 #include "gamepad.hpp"
@@ -154,6 +155,39 @@ Rect BoardClip(CMenuItemInfo &menu) {
 Target Hit(CMenuItemInfo &menu, Point p, int count) {
     Target target = GridHit(p, {MenuItemBrdUnderBrdPosXY[0], MenuItemBrdUnderBrdPosXY[1]}, BoardClip(menu), count);
     if (target) return target;
+    if (menu.view_mode == MENU_ITEM_VIEW_WEAPON || menu.view_mode == MENU_ITEM_VIEW_FISHING_ROD) {
+        auto *form = menu.view_form[menu.view_mode == MENU_ITEM_VIEW_WEAPON ? 2 : 5];
+        if (!form || !form->draw_flag) return {};
+        const int panel = menu.view_mode == MENU_ITEM_VIEW_WEAPON ? ITEM_MENU_PANEL_WEAPON_STATS : ITEM_MENU_PANEL_FISHING_ROD_STATS;
+        const int stats = menu.view_mode == MENU_ITEM_VIEW_WEAPON ? 10 : 5;
+        for (int i = 0; i < stats; ++i) {
+            const std::string name = "index" + std::to_string(i);
+            auto *part = form->GetPartInfo(const_cast<char *>(name.c_str()));
+            if (!part || !part->draw_flag) continue;
+            const Point q = FormPoint(form, part->name);
+            static char *values[] = {const_cast<char *>("st0"), const_cast<char *>("st1"),
+                const_cast<char *>("el0"), const_cast<char *>("el1"), const_cast<char *>("el2"), const_cast<char *>("el3"),
+                const_cast<char *>("el4"), const_cast<char *>("el5"), const_cast<char *>("el6"), const_cast<char *>("el7")};
+            float width = part->w > 0 ? part->w : 60;
+            if (auto *value = form->GetPartInfo(values[i])) {
+                const Point v = FormPoint(form, value->name);
+                width = std::max(width, v.x + value->w - q.x);
+            }
+            // Include the label, value and their shared board's small padding.
+            if (Rect{q.x - 2, q.y - 2, width + 4, (part->h > 0 ? part->h : 18) + 4}.Contains(p)) return {panel, i};
+        }
+        return {};
+    }
+    if (menu.view_mode == MENU_ITEM_VIEW_ROBO) {
+        auto *form = menu.view_form[3];
+        if (!form || !form->draw_flag) return {};
+        for (int i = 0; i < 2; ++i) {
+            const std::string name = "c_w" + std::to_string(i);
+            const Point q = FormPoint(form, name.c_str());
+            if (Rect{q.x, q.y, 80, 40}.Contains(p)) return {ITEM_MENU_PANEL_RIDEPOD_PARTS, i};
+        }
+        return {};
+    }
     if (menu.view_mode != MENU_ITEM_VIEW_MAX && menu.view_mode != MENU_ITEM_VIEW_MONICA) return {};
     auto *form = menu.view_form[menu.sub_view];
     if (!form || !form->draw_flag) return {};
@@ -225,12 +259,8 @@ void Commands(CMenuItemInfo &menu, const Take &take) {
     if (!take.pointing || menu.step != 0 || !menu.ask_para.form) return;
     auto *message = MenuDCMsg[menu.ask_para.mes_no];
     if (!message || !menu.ask_para.form->draw_flag) return;
-    int dx = 0, dy = 0;
-    message->CalcCenteringXY(&dx, &dy);
-    Rect rect{message->text_x + message->draw_off_x + dx,
-              message->text_y + message->draw_off_y + dy,
-              static_cast<float>(message->text_w), static_cast<float>(menu.ask_para.cmd_num * message->font_h)};
-    int row = CommandHit(pointer.pos, rect, menu.ask_para.cmd_num, message->font_h);
+    const auto rows = MenuMouseMessageRows(*message, menu.ask_para.cmd_num);
+    const int row = MenuMouseHit(rows, pointer.pos.x, pointer.pos.y);
     if (row >= 0 && take.moved && row != message->GetMsgCursor()) {
         message->SetMsgCursor(row);
         MenuSePlay(SYSTEM_SE_CURSOR);
@@ -249,6 +279,7 @@ void Question(CMenuItemInfo &menu, CMenuKeyFunc &keys, const Take &take) {
         Point up = FormPoint(quantity, "up"), down = FormPoint(quantity, "down");
         Rect area{std::min(up.x, down.x) - 12, std::min(up.y, down.y) - 12,
                   std::abs(up.x - down.x) + 48, std::abs(up.y - down.y) + 48};
+        if (take.pressed & 1) synthetic = PAD_CROSS;
         if (area.Contains(pointer.pos)) {
             if (take.wheel != 0) synthetic = take.wheel > 0 ? PAD_UP : PAD_DOWN;
             else if (take.pressed & 1) {
@@ -259,22 +290,33 @@ void Question(CMenuItemInfo &menu, CMenuKeyFunc &keys, const Take &take) {
         }
         return;
     }
-    const int id = menu.ask_para.mes_no;
-    if (id < 0 || id >= 9) return;
-    auto *message = MenuDCMsg[id];
-    auto *form = MenuMesForm[id];
-    if (!message || !form || !form->draw_flag || message->window_mode != MES_WIN_YESNO) return;
-    for (int choice = 0; choice < 2; ++choice) {
-        // These are the same absolute positions DrawYesNo and the retail hand use.
-        Point p{static_cast<float>(message->choice_pos[choice][0]), static_cast<float>(message->choice_pos[choice][1])};
-        if (p.x < 0 || p.y < 0 || !Rect{p.x - 8, p.y - 4, 56, 28}.Contains(pointer.pos)) continue;
-        if (take.moved && message->GetMsgCursor() != choice) {
-            message->SetMsgCursor(choice);
+    if (menu.mode == MENU_ASK_MODE_EXTEND && menu.ask_para.ask_mode == MENU_ITEM_EXTEND_BUILD_UP && menu.step == 0) {
+        MenuMouseRect rows[3]{};
+        for (int i = 0; i < std::clamp(int(BuildUpWeaponInfo.select_num), 0, 3); ++i)
+            rows[i] = {float(BuildUpNameXY[i][0]), float(BuildUpNameXY[i][1]), 200, 24};
+        BuildUpWeaponInfo.select_no = MenuMouseRows({rows, static_cast<std::size_t>(std::clamp(int(BuildUpWeaponInfo.select_num), 0, 3))}, BuildUpWeaponInfo.select_no);
+        synthetic = MenuMouseButtons();
+        return;
+    }
+    // Scripts often put a follow-up on message 7, rather than ask_para.mes_no.
+    for (int id = 8; id >= 0; --id) {
+        auto *message = MenuDCMsg[id];
+        auto *form = MenuMesForm[id];
+        if (!message || !form || !form->draw_flag || message->GetMsgCursor() < 0) continue;
+        const auto rows = MenuMouseMessageRows(*message, message->rows);
+        if (rows.empty()) continue;
+        const int row = MenuMouseHit(rows, pointer.pos.x, pointer.pos.y);
+        if (row >= 0 && take.moved && row != message->GetMsgCursor()) {
+            message->SetMsgCursor(row);
             MenuSePlay(SYSTEM_SE_CURSOR);
         }
-        if (take.pressed & 1) synthetic = PAD_CROSS;
-        break;
+        if (row >= 0 && (take.pressed & 1)) synthetic = PAD_CROSS;
+        return;
     }
+    const int id = menu.ask_para.mes_no;
+    if (id >= 0 && id < 9 && MenuDCMsg[id] && MenuMesForm[id] && !MenuMesForm[id]->draw_flag) return;
+    // A popup without selectable rows still accepts its current retail choice.
+    if (take.pressed & 1) synthetic = PAD_CROSS;
 }
 } // namespace
 
@@ -338,7 +380,18 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
             menu.IsCancelNoneLoadItem();
         }
     }
-    if (menu.mode == MENU_ASK_MODE_ITEM_COMMAND) { Commands(menu, take); return; }
+    if (menu.mode == MENU_ASK_MODE_ITEM_COMMAND && menu.step == 0) { Commands(menu, take); return; }
+    if (menu.mode == MENU_ASK_MODE_ROD_POINTS && menu.step == 0) {
+        const Target hit = Hit(menu, pointer.pos, 0);
+        if (hit.panel == ITEM_MENU_PANEL_FISHING_ROD_STATS && take.moved) {
+            keys.cursor = hit.cursor;
+            keys.select_pos[0] = hit.cursor;
+            keys.key_input = true;
+        }
+        if (take.pressed & 2) synthetic = PAD_CIRCLE;
+        else if (take.pressed & 1) synthetic = PAD_CROSS;
+        return;
+    }
     if (menu.mode != MENU_ASK_MODE_NONE) {
         Question(menu, keys, take);
         return;

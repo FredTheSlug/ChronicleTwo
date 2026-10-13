@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <span>
+#include <vector>
 
 struct MenuMouseRect {
     float x, y, w, h;
@@ -18,6 +19,8 @@ struct MenuMouseSample {
 float MenuMouseUnits(float scale, float pixels, float window);
 int MenuMouseHit(std::span<const MenuMouseRect> rows, float x, float y);
 int MenuMouseChoose(const MenuMouseSample &mouse, std::span<const MenuMouseRect> rows, int selected, int wheel_step = 1);
+class ClsMes;
+std::vector<MenuMouseRect> MenuMouseMessageRows(ClsMes &message, int count);
 
 void MenuMouseEnable(bool enabled);
 const MenuMouseSample &MenuMouseTake();

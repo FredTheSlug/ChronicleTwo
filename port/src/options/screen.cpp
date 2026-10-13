@@ -146,6 +146,8 @@ void Track(bool on) {
     g_pointer_y = sample.y;
 }
 
+} // namespace
+
 bool Run() {
     auto       mouse = Pointer();
     const auto pressed_mouse = MenuMouseTake().clicked & ~g_buttons;
@@ -165,6 +167,14 @@ bool Run() {
     }
     const int cancel = LanguageCode > 0 ? PAD_CIRCLE : PAD_CROSS;
     const int confirm = LanguageCode > 0 ? PAD_CROSS : PAD_CIRCLE;
+    if (pressed_mouse & 2) {
+        if (g_screen.binding >= 0) {
+            g_screen.binding = -1;
+            g_drain = true;
+        } else if (g_screen.open) Close();
+        else MenuMousePress(cancel);
+        return g_screen.open || g_drain;
+    }
     if (g_screen.binding >= 0) {
         const auto point = PointerPosition();
         if ((pressed_mouse & 1) && HitTest(g_screen, point.x, point.y).kind == HitKind::Back) {
@@ -229,13 +239,8 @@ bool Run() {
             return true;
         }
     }
-    if (g_screen.open && (pressed_mouse & 2)) {
-        Close();
-    }
     return g_screen.open || g_drain;
 }
-
-} // namespace
 
 Point PointerPosition() { return {g_pointer_x, g_pointer_y}; }
 

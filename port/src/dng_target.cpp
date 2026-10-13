@@ -17,6 +17,7 @@ namespace {
 struct GaugeEmission {
     uint64_t life = 0;
     uint64_t content = 0;
+    uint64_t rage = 0;
     int hp = 0, max_hp = 0, screen = 0;
     char brackets = 0, label = 0;
 };
@@ -75,6 +76,16 @@ PORT_OVERRIDE void CEnemyLifeGage::Initialize(int count) {
     max_hp = 0;
     view = 0;
     scale = 0;
+}
+
+PORT_OVERRIDE void CEnemyLifeGage::ResetGekirin(int count) {
+    // Refilled marks and reused monster storage start new presentation lifetimes.
+    // HP changes do not restart marks that are already moving above the gauge.
+    gauges[this].rage = ++next_generation;
+    for (int i = 0; i < ENEMY_LIFE_GAGE_GEKIRIN_MAX; ++i) {
+        gekirin[i].frame = 0;
+        gekirin[i].state = i < count ? GEKIRIN_STATE_SHOW : GEKIRIN_STATE_NONE;
+    }
 }
 
 PORT_OVERRIDE void CEnemyLifeGage::SetView(int visible) {
@@ -197,7 +208,12 @@ PORT_OVERRIDE void CEnemyLifeGage::Draw(int hide_gekirin) {
         int x = position[0] - half_width;
         u32 top = position[1] - 12;
         for (int i = 0; i < ENEMY_LIFE_GAGE_GEKIRIN_MAX; ++i) {
+            // These are screen-space marks, including the break-away bounce.
+            // Flush each mark while its key is active: disappearing neighbours
+            // must not change its identity or inherit its additive halo.
+            gfx::Interp2DScope interpolation(Tag(&gekirin[i], emission.rage));
             gekirin[i].Draw(&prim, x, top);
+            prim.Flush();
             x += 8;
         }
         prim.End();

@@ -1155,6 +1155,116 @@ void CheckOverlayBlend(const std::vector<gfx::detail::Entry> &before, const std:
 }
 }
 
+TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    // Isolate the actual retail marks from the independently keyed HP triangles.
+    mgPortSetPrimSink([](gfx::Primitive p, std::span<const gfx::Vertex2D> v,
+                        const gfx::TextureBinding &, const gfx::DrawState &s) {
+        if (p == gfx::Primitive::Quads) mgPortDraw2D(p, v, {}, s);
+    });
+    CEnemyLifeGage gauge;
+    gauge.Initialize(3);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    float position[4] = {0, 0, 1, 1};
+    auto record = [&](float x, int hp, int count) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        gauge.Set(position, 100, hp, count, 0);
+        gauge.Step();
+        gauge.Draw(0);
+        mgEndFrame(nullptr);
+    };
+    auto check_pair = [&](float x, int hp, int count) {
+        auto before = mgPortLastList()->entries;
+        record(x, hp, count);
+        auto after = mgPortLastList()->entries;
+        std::vector<uint8_t> newest;
+        uint32_t width = 0, height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
+        const auto state = gauge;
+        CheckOverlayBlend(before, after, newest);
+        EXPECT_EQ(std::memcmp(&state, &gauge, sizeof(gauge)), 0);
+        EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+    };
+    record(256, 100, 3);
+    check_pair(264, 80, 3); // Damage changes the HP generation, not surviving marks.
+    record(272, 60, 2); // A mark begins breaking, with a new additive halo.
+    check_pair(280, 60, 2); // Both the mark and its halo rise between game ticks.
+    gauge.ResetGekirin(3);
+    record(300, 60, 3);
+    ExpectNewestAtEveryAlpha(); // Refilled marks must not inherit the old break trajectory.
+    gauge.Initialize(3);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    record(316, 60, 3);
+    ExpectNewestAtEveryAlpha(); // Same storage, new monster.
+    mgPortSetPrimSink({});
+}
+
+TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
+    PresentRenderer renderer(640, 480);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgCMemory memory;
+    u_long128 backing[512]{};
+    memory.stSetBuffer(backing, 512);
+    mgSetDataBuffer(&memory, &memory, 0);
+    DamagePrimSink sink;
+    CEnemyLifeGage gauge;
+    gauge.Initialize(3);
+    gauge.SetView(1);
+    gauge.scale = 1;
+    float position[4] = {0, 0, 1, 1};
+    auto record = [&](float x, bool hidden = false) {
+        mgBeginFrame(nullptr);
+        DamageProjection(x);
+        gauge.Set(position, 100, 100, 3, 0);
+        const gfx::Interp2D outer{987, 654};
+        gfx::SetInterp2D(outer);
+        gauge.Draw(hidden);
+        EXPECT_EQ(gfx::CurrentInterp2D().key, outer.key);
+        EXPECT_EQ(gfx::CurrentInterp2D().generation, outer.generation);
+        gfx::SetInterp2D({});
+        mgEndFrame(nullptr);
+        std::vector<gfx::detail::Draw2DEntry> marks;
+        for (const auto &entry : mgPortLastList()->entries) {
+            if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry);
+                draw && draw->primitive == gfx::Primitive::Quads) marks.push_back(*draw);
+        }
+        return marks;
+    };
+    auto before = record(256);
+    ASSERT_EQ(before.size(), 3u);
+    for (size_t i = 0; i < before.size(); ++i) {
+        EXPECT_NE(before[i].interpolation.key, 0u);
+        EXPECT_EQ(before[i].occurrence, 0u);
+        for (size_t j = 0; j < i; ++j)
+            EXPECT_NE(before[i].interpolation.key, before[j].interpolation.key);
+    }
+    // Finish one mark's real break animation, leaving its neighbours alive.
+    gauge.gekirin[0].state = GEKIRIN_STATE_BREAK;
+    gauge.gekirin[0].frame = 14;
+    gauge.gekirin[0].Step();
+    ASSERT_EQ(gauge.gekirin[0].state, GEKIRIN_STATE_NONE);
+    auto after = record(272);
+    ASSERT_EQ(after.size(), 2u);
+    std::vector<gfx::Vertex2D> middle;
+    for (size_t i = 0; i < after.size(); ++i) {
+        EXPECT_EQ(after[i].interpolation.key, before[i + 1].interpolation.key);
+        ASSERT_TRUE(gfx::detail::Interpolate2D(before[i + 1], after[i], 0.5f, middle));
+        EXPECT_FLOAT_EQ(middle[0].x, (before[i + 1].vertices[0].x + after[i].vertices[0].x) / 2);
+        EXPECT_FALSE(gfx::detail::Interpolate2D(before[0], after[i], 0.5f, middle));
+    }
+    EXPECT_TRUE(record(280, true).empty());
+    after = record(280);
+    ExpectNewestAtEveryAlpha(); // No marks existed in the preceding list.
+}
+
 TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     const char *data = std::getenv("DC2_DATA");
     if (!data) GTEST_SKIP() << "DC2_DATA supplies the retail font table";

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -179,16 +180,15 @@ TEST_F(SaveSlotTest, UnusableEntriesStayVisibleAndReserveTheirNames) {
     fs::create_directories(Legacy(0, 5).parent_path());
     auto before = Bytes(SaveSlotPath(2));
     auto list = SaveSlotScan();
-    ASSERT_EQ(list.saves.size(), 6);
+    ASSERT_EQ(list.saves.size(), 4);
     EXPECT_EQ(list.saves[0].state, SaveSlotState::WrongSize);
     EXPECT_EQ(list.saves[1].state, SaveSlotState::Incomplete);
-    EXPECT_EQ(list.saves[2].state, SaveSlotState::BadChecksum);
+    EXPECT_EQ(list.saves[2].state, SaveSlotState::Ready);
+    EXPECT_EQ(SaveSlotRead(SaveSlotPath(2), *buffer), SaveSlotState::BadChecksum);
     EXPECT_EQ(list.saves[3].state, SaveSlotState::WrongVersion);
-    EXPECT_EQ(list.saves[4].state, SaveSlotState::Unreadable);
-    EXPECT_EQ(list.saves[5].state, SaveSlotState::Unreadable);
-    EXPECT_EQ(SaveSlotRows(list, true), 7);
-    EXPECT_EQ(SaveSlotRows(list, false), 6);
-    EXPECT_EQ(SaveSlotFirstFree(list), 6);
+    EXPECT_EQ(SaveSlotRows(list, true), 5);
+    EXPECT_EQ(SaveSlotRows(list, false), 4);
+    EXPECT_EQ(SaveSlotFirstFree(list), 5);
     EXPECT_EQ(Bytes(SaveSlotPath(2)), before);
 }
 
@@ -289,7 +289,7 @@ TEST_F(SaveSlotTest, FailedPublicationPreservesOccupiedNameAndReportsError) {
     manager.SaveToMc(0);
     EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
     EXPECT_TRUE(fs::exists(SaveSlotPath(0) / "keep.txt"));
-    EXPECT_EQ(SaveSlotScan().saves.size(), 1);
+    EXPECT_TRUE(SaveSlotScan().saves.empty());
 }
 
 TEST_F(SaveSlotTest, InvalidCatalogRootReportsErrorAndRefusesNewSave) {
@@ -376,4 +376,41 @@ TEST_F(SaveSlotTest, ExistingFlatSaveRetiresItsLegacyCopyBeforeManualDeletion) {
     ASSERT_EQ(SaveSlotScan().saves.size(), 1);
     fs::remove(SaveSlotPath(3));
     EXPECT_TRUE(SaveSlotScan().saves.empty());
+}
+
+TEST_F(SaveSlotTest, ListingDefersChecksumValidationUntilLoad) {
+    image->check_digit = 999999;
+    Write(SaveSlotPath(0));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 1);
+    EXPECT_EQ(list.saves[0].state, SaveSlotState::Ready);
+    EXPECT_EQ(list.saves[0].info.play_time, 123456);
+    EXPECT_EQ(SaveSlotRead(SaveSlotPath(0), *buffer), SaveSlotState::BadChecksum);
+}
+
+TEST_F(SaveSlotTest, HeaderCacheUsesSizeAndTimeWhileLoadAlwaysRevalidates) {
+    Write(SaveSlotPath(0));
+    ASSERT_EQ(SaveSlotScan().saves.size(), 1);
+    const auto stamp = fs::last_write_time(SaveSlotPath(0));
+    std::strcpy(image->version, "invalid");
+    ASSERT_EQ(FilesWrite(SaveSlotPath(0), image.get(), sizeof(*image), true), FilesResult::kWritten);
+    fs::last_write_time(SaveSlotPath(0), stamp);
+    auto cached = SaveSlotScan();
+    ASSERT_EQ(cached.saves.size(), 1);
+    EXPECT_EQ(cached.saves[0].state, SaveSlotState::Ready);
+    EXPECT_EQ(SaveSlotRead(SaveSlotPath(0), *buffer), SaveSlotState::WrongVersion);
+    fs::last_write_time(SaveSlotPath(0), stamp + std::chrono::seconds(2));
+    EXPECT_EQ(SaveSlotScan().saves[0].state, SaveSlotState::WrongVersion);
+    fs::remove(SaveSlotPath(0));
+    Write(SaveSlotPath(0), 100);
+    EXPECT_EQ(SaveSlotScan().saves[0].state, SaveSlotState::WrongSize);
+}
+
+TEST_F(SaveSlotTest, UnreadableUnrelatedEntriesAreSkipped) {
+    Write(SaveSlotPath(0));
+    fs::create_directory(SaveSlotPath(1));
+    auto list = SaveSlotScan();
+    ASSERT_EQ(list.saves.size(), 1);
+    EXPECT_FALSE(list.read_failed);
+    EXPECT_EQ(list.saves[0].number, 0);
 }

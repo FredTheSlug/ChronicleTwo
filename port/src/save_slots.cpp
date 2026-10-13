@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <cstddef>
+#include <fstream>
+#include <set>
 #include <map>
 #include <memory>
 
@@ -50,6 +53,59 @@ bool Import(const fs::path &from, const fs::path &to) {
     if (FilesCreateDirectory(SaveSlotsRoot()) == FilesResult::kFailed) return false;
     return FilesWrite(to, bytes.data(), bytes.size(), false) == FilesResult::kWritten;
 }
+struct CachedHeader {
+    std::uintmax_t size;
+    fs::file_time_type modified;
+    SaveSlotState state;
+    SAVEDATA_INFO info;
+};
+std::map<fs::path, CachedHeader> header_cache;
+
+SaveSlotState ReadHeader(const fs::path &path, std::uintmax_t size, SAVEDATA_INFO &info) {
+    if (size != sizeof(SAVEDATA_FORMAT)) return SaveSlotState::WrongSize;
+    std::ifstream file(path, std::ios::binary);
+    auto image = std::make_unique<SAVEDATA_FORMAT>();
+    // Read the retail header and only the two payload fields needed by the list.
+    file.read(reinterpret_cast<char *>(image.get()), offsetof(SAVEDATA_FORMAT, save_data));
+    file.seekg(offsetof(SAVEDATA_FORMAT, save_data) + offsetof(CSaveData, play_time));
+    file.read(reinterpret_cast<char *>(&image->save_data.play_time), sizeof(image->save_data.play_time));
+    file.seekg(offsetof(SAVEDATA_FORMAT, save_data) + offsetof(CSaveData, game_progress));
+    file.read(reinterpret_cast<char *>(&image->save_data.game_progress), sizeof(image->save_data.game_progress));
+    if (!file) return SaveSlotState::Unreadable;
+    if (std::memcmp(image->version, "dc2Ver4", 8) != 0) return SaveSlotState::WrongVersion;
+    if (image->incomplete) return SaveSlotState::Incomplete;
+    info.state = 1;
+    info.map_no = image->map_no;
+    info.program_loop_no = image->program_loop_no;
+    info.dungeon_no = image->dungeon_no;
+    info.floor_id = image->floor_id;
+    info.progress = image->save_data.game_progress;
+    info.play_time = image->save_data.play_time;
+    info.unique_counter = image->unique_counter;
+    info.omake_flag = image->omake_flag;
+    info.costume_bit = image->costume_bit;
+    info.debug_code = image->debug_code;
+    info.fish_num = image->fish_num;
+    return SaveSlotState::Ready;
+}
+
+SaveSlotState CachedInfo(const fs::path &path, SAVEDATA_INFO &info) {
+    std::error_code error;
+    if (!fs::is_regular_file(path, error)) return SaveSlotState::Unreadable;
+    const auto size = fs::file_size(path, error);
+    if (error) return SaveSlotState::Unreadable;
+    const auto modified = fs::last_write_time(path, error);
+    if (error) return SaveSlotState::Unreadable;
+    const auto old = header_cache.find(path);
+    if (old != header_cache.end() && old->second.size == size && old->second.modified == modified) {
+        info = old->second.info;
+        return old->second.state;
+    }
+    const auto state = ReadHeader(path, size, info);
+    if (state != SaveSlotState::Unreadable) header_cache[path] = {size, modified, state, info};
+    return state;
+}
+
 fs::path ImportMarker(const fs::path &target) {
     return PathsSaveRoot() / ".save-imports" / target.filename();
 }
@@ -90,7 +146,10 @@ int SaveSlotFirstFree(const SaveSlotList &list) {
         if (slot.number == number) ++number;
         else if (slot.number > number) break;
     }
-    return number < 1000000000 ? number : -1;
+    // Unreadable entries are omitted from the list but still own their names.
+    std::error_code error;
+    while (number < 1000000000 && fs::exists(SaveSlotPath(number), error)) ++number;
+    return !error && number < 1000000000 ? number : -1;
 }
 
 int SaveSlotRows(const SaveSlotList &list, bool saving) {
@@ -162,30 +221,18 @@ SaveSlotList SaveSlotScan() {
             entries[key] = fs::exists(target, error) ? target : source;
         }
     }
-    auto image = std::make_unique<SAVEDATA_FORMAT>();
+    std::set<fs::path> seen;
     for (const auto &[key, path] : entries) {
         SaveSlot slot;
         slot.number = key.first;
         slot.second_card = key.second;
         slot.path = path;
-        slot.state = SaveSlotRead(path, *image);
+        seen.insert(path);
+        slot.state = CachedInfo(path, slot.info);
+        if (slot.state == SaveSlotState::Unreadable) continue;
         slot.info.file_no = slot.number;
-        if (slot.state == SaveSlotState::Ready) {
-            auto &info = slot.info;
-            info.state = 1;
-            info.map_no = image->map_no;
-            info.program_loop_no = image->program_loop_no;
-            info.dungeon_no = image->dungeon_no;
-            info.floor_id = image->floor_id;
-            info.progress = image->save_data.game_progress;
-            info.play_time = image->save_data.play_time;
-            info.unique_counter = image->unique_counter;
-            info.omake_flag = image->omake_flag;
-            info.costume_bit = image->costume_bit;
-            info.debug_code = image->debug_code;
-            info.fish_num = image->fish_num;
-        }
         list.saves.push_back(slot);
     }
+    std::erase_if(header_cache, [&](const auto &entry) { return !seen.contains(entry.first); });
     return list;
 }

@@ -21,6 +21,7 @@
 #include "inventmn.hpp"
 #include "main.hpp"
 #include "mainloop.hpp"
+#include "mainloop_port.hpp"
 #include "mainloop3.hpp"
 #include "mapselect.hpp"
 #include "mg_drawprim.hpp"
@@ -59,6 +60,25 @@ extern CScene        MainScene;
 extern CFont         Font;
 
 static constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
+
+void PortDrawFrameBorder() {
+    const auto edge = mgPortVisibleExtent();
+    mgCDrawPrim frame_border;
+    frame_border.Initialize(NULL, NULL);
+    frame_border.DepthTestEnable(false);
+    frame_border.AlphaTestEnable(false);
+    frame_border.AlphaBlendEnable(false);
+    frame_border.TextureMapEnable(false);
+    frame_border.ZMask(MG_Z_MASK_MASKED);
+    frame_border.Begin(MG_PRIM_LINE_STRIP);
+    frame_border.Color(0, 0, 0, 0x80);
+    frame_border.Vertex(edge.left, edge.top, 0.0f);
+    frame_border.Vertex(edge.right - 1, edge.top, 0.0f);
+    frame_border.Vertex(edge.right - 1, edge.bottom - 1, 0.0f);
+    frame_border.Vertex(edge.left, edge.bottom - 1, 0.0f);
+    frame_border.Vertex(edge.left, edge.top, 0.0f);
+    frame_border.End();
+}
 
 PORT_OVERRIDE void MainLoop() {
     static u_long128 *vu_prog[16];
@@ -295,21 +315,7 @@ PORT_OVERRIDE void MainLoop() {
             MainScene.StepSnd();
             GamePad__2.UpDate();
             PadCtrl.Update(&GamePad__2);
-            mgCDrawPrim frame_border;
-            frame_border.Initialize(NULL, NULL);
-            frame_border.DepthTestEnable(false);
-            frame_border.AlphaTestEnable(false);
-            frame_border.AlphaBlendEnable(false);
-            frame_border.TextureMapEnable(false);
-            frame_border.ZMask(MG_Z_MASK_MASKED);
-            frame_border.Begin(MG_PRIM_LINE_STRIP);
-            frame_border.Color(0, 0, 0, 0x80);
-            frame_border.Vertex(0, 0, 0);
-            frame_border.Vertex(mgScreenWidth - 1, 0, 0);
-            frame_border.Vertex(mgScreenWidth - 1, mgScreenHeight - 1, 0);
-            frame_border.Vertex(0, mgScreenHeight - 1, 0);
-            frame_border.Vertex(0, 0, 0);
-            frame_border.End();
+            PortDrawFrameBorder();
             mgEndFrame(NULL);
 
             if (mode_finished != 0) {

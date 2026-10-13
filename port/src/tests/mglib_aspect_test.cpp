@@ -11,6 +11,7 @@
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
 #include "mglib.hpp"
+#include "mainloop_port.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
@@ -227,4 +228,26 @@ TEST(MglibAspect, QuadAtSameLogicalPlaceAt3840x2160) {
 TEST(MglibAspect, QuadAtSameLogicalPlaceAt800x1200) {
     AspectRenderer renderer(800, 1200);
     ExpectQuadAtLogicalPlace(800, 1200);
+}
+
+TEST(MglibAspect, FrameBorderStaysAtVisibleEdges) {
+    AspectRenderer renderer(1920, 1080);
+    mgSetBackGround(200, 150, 100, 128);
+    mgBeginFrame(nullptr);
+    PortDrawFrameBorder();
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> rgba;
+    uint32_t width = 0, height = 0;
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+    ASSERT_EQ(width, 1920u);
+    ASSERT_EQ(height, 1080u);
+    // Both old 4:3 boundaries are interior pixels of the expanded scene.
+    const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    for (float edge : {0.0f, 511.0f}) {
+        const int x = static_cast<int>(mapping.offset_x + edge * mapping.scale_x);
+        for (int dx = -2; dx <= 2; ++dx) {
+            const auto index = (static_cast<size_t>(height / 2) * width + x + dx) * 4;
+            EXPECT_GT(rgba[index], 190) << "black seam at " << x + dx;
+        }
+    }
 }

@@ -21,7 +21,12 @@ bool TownMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad
 
 bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
                            const DNG_STATUS &status, const DNG_BATTLE_AREA *area,
-                           CActionChara *chara, bool subgame, bool locked, bool debug);
+                           CActionChara *chara, bool subgame, bool locked, bool debug,
+                           bool eye = false);
+
+// Update the retail first-person angles and both look-at poses without moving
+// the eye. Only a caller with explicit first-person ownership may apply a read.
+bool MouseCameraEye(CCameraControl &camera, float &heading, float &tilt, float yaw, float pitch);
 
 // Apply the safe prefix of a direct yaw to both current and pending poses.
 // Polygons must cover the entire orbit and follow corridor, not just the old eye.

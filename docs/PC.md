@@ -306,7 +306,7 @@ town walking mode or dungeon follow/follow-low mode with the active main camera,
 unlocked input and no scene event or subgame. Dungeon lock-on, paused player or
 field control, pending/running event scripts and non-walking character actions
 retain camera ownership. Fixed, boss and arena views, menus, Georama and
-first-person/photo views retain their existing controls. A camera-reset request owns
+town first-person and photo views retain their existing controls. A camera-reset request owns
 its frame; a later mouse yaw cancels an unfinished reset.
 
 Direct motion turns both current and pending camera poses. A fresh bounded
@@ -321,8 +321,15 @@ their axes and suppress the independent mouse look on those axes.
 `tools/input/town-mouse-camera.input`, with `--jump town:10 --fast-load`, exercises
 yaw, vertical motion and a menu interruption. `tools/input/dungeon-mouse-camera.input`,
 with `--jump dungeon:0:1 --fast-load`, enters the first floor and exercises the
-same follow controls. Mouse menu selection and first-person look are not
-implemented here.
+same follow controls.
+
+In a dungeon, R2 first-person view also accepts direct mouse yaw and pitch. The
+eye stays at the retail character position, pitch stays within the retail
+`-1.0` to `0.65` radian limits, and controller look retains its existing behavior.
+The port camera step applies a sample only after the retail eye pose is placed;
+entry, exit, menus, events, photo mode and other input owners cannot queue mouse
+motion into it. `tools/input/dungeon-mouse-eye.input` enters R2 view and exercises
+mouse look. Town first-person mouse look and mouse menu selection remain pending.
 
 ## Decision 1: long64 is kept
 

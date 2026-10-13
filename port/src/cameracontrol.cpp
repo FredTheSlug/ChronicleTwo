@@ -10,12 +10,29 @@
 #include "dng_main.hpp"
 #include "gamepad.hpp"
 #include "mainloop.hpp"
+#include "mg_math.hpp"
 #include "scenesnd.hpp"
 #include "subgame.hpp"
+#include "photo.hpp"
 #include "platform/input.hpp"
 
 #include <algorithm>
 #include <cmath>
+
+extern float viewAngleH__2;
+extern float viewAngleV__2;
+
+namespace {
+void MeasureControlPose(CCameraControl &camera) {
+    sceVu0FVECTOR offset;
+    sceVu0SubVector(offset, camera.next_ref, camera.next_pos);
+    camera.distance = mgDistVector(offset);
+    camera.height = -offset[1];
+    camera.next_angle = std::atan2(-offset[0], -offset[2]);
+    sceVu0SubVector(offset, camera.ref, camera.pos);
+    camera.angle = std::atan2(-offset[0], -offset[2]);
+}
+}
 
 CameraCtrlParam &CameraCtrlParam::operator=(const CameraCtrlParam &source) {
     min_dist = source.min_dist;
@@ -88,4 +105,35 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     if (count < 0 || count >= 512) return;
     if (MouseCameraYaw(*this, look.yaw, orbit_polys, count) != 0) CancelRotBack();
     MouseCameraPitch(*this, look.pitch, orbit_polys, count);
+}
+
+PORT_OVERRIDE void CCameraControl::Step(int frames) {
+    // Preserve the controller/follow step before adding the native eye look.
+    if (!control_on) {
+        mgCCameraFollow::Step(frames);
+    } else {
+        if (frames < 0 && rot_back) SetRotate(rot_back_angle);
+        mgCCamera::Step(frames);
+        MeasureControlPose(*this);
+    }
+    if (GetNowLoopNo() != LOOP_DUNGEON || frames <= 0) return;
+    const InputMouseLook &look = InputGetMouseLook();
+    static std::uint64_t consumed_eye_read = 0;
+    if (look.read == consumed_eye_read) return;
+    consumed_eye_read = look.read;
+    if (!DungeonMouseCameraOwns(this, DngMainScene, &PadCtrl, DngStatus, BattleAreaScene,
+                               MainChara__2, SubGameRunning(), GamePad__2.key_lock,
+                               DebugInfo.debug_camera != 0, true) || NowTakePhoto()) return;
+    // InitEyeCamera first disables follow, then the next gameplay update places
+    // the eye at the character. Do not turn a leftover follow pose on entry.
+    sceVu0FVECTOR eye;
+    MainChara__2->GetPosition(eye);
+    eye[1] += 28;
+    for (int i = 0; i < 3; ++i)
+        if (std::fabs(pos[i] - eye[i]) > 0.001f || std::fabs(next_pos[i] - eye[i]) > 0.001f) return;
+    if (MouseCameraEye(*this, viewAngleH__2, viewAngleV__2, look.yaw, look.pitch)) {
+        mgCCamera::Step(0); // Refresh direction angles without another eased step.
+        if (control_on) MeasureControlPose(*this);
+        else angle = next_angle = angle_h;
+    }
 }

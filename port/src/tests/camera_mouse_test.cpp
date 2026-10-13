@@ -11,6 +11,8 @@
 #include "dng_main.hpp"
 
 extern int PortLoopNo asm("MainLoop_LoopNo");
+extern float viewAngleH__2;
+extern float viewAngleV__2;
 
 namespace {
 CCameraControl Camera() {
@@ -328,4 +330,97 @@ TEST(CameraMouse, DungeonOwnershipKeepsAuthoredAndNonwalkingModes) {
     EXPECT_FALSE(DungeonMouseCameraOwns(&camera, &scene, &pad, status, &area, &chara, false, true, false));
     EXPECT_FALSE(DungeonMouseCameraOwns(&camera, &scene, &pad, status, &area, &chara, false, false, true));
     EXPECT_TRUE(owns());
+}
+
+TEST(CameraMouse, DungeonEyeLookIsImmediateBoundedAndDoesNotQueueMenuMotion) {
+    const int old_loop = PortLoopNo;
+    auto *old_scene = DngMainScene;
+    auto *old_area = BattleAreaScene;
+    auto *old_chara = MainChara__2;
+    const auto old_status = DngStatus;
+    const float old_yaw = viewAngleH__2, old_pitch = viewAngleV__2;
+    CScene scene;
+    DNG_BATTLE_AREA area{};
+    CActionChara chara;
+    chara.SetPosition(0, 0, 0);
+    chara.menu_flag = 1;
+    chara.hold_type = ACTION_HOLD_NONE;
+    chara.lock_on = 0;
+    chara.damage_req = ACTION_DAMAGE_REQ_NONE;
+    area.script.event_no = -1;
+    DngMainScene = &scene;
+    BattleAreaScene = &area;
+    MainChara__2 = &chara;
+    DngStatus = {};
+    DngStatus.eye_view = 1;
+    PortLoopNo = LOOP_DUNGEON;
+    auto camera = Camera();
+    camera.FollowOff();
+    camera.SetPos(0, 28, 0);
+    camera.SetRef(0, 28, 10);
+    scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+    scene.active_camera = 0;
+    InputResetBindings();
+    InputPadState input{.connected = true};
+    InputSetOverride(0, &input);
+    viewAngleH__2 = viewAngleV__2 = 0;
+    InputSetScriptedDevices({.mouse_dx = 100, .mouse_dy = 10000});
+    InputLatchPad(0);
+    // First-person entry still has the old follow eye for one update. Refused
+    // motion cannot be replayed when the retail eye is placed later in this read.
+    camera.SetPos(0, 40, 0);
+    camera.Step(1);
+    EXPECT_FLOAT_EQ(viewAngleH__2, 0);
+    camera.SetPos(0, 28, 0);
+    camera.Step(1);
+    EXPECT_FLOAT_EQ(viewAngleH__2, 0);
+    InputLatchPad(0);
+    camera.Step(1);
+    EXPECT_LT(viewAngleH__2, -0.1f);
+    EXPECT_FLOAT_EQ(viewAngleV__2, 0.65f);
+    EXPECT_LT(camera.ref[0], -1);
+    EXPECT_FLOAT_EQ(camera.ref[0], camera.next_ref[0]);
+    EXPECT_FLOAT_EQ(camera.pos[1], 28);
+    const float yaw = viewAngleH__2;
+    camera.Step(1);
+    EXPECT_FLOAT_EQ(viewAngleH__2, yaw);
+    DngStatus.mode = DNG_STATUS_MENU;
+    InputLatchPad(0);
+    camera.Step(1);
+    DngStatus.mode = DNG_STATUS_FIELD;
+    camera.Step(1);
+    EXPECT_FLOAT_EQ(viewAngleH__2, yaw);
+    InputSetScriptedDevices({.mouse_dy = -10000});
+    InputLatchPad(0);
+    camera.Step(1);
+    EXPECT_FLOAT_EQ(viewAngleV__2, -1.0f);
+    InputSetScriptedDevices({.mouse_dy = 10});
+    InputLatchPad(0);
+    camera.Step(1);
+    EXPECT_GT(viewAngleV__2, -1.0f);
+    InputSetScriptedDevices({});
+    InputSetOverride(0, nullptr);
+    PortLoopNo = old_loop;
+    DngMainScene = old_scene;
+    BattleAreaScene = old_area;
+    MainChara__2 = old_chara;
+    DngStatus = old_status;
+    viewAngleH__2 = old_yaw;
+    viewAngleV__2 = old_pitch;
+}
+
+TEST(CameraMouse, EyeLimitsPreserveControllerOvershootAndInvalidSamples) {
+    auto camera = Camera();
+    float heading = 0, tilt = 0.67f;
+    EXPECT_TRUE(MouseCameraEye(camera, heading, tilt, 0.1f, 0));
+    EXPECT_FLOAT_EQ(tilt, 0.67f);
+    EXPECT_TRUE(MouseCameraEye(camera, heading, tilt, 0, 0.01f));
+    EXPECT_NEAR(tilt, 0.66f, 0.00001f);
+    EXPECT_TRUE(MouseCameraEye(camera, heading, tilt, 0, -0.5f));
+    EXPECT_NEAR(tilt, 0.66f, 0.00001f);
+    const float previous = heading;
+    EXPECT_FALSE(MouseCameraEye(camera, heading, tilt, NAN, 0));
+    EXPECT_FLOAT_EQ(heading, previous);
+    EXPECT_FALSE(MouseCameraEye(camera, heading, tilt, 0, INFINITY));
+    EXPECT_NEAR(tilt, 0.66f, 0.00001f);
 }

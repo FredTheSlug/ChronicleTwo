@@ -167,14 +167,33 @@ bool TownMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad
 
 bool DungeonMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
                            const DNG_STATUS &status, const DNG_BATTLE_AREA *area,
-                           CActionChara *chara, bool subgame, bool locked, bool debug) {
-    return status.mode == DNG_STATUS_FIELD && !status.eye_view && area && chara && !debug &&
+                           CActionChara *chara, bool subgame, bool locked, bool debug, bool eye) {
+    const bool active = eye ? camera && scene && pad && !subgame && !locked &&
+           !scene->event_run && scene->active_camera == 0 && scene->GetCamera(0) == camera &&
+           !camera->follow_on && !camera->suspended && !mgCCamera::StopCamera &&
+           !(camera->rot_cancel & CAMERA_ROT_CANCEL_ANALOG) :
+           TownMouseCameraOwns(camera, scene, pad, true, subgame, locked);
+    return active && status.mode == DNG_STATUS_FIELD && bool(status.eye_view) == eye && area && chara && !debug &&
            (area->camera_mode == DNG_CAMERA_FOLLOW || area->camera_mode == DNG_CAMERA_FOLLOW_LOW) &&
            !(area->pause_flag & (DNG_PAUSE_PLAYER_STEP | DNG_PAUSE_PLAYER_CONTROL |
                                  DNG_PAUSE_FIELD_STEP | DNG_PAUSE_PAD_RESET)) &&
            area->script.event_no == -1 && !area->script.running &&
-           !chara->lock_on && chara->damage_req != ACTION_DAMAGE_REQ_DEAD && chara->CheckRunEvent() &&
-           TownMouseCameraOwns(camera, scene, pad, true, subgame, locked);
+           !chara->lock_on && chara->damage_req != ACTION_DAMAGE_REQ_DEAD && chara->CheckRunEvent();
+}
+
+bool MouseCameraEye(CCameraControl &camera, float &heading, float &tilt, float yaw, float pitch) {
+    if (!std::isfinite(heading) || !std::isfinite(tilt) || !std::isfinite(yaw) || !std::isfinite(pitch) ||
+        !Finite(Read(camera.pos)) || !Finite(Read(camera.next_pos)) || (yaw == 0 && pitch == 0)) return false;
+    heading = std::remainder(heading - yaw, 2 * std::numbers::pi_v<float>);
+    // An existing controller overshoot is preserved when the mouse is idle or
+    // turns away from that boundary, matching the reference eye-angle rules.
+    if (pitch > 0) tilt = std::max(tilt - pitch, std::min(tilt, -1.0f));
+    if (pitch < 0) tilt = std::min(tilt - pitch, std::max(tilt, 0.65f));
+    const Vec ray{10 * std::sin(heading) * std::cos(tilt), -10 * std::sin(tilt),
+                  10 * std::cos(heading) * std::cos(tilt)};
+    Write(camera.ref, Read(camera.pos) + ray);
+    Write(camera.next_ref, Read(camera.next_pos) + ray);
+    return true;
 }
 
 float MouseCameraYaw(CCameraControl &camera, float yaw, CCPoly *polys, int count) {

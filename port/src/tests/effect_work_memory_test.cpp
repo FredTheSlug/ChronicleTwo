@@ -39,17 +39,17 @@ protected:
         return barrier;
     }
 
-    u_long128 *storage = nullptr;
-    mgCMemory memory;
-    CCharacter2 character;
-    RS_PROG_HEADER program{};
-    EFF_SPT_BASE base{};
+    u_long128       *storage = nullptr;
+    mgCMemory        memory;
+    CCharacter2      character;
+    RS_PROG_HEADER   program{};
+    EFF_SPT_BASE     base{};
     CEffectScriptMan manager;
 };
 } // namespace
 
 TEST_F(EffectWorkMemory, SkipsAGapThatOnlyFitsTheRetailObjectBudget) {
-    u_long128 *barrier = Fragment();
+    u_long128   *barrier = Fragment();
     _EFF_SCRIPT *effect = manager.CreateEffSpt(7, 0, 1);
     ASSERT_NE(effect, nullptr);
     EXPECT_GT(effect->work, barrier);
@@ -58,7 +58,9 @@ TEST_F(EffectWorkMemory, SkipsAGapThatOnlyFitsTheRetailObjectBudget) {
     EXPECT_EQ(effect->slot, 0);
     EXPECT_EQ(manager.slot[0][0], effect);
     const auto *guard = reinterpret_cast<const unsigned char *>(barrier);
-    for (int i = 0; i < 4 * sizeof(u_long128); ++i) EXPECT_EQ(guard[i], 0xA5);
+    for (int i = 0; i < 4 * sizeof(u_long128); ++i) {
+        EXPECT_EQ(guard[i], 0xA5);
+    }
 }
 
 TEST_F(EffectWorkMemory, RepeatedEffectsKeepTextureOrderAndOwnerSlots) {
@@ -96,24 +98,44 @@ TEST_F(EffectWorkMemory, RepeatedEffectsKeepTextureOrderAndOwnerSlots) {
 }
 
 TEST_F(EffectWorkMemory, SecondaryCharactersSkipTheUndersizedFirstGap) {
-    u_long128 *barrier = Fragment(128);
+    u_long128  *barrier = Fragment(128);
     _EFF_SCRIPT script{};
     script.chara = &character;
     ASSERT_TRUE(manager.AssignCharacter(&script, 1));
     EXPECT_GT(script.sub_chara_work, barrier);
     ASSERT_NE(script.sub_chara[0], nullptr);
     const auto *guard = reinterpret_cast<const unsigned char *>(barrier);
-    for (int i = 0; i < 4 * sizeof(u_long128); ++i) EXPECT_EQ(guard[i], 0xA5);
+    for (int i = 0; i < 4 * sizeof(u_long128); ++i) {
+        EXPECT_EQ(guard[i], 0xA5);
+    }
 }
 
 TEST_F(EffectWorkMemory, SecondaryCharactersReserveAllCopies) {
+    // This gap fits all retail object budgets but not all native copies.
+    u_long128 *barrier = Fragment(EFF_SPT_SUB_CHARA_MAX * 0x68 + 4);
     _EFF_SCRIPT script{};
     script.chara = &character;
     ASSERT_TRUE(manager.AssignCharacter(&script, EFF_SPT_SUB_CHARA_MAX));
+    EXPECT_GT(script.sub_chara_work, barrier);
     for (int i = 0; i < EFF_SPT_SUB_CHARA_MAX; ++i) {
         ASSERT_NE(script.sub_chara[i], nullptr);
-        if (i != 0) EXPECT_GE(reinterpret_cast<char *>(script.sub_chara[i]) -
-                             reinterpret_cast<char *>(script.sub_chara[i - 1]),
-                             static_cast<std::ptrdiff_t>(sizeof(CCharacter2)));
+        if (i != 0) {
+            EXPECT_GE(reinterpret_cast<char *>(script.sub_chara[i]) -
+                          reinterpret_cast<char *>(script.sub_chara[i - 1]),
+                      static_cast<std::ptrdiff_t>(sizeof(CCharacter2)));
+        }
     }
+}
+
+TEST_F(EffectWorkMemory, SecondaryCharacterExhaustionReportsTheNativeBudget) {
+    ASSERT_NE(memory.StartStackMode(MG_STACK_MODE_FIT, 1), nullptr);
+    ASSERT_NE(memory.Alloc(memory.stGetSize() - 1), nullptr);
+    memory.EndStackMode();
+    _EFF_SCRIPT script{};
+    script.chara = &character;
+    const int required = (sizeof(CCharacter2) + 15) / 16 + character.GetCopySize() + 4;
+    testing::internal::CaptureStdout();
+    EXPECT_FALSE(manager.AssignCharacter(&script, 1));
+    const auto output = testing::internal::GetCapturedStdout();
+    EXPECT_NE(output.find("es work max!! (assign character[" + std::to_string(required) + "])") , std::string::npos);
 }

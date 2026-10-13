@@ -9,9 +9,11 @@
 #include <vector>
 
 // SDL must precede the game's register-name macros.
-#include "gfx_fixture.hpp"
+#include <SDL3/SDL.h>
+
 #include "font.hpp"
 #include "font_port.hpp"
+#include "gfx_fixture.hpp"
 #include "mainloop.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mglib.hpp"
@@ -114,10 +116,10 @@ TEST(FontPortGpu, SharpDrawingKeepsRetailLayoutAndLineBreaks) {
         std::ofstream(root / "config.json") << "{\"video\":{\"text_font\":\"" << choice << "\"}}";
         EXPECT_TRUE(ConfigLoad());
     };
-    dc::test::GfxFixture            gfx(1440, 1080, 1.0f, dc::test::GfxOptions{.offscreen = true});
-    FontState                       state;
-    std::vector<gfx::TextureHandle> textures;
-    std::vector<std::vector<gfx::Vertex2D>> geometry;
+    dc::test::GfxFixture                     gfx(1440, 1080, 1.0f, dc::test::GfxOptions{.offscreen = true});
+    FontState                                state;
+    std::vector<gfx::TextureHandle>          textures;
+    std::vector<std::vector<gfx::Vertex2D> > geometry;
     mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices, const gfx::TextureBinding &texture,
                           const gfx::DrawState &) {
         textures.push_back(texture.texture);
@@ -172,7 +174,7 @@ TEST(FontPortGpu, SharpDrawingKeepsRetailLayoutAndLineBreaks) {
 
     // The sharp silhouette supplies every retail outline style and the fill's alpha multiplication.
     constexpr std::array<int, 9> passes = {1, 2, 2, 5, 3, 2, 5, 4, 13};
-    char letter[] = "W";
+    char                         letter[] = "W";
     font.SetColor(23, 45, 67, 96);
     font.alpha = 64;
     for (int style = 0; style < FUCHI_NUM; ++style) {

@@ -13,11 +13,14 @@
 namespace {
 struct BlurProgram {
     RS_PROG_HEADER header{};
-    RS_PROGDATA entry{100, offsetof(BlurProgram, function)};
-    funcdata function{};
-    vmcode_t code[4]{{RS_OP_PUSH_CONST, RS_CONST_INT, EVENT_EXT_SET_MOTION_BLUR},
-                     {RS_OP_PUSH_CONST, RS_CONST_INT, 100},
-                     {RS_OP_EXT, 2, 0}, {RS_OP_END, 0, 0}};
+    RS_PROGDATA    entry{100, offsetof(BlurProgram, function)};
+    funcdata       function{};
+    vmcode_t       code[4]{
+        {RS_OP_PUSH_CONST, RS_CONST_INT, EVENT_EXT_SET_MOTION_BLUR},
+        {RS_OP_PUSH_CONST, RS_CONST_INT, 100                      },
+        {RS_OP_EXT,        2,            0                        },
+        {RS_OP_END,        0,            0                        }
+    };
 
     BlurProgram() {
         std::memcpy(header.magic, "SB2", 3);
@@ -30,7 +33,7 @@ struct BlurProgram {
 } // namespace
 
 TEST(SceneMotionBlur, AliasUsesTheFadeFieldWithoutChangingTheCaptureTexture) {
-    CScene scene;
+    CScene     scene;
     mgCTexture capture{};
     scene.fade.cross_texture = &capture;
     scene.motion_blur = 100;
@@ -40,11 +43,11 @@ TEST(SceneMotionBlur, AliasUsesTheFadeFieldWithoutChangingTheCaptureTexture) {
 }
 
 TEST(SceneMotionBlur, EventExternalPreservesItsExistingCrossfadeTexture) {
-    CScene scene;
+    CScene     scene;
     mgCTexture capture{};
     scene.fade.cross_texture = &capture;
     alignas(64) u_long128 storage[1024]{};
-    mgCMemory memory;
+    mgCMemory             memory;
     memory.stSetBuffer(storage, 1024);
     BlurProgram program;
     SetEventScript(reinterpret_cast<char *>(&program), nullptr, &memory);

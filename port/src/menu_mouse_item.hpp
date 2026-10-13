@@ -9,13 +9,15 @@ struct InputMenuMouse;
 
 namespace menumouse {
 
-struct Point { float x = 0, y = 0; };
+struct Point {
+    float x = 0, y = 0;
+};
 struct Rect {
     float x = 0, y = 0, w = 0, h = 0;
-    bool Contains(Point p) const;
+    bool  Contains(Point p) const;
 };
 struct Target {
-    int panel = -1, cursor = -1;
+    int      panel = -1, cursor = -1;
     bool operator==(const Target &) const = default;
     explicit operator bool() const { return panel >= 0 && cursor >= 0; }
 };
@@ -23,28 +25,34 @@ struct Target {
 // Grid icons are 40 by 50 logical units. The origin follows the animated board;
 // clip is its visible aperture, so rows sliding out cannot be selected.
 Target GridHit(Point p, Point origin, Rect clip, int count);
-int CommandHit(Point p, Rect text, int count, float line_height);
-int ScrollTop(int top, int count, int visible_rows, float wheel);
+int    CommandHit(Point p, Rect text, int count, float line_height);
+int    ScrollTop(int top, int count, int visible_rows, float wheel);
 
 struct Take {
-    bool pointing = false, moved = false;
+    bool          pointing = false, moved = false;
     std::uint32_t pressed = 0, released = 0, held = 0;
-    float wheel = 0;
+    float         wheel = 0;
 };
 struct Pointer {
     Point pos;
-    bool pointing = false;
+    bool  pointing = false;
 };
 
-enum class Action { None, Click, PickUp, Drop, Cancel };
+enum class Action {
+    None,
+    Click,
+    PickUp,
+    Drop,
+    Cancel
+};
 struct Gesture {
-    bool pending = false, dragging = false, release_pending = false;
+    bool   pending = false, dragging = false, release_pending = false;
     Target source;
-    Point origin;
-    void Reset();
+    Point  origin;
+    void   Reset();
     Action Update(const Take &take, Point p, Target hit, bool can_pick_up, bool holding);
 };
-}
+} // namespace menumouse
 
 // Menu input is sampled at the retail menu's SelDataInit, once per menu tick.
 // The pad latch clears synthetic presses and releases the channel after exit.

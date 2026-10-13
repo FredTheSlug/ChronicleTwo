@@ -3,20 +3,22 @@
 #include <algorithm>
 #include <vector>
 
+#include "mainloop.hpp"
+#include "menu_mouse.hpp"
 #include "menudraw.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
-#include "menu_mouse.hpp"
-#include "mainloop.hpp"
 
 namespace {
 
 bool IsBackdrop(mgCDrawPrim *prim, mgRect<int> uv, char *name, int width, int height, int top = 0) {
     if (!prim || !prim->prim.TME || uv.left != 0 || uv.top != top ||
-        uv.right != width || uv.bottom != height) return false;
+        uv.right != width || uv.bottom != height) {
+        return false;
+    }
     const auto *texture = mgTexManager.GetTexture(name, -1);
     return texture && prim->texture.tex0_bits == texture->tex0_bits;
 }
@@ -24,10 +26,17 @@ bool IsBackdrop(mgCDrawPrim *prim, mgRect<int> uv, char *name, int width, int he
 void DrawBackdrop(mgCDrawPrim &prim, mgRect<float> rect, mgRect<int> uv, float artwork_width) {
     const auto extent = mgPortVisibleExtent();
     const bool wide = extent.left < 0 || extent.right > mgScreenWidth;
-    uint8_t color[4];
+    uint8_t    color[4];
     mgPortPrimColor(prim, color);
     std::vector<gfx::Vertex2D> vertices;
-    const int corners[6][2] = {{0, 0}, {1, 0}, {1, 1}, {0, 0}, {1, 1}, {0, 1}};
+    const int                  corners[6][2] = {
+        {0, 0},
+        {1, 0},
+        {1, 1},
+        {0, 0},
+        {1, 1},
+        {0, 1}
+    };
     const auto append = [&](float left, float right, float u0, float u1) {
         // Linear filtering must stay inside the artwork at a reflection seam;
         // otherwise its transparent padding leaves a dark hairline.
@@ -37,8 +46,8 @@ void DrawBackdrop(mgCDrawPrim &prim, mgRect<float> rect, mgRect<int> uv, float a
         }
         for (const auto &corner : corners) {
             vertices.push_back(mgPortPrimVertex(prim,
-                corner[0] ? right : left, corner[1] ? rect.top + rect.bottom : rect.top, 0,
-                corner[0] ? u1 : u0, corner[1] ? uv.top + uv.bottom : uv.top, color));
+                                                corner[0] ? right : left, corner[1] ? rect.top + rect.bottom : rect.top, 0,
+                                                corner[0] ? u1 : u0, corner[1] ? uv.top + uv.bottom : uv.top, color));
         }
     };
     const float left = rect.left, right = left + rect.right;
@@ -48,28 +57,34 @@ void DrawBackdrop(mgCDrawPrim &prim, mgRect<float> rect, mgRect<int> uv, float a
     const float span = rect.right * u_end / uv.right;
     append(left, left + span, 0, u_end);
 
-    if (wide && rect.right > 0 && rect.bottom > 0) {
-        // Continue only the edge that has reached its side of the logical frame.
-        // This keeps the extension moving with a page entering or leaving it.
-        // The Make form starts its artwork at x=1 inside the logical frame.
-        if (left <= 2 && right > 0) {
-            bool reflected = true;
-            for (float edge = left; extent.left < edge; edge -= span, reflected = !reflected) {
-                const float end = std::max(extent.left, edge - span);
-                const float start_u = reflected ? 0 : u_end;
-                const float end_u = start_u + (reflected ? 1 : -1) * (edge - end) * uv.right / rect.right;
-                append(end, edge, end_u, start_u);
+    if (wide && rect.right > 0 && rect.bottom > 0 && right > 0 && left < mgScreenWidth) {
+        // Keep the reflection phase attached to the moving artwork. During a
+        // horizontal slide extend only into the flanks, preserving the field
+        // revealed inside the retail frame. Include the authored edge padding
+        // at the settled joins (Make starts at 1, Character ends at 511).
+        const float left_join = left <= 2 ? std::max(0.0f, left) : 0.0f;
+        bool        reflected = true;
+        for (float edge = left; extent.left < edge; edge -= span, reflected = !reflected) {
+            const float end = std::max(extent.left, edge - span);
+            const float start = std::min(left_join, edge);
+            if (start <= end) {
+                continue;
             }
+            const float start_u = reflected ? 0 : u_end;
+            const float rate = (reflected ? 1 : -1) * uv.right / rect.right;
+            append(end, start, start_u + (edge - end) * rate, start_u + (edge - start) * rate);
         }
-        // Retail's eased Character form settles at x=-2 rather than zero.
-        if (right >= mgScreenWidth - 2 && left < mgScreenWidth) {
-            bool reflected = true;
-            for (float edge = left + span; extent.right > edge; edge += span, reflected = !reflected) {
-                const float end = std::min(extent.right, edge + span);
-                const float start_u = reflected ? u_end : 0;
-                const float end_u = start_u + (reflected ? -1 : 1) * (end - edge) * uv.right / rect.right;
-                append(edge, end, start_u, end_u);
+        const float right_join = right >= mgScreenWidth - 2 ? std::min<float>(mgScreenWidth, left + span) : mgScreenWidth;
+        reflected = true;
+        for (float edge = left + span; extent.right > edge; edge += span, reflected = !reflected) {
+            const float end = std::min(extent.right, edge + span);
+            const float start = std::max(right_join, edge);
+            if (start >= end) {
+                continue;
             }
+            const float start_u = reflected ? u_end : 0;
+            const float rate = (reflected ? -1 : 1) * uv.right / rect.right;
+            append(start, end, start_u + (start - edge) * rate, start_u + (end - edge) * rate);
         }
     }
     mgPortPrimSubmit(prim, gfx::Primitive::Triangles, vertices);
@@ -78,16 +93,17 @@ void DrawBackdrop(mgCDrawPrim &prim, mgRect<float> rect, mgRect<int> uv, float a
 } // namespace
 
 PORT_OVERRIDE void PrimQuad(mgCTexture *texture, float x, float y, mgRect<int> uv,
-                             int alpha, int red, int green, int blue) {
+                            int alpha, int red, int green, int blue) {
     // The title and language menus use their own atlas rather than MenuCursorDraw.
-    const bool cursor = GetNowLoopNo() == LOOP_TITLE && uv.right == 40 && uv.bottom == 24 &&
-        ((uv.left == 0 && uv.top == 40 && texture == mgTexManager.GetTexture(const_cast<char *>("moji"), -1)) ||
-         (uv.left == 216 && uv.top == 360));
-    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())} :
-                                   gfx::CurrentInterp2D());
-    if (cursor) MenuMouseNoteHand(mgPortBinding(texture),
-                                 {float(uv.left), float(uv.top), float(uv.right), float(uv.bottom)},
-                                 0, 0, alpha);
+    const bool         cursor = GetNowLoopNo() == LOOP_TITLE && uv.right == 40 && uv.bottom == 24 &&
+                                ((uv.left == 0 && uv.top == 40 && texture == mgTexManager.GetTexture(const_cast<char *>("moji"), -1)) ||
+                                 (uv.left == 216 && uv.top == 360));
+    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())} : gfx::CurrentInterp2D());
+    if (cursor) {
+        MenuMouseNoteHand(mgPortBinding(texture),
+                          {float(uv.left), float(uv.top), float(uv.right), float(uv.bottom)},
+                          0, 0, alpha);
+    }
     mgCDrawPrim prim;
     SetSpriteEnv(&prim, MENU_SPRITE_ENV_TEXTURE);
     prim.Begin(MG_PRIM_SPRITE);
@@ -102,10 +118,12 @@ template <>
 void PrimQuad<float>(mgCDrawPrim *prim, mgRect<float> put_rect, mgRect<int> tex_rect) {
     static char character_name[] = "chr_bg";
     static char invent_name[] = "inv_bg";
-    const auto extent = mgPortVisibleExtent();
+    static char options_name[] = "op_bg";
+    const auto  extent = mgPortVisibleExtent();
     if ((extent.left < 0 || extent.right > mgScreenWidth) &&
         (IsBackdrop(prim, tex_rect, character_name, 513, 768) ||
-         IsBackdrop(prim, tex_rect, invent_name, 512, 416, 48))) {
+         IsBackdrop(prim, tex_rect, invent_name, 512, 416, 48) ||
+         IsBackdrop(prim, tex_rect, options_name, 512, 448, 46))) {
         DrawBackdrop(*prim, put_rect, tex_rect, 512);
         return;
     }

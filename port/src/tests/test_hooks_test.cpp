@@ -1,9 +1,18 @@
 #include <gtest/gtest.h>
 
-#include "test_hooks.hpp"
+#include <filesystem>
+#include <format>
+
+#include "debug_fixture.hpp"
 #include "gamepad.hpp"
 #include "nowload.hpp"
+#include "nowload_port.hpp"
+#include "platform/config.hpp"
 #include "platform/input.hpp"
+#include "platform/paths.hpp"
+#include "test_hooks.hpp"
+
+using GamePadSingleDebug = dc::test::DebugFixture;
 
 TEST(TestHooks, JumpAcceptsModesAndBounds) {
     GameJump jump;
@@ -17,7 +26,9 @@ TEST(TestHooks, JumpAcceptsModesAndBounds) {
     EXPECT_EQ(jump.map, 6);
     EXPECT_TRUE(GameParseJump("event:26010", jump));
     EXPECT_EQ(jump.event, 26010);
-    for (auto mode : {"title", "opening", "menu"}) EXPECT_TRUE(GameParseJump(mode, jump));
+    for (auto mode : {"title", "opening", "menu"}) {
+        EXPECT_TRUE(GameParseJump(mode, jump));
+    }
     for (auto bad : {"", "bogus", "title:0", "town:", "town:-1", "town:189", "town:1junk",
                      "dungeon:", "dungeon:7", "dungeon:0:0", "dungeon:0:9", "dungeon:6:39", "dungeon:0:100", "dungeon:0:1:2",
                      "event", "event:0", "event:-1", "event:2147483648"}) {
@@ -36,7 +47,7 @@ TEST(TestHooks, GiveRejectsMalformedListsWithoutChangingThePreviousList) {
     }
 }
 
-TEST(GamePadSingleDebug, ModifierRoutesEdgesAndHeldButtonsPastThePad2Lock) {
+TEST_F(GamePadSingleDebug, ModifierRoutesEdgesAndHeldButtonsPastThePad2Lock) {
     CGamePad pad{};
     pad.key_lock2 = 1;
     pad.pad[0].button = PAD_L2 | PAD_SELECT | PAD_CIRCLE | PAD_RIGHT | PAD_R2;
@@ -53,7 +64,7 @@ TEST(GamePadSingleDebug, ModifierRoutesEdgesAndHeldButtonsPastThePad2Lock) {
     EXPECT_FALSE(pad.Down2(PAD_R2));
 }
 
-TEST(GamePadSingleDebug, OrdinaryPad1AndRealPad2RetainTheirButtons) {
+TEST_F(GamePadSingleDebug, OrdinaryPad1AndRealPad2RetainTheirButtons) {
     CGamePad pad{};
     pad.pad[0].button = PAD_CIRCLE | PAD_RIGHT;
     EXPECT_TRUE(pad.Down(PAD_CIRCLE));
@@ -65,7 +76,7 @@ TEST(GamePadSingleDebug, OrdinaryPad1AndRealPad2RetainTheirButtons) {
     EXPECT_FALSE(pad.Down2(PAD_L1));
 }
 
-TEST(GamePadSingleDebug, AddingL2AfterSelectDoesNotPauseDuringTimeScrubbing) {
+TEST_F(GamePadSingleDebug, AddingL2AfterSelectDoesNotPauseDuringTimeScrubbing) {
     CGamePad pad{};
     pad.previous_pad[0].button = PAD_SELECT;
     pad.pad[0].button = PAD_SELECT | PAD_L2 | PAD_RIGHT;
@@ -74,7 +85,7 @@ TEST(GamePadSingleDebug, AddingL2AfterSelectDoesNotPauseDuringTimeScrubbing) {
     EXPECT_FALSE(pad.Down2(PAD_SELECT));
 }
 
-TEST(GamePadSingleDebug, ModifiedStartCapturesWhileOrdinaryStartResumes) {
+TEST_F(GamePadSingleDebug, ModifiedStartCapturesWhileOrdinaryStartResumes) {
     CGamePad pad{};
     pad.key_lock2 = 1;
     pad.previous_pad[0].button = PAD_L2 | PAD_SELECT;
@@ -90,7 +101,7 @@ TEST(GamePadSingleDebug, ModifiedStartCapturesWhileOrdinaryStartResumes) {
     EXPECT_TRUE(GameDebugPauseResumeRequested(pad));
 }
 
-TEST(TestHooks, DeveloperMenuChordUsesHostInputPastTheGameLockAndOnlyOnAnEdge) {
+TEST_F(GamePadSingleDebug, DeveloperMenuChordUsesHostInputPastTheGameLockAndOnlyOnAnEdge) {
     InputPadState input;
     input.connected = true;
     input.buttons = kInputStart | kInputSelect;
@@ -108,9 +119,6 @@ TEST(TestHooks, DeveloperMenuChordUsesHostInputPastTheGameLockAndOnlyOnAnEdge) {
     GamePad__2.key_lock = 0;
 }
 
-extern NowLoadingInfo PortLoadInfo asm("NowLoad_LoadInfo");
-extern int PortProgBarCnt asm("NowLoad_ProgBarCnt");
-extern float PortProgBarWidthStep asm("NowLoad_ProgBarWidthStep");
 TEST(TestHooks, FastLoadingOnlyChangesTheLoadingBarCompletionRate) {
     PortLoadInfo.step_count = 15;
     GameSetFastLoad(false);
@@ -124,3 +132,25 @@ TEST(TestHooks, FastLoadingOnlyChangesTheLoadingBarCompletionRate) {
     GameSetFastLoad(false);
 }
 
+TEST(TestHooks, OrdinaryDefaultsDisableDebugRoutingAndDeveloperChord) {
+    EXPECT_FALSE(Config{}.debug_mode);
+    EXPECT_FALSE(GameDebugEnabled());
+    CGamePad pad{};
+    pad.key_lock2 = 1;
+    pad.pad[0].button = PAD_L2 | PAD_SELECT | PAD_CIRCLE;
+    EXPECT_FALSE(pad.Down2(PAD_CIRCLE));
+    EXPECT_TRUE(pad.Down(PAD_CIRCLE));
+    InputPadState input;
+    input.connected = true;
+    input.buttons = kInputStart | kInputSelect;
+    InputSetOverride(0, &input);
+    EXPECT_FALSE(GameDeveloperMenuRequested(LOOP_EDIT));
+    InputSetOverride(0, nullptr);
+}
+
+TEST(TestHooks, JumpExplicitlyEnablesDebugWithOrdinaryDefaults) {
+    EXPECT_FALSE(Config{}.debug_mode);
+    EXPECT_FALSE(GameDebugEnabled());
+    ASSERT_TRUE(GameSetJump("title"));
+    EXPECT_TRUE(GameDebugEnabled());
+}

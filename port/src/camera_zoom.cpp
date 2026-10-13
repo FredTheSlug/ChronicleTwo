@@ -1,17 +1,18 @@
 #include "common.h"
-#include "camera_zoom.hpp"
-#include "camera_mouse.hpp"
-#include "scenesnd.hpp"
 
 #include <algorithm>
 #include <cmath>
+
+#include "camera_mouse.hpp"
+#include "camera_zoom.hpp"
+#include "scenesnd.hpp"
 
 namespace {
 float Distance(const float *eye, const float *target) {
     return std::hypot(eye[0] - target[0], eye[2] - target[2]);
 }
 
-}
+} // namespace
 
 float CameraZoom::HeightScale(CCameraControl &camera) const {
     return active ? std::clamp(requested / std::max(1.0f, camera.GetActiveParam()->min_dist), 0.05f, 1.0f) : 1.0f;
@@ -19,15 +20,19 @@ float CameraZoom::HeightScale(CCameraControl &camera) const {
 
 void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enabled) {
     if (!enabled || reset) {
-        if (active) {
-            requested = camera.GetActiveParam()->min_dist;
-            returning = true;
-        }
+        requested = camera.GetActiveParam()->min_dist;
+        active = returning = false;
         return;
     }
-    if (!std::isfinite(wheel) || wheel == 0) return;
-    if (!active) requested = Distance(camera.next_pos, camera.next_ref);
-    if (!std::isfinite(requested)) return;
+    if (!std::isfinite(wheel) || wheel == 0) {
+        return;
+    }
+    if (!active) {
+        requested = Distance(camera.next_pos, camera.next_ref);
+    }
+    if (!std::isfinite(requested)) {
+        return;
+    }
     // Bound the multiplication as well as the result; enormous finite wheel
     // samples must behave like reaching a limit, never introduce infinity.
     requested = std::clamp(requested - std::clamp(wheel, -1000.0f, 1000.0f) * wheel_step,
@@ -37,9 +42,14 @@ void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enab
 }
 
 void CameraZoom::Move(CCameraControl &camera, CScene &scene,
-                      CCameraControl::Control &control, float *rotation) {
-    CCameraControl candidate = camera;
-    CameraCtrlParam &param = *candidate.GetActiveParam();
+                      CCameraControl::Control &control, float *rotation,
+                      CCPoly *retail_polys, int retail_count) {
+    if (!active) {
+        camera.MoveCamera(&control, rotation, retail_polys, retail_count);
+        return;
+    }
+    CCameraControl        candidate = camera;
+    CameraCtrlParam      &param = *candidate.GetActiveParam();
     const CameraCtrlParam retail = param;
     // Never set equal limits: retail interpolates height by max_dist-min_dist.
     // Retain its height curve at the requested distance without extrapolating
@@ -57,7 +67,7 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     // Close zoom preserves the normal viewing slope, instead of turning the
     // same retail eye height into an overhead view. Ground clearance still wins.
     candidate.next_pos[1] = candidate.next_ref[1] +
-                           (candidate.next_pos[1] - candidate.next_ref[1]) * HeightScale(camera);
+                            (candidate.next_pos[1] - candidate.next_ref[1]) * HeightScale(camera);
     const float height = param.height;
     param = retail;
     param.height = height;
@@ -84,14 +94,35 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     }
     bounds.min[3] = bounds.max[3] = 1;
     CCPoly polys[512];
-    const int count = MouseCameraCollectPolys(scene, bounds, polys, 512);
-    if (count >= 0) {
+    int    count = MouseCameraCollectPolys(scene, bounds, polys, 512);
+    // The caller's retail collision set remains authoritative even if the
+    // extended distance query did not return those polygons.
+    if (count < 0 || retail_count < 0 || retail_count >= 512 - count ||
+        (retail_count && !retail_polys)) {
+        camera.MoveCamera(&control, rotation, retail_polys, retail_count);
+        return;
+    }
+    for (int i = 0; i < retail_count; ++i) {
+        polys[count++] = retail_polys[i];
+    }
+    if (!retail.no_check) {
         candidate.CheckGround(polys, count);
         candidate.CheckCollision(polys, count);
+        if (control.rot == 0 && !(candidate.rot_cancel & CAMERA_ROT_CANCEL_AUTO_MOVE)) {
+            candidate.AutoMove(polys, count);
+        }
     }
     // Only next poses are committed. Retail's Step supplies smooth motion, and
     // the proof covers independent eye/target easing and thin walls in between.
-    MouseCameraClampFollow(camera, candidate, polys, count);
+    CCameraControl clamped = camera;
+    if (MouseCameraClampFollow(clamped, candidate, polys, count) <= 0) {
+        camera.MoveCamera(&control, rotation, retail_polys, retail_count);
+        return;
+    }
+    for (int i = 0; i < 4; ++i) {
+        camera.next_pos[i] = clamped.next_pos[i];
+        camera.next_ref[i] = clamped.next_ref[i];
+    }
     camera.GetActiveParam()->height = height;
     camera.rot_back = candidate.rot_back;
     camera.rot_back_angle = candidate.rot_back_angle;

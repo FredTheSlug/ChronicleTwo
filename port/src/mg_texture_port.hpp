@@ -16,3 +16,6 @@ MgTextureHandles MgTextureLookup(const mgCTexture *texture);
 MgTextureHandles MgTextureLookupTex0(uint64_t tex0);
 // Refreshes CPU images and palette changed in place without changing the registry key.
 void MgTexturePixelsChanged(const mgCTexture *texture);
+
+// Descriptor copies share atlas pixels but own a CLUT key and handle, released with the atlas.
+void MgTextureRegisterPaletteVariant(mgCTexture *variant, const mgCTexture *atlas);

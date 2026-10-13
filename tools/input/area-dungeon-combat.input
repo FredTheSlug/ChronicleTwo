@@ -1,3 +1,4 @@
+# Requires game.debug_mode=true in the replay save root config.json.
 # Replay endpoint: --frames 5100.
 # Title -> retail debug event menu -> chapter one normal -> floor 1.
 300 circle

@@ -10,18 +10,29 @@
 #include "maintex.hpp"
 #include "mglib.hpp"
 #include "scenesnd.hpp"
+#include "screen_overlay_anchor.hpp"
 
 namespace {
 // Keep presentation identity outside the retail objects and their serialized layouts.
-std::unordered_map<const void *, uint64_t> generations;
-uint64_t next_generation = 0;
+struct ScoreEmission {
+    uint64_t            generation = 0;
+    ScreenOverlayAnchor anchor;
+};
 
-void Emit(const void *score) { generations[score] = ++next_generation; }
+std::unordered_map<const void *, ScoreEmission> generations;
+uint64_t                                        next_generation = 0;
 
-gfx::Interp2D Presentation(const void *score) {
+void Emit(const void *score) { generations[score] = {++next_generation, {}}; }
+
+gfx::Interp2D Presentation(const void *score, const int *screen) {
     auto found = generations.find(score);
-    if (found == generations.end()) return {};
-    return {static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(score)), found->second};
+    if (found == generations.end()) {
+        return {};
+    }
+    if (found->second.anchor.Update(screen[0] / 16, screen[1] / 16)) {
+        found->second.generation = ++next_generation;
+    }
+    return {static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(score)), found->second.generation};
 }
 
 void BeginScore(CPreSprite &prim) {
@@ -32,7 +43,7 @@ void BeginScore(CPreSprite &prim) {
     prim.Texture(TEX_SystenFrame);
     prim.AlphaTestEnable(1);
 }
-}
+} // namespace
 
 PORT_OVERRIDE void CDamageScore::SetValue(float *position, int value) {
     Emit(this);
@@ -43,7 +54,9 @@ PORT_OVERRIDE void CDamageScore::SetValue(float *position, int value) {
     sprite = false;
     std::sprintf(text, "%d", value);
     length = std::strlen(text);
-    for (int i = 0; i < length; ++i) bounce[i] = PI;
+    for (int i = 0; i < length; ++i) {
+        bounce[i] = PI;
+    }
 }
 
 PORT_OVERRIDE void CDamageScore::SetSprite(float *position, int u, int v, int width, int height) {
@@ -61,12 +74,17 @@ PORT_OVERRIDE void CDamageScore::SetSprite(float *position, int u, int v, int wi
 }
 
 PORT_OVERRIDE void CDamageScore::Draw() {
-    if (!active) return;
-    gfx::Interp2DScope interpolation(Presentation(this));
+    if (!active) {
+        return;
+    }
     CPreSprite prim;
-    int screen[4];
-    BeginScore(prim);
+    int        screen[4];
     pos[3] = 1.0f;
+    if (!mgTransWorldPrim(screen, pos)) {
+        return;
+    }
+    gfx::Interp2DScope interpolation(Presentation(this, screen));
+    BeginScore(prim);
     if (sprite) {
         if (mgTransWorldPrim(screen, pos)) {
             prim.Color(0x80, 0x80, 0x80, alpha);
@@ -78,7 +96,9 @@ PORT_OVERRIDE void CDamageScore::Draw() {
         }
     } else {
         for (int i = 0; text[i] > 0; ++i) {
-            if (!mgTransWorldPrim(screen, pos)) continue;
+            if (!mgTransWorldPrim(screen, pos)) {
+                continue;
+            }
             prim.Color(color[0], color[1], color[2], alpha);
             screen[0] -= (length * digit_w) << 3;
             screen[0] += (i * digit_w) << 4;
@@ -107,21 +127,32 @@ PORT_OVERRIDE void CDamageScore2::SetValue(int slot, int amount, float rise) {
 }
 
 PORT_OVERRIDE void CDamageScore2::Draw(CScene *scene) {
-    if (phase == DAMAGE_SCORE2_PHASE_NONE || length <= 0) return;
+    if (phase == DAMAGE_SCORE2_PHASE_NONE || length <= 0) {
+        return;
+    }
     auto *character = scene->GetCharacter(chara_no);
-    if (!character) return;
+    if (!character) {
+        return;
+    }
     auto *frame = character->GetFrame();
-    if (!frame) return;
-    gfx::Interp2DScope interpolation(Presentation(this));
-    CPreSprite prim;
-    int screen[4];
+    if (!frame) {
+        return;
+    }
+    CPreSprite    prim;
+    int           screen[4];
     sceVu0FVECTOR position;
-    BeginScore(prim);
     frame->GetWorldPosition0(position);
     position[1] += height;
     position[3] = 1.0f;
+    if (!mgTransWorldPrim(screen, position)) {
+        return;
+    }
+    gfx::Interp2DScope interpolation(Presentation(this, screen));
+    BeginScore(prim);
     for (int i = 0; text[i] > 0; ++i) {
-        if (!mgTransWorldPrim(screen, position)) continue;
+        if (!mgTransWorldPrim(screen, position)) {
+            continue;
+        }
         screen[0] -= (length * 14 / 2) << 4;
         screen[0] += (i * 14) << 4;
         screen[1] += static_cast<int>(offset_y) << 4;

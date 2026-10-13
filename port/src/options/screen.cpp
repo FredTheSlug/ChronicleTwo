@@ -1,6 +1,4 @@
 #include "common.h"
-#include "options/screen.hpp"
-#include "menu_mouse.hpp"
 
 #include <SDL3/SDL.h>
 
@@ -10,12 +8,14 @@
 
 #include "gamepad.hpp"
 #include "mainloop.hpp"
+#include "menu_mouse.hpp"
 #include "menucommon.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
 #include "menusys.hpp"
 #include "options/rows.hpp"
+#include "options/screen.hpp"
 #include "platform/display.hpp"
 #include "platform/input.hpp"
 #include "platform/input_script.hpp"
@@ -76,7 +76,7 @@ void Close() {
 void Open() {
     g_screen = {};
     g_screen.open = true;
-    g_screen.save_failed = !ConfigSave();
+    g_screen.save_failed = !ConfigSaved();
     ListResolutions();
     g_wait_source.clear();
     g_drain = true;
@@ -171,8 +171,11 @@ bool Run() {
         if (g_screen.binding >= 0) {
             g_screen.binding = -1;
             g_drain = true;
-        } else if (g_screen.open) Close();
-        else MenuMousePress(cancel);
+        } else if (g_screen.open) {
+            Close();
+        } else {
+            MenuMousePress(cancel);
+        }
         return g_screen.open || g_drain;
     }
     if (g_screen.binding >= 0) {
@@ -238,7 +241,9 @@ bool Run() {
         if (g_screen.open) {
             return true;
         }
-        if (!g_drain) MenuMousePress(confirm);
+        if (!g_drain) {
+            MenuMousePress(confirm);
+        }
     }
     return g_screen.open || g_drain;
 }

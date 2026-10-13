@@ -238,7 +238,7 @@ TEST(CtArena, MainBufferLiesAboveFourGiB) {
 
 TEST(CtArena, RootRebindKeepsLoadedContents) {
     static u_long128 retail[100] = {};
-    mgCMemory memory;
+    mgCMemory        memory;
     memory.stSetBuffer(retail, 100);
     auto *loaded = memory.Alloc(4);
     ASSERT_NE(loaded, nullptr);

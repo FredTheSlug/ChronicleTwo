@@ -9,8 +9,8 @@
 #include "mglib.hpp"
 #include "runscript.hpp"
 #include "scenesnd.hpp"
-#include "swordeffect.hpp"
 #include "stubs/event.hpp"
+#include "swordeffect.hpp"
 
 namespace {
 class EventSwordMemory : public testing::Test {
@@ -23,15 +23,22 @@ protected:
         scene.chara_num = 1;
         scene.AssignChara(0, &character, nullptr);
         EventScene = &scene;
-        for (int i = 0; i < CHARA_SWORD_EFFECT_MAX; ++i) character.sword_effect[i] = &effects[i];
+        for (int i = 0; i < CHARA_SWORD_EFFECT_MAX; ++i) {
+            character.sword_effect[i] = &effects[i];
+        }
     }
+
     void TearDown() override {
         SetEventScript(nullptr, nullptr, nullptr);
         EventScene = nullptr;
     }
+
     void Colors(int slot) {
         RS_STACKDATA args[10]{};
-        for (int i = 0; i < 10; ++i) { args[i].type = RS_INT; args[i].val.i = i + 10; }
+        for (int i = 0; i < 10; ++i) {
+            args[i].type = RS_INT;
+            args[i].val.i = i + 10;
+        }
         args[0].val.i = 0;
         args[1].val.i = slot;
         ASSERT_TRUE(EventScript.ext_func_table[EVENT_EXT_SWE_SET_COLOR](args, 10));
@@ -42,17 +49,20 @@ protected:
             }
         }
     }
-    alignas(64) u_long128 storage[1024]{};
-    mgCMemory memory;
-    RS_PROG_HEADER program{};
-    CScene scene;
-    CCharacter2 character;
+
+    alignas(64) u_long128 storage[1024] {};
+    mgCMemory         memory;
+    RS_PROG_HEADER    program{};
+    CScene            scene;
+    CCharacter2       character;
     CSWordAfterEffect effects[CHARA_SWORD_EFFECT_MAX];
 };
 } // namespace
 
 TEST_F(EventSwordMemory, FirstSlotKeepsItsExistingColorBehavior) { Colors(0); }
+
 TEST_F(EventSwordMemory, SecondSlotUsesACompleteNativePointer) { Colors(1); }
+
 TEST_F(EventSwordMemory, ThirdSlotDoesNotWriteTheSecondEffect) { Colors(2); }
 
 TEST_F(EventSwordMemory, StartUsesTheSelectedEffectAndNamedFrames) {
@@ -61,7 +71,9 @@ TEST_F(EventSwordMemory, StartUsesTheSelectedEffectAndNamedFrames) {
     character.CObjectFrame::frame = &root;
     effects[2].point_max = 8;
     RS_STACKDATA args[7]{};
-    for (auto &arg : args) arg.type = RS_INT;
+    for (auto &arg : args) {
+        arg.type = RS_INT;
+    }
     args[0].val.i = 0;
     args[1].val.i = 2;
     args[2].val.s = root.name;
@@ -82,17 +94,23 @@ TEST_F(EventSwordMemory, TextureUsesTheSelectedSlotAndPreservesItsRectangle) {
     mgCTexture texture{};
     std::strcpy(texture.name, "trail");
     texture.block = 7;
-    const int bucket = mgTexManager.hash(texture.name);
+    const int      bucket = mgTexManager.hash(texture.name);
     mgTEXTURE_HASH link{&texture, mgTexManager.hash_table[bucket]};
     mgTexManager.hash_table[bucket] = &link;
-    for (auto &effect : effects) effect.texture = nullptr;
+    for (auto &effect : effects) {
+        effect.texture = nullptr;
+    }
     RS_STACKDATA args[8]{};
-    for (auto &arg : args) arg.type = RS_INT;
+    for (auto &arg : args) {
+        arg.type = RS_INT;
+    }
     args[0].val.i = 0;
     args[1].val.i = 2;
     args[2].val.i = texture.block;
     args[3].val.s = texture.name;
-    for (int i = 4; i < 8; ++i) args[i].val.i = 10 + i;
+    for (int i = 4; i < 8; ++i) {
+        args[i].val.i = 10 + i;
+    }
     const int result = EventScript.ext_func_table[EVENT_EXT_SWE_SET_TEXTURE](args, 8);
     mgTexManager.hash_table[bucket] = link.next;
     ASSERT_TRUE(result);
@@ -108,7 +126,9 @@ TEST_F(EventSwordMemory, TextureUsesTheSelectedSlotAndPreservesItsRectangle) {
 
 TEST_F(EventSwordMemory, MissingCharacterOrEffectReturnsFailure) {
     RS_STACKDATA args[10]{};
-    for (auto &arg : args) arg.type = RS_INT;
+    for (auto &arg : args) {
+        arg.type = RS_INT;
+    }
     args[0].val.i = 1;
     EXPECT_FALSE(EventScript.ext_func_table[EVENT_EXT_SWE_SET_COLOR](args, 10));
     args[0].val.i = 0;

@@ -1,8 +1,9 @@
-#include <gtest/gtest.h>
 #include <SDL3/SDL.h>
+#include <gtest/gtest.h>
+
 #include <cstdint>
-#include <memory>
 #include <filesystem>
+#include <memory>
 #include <string>
 
 #include "audio/mixer.hpp"
@@ -40,6 +41,7 @@ protected:
         channel().SetLoop(false);
         channel().Play();
     }
+
     void TearDown() override {
         AudioShutdown();
         channel().Close();
@@ -52,12 +54,14 @@ protected:
         ClockSetUnbounded(false);
         ClockSetTickRate(60.0);
     }
+
     audio::StreamChannel &channel() { return EzBgmChannel(1); }
+
     dc::test::EnvSnapshot audio_env_;
     dc::test::EnvSnapshot wav_env_;
     std::filesystem::path capture_;
 };
-}
+} // namespace
 
 TEST_F(AudioTick, HeadlessVoiceSamplesAdvanceOnLogicTicksWithoutADevice) {
     ASSERT_TRUE(AudioInit(true));
@@ -77,7 +81,9 @@ TEST_F(AudioTick, HeadlessVoiceSamplesAdvanceOnLogicTicksWithoutADevice) {
 TEST_F(AudioTick, FractionalSamplesCarryBetweenTicks) {
     ClockSetTickRate(93.0);
     ASSERT_TRUE(AudioInit(true));
-    for (int i = 0; i < 93; ++i) ClockPump();
+    for (int i = 0; i < 93; ++i) {
+        ClockPump();
+    }
     EXPECT_EQ(channel().Position(), audio::DefaultMixer().Rate());
 }
 
@@ -103,7 +109,7 @@ TEST_F(AudioTick, TickRateChangesKeepTheFractionalSample) {
 
 TEST_F(AudioTick, HeadlessWavCaptureKeepsOneMixerDriver) {
     capture_ = std::filesystem::temp_directory_path() /
-        ("audio-tick-" + std::to_string(dc::test::ProcessId()) + ".wav");
+               ("audio-tick-" + std::to_string(dc::test::ProcessId()) + ".wav");
     dc::test::SetEnv("DC2_AUDIO_WAV", capture_, 1);
     ASSERT_TRUE(AudioInit(true));
     EXPECT_TRUE(AudioOutputRunning());

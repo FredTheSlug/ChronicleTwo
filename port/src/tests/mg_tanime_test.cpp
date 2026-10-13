@@ -258,15 +258,15 @@ TEST_F(MgTanimeGpu, CopyRecordMovesPixels) {
 }
 
 TEST_F(MgTanimeGpu, BlockReloadRestoresOpenEyesBeforeSelfCopy) {
-    StateReset reset;
-    Quads clut = Pack(Clut8());
+    StateReset           reset;
+    Quads                clut = Pack(Clut8());
     std::vector<uint8_t> original(kSide * kSide);
     for (size_t i = 0; i < original.size(); ++i) {
         original[i] = static_cast<uint8_t>(i * 7 + 3);
     }
-    Quads face_pixels = Pack(original);
-    Quads closed_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x22));
-    Quads half_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x33));
+    Quads       face_pixels = Pack(original);
+    Quads       closed_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x22));
+    Quads       half_pixels = Pack(std::vector<uint8_t>(kSide * kSide, 0x33));
     mgCTexture *face = Enter(h_, "blink_face", face_pixels.data(), clut.data());
     mgCTexture *closed = Enter(h_, "blink_closed", closed_pixels.data(), clut.data());
     mgCTexture *half = Enter(h_, "blink_half", half_pixels.data(), clut.data());
@@ -307,13 +307,13 @@ TEST_F(MgTanimeGpu, BlockReloadRestoresOpenEyesBeforeSelfCopy) {
         mgEndFrame(nullptr);
 
         std::vector<uint8_t> pixels;
-        uint32_t width = 0, height = 0;
+        uint32_t             width = 0, height = 0;
         ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, pixels, width, height));
         ASSERT_EQ(pixels.size(), original.size());
         for (int y = 0; y < kSide; ++y) {
             for (int x = 0; x < kSide; ++x) {
                 const size_t offset = static_cast<size_t>(y) * kSide + x;
-                const bool inside = x >= kCopyOrigin && x < kCopyOrigin + kCopySide &&
+                const bool   inside = x >= kCopyOrigin && x < kCopyOrigin + kCopySide &&
                                     y >= kCopyOrigin && y < kCopyOrigin + kCopySide;
                 const uint8_t expected = inside && tick % 3 != 0 ? (tick % 3 == 1 ? 0x22 : 0x33) : original[offset];
                 EXPECT_EQ(pixels[offset], expected) << "tick " << tick << " texel " << x << "," << y;
@@ -328,7 +328,7 @@ TEST_F(MgTanimeGpu, BlockReloadRestoresOpenEyesBeforeSelfCopy) {
     h_.manager.ReloadTexture(0, static_cast<sceVif1Packet *>(nullptr));
     mgEndFrame(nullptr);
     std::vector<uint8_t> pixels;
-    uint32_t width = 0, height = 0;
+    uint32_t             width = 0, height = 0;
     ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, pixels, width, height));
     EXPECT_EQ(pixels, original);
     h_.manager.blocks[0].anime = nullptr;

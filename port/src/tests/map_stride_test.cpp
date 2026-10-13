@@ -6,17 +6,17 @@
 #include "editmap.hpp"
 #include "editparts.hpp"
 #include "map.hpp"
-#include "mg_memory.hpp"
 #include "mg_frame.hpp"
+#include "mg_memory.hpp"
 #include "mg_visual.hpp"
 #include "mglib.hpp"
 #include "water.hpp"
 
 TEST(MapStride, DrawPartsPointersFitBeforeTheNextAllocation) {
     std::vector<u_long128> storage(8192);
-    mgCMemory memory;
+    mgCMemory              memory;
     memory.stSetBuffer(storage.data(), storage.size());
-    CMap map;
+    CMap          map;
     constexpr int count = 33;
     map.SetPlacePartsBuff(&memory, count);
     ASSERT_NE(map.draw_parts, nullptr);
@@ -38,6 +38,7 @@ namespace {
 class RecordingWater : public CWater {
 public:
     std::vector<float> translations;
+
     int Draw(u_int *, float (*matrix)[4], mgCDrawManager *) override {
         translations.push_back(matrix[3][0]);
         return 0;
@@ -46,10 +47,10 @@ public:
 } // namespace
 
 TEST(MapStride, WaterOverlayVisitsEveryPartPointer) {
-    CMap map;
+    CMap           map;
     RecordingWater visual;
-    CWaterFrame frame;
-    mgCFrameAttr attr;
+    CWaterFrame    frame;
+    mgCFrameAttr   attr;
     attr.draw = MG_FRAME_DRAW_VISIBLE;
     attr.no_cull = 1;
     attr.point_light = 0;
@@ -76,7 +77,7 @@ TEST(MapStride, WaterOverlayVisitsEveryPartPointer) {
 }
 
 TEST(MapStride, PlacedPartListUsesHostObjectsAndTheirNames) {
-    CEditMap map;
+    CEditMap   map;
     CEditParts parts[5];
     map.edit_parts = parts;
     map.edit_parts_max = 5;

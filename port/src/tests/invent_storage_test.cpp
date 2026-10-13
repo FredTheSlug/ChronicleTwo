@@ -9,7 +9,7 @@
 
 TEST(InventStorage, NativeRecipesAndMaterialsOutgrowTheRetailMenuSlot) {
     static char owner;
-    auto *retail_slot = reinterpret_cast<u_long128 *>(ArenaBlock(&owner, 0x210 * sizeof(u_long128)));
+    auto       *retail_slot = reinterpret_cast<u_long128 *>(ArenaBlock(&owner, 0x210 * sizeof(u_long128)));
     InventTeigiStack.stSetBuffer(retail_slot, 0x210);
     std::string script = "DATATABLESET 136;\n";
     for (int i = 0; i < 136; ++i) {
@@ -32,7 +32,7 @@ TEST(InventStorage, NativeRecipesAndMaterialsOutgrowTheRetailMenuSlot) {
 
 TEST(InventStorage, LoadingAnotherManagerPreservesExistingRecipePointers) {
     CInventDataManage first, second;
-    std::string script = "DATATABLESET 1; DATASET 42,1,2,3,210,5,0,1.0,2.0,3.0,4.0;";
+    std::string       script = "DATATABLESET 1; DATASET 42,1,2,3,210,5,0,1.0,2.0,3.0,4.0;";
     ASSERT_TRUE(first.LoadAnalyzeInventFile(script.data(), script.size()));
     auto *recipe = first.table;
     auto *material = recipe->materials.material;

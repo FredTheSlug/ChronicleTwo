@@ -11,10 +11,14 @@
 namespace {
 
 struct alignas(16) MotionModel {
-    MDT_HEADER header{};
-    sceVu0FVECTOR positions[3] = {{0, 0, 0, 1}, {1, 0, 0, 1}, {0, 1, 0, 1}};
+    MDT_HEADER    header{};
+    sceVu0FVECTOR positions[3] = {
+        {0, 0, 0, 1},
+        {1, 0, 0, 1},
+        {0, 1, 0, 1}
+    };
     MDT_FACES faces{};
-    u_int primitive[6] = {static_cast<u_int>(MG_PRIM_TRIANGLE) | MG_FACE_NO_NORMAL | MG_FACE_NO_TEXTURE, 3, 0, 0, 1, 2};
+    u_int     primitive[6] = {static_cast<u_int>(MG_PRIM_TRIANGLE) | MG_FACE_NO_NORMAL | MG_FACE_NO_TEXTURE, 3, 0, 0, 1, 2};
 
     MotionModel() {
         header.header_size = sizeof(header);
@@ -27,11 +31,12 @@ struct alignas(16) MotionModel {
 
 struct alignas(16) WeightBlock {
     u_int frame;
-    int bone;
+    int   bone;
     u_int reserved[2]{};
     u_int count = 3;
     u_int next;
     u_int padding[2]{};
+
     struct Entry {
         u_int vertex;
         u_int reserved[3]{};
@@ -41,15 +46,15 @@ struct alignas(16) WeightBlock {
 };
 
 struct AssignmentFixture {
-    MotionModel model;
+    MotionModel                 model;
     std::array<u_long128, 1024> storage{};
     std::array<u_long128, 1024> scratch{};
-    mgCMemory memory;
-    mgCMemory work;
-    WeightBlock weights[3] = {
-        {1, 4, {}, 3, sizeof(WeightBlock), {}, {{0, {}, 25}, {1, {}, 25}, {2, {}, 25}}},
-        {1, 7, {}, 3, sizeof(WeightBlock), {}, {{0, {}, 75}, {1, {}, 75}, {2, {}, 75}}},
-        {2, 9, {}, 3, 0, {}, {{0, {}, 100}, {1, {}, 100}, {2, {}, 100}}},
+    mgCMemory                   memory;
+    mgCMemory                   work;
+    WeightBlock                 weights[3] = {
+        {1, 4, {}, 3, sizeof(WeightBlock), {}, {{0, {}, 25}, {1, {}, 25}, {2, {}, 25}}   },
+        {1, 7, {}, 3, sizeof(WeightBlock), {}, {{0, {}, 75}, {1, {}, 75}, {2, {}, 75}}   },
+        {2, 9, {}, 3, 0,                   {}, {{0, {}, 100}, {1, {}, 100}, {2, {}, 100}}},
     };
 
     AssignmentFixture() {
@@ -74,7 +79,7 @@ gfx::Prog0Skin SkinAt(const mgVisualFaceMesh &mesh, int vertex) {
 } // namespace
 
 TEST(VisualMotion, SharedWorkStackPreservesAssignedWeights) {
-    AssignmentFixture fixture;
+    AssignmentFixture  fixture;
     mgCVisualMotionMDT first;
     mgCVisualMotionMDT second;
     ASSERT_EQ(fixture.Assign(first, 1), 1);
@@ -92,7 +97,7 @@ TEST(VisualMotion, SharedWorkStackPreservesAssignedWeights) {
     fixture.work.stReset();
     std::memset(fixture.work.stack, 0, fixture.work.stack_size * 16);
 
-    int indices[3] = {0, 1, 2};
+    int     indices[3] = {0, 1, 2};
     mgCFace face{};
     face.type = fixture.model.primitive[0];
     face.index_stride = 1;

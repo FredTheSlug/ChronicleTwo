@@ -55,7 +55,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
             ASSERT_TRUE(options::StepRow(row, config, 1) || options::StepRow(row, config, -1)) << row.key;
             EXPECT_NE(config, Config{}) << row.key;
             EXPECT_EQ(ConfigParse(ConfigSerialize(config)), config) << row.key;
-            EXPECT_TRUE(config.debug_mode);
+            EXPECT_FALSE(config.debug_mode);
             EXPECT_DOUBLE_EQ(config.tick_rate, 50);
         }
     }
@@ -266,4 +266,12 @@ TEST(PcOptions, PromptsFollowBindingsAndControllerFamilyWithoutChangingPadAction
     EXPECT_EQ(InputApplyKeyboardMouse(pad, {}).buttons, kInputCross);
     config.glyphs_new = false;
     EXPECT_EQ(options::ButtonName("cross", config), "Cross");
+}
+
+TEST(PcOptions, ZoomResetHasAVisibleRebindableRow) {
+    const auto &row = Find("input.bindings.zoom_reset");
+    EXPECT_EQ(row.label, "Zoom reset");
+    EXPECT_EQ(row.action, "zoom_reset");
+    Config config;
+    EXPECT_TRUE(options::SetBinding(config, row.action, "K"));
 }

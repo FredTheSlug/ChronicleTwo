@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 
+#include "debug_fixture.hpp"
 #include "debug_mode.hpp"
+#include "test_hooks.hpp"
+
+using GamePadDebugChord = dc::test::DebugFixture;
 #include "gamepad.hpp"
 #include "mainloop.hpp"
 #include "title.hpp"
@@ -44,36 +48,36 @@ TEST(DebugMode, ChordIsOffWithoutTheDebugCode) {
 }
 
 // Drives the real pad-1 accessors the MainLoop call site uses, not masks built by hand.
-TEST(GamePadDebugChord, FiresOnANewR3PressWithAllShoulders) {
+TEST_F(GamePadDebugChord, FiresOnANewR3PressWithAllShoulders) {
     MasterDebugCode = MASTER_DEBUG_CODE;
     GamePad__2.key_lock = 0;
     GamePad__2.pad[0].button = kAllShoulders | PAD_R3;
     GamePad__2.previous_pad[0].button = kAllShoulders;
-    EXPECT_TRUE(DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
+    EXPECT_TRUE(GameDebugEnabled() && DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
 }
 
-TEST(GamePadDebugChord, DoesNotFireWhileR3IsHeld) {
+TEST_F(GamePadDebugChord, DoesNotFireWhileR3IsHeld) {
     MasterDebugCode = MASTER_DEBUG_CODE;
     GamePad__2.key_lock = 0;
     GamePad__2.pad[0].button = kAllShoulders | PAD_R3;
     GamePad__2.previous_pad[0].button = kAllShoulders | PAD_R3;
-    EXPECT_FALSE(DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
+    EXPECT_FALSE(GameDebugEnabled() && DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
 }
 
-TEST(GamePadDebugChord, FiresWithPad2Locked) {
+TEST_F(GamePadDebugChord, FiresWithPad2Locked) {
     MasterDebugCode = MASTER_DEBUG_CODE;
     GamePad__2.DebugKeyLock(1);
     GamePad__2.key_lock = 0;
     GamePad__2.pad[0].button = kAllShoulders | PAD_R3;
     GamePad__2.previous_pad[0].button = kAllShoulders;
-    EXPECT_TRUE(DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
+    EXPECT_TRUE(GameDebugEnabled() && DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
 }
 
-TEST(GamePadDebugChord, PadLockSilencesTheChord) {
+TEST_F(GamePadDebugChord, PadLockSilencesTheChord) {
     MasterDebugCode = MASTER_DEBUG_CODE;
     GamePad__2.key_lock = 1;
     GamePad__2.pad[0].button = kAllShoulders | PAD_R3;
     GamePad__2.previous_pad[0].button = kAllShoulders;
-    EXPECT_FALSE(DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
+    EXPECT_FALSE(GameDebugEnabled() && DebugModeToggleChord(GamePad__2.GetPadOn(), GamePad__2.GetPadDown()));
     GamePad__2.key_lock = 0;
 }

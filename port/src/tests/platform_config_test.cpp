@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <filesystem>
 #include <format>
@@ -64,6 +65,12 @@ TEST_F(PlatformConfig, DefaultsAreWrittenWhenAbsent) {
     ASSERT_TRUE(SettingsGet().tick_rate == kConfigTickRateDefault);
     ASSERT_TRUE(ConfigLoad());
     ASSERT_TRUE(SettingsGet() == static_cast<const HostSettings &>(Config{}));
+}
+
+TEST_F(PlatformConfig, TinyFrameCapsClampButZeroRemainsUncapped) {
+    EXPECT_DOUBLE_EQ(ConfigParse(R"({"video":{"max_fps":1e-12}})").max_fps, 1.0);
+    EXPECT_DOUBLE_EQ(ConfigParse(R"({"video":{"max_fps":0.5}})").max_fps, 1.0);
+    EXPECT_DOUBLE_EQ(ConfigParse(R"({"video":{"max_fps":0}})").max_fps, 0.0);
 }
 
 TEST_F(PlatformConfig, FullFileRoundTrips) {
@@ -147,9 +154,9 @@ TEST_F(PlatformConfig, UnknownKeysAndSectionsAreIgnored) {
     ASSERT_TRUE(ConfigParse(R"({"game": {"debug_menu": false}, "stray": 1})") == Config{});
 }
 
-TEST_F(PlatformConfig, DebugModeParsesBoolsAndDefaultsToOn) {
-    ASSERT_TRUE(Config{}.debug_mode);
-    ASSERT_TRUE(ConfigParse("").debug_mode);
+TEST_F(PlatformConfig, DebugModeParsesBoolsAndDefaultsToOff) {
+    ASSERT_FALSE(Config{}.debug_mode);
+    ASSERT_FALSE(ConfigParse("").debug_mode);
     ASSERT_FALSE(ConfigParse(R"({"game": {"debug_mode": false}})").debug_mode);
     ASSERT_TRUE(ConfigParse(R"({"game": {"debug_mode": true}})").debug_mode);
 }
@@ -157,15 +164,15 @@ TEST_F(PlatformConfig, DebugModeParsesBoolsAndDefaultsToOn) {
 TEST_F(PlatformConfig, DebugModeInvalidValuesKeepTheDefault) {
     for (const char *value : {"\"yes\"", "1", "null", "\"off\""}) {
         std::string json = std::string(R"({"game": {"debug_mode": )") + value + "}}";
-        ASSERT_TRUE(ConfigParse(json).debug_mode) << json;
+        ASSERT_FALSE(ConfigParse(json).debug_mode) << json;
     }
 }
 
 TEST_F(PlatformConfig, DebugModeRoundTripsThroughSerialize) {
     Config config;
-    config.debug_mode = false;
+    config.debug_mode = true;
     Config parsed = ConfigParse(ConfigSerialize(config));
-    ASSERT_FALSE(parsed.debug_mode);
+    ASSERT_TRUE(parsed.debug_mode);
     ASSERT_TRUE(parsed == config);
 }
 
@@ -261,4 +268,38 @@ TEST_F(PlatformConfig, FailedPortChangeKeepsLiveValuesAndRetriesTheSave) {
     fs::remove(Path());
     EXPECT_TRUE(ConfigChange(config));
     EXPECT_FALSE(ConfigParse(Read()).interpolation);
+}
+
+TEST_F(PlatformConfig, ChangeMergesOnlyEditedFieldsIntoExternallyUpdatedJson) {
+    Write(R"({"audio":{"master_volume":0.5},"input":{"bindings":{"cross":["K"]}},"extra":{"old":1}})");
+    ASSERT_TRUE(ConfigLoad());
+    Write(R"({"audio":{"master_volume":0.25,"future_mode":"custom"},"input":{"bindings":{"cross":["Z"],"future_action":["J"]}},"extra":{"old":2,"new":[1,2]},"stray":7})");
+    Config changed = ConfigGet();
+    changed.font_sharp = true;
+    ASSERT_TRUE(ConfigChange(changed));
+    auto json = nlohmann::json::parse(Read());
+    EXPECT_EQ(json["audio"]["master_volume"], 0.25);
+    EXPECT_EQ(json["audio"]["future_mode"], "custom");
+    EXPECT_EQ(json["input"]["bindings"]["cross"][0], "Z");
+    EXPECT_EQ(json["input"]["bindings"]["future_action"][0], "J");
+    EXPECT_EQ(json["extra"]["old"], 2);
+    EXPECT_EQ(json["extra"]["new"].size(), 2);
+    EXPECT_EQ(json["stray"], 7);
+    EXPECT_EQ(json["video"]["text_font"], "sharp");
+    const auto before = Read();
+    ASSERT_TRUE(ConfigChange(changed));
+    EXPECT_EQ(Read(), before);
+}
+
+TEST_F(PlatformConfig, BindingResetPreservesUnrelatedExternalBindings) {
+    Write(R"({"input":{"bindings":{"cross":["K"],"circle":["Q"]}}})");
+    ASSERT_TRUE(ConfigLoad());
+    Write(R"({"input":{"bindings":{"cross":["K"],"circle":["Z"],"future":["J"]}}})");
+    Config changed = ConfigGet();
+    changed.key_bindings.erase(changed.key_bindings.begin());
+    ASSERT_TRUE(ConfigChange(changed));
+    auto json = nlohmann::json::parse(Read());
+    EXPECT_FALSE(json["input"]["bindings"].contains("cross"));
+    EXPECT_EQ(json["input"]["bindings"]["circle"][0], "Z");
+    EXPECT_EQ(json["input"]["bindings"]["future"][0], "J");
 }

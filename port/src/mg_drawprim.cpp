@@ -68,11 +68,12 @@ struct PrimRun {
 };
 
 std::unordered_map<const mgCDrawPrim *, PrimRun>        runs;
-std::unordered_set<u_long>                               ignored_direct_registers;
+std::unordered_set<u_long>                              ignored_direct_registers;
+
 // Constructed on first use, so captured mesh owners are released before the renderer's
 // static resource tables at process exit.
-std::unordered_map<const void *, std::function<void()>> &PacketDraws() {
-    static std::unordered_map<const void *, std::function<void()>> draws;
+std::unordered_map<const void *, std::function<void()> > &PacketDraws() {
+    static std::unordered_map<const void *, std::function<void()> > draws;
     return draws;
 }
 mgPortPrimSink                                           prim_sink;
@@ -553,7 +554,7 @@ bool mgPortPacketDraw(const void *packet) {
     }
 
     const auto &draws = PacketDraws();
-    const auto it = draws.find(packet);
+    const auto  it = draws.find(packet);
 
     if (it == draws.end()) {
         return false;

@@ -365,6 +365,8 @@ PORT_OVERRIDE void mgCMemory::Align64() {
 PORT_OVERRIDE void mgCMemory::stSetBuffer(u_long128 *buffer, int size) {
     if (buffer != nullptr && size > 0 && !ArenaContains(buffer)) {
         const NameCopy label = CopyName(name);
+        // The imported arena owns subsequent writes. Owners that reinitialize data
+        // must clear/write the live root, rather than the original static buffer.
         buffer = ArenaRootFromBuffer(buffer, size, label.data());
         size *= kArenaHeadroom;
     }

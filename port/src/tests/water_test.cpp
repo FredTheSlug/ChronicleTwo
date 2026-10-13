@@ -11,7 +11,6 @@
 #include "common.h"
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
-#include "libgraph.h"
 #include "mg_drawenv.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_frame.hpp"
@@ -20,6 +19,11 @@
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
 #include "water.hpp"
+
+// Register macros must follow the host and test headers.
+// clang-format off
+#include "libgraph.h"
+// clang-format on
 
 using namespace dc::test;
 using namespace dc::vu1;

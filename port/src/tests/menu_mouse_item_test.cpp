@@ -4,20 +4,20 @@
 #include "gamepad.hpp"
 #include "mainloop.hpp"
 #include "menuaqua.hpp"
-#include "menucls1.hpp"
 #include "menuchr.hpp"
+#include "menucls1.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menusys.hpp"
 #include "mglib.hpp"
-#include "platform/input.hpp"
 #include "platform/clock.hpp"
+#include "platform/input.hpp"
 
 using namespace menumouse;
 
 TEST(MenuMouse, GridUsesSixColumnsAndHalfOpenCellEdges) {
     const Point origin{240, 50};
-    const Rect clip{240, 44, 240, 250};
+    const Rect  clip{240, 44, 240, 250};
     EXPECT_EQ(GridHit({240, 50}, origin, clip, 144), (Target{ITEM_MENU_PANEL_BAG, 0}));
     EXPECT_EQ(GridHit({279.99f, 99.99f}, origin, clip, 144).cursor, 0);
     EXPECT_EQ(GridHit({280, 50}, origin, clip, 144).cursor, 1);
@@ -55,8 +55,8 @@ TEST(MenuMouse, WheelClampsToRowsAndPreservesFractionalNotches) {
 
 namespace {
 const Target source{ITEM_MENU_PANEL_BAG, 1}, dest{ITEM_MENU_PANEL_BAG, 8};
-const Take press{true, true, 1, 0, 1}, hold{true, true, 0, 0, 1}, release{true, false, 0, 1, 0};
-}
+const Take   press{true, true, 1, 0, 1}, hold{true, true, 0, 0, 1}, release{true, false, 0, 1, 0};
+} // namespace
 
 TEST(MenuMouse, ShortClickOpensCommandOnRelease) {
     Gesture g;
@@ -114,24 +114,24 @@ TEST(MenuMouse, CarriedRetailItemCanBePlacedWithClick) {
 namespace {
 class ItemMouse : public testing::Test {
 protected:
-    CMenuKeyFunc keys;
-    CMenuPosDataManage forms{};
-    CMenuPosDataForm board{}, character{}, hand{}, command{};
-    MENUFORMPARTS_TYPE parts[7]{};
-    MENU_INPUTKEY_ARG layouts[ITEM_MENU_PANEL_NUM]{};
-    CGameDataUsed items[144]{};
-    CHARA_DATA chara{};
-    CDC2Mes message;
-    CMenuItemInfo saved_menu = class_menu_item_info;
-    CMENU_USERPARAM saved_user = MenuUserParam;
-    CMenuKeyFunc *saved_keys = MenuCommonInfo;
+    CMenuKeyFunc        keys;
+    CMenuPosDataManage  forms{};
+    CMenuPosDataForm    board{}, character{}, hand{}, command{};
+    MENUFORMPARTS_TYPE  parts[7]{};
+    MENU_INPUTKEY_ARG   layouts[ITEM_MENU_PANEL_NUM]{};
+    CGameDataUsed       items[144]{};
+    CHARA_DATA          chara{};
+    CDC2Mes             message;
+    CMenuItemInfo       saved_menu = class_menu_item_info;
+    CMENU_USERPARAM     saved_user = MenuUserParam;
+    CMenuKeyFunc       *saved_keys = MenuCommonInfo;
     CMenuPosDataManage *saved_forms = MenuPosData;
-    CMenuMoveItem *saved_move = MenuMoveItemPtr;
-    CDC2Mes *saved_message = MenuDCMsg[5];
-    CMenuPosDataForm *saved_message_form = MenuMesForm[5];
-    CGamePad saved_pad = GamePad__2;
-    int saved_width = mgScreenWidth, saved_height = mgScreenHeight;
-    float saved_board_x = MenuItemBrdUnderBrdPosXY[0], saved_board_y = MenuItemBrdUnderBrdPosXY[1];
+    CMenuMoveItem      *saved_move = MenuMoveItemPtr;
+    CDC2Mes            *saved_message = MenuDCMsg[5];
+    CMenuPosDataForm   *saved_message_form = MenuMesForm[5];
+    CGamePad            saved_pad = GamePad__2;
+    int                 saved_width = mgScreenWidth, saved_height = mgScreenHeight;
+    float               saved_board_x = MenuItemBrdUnderBrdPosXY[0], saved_board_y = MenuItemBrdUnderBrdPosXY[1];
 
     void SetUp() override {
         MenuMouseClose();
@@ -168,21 +168,32 @@ protected:
         menu.key_arg_no = ITEM_MENU_PANEL_BAG;
         menu.item_board_form = &board;
         menu.view_form[0] = &character;
-        board.x = 226; board.y = 24;
+        board.x = 226;
+        board.y = 24;
         character.draw_flag = true;
         character.parts = parts;
         character.parts_num = 7;
         char *names[] = {const_cast<char *>("item0"), const_cast<char *>("item1"), const_cast<char *>("item2"),
-                        const_cast<char *>("wep0"), const_cast<char *>("wep1"),
-                        const_cast<char *>("c_i0"), const_cast<char *>("c_w0")};
-        Point positions[] = {{50, 58}, {91, 58}, {133, 58}, {30, 400}, {196, 400}, {29, 50}, {3, 379}};
+                         const_cast<char *>("wep0"), const_cast<char *>("wep1"),
+                         const_cast<char *>("c_i0"), const_cast<char *>("c_w0")};
+        Point positions[] = {
+            {50,  58 },
+            {91,  58 },
+            {133, 58 },
+            {30,  400},
+            {196, 400},
+            {29,  50 },
+            {3,   379}
+        };
         for (int i = 0; i < 7; ++i) {
             parts[i].name = names[i];
             parts[i].x = positions[i].x;
             parts[i].y = positions[i].y;
             parts[i].dtype = MENUFORMPARTS_DTYPE_FUNCINFO;
         }
-        for (int i = 0; i < 3; ++i) menu.item_parts[0][i] = &parts[i];
+        for (int i = 0; i < 3; ++i) {
+            menu.item_parts[0][i] = &parts[i];
+        }
         menu.wep_parts[0][8] = &parts[3];
         menu.wep_parts[0][14] = &parts[4];
         MenuItemBrdUnderBrdPosXY[0] = 242;
@@ -210,7 +221,8 @@ protected:
         MenuDCMsg[5] = saved_message;
         MenuMesForm[5] = saved_message_form;
         GamePad__2 = saved_pad;
-        mgScreenWidth = saved_width; mgScreenHeight = saved_height;
+        mgScreenWidth = saved_width;
+        mgScreenHeight = saved_height;
         MenuItemBrdUnderBrdPosXY[0] = saved_board_x;
         MenuItemBrdUnderBrdPosXY[1] = saved_board_y;
     }
@@ -221,7 +233,7 @@ protected:
         keys.SelDataInit();
     }
 };
-}
+} // namespace
 
 TEST_F(ItemMouse, HoverUpdatesRetailGridSelectionWithoutPressingAnything) {
     Tick(40, 50);
@@ -300,7 +312,9 @@ TEST_F(ItemMouse, CommandHoverAndClickUseTheDisplayedMessageRows) {
     menu.ask_para.mes_no = 5;
     menu.ask_para.cmd_num = 3;
     command.draw_flag = true;
-    message.text_x = 250; message.text_y = 100; message.text_w = 100;
+    message.text_x = 250;
+    message.text_y = 100;
+    message.text_w = 100;
     message.font_h = 24;
     message.draw_off_x = message.draw_off_y = 0;
     message.window_mode = MES_WIN_FLOATING;
@@ -361,8 +375,10 @@ TEST_F(ItemMouse, ConfirmationChoicesUseRetailYesNoState) {
     menu.ask_para.mes_no = 5;
     command.draw_flag = true;
     message.window_mode = MES_WIN_YESNO;
-    message.choice_pos[0][0] = 250; message.choice_pos[0][1] = 100;
-    message.choice_pos[1][0] = 350; message.choice_pos[1][1] = 100;
+    message.choice_pos[0][0] = 250;
+    message.choice_pos[0][1] = 100;
+    message.choice_pos[1][0] = 350;
+    message.choice_pos[1][1] = 100;
     message.cursor = 1;
     Tick(0, 30);
     EXPECT_EQ(message.GetMsgCursor(), 0);
@@ -383,9 +399,11 @@ TEST_F(ItemMouse, QuantityBoardWheelAndArrowsUseRetailDirectionKeys) {
     command.parts = parts;
     command.parts_num = 2;
     parts[0].name = const_cast<char *>("up");
-    parts[0].x = 250; parts[0].y = 70;
+    parts[0].x = 250;
+    parts[0].y = 70;
     parts[1].name = const_cast<char *>("down");
-    parts[1].x = 250; parts[1].y = 110;
+    parts[1].x = 250;
+    parts[1].y = 110;
     Tick(1, 0, 0, -1);
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_DOWN);
     Tick(0, 0, 1);
@@ -414,11 +432,14 @@ TEST_F(ItemMouse, CommandRowsFollowDrawnLinePositionsAndWidths) {
     menu.ask_para.mes_no = 5;
     menu.ask_para.cmd_num = 3;
     command.draw_flag = true;
-    message.text_x = 250; message.text_y = 100; message.text_w = 50;
+    message.text_x = 250;
+    message.text_y = 100;
+    message.text_w = 50;
     message.font_h = 24;
     message.cursor = 0;
     message.line_pos_on[2] = 1;
-    message.line_pos[2][0] = 300; message.line_pos[2][1] = 210;
+    message.line_pos[2][0] = 300;
+    message.line_pos[2][1] = 210;
     message.line_w[2] = 100;
     Tick(65, 100, 1); // (340,212), in the drawn third row, outside text_w.
     EXPECT_EQ(message.GetMsgCursor(), 2);
@@ -427,19 +448,22 @@ TEST_F(ItemMouse, CommandRowsFollowDrawnLinePositionsAndWidths) {
 }
 
 TEST_F(ItemMouse, WeaponAndRodStatsHoverBothColumnsUsingMovedForms) {
-    auto &menu = class_menu_item_info;
+    auto              &menu = class_menu_item_info;
     MENUFORMPARTS_TYPE stats[10]{};
-    char names[10][16];
-    CMenuPosDataForm stat_form{};
-    stat_form.x = 30; stat_form.y = 40;
+    char               names[10][16];
+    CMenuPosDataForm   stat_form{};
+    stat_form.x = 30;
+    stat_form.y = 40;
     stat_form.draw_flag = true;
-    stat_form.parts = stats; stat_form.parts_num = 10;
+    stat_form.parts = stats;
+    stat_form.parts_num = 10;
     for (int i = 0; i < 10; ++i) {
         std::snprintf(names[i], sizeof(names[i]), "index%d", i);
         stats[i].name = names[i];
         stats[i].x = 70 + (i % 2) * 110;
         stats[i].y = 130 + (i / 2) * 24;
-        stats[i].w = 104; stats[i].h = 20;
+        stats[i].w = 104;
+        stats[i].h = 20;
         stats[i].draw_flag = true;
     }
     menu.view_mode = MENU_ITEM_VIEW_WEAPON;
@@ -458,7 +482,8 @@ TEST_F(ItemMouse, WeaponAndRodStatsHoverBothColumnsUsingMovedForms) {
     menu.view_mode = MENU_ITEM_VIEW_FISHING_ROD;
     menu.view_form[5] = &stat_form;
     for (int i = 0; i < 5; ++i) {
-        stats[i].x = 70; stats[i].y = 130 + i * 24;
+        stats[i].x = 70;
+        stats[i].y = 130 + i * 24;
     }
     Tick(-110, -96);
     EXPECT_EQ(menu.key_arg_no, ITEM_MENU_PANEL_FISHING_ROD_STATS);
@@ -482,9 +507,14 @@ TEST_F(ItemMouse, QuantityClickAwayFromArrowsConfirmsInsteadOfDisappearing) {
     class_menu_item_info.mode = MENU_ASK_MODE_HOW_MUCH;
     keys.how_much_form = &command;
     command.draw_flag = true;
-    command.parts = parts; command.parts_num = 2;
-    parts[0].name = const_cast<char *>("up"); parts[0].x = 250; parts[0].y = 70;
-    parts[1].name = const_cast<char *>("down"); parts[1].x = 250; parts[1].y = 110;
+    command.parts = parts;
+    command.parts_num = 2;
+    parts[0].name = const_cast<char *>("up");
+    parts[0].x = 250;
+    parts[0].y = 70;
+    parts[1].name = const_cast<char *>("down");
+    parts[1].x = 250;
+    parts[1].y = 110;
     Tick(-150, 0, 1);
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
 }
@@ -492,17 +522,24 @@ TEST_F(ItemMouse, QuantityClickAwayFromArrowsConfirmsInsteadOfDisappearing) {
 TEST_F(ItemMouse, FollowupYesNoUsesVisibleMessageInsteadOfStaleAskId) {
     class_menu_item_info.mode = MENU_ASK_MODE_EXTEND;
     class_menu_item_info.ask_para.mes_no = -1;
-    CDC2Mes followup;
-    const auto saved = MenuDCMsg[7]; const auto saved_form = MenuMesForm[7];
-    MenuDCMsg[7] = &followup; MenuMesForm[7] = &command;
+    CDC2Mes    followup;
+    const auto saved = MenuDCMsg[7];
+    const auto saved_form = MenuMesForm[7];
+    MenuDCMsg[7] = &followup;
+    MenuMesForm[7] = &command;
     command.draw_flag = true;
-    followup.font_h = 24; followup.cursor = 0; followup.window_mode = MES_WIN_YESNO;
-    followup.choice_pos[0][0] = 210; followup.choice_pos[0][1] = 150;
-    followup.choice_pos[1][0] = 290; followup.choice_pos[1][1] = 150;
+    followup.font_h = 24;
+    followup.cursor = 0;
+    followup.window_mode = MES_WIN_YESNO;
+    followup.choice_pos[0][0] = 210;
+    followup.choice_pos[0][1] = 150;
+    followup.choice_pos[1][0] = 290;
+    followup.choice_pos[1][1] = 150;
     Tick(40, 85, 1);
     EXPECT_EQ(followup.cursor, 1);
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
-    MenuDCMsg[7] = saved; MenuMesForm[7] = saved_form;
+    MenuDCMsg[7] = saved;
+    MenuMesForm[7] = saved_form;
 }
 
 TEST_F(ItemMouse, CommandExplanationStillAcceptsConfirmAndCancel) {
@@ -518,8 +555,12 @@ TEST_F(ItemMouse, CommandExplanationStillAcceptsConfirmAndCancel) {
 TEST_F(ItemMouse, RidepodSlotsUseTheirMovedFormPositions) {
     class_menu_item_info.view_mode = MENU_ITEM_VIEW_ROBO;
     class_menu_item_info.view_form[3] = &character;
-    parts[0].name = const_cast<char *>("c_w0"); parts[0].x = 40; parts[0].y = 180;
-    parts[1].name = const_cast<char *>("c_w1"); parts[1].x = 130; parts[1].y = 180;
+    parts[0].name = const_cast<char *>("c_w0");
+    parts[0].x = 40;
+    parts[0].y = 180;
+    parts[1].name = const_cast<char *>("c_w1");
+    parts[1].x = 130;
+    parts[1].y = 180;
     Tick(-202, 115);
     EXPECT_EQ(class_menu_item_info.key_arg_no, ITEM_MENU_PANEL_RIDEPOD_PARTS);
     EXPECT_EQ(keys.cursor, 0);
@@ -530,11 +571,16 @@ TEST_F(ItemMouse, RidepodSlotsUseTheirMovedFormPositions) {
 
 TEST_F(ItemMouse, BuildUpListHoverSelectsBeforeClickConfirms) {
     const auto saved = BuildUpWeaponInfo;
-    s16 saved_pos[3][2]; std::copy(&BuildUpNameXY[0][0], &BuildUpNameXY[0][0] + 6, &saved_pos[0][0]);
+    s16        saved_pos[3][2];
+    std::copy(&BuildUpNameXY[0][0], &BuildUpNameXY[0][0] + 6, &saved_pos[0][0]);
     class_menu_item_info.mode = MENU_ASK_MODE_EXTEND;
     class_menu_item_info.ask_para.ask_mode = MENU_ITEM_EXTEND_BUILD_UP;
-    BuildUpWeaponInfo.select_num = 3; BuildUpWeaponInfo.select_no = 0;
-    for (int i = 0; i < 3; ++i) { BuildUpNameXY[i][0] = 220; BuildUpNameXY[i][1] = 100 + 40 * i; }
+    BuildUpWeaponInfo.select_num = 3;
+    BuildUpWeaponInfo.select_no = 0;
+    for (int i = 0; i < 3; ++i) {
+        BuildUpNameXY[i][0] = 220;
+        BuildUpNameXY[i][1] = 100 + 40 * i;
+    }
     Tick(1, 115);
     EXPECT_EQ(BuildUpWeaponInfo.select_no, 2);
     EXPECT_EQ(GamePad__2.GetPadDown(), 0);
@@ -561,12 +607,16 @@ TEST_F(ItemMouse, UnselectableFollowupAcceptsClickEvenWhenOriginalCommandIsHidde
     class_menu_item_info.step = 1;
     class_menu_item_info.ask_para.mes_no = 5;
     command.draw_flag = false;
-    CDC2Mes followup;
+    CDC2Mes          followup;
     CMenuPosDataForm followup_form{};
-    const auto saved = MenuDCMsg[7]; const auto saved_form = MenuMesForm[7];
-    MenuDCMsg[7] = &followup; MenuMesForm[7] = &followup_form;
-    followup_form.draw_flag = true; followup.cursor = -1;
+    const auto       saved = MenuDCMsg[7];
+    const auto       saved_form = MenuMesForm[7];
+    MenuDCMsg[7] = &followup;
+    MenuMesForm[7] = &followup_form;
+    followup_form.draw_flag = true;
+    followup.cursor = -1;
     Tick(1, 0, 1);
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CROSS);
-    MenuDCMsg[7] = saved; MenuMesForm[7] = saved_form;
+    MenuDCMsg[7] = saved;
+    MenuMesForm[7] = saved_form;
 }

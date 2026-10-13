@@ -13,8 +13,8 @@ std::vector<u32> Pack(const char *name, const void *data, std::size_t size,
                       const char *second = nullptr, const void *data2 = nullptr, std::size_t size2 = 0) {
     const std::size_t next = (sizeof(PACK_ENTRY) + size + 15) & ~std::size_t(15);
     const std::size_t last = second ? next + ((sizeof(PACK_ENTRY) + size2 + 15) & ~std::size_t(15)) : next;
-    std::vector<u32> bytes((last + sizeof(PACK_ENTRY) + 3) / 4);
-    auto *entry = reinterpret_cast<PACK_ENTRY *>(bytes.data());
+    std::vector<u32>  bytes((last + sizeof(PACK_ENTRY) + 3) / 4);
+    auto             *entry = reinterpret_cast<PACK_ENTRY *>(bytes.data());
     std::strcpy(entry->name, name);
     entry->offset = sizeof(PACK_ENTRY);
     entry->size = size;
@@ -33,12 +33,12 @@ std::vector<u32> Pack(const char *name, const void *data, std::size_t size,
 } // namespace
 
 TEST(CharacterEffectMemory, ManagerOffsetDoesNotOverlapParticleStorage) {
-    const char effect[] = "";
-    auto effects = Pack("effect.txt", effect, sizeof(effect));
-    const char info[] = "EFFECT_START \"effects.pac\";\nEFFECT \"effect.txt\", \"test\", 0, \"\", 2.0, 3.0, 4.0;\n";
-    auto archive = Pack("info.chr", info, sizeof(info), "effects.pac", effects.data(), effects.size() * 4);
+    const char            effect[] = "";
+    auto                  effects = Pack("effect.txt", effect, sizeof(effect));
+    const char            info[] = "EFFECT_START \"effects.pac\";\nEFFECT \"effect.txt\", \"test\", 0, \"\", 2.0, 3.0, 4.0;\n";
+    auto                  archive = Pack("info.chr", info, sizeof(info), "effects.pac", effects.data(), effects.size() * 4);
     alignas(64) u_long128 storage[2048]{};
-    mgCMemory memory;
+    mgCMemory             memory;
     memory.stSetBuffer(storage, 2048);
     CCharacter2 character;
     character.Initialize();

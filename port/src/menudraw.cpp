@@ -5,17 +5,15 @@
 #include <cmath>
 #include <limits>
 
+#include "menu_mouse_item.hpp"
 #include "menudraw.hpp"
+#include "menudraw_port.hpp"
 #include "menumain.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
-#include "menu_mouse_item.hpp"
-
-extern float PortMenuWakuPosition[2] asm("MenuDraw_WakuPosition");
-
 
 PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
                                     int alpha, int red, int green, int blue) {
@@ -25,7 +23,7 @@ PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgR
     const mgRect<int> outer(static_cast<int>(rect.left), static_cast<int>(rect.top),
                             static_cast<int>(rect.left + rect.right + uv.bottom),
                             static_cast<int>(rect.top + rect.bottom + uv.right));
-    auto scissor = outer;
+    auto              scissor = outer;
     MenuClipRectCheck(scissor);
     if (scissor.right <= 1) {
         return;
@@ -36,10 +34,10 @@ PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgR
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(texture);
     prim->Color(red, green, blue, alpha);
-    float sign = 1.0f;
+    float     sign = 1.0f;
     const int horizontal_count = static_cast<int>(3.0f + rect.right / uv.right);
     for (int edge = 0; edge < 2; ++edge) {
-        float x = (edge == 0 ? outer.right - 3 : outer.left) + PortMenuWakuPosition[0] * sign;
+        float       x = (edge == 0 ? outer.right - 3 : outer.left) + PortMenuWakuPosition[0] * sign;
         const float y = edge == 0 ? outer.top - 5 : outer.bottom - 8;
         for (int tile = 0; tile < horizontal_count; ++tile) {
             prim->TextureCrd(uv.left, uv.top);
@@ -62,7 +60,7 @@ PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgR
     const int vertical_count = static_cast<int>(3.0f + rect.bottom / uv.right);
     for (int edge = 0; edge < 2; ++edge) {
         const float x = edge == 0 ? outer.left - 5 : outer.right - 8;
-        float y = (edge == 0 ? outer.top - 13 : outer.bottom) + PortMenuWakuPosition[1] * sign;
+        float       y = (edge == 0 ? outer.top - 13 : outer.bottom) + PortMenuWakuPosition[1] * sign;
         for (int tile = 0; tile < vertical_count; ++tile) {
             prim->TextureCrd(uv.left, uv.top + uv.bottom);
             prim->Vertex(x, y, 0.0f);
@@ -156,21 +154,12 @@ PORT_OVERRIDE int MenuCapture(int block, mgCMemory *stack, int draw) {
     return true;
 }
 
-// Largest grid position at or left of -256 that keeps the grid phase. Wide windows show ~171 logical pixels left of the frame.
-float MenuTilePatternFirst(float v, int size) {
-    float k;
-
-    if (size <= 0 || v + 256.0f <= 0.0f) {
-        return v;
+// Move by whole tiles so integer sprite coordinates cover the visible leading edge.
+float MenuTilePatternFirst(float phase, int size, float minimum) {
+    if (size <= 0) {
+        return phase;
     }
-
-    k = (float) (int) ((v + 256.0f) / (float) size);
-
-    if (k * (float) size < v + 256.0f) {
-        k += 1.0f;
-    }
-
-    return v - k * (float) size;
+    return phase - std::ceil((phase - minimum) / size) * size;
 }
 
 // Count of grid positions first, first + size, ... that do not pass limit.
@@ -204,11 +193,12 @@ PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float
         return;
     }
 
-    column_first = MenuTilePatternFirst(x, tex_rect.right);
-    row_first = MenuTilePatternFirst(y - tex_rect.bottom, tex_rect.bottom);
-    column_count = MenuTilePatternCount(column_first, tex_rect.right, (float) mgScreenWidth + 256.0f);
-    // Tall windows show logical y past 480, up to about 695 at 9:16, so rows must run to 480 + 256.
-    row_count = MenuTilePatternCount(row_first, tex_rect.bottom, (float) mgScreenHeight + 256.0f);
+    const auto extent = mgPortVisibleExtent();
+    // One logical pixel protects negative fractional origins from truncation toward zero.
+    column_first = MenuTilePatternFirst(x, tex_rect.right, std::floor(extent.left) - 1.0f);
+    row_first = MenuTilePatternFirst(y - tex_rect.bottom, tex_rect.bottom, std::floor(extent.top) - 1.0f);
+    column_count = MenuTilePatternCount(column_first, tex_rect.right, std::ceil(extent.right));
+    row_count = MenuTilePatternCount(row_first, tex_rect.bottom, std::ceil(extent.bottom));
 
     SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Begin(MG_PRIM_SPRITE);
@@ -236,51 +226,68 @@ PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float
 namespace {
 
 bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
-    if (form.dtype != MENUFORM_DTYPE_NORMAL && form.dtype != MENUFORM_DTYPE_LIST) return false;
+    if (form.dtype != MENUFORM_DTYPE_NORMAL && form.dtype != MENUFORM_DTYPE_LIST) {
+        return false;
+    }
     const auto extent = mgPortVisibleExtent();
-    if (extent.left >= 0 && extent.right <= mgScreenWidth) return false;
+    if (extent.left >= 0 && extent.right <= mgScreenWidth) {
+        return false;
+    }
 
     float left = std::numeric_limits<float>::infinity();
     float right = -left;
     for (int i = 0; i < form.parts_num; ++i) {
         const auto &part = form.parts[i];
-        if (!part.active || !part.draw_flag || part.dtype == MENUFORMPARTS_DTYPE_FUNCINFO) continue;
+        if (!part.active || !part.draw_flag || part.dtype == MENUFORMPARTS_DTYPE_FUNCINFO) {
+            continue;
+        }
         // Compositors and special drawing routines do not have panel bounds.
         // Preserve their drawing and side effects when an extent is unknown.
-        if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) return false;
+        if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) {
+            return false;
+        }
         float x0 = part.x, x1 = part.x + part.w;
         switch (part.dtype) {
-        case MENUFORMPARTS_DTYPE_NORMAL:
-        case MENUFORMPARTS_DTYPE_SQ_BETA:
-        case MENUFORMPARTS_DTYPE_TRS:
-            break;
-        case MENUFORMPARTS_DTYPE_NORMAL2:
-            x0 += std::min(0, part.etc_info[0]);
-            x1 += std::max(0, part.etc_info[0]);
-            break;
-        case MENUFORMPARTS_DTYPE_NUMBER1:
-        case MENUFORMPARTS_DTYPE_NUMBER2: {
-            if (!MenuPosData) return false;
-            const auto *info = MenuPosData->GetTexGetInfo(part.tex_info_no);
-            if (!info) return false;
-            int digits = 1;
-            for (int value = part.etc_info[1]; value >= 10; value /= 10) ++digits;
-            if (part.dtype == MENUFORMPARTS_DTYPE_NUMBER2) digits = std::max(digits, part.etc_info[0]);
-            // Conservative for all three alignments, including negative spacing.
-            const float span = digits * std::abs(info->rect.right + part.w) + info->rect.right;
-            x0 -= span;
-            x1 = part.x + span;
-            break;
-        }
-        default:
-            return false;
+            case MENUFORMPARTS_DTYPE_NORMAL:
+            case MENUFORMPARTS_DTYPE_SQ_BETA:
+            case MENUFORMPARTS_DTYPE_TRS:
+                break;
+            case MENUFORMPARTS_DTYPE_NORMAL2:
+                x0 += std::min(0, part.etc_info[0]);
+                x1 += std::max(0, part.etc_info[0]);
+                break;
+            case MENUFORMPARTS_DTYPE_NUMBER1:
+            case MENUFORMPARTS_DTYPE_NUMBER2: {
+                if (!MenuPosData) {
+                    return false;
+                }
+                const auto *info = MenuPosData->GetTexGetInfo(part.tex_info_no);
+                if (!info) {
+                    return false;
+                }
+                int digits = 1;
+                for (int value = part.etc_info[1]; value >= 10; value /= 10) {
+                    ++digits;
+                }
+                if (part.dtype == MENUFORMPARTS_DTYPE_NUMBER2) {
+                    digits = std::max(digits, part.etc_info[0]);
+                }
+                // Conservative for all three alignments, including negative spacing.
+                const float span = digits * std::abs(info->rect.right + part.w) + info->rect.right;
+                x0 -= span;
+                x1 = part.x + span;
+                break;
+            }
+            default:
+                return false;
         }
         // Item-icon effects use their own storage layout in DrawOneItem.
         if (part.dtype != MENUFORMPARTS_DTYPE_SQ_BETA && part.dtype != MENUFORMPARTS_DTYPE_TRS) {
             for (int effect = 0; part.effect && effect < part.effect_num; ++effect) {
                 const int type = part.effect[effect].type;
-                if (type != 0 && type != MENU_PARTS_EFFECT_FILLBOX && type != MENU_PARTS_EFFECT_BLINK)
+                if (type != 0 && type != MENU_PARTS_EFFECT_FILLBOX && type != MENU_PARTS_EFFECT_BLINK) {
                     return false;
+                }
             }
         }
         const float sway = part.vibe_cnt[0] ? part.viber[0] + 1.0f : 0.0f;
@@ -290,7 +297,7 @@ bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
     }
     const float sway = form.vibe_cnt[0] ? 10.0f : 0.0f;
     return std::isfinite(left) && (fptosi(form.x) + right + sway <= 0 ||
-                                  fptosi(form.x) + left - sway >= mgScreenWidth);
+                                   fptosi(form.x) + left - sway >= mgScreenWidth);
 }
 
 } // namespace
@@ -299,14 +306,18 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
     // Retail parks unused panels wholly outside its logical frame (SPECHECK,
     // for example, at x=-260). Hide that panel, not the entire page's flanks.
     // As soon as it overlaps the frame, draw its complete entering geometry.
-    if (MenuPanelOutsideFrame(*this)) return;
+    if (MenuPanelOutsideFrame(*this)) {
+        return;
+    }
     int draw_x = fptosi(x), draw_y = fptosi(y);
     MenuFormDraw(draw_x, draw_y, state);
 }
 
 PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float rotation,
                                   int reverse, int alpha, float scale) {
-    if (!texture) return;
+    if (!texture) {
+        return;
+    }
     MenuMouseNoteHand(mgPortBinding(texture),
                       {float(menu_long_hand.left), float(menu_long_hand.top),
                        float(menu_long_hand.right), float(menu_long_hand.bottom)},
@@ -314,7 +325,7 @@ PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float ro
     // The canonical image retains the selection hand. A displayed mouse pointer
     // replaces this tagged group without changing screenshots or grab textures.
     gfx::Interp2DScope tag({kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())});
-    auto *prim = GetMenuPrim();
+    auto              *prim = GetMenuPrim();
     SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Bilinear(1);
     prim->Begin(MG_PRIM_TRIANGLE_STRIP);
@@ -327,9 +338,8 @@ PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float ro
         prim->TextureCrd(menu_long_hand.left + (i & 1 ? menu_long_hand.right : 0),
                          menu_long_hand.top + (i & 2 ? menu_long_hand.bottom : 0));
         const float px = i == 0 ? 3.0f + position[0] : 3.0f + (position[0] + (x * c - y * s));
-        const float py = i == 0 ? 3.0f + position[1] :
-                         i & 1 ? position[1] + (x * s + y * c) :
-                                 3.0f + (position[1] + (x * s + y * c));
+        const float py = i == 0 ? 3.0f + position[1] : i & 1 ? position[1] + (x * s + y * c)
+                                                             : 3.0f + (position[1] + (x * s + y * c));
         prim->Vertex(px, py, 0.0f);
     }
     prim->End();

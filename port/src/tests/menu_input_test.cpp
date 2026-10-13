@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include <SDL3/SDL.h>
+#include <gtest/gtest.h>
 
 #include <utility>
 
@@ -76,7 +76,9 @@ TEST_F(MenuInput, MenuModePreservesThresholdAndSecondPort) {
 
 TEST_F(MenuInput, OtherDefaultKeysRetainTheirPadButtons) {
     for (bool menu : {false, true}) {
-        if (menu) GamePad__2.MenuModeOn(120);
+        if (menu) {
+            GamePad__2.MenuModeOn(120);
+        }
         EXPECT_EQ(Buttons(SDL_SCANCODE_TAB), kInputTriangle);
         EXPECT_EQ(Buttons(SDL_SCANCODE_RETURN), kInputStart);
         EXPECT_EQ(Buttons(SDL_SCANCODE_E), kInputSquare);
@@ -148,7 +150,9 @@ TEST_F(MenuInput, KeyboardStickNavigatesOnlyInRetailMenuMode) {
             InputScriptApply(frame);
             GamePad__2.UpDate();
         }
-        if (menu) GamePad__2.MenuModeOn(120);
+        if (menu) {
+            GamePad__2.MenuModeOn(120);
+        }
         for (int frame = 4; frame < 8; ++frame) {
             InputScriptApply(frame);
             GamePad__2.UpDate();
@@ -211,7 +215,7 @@ TEST_F(MenuInput, MixedSourcesUseRetailThresholdAndOppositeCancellation) {
     }
     GamePad__2.MenuModeOn(120);
     constexpr int directions = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
-    int frame = 4;
+    int           frame = 4;
     for (int expected : std::initializer_list<int>{PAD_RIGHT | PAD_UP, PAD_DOWN | PAD_LEFT, 0, 0, PAD_UP}) {
         InputScriptApply(frame++);
         GamePad__2.UpDate();
@@ -256,7 +260,7 @@ TEST_F(MenuInput, FieldMovementKeysDoNotSuppressDpadRepeatOrSecondPadLock) {
 
 TEST_F(MenuInput, MouseMotionCannotReachMenuSticksOrRetailDirectionConversion) {
     GamePad__2.MenuModeOn(120);
-    constexpr int directions = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
+    constexpr int          directions = PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT;
     const std::string_view x[] = {"MouseX"}, y[] = {"MouseY"};
     ASSERT_TRUE(InputBindKeys("lx", x));
     ASSERT_TRUE(InputBindKeys("ly", y));
@@ -275,13 +279,21 @@ TEST_F(MenuInput, ScriptedMenuMotionLeavesRetailAxesDirectionsAndCameraNeutral) 
     std::string error;
     ASSERT_TRUE(InputScriptParse("0 pad1\n0 pad2\n4 mouse:10000,10000\n5 mouse:-10000,-10000\n", script, error)) << error;
     InputScriptInstall(std::move(script));
-    ClockSetUnbounded(true); ClockReset(); GamePad__2.Init();
-    for (int frame = 0; frame < 4; ++frame) { InputScriptApply(frame); GamePad__2.UpDate(); }
+    ClockSetUnbounded(true);
+    ClockReset();
+    GamePad__2.Init();
+    for (int frame = 0; frame < 4; ++frame) {
+        InputScriptApply(frame);
+        GamePad__2.UpDate();
+    }
     GamePad__2.MenuModeOn(120);
     for (int frame = 4; frame < 6; ++frame) {
-        InputScriptApply(frame); GamePad__2.UpDate();
-        EXPECT_EQ(GamePad__2.GetLX(), 0); EXPECT_EQ(GamePad__2.GetLY(), 0);
-        EXPECT_EQ(GamePad__2.GetRX(), 0); EXPECT_EQ(GamePad__2.GetRY(), 0);
+        InputScriptApply(frame);
+        GamePad__2.UpDate();
+        EXPECT_EQ(GamePad__2.GetLX(), 0);
+        EXPECT_EQ(GamePad__2.GetLY(), 0);
+        EXPECT_EQ(GamePad__2.GetRX(), 0);
+        EXPECT_EQ(GamePad__2.GetRY(), 0);
         EXPECT_EQ(GamePad__2.pad[0].button & (PAD_UP | PAD_DOWN | PAD_LEFT | PAD_RIGHT), 0);
         EXPECT_FLOAT_EQ(InputGetMouseLook().yaw, 0);
         EXPECT_FLOAT_EQ(InputGetMouseLook().pitch, 0);

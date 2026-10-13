@@ -1,29 +1,33 @@
-#include <gtest/gtest.h>
 #include <SDL3/SDL.h>
+#include <gtest/gtest.h>
+
+#include <limits>
 
 #include "gamepad.hpp"
 #include "mainloop.hpp"
+#include "menu_mouse.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menuop.hpp"
-#include "options/screen.hpp"
-#include "menu_mouse.hpp"
-#include "save_slots.hpp"
 #include "menusys.hpp"
-#include "nd_meswin.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "nd_meswin.hpp"
+#include "options/screen.hpp"
 #include "platform/clock.hpp"
 #include "platform/input.hpp"
-#include "platform/settings.hpp"
-
-#include <limits>
 #include "platform/mouse.hpp"
+#include "platform/settings.hpp"
+#include "save_slots.hpp"
 
 extern CSaveMenuClass *MouseSave asm("MenuMouse_Save");
 
 namespace {
-constexpr MenuMouseRect rows[] = {{20, 40, 100, 30}, {20, 80, 100, 30}, {20, 120, 100, 30}};
+constexpr MenuMouseRect rows[] = {
+    {20, 40,  100, 30},
+    {20, 80,  100, 30},
+    {20, 120, 100, 30}
+};
 
 TEST(MenuMouse, HitBoxesExcludeGapsAndTheirFarEdges) {
     EXPECT_EQ(MenuMouseHit(rows, 20, 40), 0);
@@ -84,7 +88,7 @@ TEST(MenuMouse, PadCursorLimitsRemainRetailWithoutMouseMotion) {
 }
 
 TEST(MenuMouse, PopupWheelStepsAnEntireGridRow) {
-    MenuMouseRect cells[15]{};
+    MenuMouseRect   cells[15]{};
     MenuMouseSample mouse{.wheel = -1, .pointing = true};
     EXPECT_EQ(MenuMouseChoose(mouse, cells, 2, 5), 7);
     EXPECT_EQ(MenuMouseChoose(mouse, cells, 12, 5), 14);
@@ -143,7 +147,10 @@ TEST_F(MenuMouseInput, OutsideClickIsRejectedButRightClickCancels) {
 }
 
 TEST_F(MenuMouseInput, MessageClickMovesTheRetailDirectionBeforeItConfirms) {
-    const MenuMouseRect choices[] = {{20, 200, 70, 50}, {200, 200, 100, 60}};
+    const MenuMouseRect choices[] = {
+        {20,  200, 70,  50},
+        {200, 200, 100, 60}
+    };
     MenuMouseEnable(true);
     MenuMouseNoteChoices(this, 42, choices, 0, true);
     InputSetScriptedDevices({.mouse_buttons = 1});
@@ -152,8 +159,11 @@ TEST_F(MenuMouseInput, MessageClickMovesTheRetailDirectionBeforeItConfirms) {
     for (int i = 0; i < 7; ++i) {
         Tick();
         MenuMouseNoteChoices(this, 42, choices, 1, true);
-        if (i < 6) EXPECT_EQ(MenuMouseButtons(), 0);
-        else EXPECT_EQ(MenuMouseButtons(), PAD_CROSS);
+        if (i < 6) {
+            EXPECT_EQ(MenuMouseButtons(), 0);
+        } else {
+            EXPECT_EQ(MenuMouseButtons(), PAD_CROSS);
+        }
     }
     Tick();
     MenuMouseNoteChoices(this, 42, choices, 1, true);
@@ -161,7 +171,10 @@ TEST_F(MenuMouseInput, MessageClickMovesTheRetailDirectionBeforeItConfirms) {
 }
 
 TEST_F(MenuMouseInput, NewMessageDiscardsThePreviousPendingClick) {
-    const MenuMouseRect choices[] = {{20, 200, 70, 50}, {200, 200, 100, 60}};
+    const MenuMouseRect choices[] = {
+        {20,  200, 70,  50},
+        {200, 200, 100, 60}
+    };
     MenuMouseEnable(true);
     MenuMouseNoteChoices(this, 42, choices, 0, true);
     InputSetScriptedDevices({.mouse_buttons = 1});
@@ -188,7 +201,10 @@ TEST_F(MenuMouseInput, MenuCloseKeepsHeldClickAwayFromGameplayUntilRelease) {
 }
 
 TEST_F(MenuMouseInput, ControllerHandoffDiscardsThePreviousMouseChoiceTarget) {
-    const MenuMouseRect choices[] = {{200, 200, 100, 60}, {20, 200, 70, 50}};
+    const MenuMouseRect choices[] = {
+        {200, 200, 100, 60},
+        {20,  200, 70,  50}
+    };
     MenuMouseEnable(true);
     MenuMouseNoteChoices(this, 42, choices, 1, true);
     InputSetScriptedDevices({.mouse_buttons = 1});
@@ -208,7 +224,10 @@ TEST_F(MenuMouseInput, ControllerHandoffDiscardsThePreviousMouseChoiceTarget) {
 }
 
 TEST_F(MenuMouseInput, ListClickWaitsForTheRetailCursorThenConfirmsOnce) {
-    const MenuMouseRect list[] = {{200, 200, 100, 60}, {300, 200, 100, 60}};
+    const MenuMouseRect list[] = {
+        {200, 200, 100, 60},
+        {300, 200, 100, 60}
+    };
     MenuMouseEnable(true);
     InputSetScriptedDevices({.mouse_buttons = 1});
     EXPECT_EQ(MenuMouseRows(list, 1), 0);
@@ -224,7 +243,10 @@ TEST_F(MenuMouseInput, ListClickWaitsForTheRetailCursorThenConfirmsOnce) {
 }
 
 TEST_F(MenuMouseInput, ListClickCannotCarryIntoAnotherPageOrSurviveCancel) {
-    const MenuMouseRect list[] = {{200, 200, 100, 60}, {300, 200, 100, 60}};
+    const MenuMouseRect list[] = {
+        {200, 200, 100, 60},
+        {300, 200, 100, 60}
+    };
     MenuMouseEnable(true);
     InputSetScriptedDevices({.mouse_buttons = 1});
     MenuMouseRows(list, 1);
@@ -235,7 +257,9 @@ TEST_F(MenuMouseInput, ListClickCannotCarryIntoAnotherPageOrSurviveCancel) {
     MenuMouseDelayConfirm(this, 0, 0, 4);
     EXPECT_EQ(MenuMouseButtons(), PAD_CIRCLE);
     InputSetScriptedDevices({});
-    for (int i = 0; i < 5; ++i) Tick();
+    for (int i = 0; i < 5; ++i) {
+        Tick();
+    }
     MenuMouseRows(list, 0);
     MenuMouseDelayConfirm(this, 0, 0, 4);
     EXPECT_EQ(MenuMouseButtons(), 0);
@@ -243,7 +267,7 @@ TEST_F(MenuMouseInput, ListClickCannotCarryIntoAnotherPageOrSurviveCancel) {
 
 TEST_F(MenuMouseInput, DrawnDialogueLinesUseTheirActualPositionsAndFirstSelectableLine) {
     ClsMes message;
-    short text[] = {0};
+    short  text[] = {0};
     message.buff = text;
     message.fade = 1;
     message.alpha = 128;
@@ -265,7 +289,7 @@ TEST_F(MenuMouseInput, DrawnDialogueLinesUseTheirActualPositionsAndFirstSelectab
 
 TEST_F(MenuMouseInput, DrawnYesNoChoicesUseTheirOwnPositions) {
     ClsMes message;
-    short text[] = {0};
+    short  text[] = {0};
     message.buff = text;
     message.fade = 1;
     message.alpha = 128;
@@ -285,7 +309,7 @@ TEST_F(MenuMouseInput, DrawnYesNoChoicesUseTheirOwnPositions) {
 TEST_F(MenuMouseInput, LoadListUsesScrolledFormGeometryAndRetailCursorTransition) {
     const auto catalog = SaveSlots;
     SaveSlots.saves.resize(20);
-    CSaveMenuClass save;
+    CSaveMenuClass   save;
     CMenuPosDataForm form;
     form.x = 30;
     form.y = 190 - 80 * 10;
@@ -314,7 +338,7 @@ TEST_F(MenuMouseInput, LoadListUsesScrolledFormGeometryAndRetailCursorTransition
     MouseSave = previous;
     SaveSlots = catalog;
 }
-}
+} // namespace
 
 TEST_F(MenuMouseInput, RepeatedAdaptersShareMotionWheelAndButtonEdgesWithinATick) {
     MenuMouseEnable(true);
@@ -339,7 +363,7 @@ TEST_F(MenuMouseInput, RepeatedAdaptersShareMotionWheelAndButtonEdgesWithinATick
 TEST_F(MenuMouseInput, FlatSaveWheelReachesOnlyTheSingleNewRowBeyondRetailCapacity) {
     const auto catalog = SaveSlots;
     SaveSlots.saves.resize(20);
-    CSaveMenuClass save;
+    CSaveMenuClass   save;
     CMenuPosDataForm form;
     form.x = 30;
     form.y = 164 - 80 * 18;
@@ -398,26 +422,34 @@ TEST_F(MenuMouseInput, OptionsRightClickCancelsRetailPcAndBindingPages) {
     EXPECT_EQ(GamePad__2.GetPadDown(), PAD_CIRCLE);
     EXPECT_FALSE(options::g_screen.open);
     for (int page = 0; page < 4; ++page) {
-        InputSetScriptedDevices({}); Tick(); options::Run();
+        InputSetScriptedDevices({});
+        Tick();
+        options::Run();
         options::g_screen.open = true;
         options::g_screen.page = page;
-        InputSetScriptedDevices({.mouse_buttons = 2}); Tick();
+        InputSetScriptedDevices({.mouse_buttons = 2});
+        Tick();
         EXPECT_TRUE(options::Run());
         EXPECT_FALSE(options::g_screen.open);
         EXPECT_EQ(options::g_screen.page, page);
         EXPECT_EQ(MenuMouseButtons(), 0);
     }
-    InputSetScriptedDevices({}); Tick(); options::Run();
+    InputSetScriptedDevices({});
+    Tick();
+    options::Run();
     options::g_screen.open = true;
     options::g_screen.binding = 0;
     InputBeginBindCapture();
-    InputSetScriptedDevices({.mouse_buttons = 2}); Tick();
+    InputSetScriptedDevices({.mouse_buttons = 2});
+    Tick();
     EXPECT_TRUE(options::Run());
     EXPECT_EQ(options::g_screen.binding, -1);
     EXPECT_TRUE(options::g_screen.open);
     EXPECT_EQ(MenuMouseButtons(), 0);
     options::g_screen = {};
-    InputSetScriptedDevices({}); Tick(); options::Run();
+    InputSetScriptedDevices({});
+    Tick();
+    options::Run();
     LanguageCode = language;
 }
 
@@ -438,9 +470,10 @@ TEST_F(MenuMouseInput, DisplayMotionDoesNotAdvanceHoverOrConsumeTheNextTick) {
     InputSetMouseSettings({.capture = false});
     MenuMouseEnable(true);
     const auto before = MenuMouseTake();
-    SDL_Event event{};
+    SDL_Event  event{};
     event.type = SDL_EVENT_MOUSE_MOTION;
-    event.motion.xrel = 30; event.motion.yrel = 12;
+    event.motion.xrel = 30;
+    event.motion.yrel = 12;
     InputHandleEvent(event);
     const auto display = MenuMouseDisplaySample();
     EXPECT_FLOAT_EQ(display.x, before.x + 30);
@@ -463,14 +496,18 @@ TEST_F(MenuMouseInput, DisplayHandsOwnershipFromMouseToPadAndBackOnNewMotion) {
     InputSetMouseSettings({.capture = false});
     MenuMouseEnable(true);
     MenuMouseTake();
-    SDL_Event event{}; event.type = SDL_EVENT_MOUSE_MOTION; event.motion.xrel = 10;
+    SDL_Event event{};
+    event.type = SDL_EVENT_MOUSE_MOTION;
+    event.motion.xrel = 10;
     InputHandleEvent(event);
     EXPECT_TRUE(MenuMouseDisplaySample().pointing);
-    Tick(); MenuMouseTake();
+    Tick();
+    MenuMouseTake();
     InputPadState pad{.connected = true, .buttons = PAD_DOWN};
     InputSetOverride(0, &pad);
     EXPECT_FALSE(MenuMouseDisplaySample().pointing);
-    Tick(); MenuMouseTake();
+    Tick();
+    MenuMouseTake();
     pad.buttons = 0;
     InputSetOverride(0, &pad);
     EXPECT_FALSE(MenuMouseDisplaySample().pointing);

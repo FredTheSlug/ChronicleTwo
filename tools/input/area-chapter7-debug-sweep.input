@@ -1,3 +1,4 @@
+# Requires game.debug_mode=true in the replay save root config.json.
 # Retail debug event select, then dialogue and short movement probes.
 # Chapter 7 debug start; replay through frame 4400 to the palace staircase.
 300 circle

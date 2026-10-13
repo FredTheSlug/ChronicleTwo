@@ -14,8 +14,8 @@
 
 TEST(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
     // Exercise the scripted loader without loading a reference model (-1 is an empty kind).
-    auto manager = std::make_unique<CMonsterMan>();
-    auto monsters = std::make_unique<CActiveMonster[]>(MONSTER_ACTIVE_MAX);
+    auto                                          manager = std::make_unique<CMonsterMan>();
+    auto                                          monsters = std::make_unique<CActiveMonster[]>(MONSTER_ACTIVE_MAX);
     std::unique_ptr<CScene, decltype(&std::free)> scene(
         static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
     ASSERT_NE(scene, nullptr);
@@ -25,19 +25,19 @@ TEST(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
         scene->chara[i + MONSTER_ACTIVE_MAX].chara = &monsters[i];
     }
 
-    constexpr int kExtraBytes = 128 * (sizeof(RS_STACKDATA) - 8) + 512 * (sizeof(RS_CALLDATA) - 12);
-    constexpr int kSlotQuads = 4000 + (kExtraBytes + 15) / 16;
+    constexpr int          kExtraBytes = 128 * (sizeof(RS_STACKDATA) - 8) + 512 * (sizeof(RS_CALLDATA) - 12);
+    constexpr int          kSlotQuads = 4000 + (kExtraBytes + 15) / 16;
     std::vector<u_long128> storage(MONSTER_ACTIVE_MAX * (kSlotQuads + 4) + 16);
-    mgCMemory parent;
-    mgCMemory memory;
+    mgCMemory              parent;
+    mgCMemory              memory;
     parent.stSetBuffer(storage.data(), storage.size());
     scene->stack_num = 4;
     scene->stack[2] = &parent;
     scene->stack[3] = &memory;
     CEffectScriptMan effects;
 
-    CScene *saved_scene = DngMainScene;
-    CMonsterMan *saved_manager = ActiveMonster;
+    CScene           *saved_scene = DngMainScene;
+    CMonsterMan      *saved_manager = ActiveMonster;
     CEffectScriptMan *saved_effects = FxScriptMan;
     DngMainScene = scene.get();
     ActiveMonster = manager.get();

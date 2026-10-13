@@ -398,8 +398,9 @@ Continue, a file-row click and its confirmation using a copied flat-save fixture
 `title-mouse-newgame.input` clicks New Game and reaches costume selection.
 File-list clicks wait through the retail cursor-settling delay before confirming.
 
-Shop-specific lists and the screens inside the root-menu destinations do not yet
-have dedicated hit regions. Ordinary dialogue choices share the message adapter;
+Shop-specific lists and several secondary destination screens still lack dedicated
+hit regions. The ITEM page and PC SETTINGS use the shared pointer adapters
+described in their sections. Ordinary dialogue choices share the message adapter;
 the rendered confirmation replays and drawn-message unit tests cover that input
 path, but campaign dialogue choices still need a dedicated replay.
 

@@ -1,7 +1,9 @@
-# --jump town:10 --fast-load: Character page at frame 900.
+# --jump town:10 --fast-load; enter 420, return 700.
 300 triangle
 306
 370 down
-376
+371
 420 cross
 426
+700 circle
+706

@@ -1,0 +1,21 @@
+#include <gtest/gtest.h>
+
+#include <cstring>
+#include <memory>
+
+#include "editexception.hpp"
+#include "scenesnd.hpp"
+
+TEST(ThunderVector, FourBandMapUsesTheCompleteLightingOutput) {
+    auto scene = std::make_unique<CScene>();
+    auto map = std::make_unique<CMap>();
+    scene->map_num = 1;
+    scene->active_map = 0;
+    scene->map[0].status = SCENE_DATA_ASSIGNED;
+    std::strcpy(scene->map[0].name, "s51");
+    scene->map[0].map = map.get();
+    map->map_info.time_light_num = 4;
+    InitS51Thunder();
+    S51Thunder(scene.get());
+    EXPECT_EQ(map->map_info.time_light_num, 4);
+}

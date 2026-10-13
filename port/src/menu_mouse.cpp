@@ -82,7 +82,7 @@ bool PadOrFocusOwnsPointer() {
     const auto &pad = InputGetPad(0);
     WindowMode  mode;
     const bool  unfocused = WindowCurrentMode(mode) && !(SDL_GetWindowFlags(WindowHandle()) & SDL_WINDOW_INPUT_FOCUS);
-    return unfocused || pad.buttons || GamePad__2.pad[0].button ||
+    return (WindowHandle() && !MouseInputLive()) || unfocused || pad.buttons || GamePad__2.pad[0].button ||
            std::abs(int(pad.left_x) - 128) > 30 || std::abs(int(pad.left_y) - 128) > 30;
 }
 
@@ -295,6 +295,7 @@ void MenuMouseDelayConfirm(const void *owner, int selected, int target, int tick
 MenuMouseSample MenuMouseDisplaySample() {
     auto point = sample;
     if (!enabled || PadOrFocusOwnsPointer()) {
+        sample.pointing = false;
         point.pointing = false;
         return point;
     }

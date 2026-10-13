@@ -256,7 +256,8 @@ Take TakePointer(Point) {
 void Commands(CMenuItemInfo &menu, const Take &take) {
     gesture.Reset();
     if (take.pressed & 2) { synthetic = PAD_CIRCLE; return; }
-    if (!take.pointing || menu.step != 0 || !menu.ask_para.form) return;
+    if (!take.pointing || menu.step != 0 || !menu.ask_para.form ||
+        menu.ask_para.mes_no < 0 || menu.ask_para.mes_no >= 9) return;
     auto *message = MenuDCMsg[menu.ask_para.mes_no];
     if (!message || !menu.ask_para.form->draw_flag) return;
     const auto rows = MenuMouseMessageRows(*message, menu.ask_para.cmd_num);
@@ -312,6 +313,13 @@ void Question(CMenuItemInfo &menu, CMenuKeyFunc &keys, const Take &take) {
         }
         if (row >= 0 && (take.pressed & 1)) synthetic = PAD_CROSS;
         return;
+    }
+    // An informational follow-up may replace the original command form.
+    for (int id = 8; id >= 0; --id) {
+        if (MenuDCMsg[id] && MenuMesForm[id] && MenuMesForm[id]->draw_flag) {
+            if (take.pressed & 1) synthetic = PAD_CROSS;
+            return;
+        }
     }
     const int id = menu.ask_para.mes_no;
     if (id >= 0 && id < 9 && MenuDCMsg[id] && MenuMesForm[id] && !MenuMesForm[id]->draw_flag) return;

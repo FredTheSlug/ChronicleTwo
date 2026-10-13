@@ -577,3 +577,30 @@ TEST_F(ItemMouse, BuildUpListHoverSelectsBeforeClickConfirms) {
     BuildUpWeaponInfo = saved;
     std::copy(&saved_pos[0][0], &saved_pos[0][0] + 6, &BuildUpNameXY[0][0]);
 }
+
+TEST_F(ItemMouse, CommandMessageIdIsCheckedBeforeIndexingTheMessageTable) {
+    class_menu_item_info.mode = MENU_ASK_MODE_ITEM_COMMAND;
+    class_menu_item_info.ask_para.form = &command;
+    command.draw_flag = true;
+    for (int id : {-1, 9}) {
+        class_menu_item_info.ask_para.mes_no = id;
+        Tick(1, 0, 1);
+        EXPECT_EQ(MenuMouseSyntheticDown(), 0);
+        Tick(0, 0);
+    }
+}
+
+TEST_F(ItemMouse, UnselectableFollowupAcceptsClickEvenWhenOriginalCommandIsHidden) {
+    class_menu_item_info.mode = MENU_ASK_MODE_ITEM_COMMAND;
+    class_menu_item_info.step = 1;
+    class_menu_item_info.ask_para.mes_no = 5;
+    command.draw_flag = false;
+    CDC2Mes followup;
+    CMenuPosDataForm followup_form{};
+    const auto saved = MenuDCMsg[7]; const auto saved_form = MenuMesForm[7];
+    MenuDCMsg[7] = &followup; MenuMesForm[7] = &followup_form;
+    followup_form.draw_flag = true; followup.cursor = -1;
+    Tick(1, 0, 1);
+    EXPECT_EQ(MenuMouseSyntheticDown(), PAD_CROSS);
+    MenuDCMsg[7] = saved; MenuMesForm[7] = saved_form;
+}

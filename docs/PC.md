@@ -291,6 +291,35 @@ retail menu navigation also converts that stick into D-pad presses past its
 threshold, including movement between active-item slots. Arrow keys send the
 D-pad directly.
 
+### Mouse camera in towns
+
+Mouse motion directly turns the active walking camera around the character. It
+does not deflect the right stick or inherit its dead zone and easing. Vertical
+motion changes follow-camera height within the active retail limits, keeping the
+view aimed at the character. `input.mouse_sensitivity` is degrees per mouse
+count; `input.mouse_invert_y` reverses vertical motion. Mouse1, Mouse2 and Mouse3
+retain their Cross, Circle and R3 bindings.
+
+`CPadControl::Update` latches one independent mouse sample per logical pad update.
+The `CCameraControl::MoveCamera` port override consumes that sample once, only in
+town walking mode with the active main camera, unlocked input and no scene event
+or subgame. Fixed and scripted views, menus, Georama, first-person/photo views
+and dungeon cameras retain their existing controls. A camera-reset request owns
+its frame; a later mouse yaw cancels an unfinished reset.
+
+Direct motion turns both current and pending camera poses. A fresh bounded
+polygon collection covers the orbit and follow corridor; conservative continuous
+geometry checks reject an invalid starting corridor and clip an obstructed turn.
+Retail wall and ground correction runs on both resulting eyes. A full polygon
+collector or exhausted validation budget drops unproved motion rather than
+queuing it. The conservative corridor may refuse motion that retail's endpoint
+checks would permit. Explicit MouseX/MouseY stick bindings retain ownership of
+their axes and suppress the independent mouse look on those axes.
+
+`tools/input/town-mouse-camera.input`, with `--jump town:10 --fast-load`, exercises
+yaw, vertical motion and a menu interruption. Mouse menu selection and native
+dungeon/first-person look are not implemented here.
+
 ## Decision 1: long64 is kept
 
 The PS2's `long` is 64-bit, and on Windows (LLP64) it is not. `scripts/port/long64.py` rewrites the build-tree copies of `ps2/src` and the `ps2/include` mirror, on every host, so the port keeps the PS2's width:

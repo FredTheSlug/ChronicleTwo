@@ -302,7 +302,7 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
     int first = std::max(0, menu.top - 1), last = std::min(count, menu.top + 4);
     mgRect<int> panel;
     panel.Set(0, 0x42, LanguageCode > 0 ? 0x1CA : 0x17E, 0x4A);
-    SetMenuScissor({0, 150, mgScreenWidth - 1, 404});
+    SetMenuScissor({0, 162, mgScreenWidth - 1, 402});
     MenuReloadTexture(tex_block, menu.tex_block[1]);
     auto *prim = GetMenuPrim();
     SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
@@ -324,6 +324,9 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
     for (int row = first; row < last; ++row) {
         int x = static_cast<int>(pos[0]) + 18, y = static_cast<int>(pos[1] + 80.0f * row);
         if (y + 18 < 100 || y + 18 > mgScreenHeight) continue;
+        // Message drawing changes the shared clip. Restore it for each row,
+        // including a New Save label following a chapter message.
+        SetMenuScissor({0, 162, mgScreenWidth - 1, 402});
         if (SaveSlotIsNew(SaveSlots, row, menu.mode == SAVE_MENU_MODE_SAVE)) {
             font.DrawDirect(const_cast<char *>("New Save"), x, y + 24);
             continue;

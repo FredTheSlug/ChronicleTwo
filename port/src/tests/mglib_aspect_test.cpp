@@ -326,7 +326,7 @@ TEST(MglibAspect, ItemMenuLensStaysWithModelAtFourThree) {
     ExpectMenuLensAtRetailPosition(640, 480);
 }
 
-TEST(MglibAspect, MenuFormsClipParkedStatsAndKeepActivePanel) {
+TEST(MglibAspect, MenuFormsHideParkedStatsWithoutClippingEnteringPanel) {
     AspectRenderer renderer(1920, 1080);
     CMenuPosDataManage layout{};
     auto *saved_layout = MenuPosData;
@@ -336,7 +336,8 @@ TEST(MglibAspect, MenuFormsClipParkedStatsAndKeepActivePanel) {
     layout.tex_info_num = 1;
     MENU_PARTS_EFFECT_STRUCT1 fill{};
     fill.param[0] = 20; fill.param[1] = 220; fill.param[2] = 30; fill.param[3] = 128;
-    MENUFORMPARTS_TYPE part{};
+    MENUFORMPARTS_TYPE parts[2]{};
+    auto &part = parts[0];
     part.active = part.draw_flag = 1;
     part.dtype = MENUFORMPARTS_DTYPE_SQ_BETA;
     // Retail SPECHECK comparison panel is 236x164, parked at -260 and shown at 7.
@@ -347,10 +348,17 @@ TEST(MglibAspect, MenuFormsClipParkedStatsAndKeepActivePanel) {
     form.rgba[3] = 128;
     form.dtype = MENUFORM_DTYPE_NORMAL;
     form.y = 296;
-    form.parts = &part;
-    form.parts_num = 1;
+    MENU_PARTS_EFFECT_STRUCT1 icon_effect{};
+    icon_effect.type = MENU_PARTS_EFFECT_ICON_COUNTER;
+    parts[1].active = parts[1].draw_flag = 1;
+    parts[1].dtype = MENUFORMPARTS_DTYPE_TRS;
+    parts[1].w = 28; parts[1].h = 35;
+    parts[1].effect = &icon_effect;
+    parts[1].effect_num = 1;
+    form.parts = parts;
+    form.parts_num = 2;
     const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
-    for (float x : {-260.0f, -80.0f, 7.0f}) {
+    for (float x : {-260.0f, -80.0f, 7.0f, 470.0f, 530.0f}) {
         form.x = x;
         mgSetBackGround(200, 150, 100, 128);
         mgBeginFrame(nullptr);
@@ -373,8 +381,11 @@ TEST(MglibAspect, MenuFormsClipParkedStatsAndKeepActivePanel) {
             const int sy = static_cast<int>(mapping.offset_y + py * mapping.scale_y);
             return rgba[(static_cast<size_t>(sy) * width + sx) * 4 + channel];
         };
-        EXPECT_GT(pixel(-50, 350, 0), 190) << "parked panel leaks at x=" << x;
-        if (x >= -80) EXPECT_GT(pixel(40, 350, 1), 200) << "active/entering panel lost";
+        if (x == -260) EXPECT_GT(pixel(-50, 350, 0), 190) << "parked panel leaks";
+        if (x == -80) EXPECT_GT(pixel(-50, 350, 1), 200) << "entering panel clipped to logical frame";
+        if (x >= -80 && x <= 7) EXPECT_GT(pixel(40, 350, 1), 200) << "active/entering panel lost";
+        if (x == 470) EXPECT_GT(pixel(550, 350, 1), 200) << "entering panel clipped on right";
+        if (x == 530) EXPECT_GT(pixel(550, 350, 0), 190) << "right parked panel leaks";
         if (x == 7) {
             EXPECT_GT(pixel(8, 350, 1), 200);
             EXPECT_GT(pixel(242, 350, 1), 200);

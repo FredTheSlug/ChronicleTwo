@@ -1,6 +1,10 @@
 #include "common.h"
 #include "mw_runtime.h"
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "mg_drawprim.hpp"
@@ -229,14 +233,73 @@ PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float
     prim->End();
 }
 
-PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
-    bool clip_form = dtype == MENUFORM_DTYPE_NORMAL || dtype == MENUFORM_DTYPE_LIST;
-    // Full-screen fills and frame grabs are composition layers, not sliding panels.
-    for (int i = 0; clip_form && i < parts_num; ++i) {
-        const auto &part = parts[i];
-        if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) clip_form = false;
+namespace {
+
+bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
+    if (form.dtype != MENUFORM_DTYPE_NORMAL && form.dtype != MENUFORM_DTYPE_LIST) return false;
+    const auto extent = mgPortVisibleExtent();
+    if (extent.left >= 0 && extent.right <= mgScreenWidth) return false;
+
+    float left = std::numeric_limits<float>::infinity();
+    float right = -left;
+    for (int i = 0; i < form.parts_num; ++i) {
+        const auto &part = form.parts[i];
+        if (!part.active || !part.draw_flag || part.dtype == MENUFORMPARTS_DTYPE_FUNCINFO) continue;
+        // Compositors and special drawing routines do not have panel bounds.
+        // Preserve their drawing and side effects when an extent is unknown.
+        if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) return false;
+        float x0 = part.x, x1 = part.x + part.w;
+        switch (part.dtype) {
+        case MENUFORMPARTS_DTYPE_NORMAL:
+        case MENUFORMPARTS_DTYPE_SQ_BETA:
+        case MENUFORMPARTS_DTYPE_TRS:
+            break;
+        case MENUFORMPARTS_DTYPE_NORMAL2:
+            x0 += std::min(0, part.etc_info[0]);
+            x1 += std::max(0, part.etc_info[0]);
+            break;
+        case MENUFORMPARTS_DTYPE_NUMBER1:
+        case MENUFORMPARTS_DTYPE_NUMBER2: {
+            if (!MenuPosData) return false;
+            const auto *info = MenuPosData->GetTexGetInfo(part.tex_info_no);
+            if (!info) return false;
+            int digits = 1;
+            for (int value = part.etc_info[1]; value >= 10; value /= 10) ++digits;
+            if (part.dtype == MENUFORMPARTS_DTYPE_NUMBER2) digits = std::max(digits, part.etc_info[0]);
+            // Conservative for all three alignments, including negative spacing.
+            const float span = digits * std::abs(info->rect.right + part.w) + info->rect.right;
+            x0 -= span;
+            x1 = part.x + span;
+            break;
+        }
+        default:
+            return false;
+        }
+        // Item-icon effects use their own storage layout in DrawOneItem.
+        if (part.dtype != MENUFORMPARTS_DTYPE_SQ_BETA && part.dtype != MENUFORMPARTS_DTYPE_TRS) {
+            for (int effect = 0; part.effect && effect < part.effect_num; ++effect) {
+                const int type = part.effect[effect].type;
+                if (type != 0 && type != MENU_PARTS_EFFECT_FILLBOX && type != MENU_PARTS_EFFECT_BLINK)
+                    return false;
+            }
+        }
+        const float sway = part.vibe_cnt[0] ? part.viber[0] + 1.0f : 0.0f;
+        const float shadow = part.shadow ? std::abs(static_cast<int>(part.shadow_offset)) : 0;
+        left = std::min(left, std::min(x0, x1) - sway - shadow);
+        right = std::max(right, std::max(x0, x1) + sway + shadow);
     }
-    mgPortScreenClipScope clip(clip_form);
+    const float sway = form.vibe_cnt[0] ? 10.0f : 0.0f;
+    return std::isfinite(left) && (fptosi(form.x) + right + sway <= 0 ||
+                                  fptosi(form.x) + left - sway >= mgScreenWidth);
+}
+
+} // namespace
+
+PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
+    // Retail parks unused panels wholly outside its logical frame (SPECHECK,
+    // for example, at x=-260). Hide that panel, not the entire page's flanks.
+    // As soon as it overlaps the frame, draw its complete entering geometry.
+    if (MenuPanelOutsideFrame(*this)) return;
     int draw_x = fptosi(x), draw_y = fptosi(y);
     MenuMouseDrawPosition(this, draw_x, draw_y);
     MenuFormDraw(draw_x, draw_y, state);

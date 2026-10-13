@@ -1,0 +1,6 @@
+# --jump town:10 --fast-load: root menu at 400, page slide at 429,
+# settled Item page at 900. Use --window 1920x1080 or 3840x2160.
+300 triangle
+306
+420 cross
+426

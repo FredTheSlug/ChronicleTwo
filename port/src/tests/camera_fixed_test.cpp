@@ -1,17 +1,18 @@
 #include <gtest/gtest.h>
+
+#include <algorithm>
+#include <cmath>
+#include <numbers>
+
 #include "camera_fixed.hpp"
 #include "cameracontrol.hpp"
-#include "scenesnd.hpp"
-#include "gfx/displaylist.hpp"
-#include "platform/config.hpp"
-#include "options/rows.hpp"
-#include "editloop.hpp"
 #include "editctrl.hpp"
+#include "editloop.hpp"
+#include "gfx/displaylist.hpp"
 #include "mainloop.hpp"
-
-#include <cmath>
-#include <algorithm>
-#include <numbers>
+#include "options/rows.hpp"
+#include "platform/config.hpp"
+#include "scenesnd.hpp"
 
 TEST(CameraFixedMouse, BoundsDecayAndDisplayRateIndependence) {
     FixedMouseLook look;
@@ -19,13 +20,19 @@ TEST(CameraFixedMouse, BoundsDecayAndDisplayRateIndependence) {
     EXPECT_NEAR(look.yaw, 15 * std::numbers::pi_v<float> / 180, 1e-6f);
     EXPECT_NEAR(look.pitch, -10 * std::numbers::pi_v<float> / 180, 1e-6f);
     auto fast = look, slow = look;
-    for (int frame = 0; frame < 144; ++frame) fast.Update(true, 1, 100, -100, 1.0 / 144);
-    for (int frame = 0; frame < 25; ++frame) slow.Update(true, 1, 100, -100, 1.0 / 25);
+    for (int frame = 0; frame < 144; ++frame) {
+        fast.Update(true, 1, 100, -100, 1.0 / 144);
+    }
+    for (int frame = 0; frame < 25; ++frame) {
+        slow.Update(true, 1, 100, -100, 1.0 / 25);
+    }
     EXPECT_NEAR(fast.yaw, slow.yaw, 1e-6f);
     EXPECT_NEAR(fast.pitch, slow.pitch, 1e-6f);
     EXPECT_GT(slow.yaw, 0);
     EXPECT_LT(slow.yaw, look.yaw * 0.02f);
-    for (int frame = 0; frame < 4 * 144; ++frame) fast.Update(true, 1, 100, -100, 1.0 / 144);
+    for (int frame = 0; frame < 4 * 144; ++frame) {
+        fast.Update(true, 1, 100, -100, 1.0 / 144);
+    }
     EXPECT_FALSE(fast.Active());
     // Smaller display steps visibly ease even without another pad read.
     look.Update(true, 1, 100, -100, 1.0 / 144);
@@ -49,9 +56,9 @@ TEST(CameraFixedMouse, RejectedOwnersDropMotionAndInvalidSamplesDoNotPoisonTheVi
 }
 
 TEST(CameraFixedMouse, OwnershipExcludesEventsMenusControllableCamerasAndDisabledSetting) {
-    CScene scene;
+    CScene         scene;
     CCameraControl camera;
-    CPadControl pad{};
+    CPadControl    pad{};
     camera.ControlOff();
     scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
     scene.active_camera = 0;
@@ -76,22 +83,28 @@ TEST(CameraFixedMouse, OptionDefaultsOnAndRoundTripsThroughItsSettingsRow) {
     EXPECT_FALSE(config.mouse_fixed_look);
     EXPECT_EQ(ConfigParse(ConfigSerialize(config)), config);
     bool found = false;
-    for (const auto &page : options::Pages()) for (const auto &row : page.rows) {
-        if (row.key != "input.mouse_fixed_look") continue;
-        found = true;
-        EXPECT_STREQ(page.name, "Controls");
-        EXPECT_TRUE(options::StepRow(row, config, 1));
-        EXPECT_TRUE(config.mouse_fixed_look);
+    for (const auto &page : options::Pages()) {
+        for (const auto &row : page.rows) {
+            if (row.key != "input.mouse_fixed_look") {
+                continue;
+            }
+            found = true;
+            EXPECT_STREQ(page.name, "Controls");
+            EXPECT_TRUE(options::StepRow(row, config, 1));
+            EXPECT_TRUE(config.mouse_fixed_look);
+        }
     }
     EXPECT_TRUE(found);
 }
 
 TEST(CameraFixedMouse, DisplayRotationKeepsEyePositionGameplayListUiAndOtherViewsUnchanged) {
-    gfx::DisplayList source, turned;
-    auto identity = gfx::IdentityMeshTransform();
+    gfx::DisplayList  source, turned;
+    auto              identity = gfx::IdentityMeshTransform();
     gfx::detail::Mat4 view;
     std::copy_n(identity.view, 16, view.data());
-    view[12] = -10; view[13] = -20; view[14] = -30;
+    view[12] = -10;
+    view[13] = -20;
+    view[14] = -30;
     source.cameras = {view, gfx::detail::Mat4{}};
     source.doomed_textures.push_back(123);
     gfx::detail::MeshRecord record;
@@ -130,28 +143,30 @@ TEST(CameraFixedMouse, DisplayRotationKeepsEyePositionGameplayListUiAndOtherView
     EXPECT_FLOAT_EQ(std::get<gfx::detail::MeshEntry>(turned.entries[0]).constants.mvp[0], mesh.constants.mvp[0]);
 }
 
-extern int PortLoopNo asm("MainLoop_LoopNo");
-extern int PortEditFixedCamera asm("EditCtrl_FixedCamera");
-extern int PortTownLoopMode asm("EditLoop_Mode");
-extern int PortTownControlMode asm("EditLoop_Control");
-extern int PortTownLockChara asm("EditLoop_PlayerLock");
-extern int PortTownPause asm("EditLoop_Pause");
-extern int PortEditLadderMode asm("EditCtrl_LadderMode");
+extern int          PortLoopNo asm("MainLoop_LoopNo");
+extern int          PortEditFixedCamera asm("EditCtrl_FixedCamera");
+extern int          PortTownLoopMode asm("EditLoop_Mode");
+extern int          PortTownControlMode asm("EditLoop_Control");
+extern int          PortTownLockChara asm("EditLoop_PlayerLock");
+extern int          PortTownPause asm("EditLoop_Pause");
+extern int          PortEditLadderMode asm("EditCtrl_LadderMode");
 extern EditViewMode PortEditViewMode asm("EditCtrl_ViewMode");
 
 TEST(CameraFixedMouse, RetailTownModesGateBothPointAndPathCameras) {
-    CScene &scene = *GetMainScene();
+    CScene    &scene = *GetMainScene();
     const auto old_slot = *scene.GetSceneCamera(0);
-    const int old_active = scene.active_camera;
-    const int old_event = scene.event_run;
+    const int  old_active = scene.active_camera;
+    const int  old_event = scene.event_run;
     const auto old_view = PortEditViewMode;
     const auto old_key = GamePad__2.key_lock;
     const auto old_debug = DebugInfo.debug_camera;
     const bool old_option = ConfigGet().mouse_fixed_look;
-    int *flags[] = {&PortLoopNo, &PortEditFixedCamera, &PortTownLoopMode, &PortTownControlMode,
-                   &PortTownLockChara, &PortTownPause, &PortEditLadderMode};
-    int saved[7];
-    for (int i = 0; i < 7; ++i) saved[i] = *flags[i];
+    int       *flags[] = {&PortLoopNo, &PortEditFixedCamera, &PortTownLoopMode, &PortTownControlMode,
+                          &PortTownLockChara, &PortTownPause, &PortEditLadderMode};
+    int        saved[7];
+    for (int i = 0; i < 7; ++i) {
+        saved[i] = *flags[i];
+    }
     CCameraControl camera;
     camera.ControlOff();
     scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
@@ -173,15 +188,33 @@ TEST(CameraFixedMouse, RetailTownModesGateBothPointAndPathCameras) {
     EXPECT_EQ(TownMouseFixedOwner(), &camera);
     for (int other = 0; other < 9; ++other) {
         reset();
-        if (other == 0) PortTownLoopMode = EDIT_LOOP_WALK_MENU;
-        if (other == 1) PortTownControlMode = EDIT_CONTROL_EVENT;
-        if (other == 2) PortTownPause = 1;
-        if (other == 3) PortTownLockChara = 1;
-        if (other == 4) PortEditViewMode = EDIT_VIEW_MODE_PHOTO;
-        if (other == 5) PortEditLadderMode = EDIT_LADDER_MODE_BOTTOM;
-        if (other == 6) camera.ControlOn();
-        if (other == 7) const_cast<Config &>(ConfigGet()).mouse_fixed_look = false;
-        if (other == 8) scene.event_run = 1;
+        if (other == 0) {
+            PortTownLoopMode = EDIT_LOOP_WALK_MENU;
+        }
+        if (other == 1) {
+            PortTownControlMode = EDIT_CONTROL_EVENT;
+        }
+        if (other == 2) {
+            PortTownPause = 1;
+        }
+        if (other == 3) {
+            PortTownLockChara = 1;
+        }
+        if (other == 4) {
+            PortEditViewMode = EDIT_VIEW_MODE_PHOTO;
+        }
+        if (other == 5) {
+            PortEditLadderMode = EDIT_LADDER_MODE_BOTTOM;
+        }
+        if (other == 6) {
+            camera.ControlOn();
+        }
+        if (other == 7) {
+            const_cast<Config &>(ConfigGet()).mouse_fixed_look = false;
+        }
+        if (other == 8) {
+            scene.event_run = 1;
+        }
         EXPECT_EQ(TownMouseFixedOwner(), nullptr) << other;
     }
     *scene.GetSceneCamera(0) = old_slot;
@@ -191,5 +224,7 @@ TEST(CameraFixedMouse, RetailTownModesGateBothPointAndPathCameras) {
     GamePad__2.key_lock = old_key;
     DebugInfo.debug_camera = old_debug;
     const_cast<Config &>(ConfigGet()).mouse_fixed_look = old_option;
-    for (int i = 0; i < 7; ++i) *flags[i] = saved[i];
+    for (int i = 0; i < 7; ++i) {
+        *flags[i] = saved[i];
+    }
 }

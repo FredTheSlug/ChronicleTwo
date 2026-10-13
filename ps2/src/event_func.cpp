@@ -15148,7 +15148,7 @@ static int _EOH_SET_ROT(RS_STACKDATA *stack, int argc) {
  *
  */
 static int _EOH_GET_POS(RS_STACKDATA *stack, int argc) {
-    float pos[3];
+    float pos[4];
 
     int result = EventObjHandleMother.GetPos(GetStackInt(stack++), pos);
 
@@ -15167,7 +15167,7 @@ static int _EOH_GET_POS(RS_STACKDATA *stack, int argc) {
  *
  */
 static int _EOH_GET_ROT(RS_STACKDATA *stack, int argc) {
-    float rot[3];
+    float rot[4];
 
     int result = EventObjHandleMother.GetRot(GetStackInt(stack++), rot);
 
@@ -16833,7 +16833,7 @@ static int _ADD_CHARA_ROT(RS_STACKDATA *stack, int argc) {
  *
  */
 static int _POST_TREASURE_BOX(RS_STACKDATA *stack, int argc) {
-    float                position[3];
+    float                position[4];
     CTreasureBoxManager *chest_manager;
     float                angle;
     int                  kind;
@@ -17895,7 +17895,7 @@ static int _GET_PARTS_FUNC_POS(RS_STACKDATA *stack, int argc) {
  *
  */
 static int _RANDOM_CIRCLE_GET_POS(RS_STACKDATA *stack, int argc) {
-    float pos[3];
+    float pos[4];
     int   circle_id = GetStackInt(stack++);
 
     if (RandomCircle.GetPosition(pos, circle_id) <= -1) {
@@ -19971,7 +19971,7 @@ static int _GET_DEBUG_FLAG(RS_STACKDATA *stack, int argc) {
  *
  */
 static int _MINIMAP_DOOR_ENABLE(RS_STACKDATA *stack, int argc) {
-    float pos[3];
+    float pos[4];
 
     if (argc != 3) {
         return false;

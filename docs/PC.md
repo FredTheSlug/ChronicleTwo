@@ -829,6 +829,8 @@ The tests are `port/src/tests/uptr_test.cpp` (`Uptr.*`). They cover pointer widt
 
 Edits to `ps2/src` or `ps2/include` made for the port must leave the PS2 build byte-identical. They are corrections that are standard C++ either way, never code for the port. The edits to `ps2/`:
 
+- `ps2/src/event_func.cpp`: event-handle position/rotation, treasure position, random-circle position and minimap-door callbacks reserve four floats for their vector writers.
+
 - `ps2/src/effscript.cpp`: the distance-pair, scene character/entry-object and event-handle position callbacks reserve four floats for full-vector writers; script vectors still use three scalar arguments.
 
 

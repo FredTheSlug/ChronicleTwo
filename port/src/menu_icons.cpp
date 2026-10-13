@@ -12,6 +12,7 @@
 #include "userdata.hpp"
 
 extern short PortIconSheet asm("MenuDraw_IconSheet");
+extern MENU_SHORT_RECT PortIconUV[2] asm("MenuDraw_IconUV");
 
 PORT_OVERRIDE mgCTexture *GetMenuItemIconTexInfo(int item_no, int mode) {
     PortIconSheet = -1;
@@ -25,16 +26,14 @@ PORT_OVERRIDE mgCTexture *GetMenuItemIconTexInfo(int item_no, int mode) {
         return nullptr;
     }
 
-    // DrawOneItem and its raster effects sample the reserved 32x32 cell. Fill it at the
-    // semantic texture-selection seam, so the draw stream needs no GS transfer commands.
+    // Retail stages every icon into one shared cell before drawing it. Display
+    // replays keep only the last staged cell, so draw and raster effects must
+    // sample each item's immutable atlas cell directly on the host.
     mgRect<int> source;
     GetMenuItemIconTexGetXY(item_no, source);
+    PortIconUV[PortIconSheet] = {static_cast<short>(source.left), static_cast<short>(source.top),
+                               static_cast<short>(source.right), static_cast<short>(source.bottom)};
     const MgTextureHandles handles = MgTextureLookupTex0(texture->tex0.value);
-    if (handles.texture != gfx::kNullTexture && source.left >= 0 && source.top >= 0 &&
-        source.left + source.right <= texture->width && source.top + source.bottom <= texture->height) {
-        gfx::CopyTexture(handles.texture, {source.left, source.top, source.right, source.bottom},
-                         handles.texture, 224, 736);
-    }
     // Effect variants are CPU copies of the atlas descriptor sharing its registry key;
     // their palette bytes belong to the variant, rather than to the registered base.
     if (mode != 0 && texture->clut != nullptr && handles.palette != gfx::kNullTexture) {

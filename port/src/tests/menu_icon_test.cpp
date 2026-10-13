@@ -115,7 +115,7 @@ TEST_F(MenuIconGpu, ActiveIconsRefreshPixelsAndPaletteAfterInPlaceCopy) {
     }
 }
 
-TEST_F(MenuIconGpu, ItemDrawStagesTheSelectedAtlasCellBeforeSampling) {
+TEST_F(MenuIconGpu, ItemDrawSamplesSelectedAtlasCellsInCanonicalAndDisplayFrames) {
     char name[] = "itemicon";
     auto *texture = Enter(name, 256, 1024, atlas_.data(), palette_.data());
     menu_.item_icon_tex[0][1] = texture;
@@ -139,6 +139,10 @@ TEST_F(MenuIconGpu, ItemDrawStagesTheSelectedAtlasCellBeforeSampling) {
         ++draws;
     });
     u8 rgba[] = {128, 128, 128, 128};
+    const auto handles = MgTextureLookup(texture);
+    std::vector<u8> original_atlas;
+    uint32_t width, height;
+    ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, original_atlas, width, height));
     gfx::BeginRecording();
     const u8 clear[] = {0, 0, 0, 255};
     gfx::Clear(true, clear, true, 0.0f);
@@ -151,6 +155,19 @@ TEST_F(MenuIconGpu, ItemDrawStagesTheSelectedAtlasCellBeforeSampling) {
     EXPECT_GE(draws, 2);
     EXPECT_TRUE(gfx_.PixelNear(20, 20, 0, 255, 0));
     EXPECT_TRUE(gfx_.PixelNear(60, 20, 0, 0, 255));
+    // Window presentation must retain distinct icons without changing the atlas.
+    std::vector<u8> canonical_atlas;
+    ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, canonical_atlas, width, height));
+    EXPECT_EQ(canonical_atlas, original_atlas);
+    for (float alpha : {0.0f, 0.5f, 1.0f}) {
+        ASSERT_TRUE(gfx::RenderList(*list, alpha, {.present = true}));
+        ASSERT_TRUE(gfx::ReadbackFrame(gfx_.pixels, gfx_.width, gfx_.height));
+        EXPECT_TRUE(gfx_.PixelNear(20, 20, 0, 255, 0)) << "alpha " << alpha;
+        EXPECT_TRUE(gfx_.PixelNear(60, 20, 0, 0, 255)) << "alpha " << alpha;
+        std::vector<u8> after_display;
+        ASSERT_TRUE(gfx::ReadbackTexture(handles.texture, after_display, width, height));
+        EXPECT_EQ(after_display, canonical_atlas);
+    }
 }
 
 TEST_F(MenuIconGpu, EffectPaletteComesFromSelectedDescriptorAndRestoresNormally) {

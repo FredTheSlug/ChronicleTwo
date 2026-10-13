@@ -98,7 +98,7 @@ PORT_OVERRIDE void PrimQuad(mgCTexture *texture, float x, float y, mgRect<int> u
     const bool         cursor = GetNowLoopNo() == LOOP_TITLE && uv.right == 40 && uv.bottom == 24 &&
                                 ((uv.left == 0 && uv.top == 40 && texture == mgTexManager.GetTexture(const_cast<char *>("moji"), -1)) ||
                                  (uv.left == 216 && uv.top == 360));
-    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{kMenuMouseHandKey, static_cast<uint64_t>(mgPortFrameCount())} : gfx::CurrentInterp2D());
+    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{MenuMouseNextHandKey(), static_cast<uint64_t>(mgPortFrameCount())} : gfx::CurrentInterp2D());
     if (cursor) {
         MenuMouseNoteHand(mgPortBinding(texture),
                           {float(uv.left), float(uv.top), float(uv.right), float(uv.bottom)},

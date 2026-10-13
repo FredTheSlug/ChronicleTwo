@@ -107,7 +107,7 @@ bool DisplayFrame(float alpha, bool present) {
     options.previous = settings.interpolation ? mgPortPreviousList() : nullptr;
     options.present = present;
     options.overlay = present ? DisplayOverlayList() : nullptr;
-    options.suppressed_2d_key = present && MenuMousePointerVisible() ? kMenuMouseHandKey : 0;
+    options.suppressed_2d_key = present ? MenuMouseReplacedHandKey() : 0;
     const bool shown = MouseFixedRender(*list, alpha, options, DisplaySeconds(!present));
 
     if (shown) {
@@ -132,7 +132,7 @@ bool PresentCanonicalFrame() {
         gfx::RenderOptions options;
         options.present = true;
         options.overlay = overlay_list;
-        options.suppressed_2d_key = pointer ? kMenuMouseHandKey : 0;
+        options.suppressed_2d_key = MenuMouseReplacedHandKey();
         shown = pacer.Present([&] { return MouseFixedRender(*mgPortLastList(), 1, options, 0); }, Clock::now);
     } else if (overlay_list != nullptr) {
         gfx::RenderOptions options;

@@ -20,6 +20,9 @@ MgTextureHandles MgTextureLookupTex0(uint64_t tex0);
 void MgTexturePixelsChanged(const mgCTexture *texture);
 // Selects a pre-baked RGBA variant by the palette source name from catalog metadata.
 bool MgTextureSelectVariant(mgCTexture *texture, std::string_view palette_source);
+// Redraws the button symbols of the loaded textures that hold them once input.glyphs, input.glyph_device
+// or, on Auto, the device in use changes their style.
+void MgTextureRefreshButtonGlyphs();
 std::string_view MgTexturePaletteSource(const mgCTexture *texture);
 int MgTextureSourceBpp(const mgCTexture *texture);
 /**

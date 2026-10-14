@@ -20,6 +20,7 @@
 #include "mglib.hpp"
 #include "platform/texture_catalog.hpp"
 #include "platform/datapacks.hpp"
+#include "button_glyphs.hpp"
 #include "texture_source.hpp"
 
 // The rendering seam is installed only once the mglib stream has landed its header.
@@ -412,6 +413,7 @@ mgCTexture *EnterCatalog(mgCTextureManager *manager, int block, const texture_ca
         std::fprintf(stderr, "texture: %s: %s\n", record.name.c_str(), error.c_str());
         return nullptr;
     }
+    ButtonGlyphsApply(record.name, record.width, record.height, decoded);
     CatalogPixels pixels{std::move(decoded.levels), &record, record.name, decoded.width, decoded.height};
     u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {};
     if (!record.no_image) {
@@ -720,6 +722,7 @@ bool MgTextureSelectVariant(mgCTexture *texture, std::string_view palette_source
     if (variant == variants.end()) return false;
     datapacks::DecodedTexture decoded;
     if (!datapacks::Decode(*pixels.record, static_cast<size_t>(variant - variants.begin()), decoded, error)) return false;
+    ButtonGlyphsApply(pixels.record->name, pixels.record->width, pixels.record->height, decoded);
     pixels.levels = std::move(decoded.levels);
     pixels.width = decoded.width;
     pixels.height = decoded.height;
@@ -729,6 +732,34 @@ bool MgTextureSelectVariant(mgCTexture *texture, std::string_view palette_source
     BindLogicalPixels(texture, pixels);
     MgTexturePixelsChanged(texture);
     return true;
+}
+
+void MgTextureRefreshButtonGlyphs() {
+    static std::string applied = ButtonGlyphsStyle();
+    const std::string  style = ButtonGlyphsStyle();
+    if (style == applied) return;
+    applied = style;
+    for (auto &[texture, pixels] : catalog_pixels) {
+        if (!pixels.record || !ButtonGlyphsTarget(pixels.record->name) || pixels.logical_levels.empty() ||
+            texture->image[0] != reinterpret_cast<u_long128 *>(pixels.logical_levels[0].data())) continue;
+        const auto &variants = pixels.record->variants;
+        const auto  variant = std::find_if(variants.begin(), variants.end(), [&](const auto &value) {
+            return value.palette_source == pixels.palette_source;
+        });
+        std::string error;
+        datapacks::DecodedTexture decoded;
+        if (!datapacks::Decode(*pixels.record, variant == variants.end() ? 0 : static_cast<size_t>(variant - variants.begin()),
+                               decoded, error)) continue;
+        ButtonGlyphsApply(pixels.record->name, pixels.record->width, pixels.record->height, decoded);
+        auto *game_texture = const_cast<mgCTexture *>(texture);
+        pixels.levels = std::move(decoded.levels);
+        pixels.width = decoded.width;
+        pixels.height = decoded.height;
+        if (auto entry = Registry().entries.find(texture); entry != Registry().entries.end()) entry->second.uploaded = false;
+        MakeLogicalPixels(texture, pixels);
+        BindLogicalPixels(game_texture, pixels);
+        MgTexturePixelsChanged(texture);
+    }
 }
 
 std::string_view MgTexturePaletteSource(const mgCTexture *texture) {

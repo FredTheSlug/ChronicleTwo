@@ -291,6 +291,19 @@ void Paste(const Style &style, const Rect &source, const Rect &cell, uint32_t sc
     }
 }
 
+void Clear(const Rect &cell, uint32_t scale, datapacks::DecodedTexture &decoded, std::size_t mip) {
+    const uint32_t canvas_width = std::max(1u, decoded.width >> mip);
+    const uint32_t canvas_height = std::max(1u, decoded.height >> mip);
+    const double   unit = static_cast<double>(scale) / static_cast<double>(1u << mip);
+    const int      x1 = std::min(static_cast<int>(canvas_width), static_cast<int>((cell.x + cell.w) * unit));
+    const int      y1 = std::min(static_cast<int>(canvas_height), static_cast<int>((cell.y + cell.h) * unit));
+    for (int y = static_cast<int>(cell.y * unit); y < y1; ++y) {
+        for (int x = static_cast<int>(cell.x * unit); x < x1; ++x) {
+            std::fill_n(&decoded.levels[mip][(static_cast<std::size_t>(y) * canvas_width + x) * 4], 4, uint8_t{0});
+        }
+    }
+}
+
 } // namespace
 
 std::string ButtonGlyphsStyle() {
@@ -366,6 +379,12 @@ void ButtonGlyphsApply(std::string_view texture_name, int logical_width, int log
             symbol = Symbol(*from, glyph);
         }
         if (symbol == nullptr) {
+            // A word beside its button (START by the pill) the style has no art for: the symbol alone.
+            if (glyph.find('@') != std::string::npos) {
+                for (std::size_t mip = 0; mip < decoded.levels.size(); ++mip) {
+                    Clear(cell, scale, decoded, mip);
+                }
+            }
             continue;
         }
         for (std::size_t mip = 0; mip < decoded.levels.size(); ++mip) {

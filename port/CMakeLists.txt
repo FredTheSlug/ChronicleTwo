@@ -251,6 +251,13 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS darkchronicle RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+# The button symbols (docs/GLYPHS.md): glyphs/ beside the executable, the art of TheMoonPeople/Chronicle's port/glyphs.
+add_custom_target(ct_glyphs
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/glyphs $<TARGET_FILE_DIR:darkchronicle>/glyphs
+    COMMENT "Copying the button symbols")
+add_dependencies(darkchronicle ct_glyphs)
+install(DIRECTORY glyphs/ DESTINATION ${CMAKE_INSTALL_BINDIR}/glyphs)
+
 option(CT_BUILD_TESTS "Build darkchronicle_tests" ON)
 if(CT_BUILD_TESTS)
     add_subdirectory(src/tests)

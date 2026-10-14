@@ -14,9 +14,9 @@ is the original look.
 ## The glyphs folder
 
 `glyphs/` is read beside the executable, then in the save folder; the first one with a
-`glyphs.json` wins. `tools/glyphs/make_glyphs.py <folder>` draws a plain starter set (Xbox, Switch,
-Steam Deck, Steam Controller and keyboard). Replace any atlas with your own art and keep the
-rectangles in step.
+`glyphs.json` wins. The build copies `port/glyphs/` beside the executable: the art of
+TheMoonPeople/Chronicle's `port/glyphs` (PS3, PS4, PS5, PS5 Color, Xbox, Switch, Steam Deck, Steam
+Controller and keyboard). Replace any atlas with your own art and keep the rectangles in step.
 
 ```json
 {
@@ -44,7 +44,7 @@ rectangles in step.
   button, so `A` on Xbox and `B` on Switch), `l1`, `r1`, `l2`, `r2`, `start`, `select`, `dpad`,
   `dpad_ud`, `dpad_lr`, `lstick`, `rstick`, and `start_label`, `select_label` for the words
   START and SELECT. A lone word falls back to its button's symbol; the word beside the START and
-  SELECT pills does not.
+  SELECT pills does not: without a word in the style it is cleared, so the symbol stands alone.
 - `keyboard` names its symbols after keys as SDL spells them, lowercase without spaces (`space`,
   `return`, `e`, `leftshift`...) and `mouse1` to `mouse3`. Each pad button shows the key its
   binding names first.

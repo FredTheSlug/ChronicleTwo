@@ -295,7 +295,7 @@ bool Render(int item_no, mgCTexture *icon) {
     }
     // Long and thin as seen: lay it along the diagonal, which is how the retail icons draw them.
     const float width = box_hi[0] - box_lo[0], height = box_hi[1] - box_lo[1];
-    if (!pair && (width > 2.0f * height || height > 2.0f * width)) {
+    if (!pair && (width > 1.3f * height || height > 1.3f * width)) {
         roll_angle = width > height ? 0.785f : -0.785f;
         measure();
     }

@@ -382,11 +382,11 @@ bool Render(int item_no, mgCTexture *icon) {
                 const float centre_x = (right[0] + left[0]) * 0.5f;
                 // The shoulder joints sit at the neck, so the width comes from the chest's height.
                 (void) shoulders;
-                const float half_w = rise * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.25f);
+                const float half_w = rise * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.0f);
                 box_lo[0] = centre_x - half_w;
                 box_hi[0] = centre_x + half_w;
                 box_lo[1] = std::min(neck[1], spine[1]) - EnvFloat("DC2_ITEM_ICONS_3D_TORSO_BELOW", 0.0f) * rise;
-                box_hi[1] = std::max(neck[1], spine[1]) + EnvFloat("DC2_ITEM_ICONS_3D_TORSO_ABOVE", 0.4f) * rise;
+                box_hi[1] = std::max(neck[1], spine[1]) + EnvFloat("DC2_ITEM_ICONS_3D_TORSO_ABOVE", 0.25f) * rise;
                 box_lo[2] = std::min(neck[2], spine[2]) - rise;
                 box_hi[2] = std::max(neck[2], spine[2]) + rise;
                 any = true;
@@ -562,6 +562,8 @@ bool Render(int item_no, mgCTexture *icon) {
     gfx::TextureHandle scratch = mgPortCurrentTarget();
     mgSetProjection(800.0f);
     mgSetViewMatrix(view, camera->pos);
+    const float saved_near = mgRenderInfo.clip_min[2], saved_far = mgRenderInfo.clip_max[2];
+    bool        far_cut = false;
 
     const float pixels_per_unit = 800.0f / distance;
     const float scale = (kFill * 0.5f) / (pixels_per_unit * radius);
@@ -570,6 +572,32 @@ bool Render(int item_no, mgCTexture *icon) {
     root.SetScale(scale, scale * y_scale, scale);
     float position[3] = {-mid[0] * scale, -mid[1] * scale * y_scale, -mid[2] * scale};
     root.SetPosition(position[0], position[1], position[2]);
+    if (IsFootwear(item_record->type) && !EnvOn("DC2_ITEM_ICONS_3D_NO_FAR_CUT")) {
+        // The pair is seen from the side, one behind the other: a far clip between the two leaves the nearer one alone.
+        float depth[2] = {};
+        int   found = 0;
+        const char *feet[2] = {"R_foot", "L_foot"};
+        for (int j = 0; j < 2; j++) {
+            mgCFrame *bone = chara->SearchObject(const_cast<char *>(feet[j]));
+            if (bone == nullptr) {
+                continue;
+            }
+            float matrix[4][4], origin[4] = {0.0f, 0.0f, 0.0f, 1.0f}, world[4];
+            bone->GetLWMatrix(matrix);
+            sceVu0ApplyMatrix(world, matrix, origin);
+            depth[j] = world[2];
+            found++;
+        }
+        if (found == 2 && std::fabs(depth[0] - depth[1]) > 0.5f) {
+            const float split = (depth[0] + depth[1]) * 0.5f + EnvFloat("DC2_ITEM_ICONS_3D_FAR_BIAS", 0.0f);
+            const float far_depth = distance - scale * (split - mid[2]);
+            if (far_depth > saved_near + 1.0f) {
+                mgSetRenderInfo(800.0f, saved_near, far_depth);
+                mgSetViewMatrix(view, camera->pos);
+                far_cut = true;
+            }
+        }
+    }
     if (EnvOn("DC2_ITEM_ICONS_3D_RED")) {
         mgSetPkClearScreen(0x80, 0, 0, 0x80);
     } else {
@@ -667,6 +695,9 @@ bool Render(int item_no, mgCTexture *icon) {
         }
     }
 
+    if (far_cut) {
+        mgSetRenderInfo(800.0f, saved_near, saved_far);
+    }
     mgSetProjection(saved_projection);
     mgSetAmbient(saved_ambient);
     mgSetLight(saved_dir, saved_colour);

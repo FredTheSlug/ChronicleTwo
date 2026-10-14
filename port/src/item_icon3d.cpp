@@ -345,6 +345,51 @@ bool Render(int item_no, mgCTexture *icon) {
         place();
         bool any = false;
         DrawnBox(frame, box_lo, box_hi, any);
+        if (skinned && !IsFootwear(item_record->type)) {
+            // An outfit's skin is the whole body's clothes; the icon is the torso, from the hips (the knees, for a dress) up
+            // past the shoulders, so the box is taken from the character's own joints.
+            const char *joints[6] = {"neck", "hip", "R_sdr", "L_sdr", "R_hand", "L_hand"};
+            float       lo[3] = {}, hi[3] = {};
+            float       neck_y = 0.0f, hip_y = 0.0f;
+            int         found = 0;
+            for (const char *joint : joints) {
+                mgCFrame *bone = chara->SearchObject(const_cast<char *>(joint));
+                if (bone == nullptr) {
+                    continue;
+                }
+                float matrix[4][4], origin[4] = {0.0f, 0.0f, 0.0f, 1.0f}, world[4];
+                bone->GetLWMatrix(matrix);
+                sceVu0ApplyMatrix(world, matrix, origin);
+                if (std::strcmp(joint, "neck") == 0) {
+                    neck_y = world[1];
+                } else if (std::strcmp(joint, "hip") == 0) {
+                    hip_y = world[1];
+                }
+                for (int i = 0; i < 3; i++) {
+                    if (found == 0 || world[i] < lo[i]) {
+                        lo[i] = world[i];
+                    }
+                    if (found == 0 || world[i] > hi[i]) {
+                        hi[i] = world[i];
+                    }
+                }
+                found++;
+            }
+            if (found >= 4) {
+                const float height = std::max(0.001f, hi[1] - lo[1]);
+                const float below = item_record->type == ITEM_DATA_MONICA_CLOTHES ? EnvFloat("DC2_ITEM_ICONS_3D_DRESS_DROP", 0.5f) : 0.05f;
+                const float margin = (hi[0] - lo[0]) * 0.1f;
+                box_lo[0] = lo[0] - margin;
+                box_hi[0] = hi[0] + margin;
+                box_lo[1] = lo[1] - below * height;
+                box_hi[1] = hi[1] + 0.22f * height;
+                box_lo[2] = lo[2];
+                box_hi[2] = hi[2];
+                (void) neck_y;
+                (void) hip_y;
+                any = true;
+            }
+        }
         if (!any) {
             mgVu0FBOX world;
             frame->GetWorldBBox(&world);

@@ -332,7 +332,7 @@ bool Render(int item_no, mgCTexture *icon) {
     float pose[3] = {0.0f, 0.0f, 0.0f};
     if (record->type == ITEM_DATA_MAX_HAT) {
         // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
-        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", -0.65f);
+        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", 3.1416f); // upside down as made: the crown up
     }
     float tip = weapon ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
     float roll_angle = 0.0f;
@@ -371,6 +371,14 @@ bool Render(int item_no, mgCTexture *icon) {
                 const float dx = right[0] - left[0], dy = right[1] - left[1], dz = right[2] - left[2];
                 const float shoulders = std::sqrt(dx * dx + dy * dy + dz * dz);
                 const float rise = std::max(0.001f, std::fabs(neck[1] - spine[1]));
+                if (Debug()) {
+                    static int logged = -1;
+                    if (logged != item_no) {
+                        logged = item_no;
+                        std::fprintf(stderr, "dc2 item icon 3d: item %d torso neck %.1f,%.1f,%.1f spine %.1f,%.1f,%.1f R %.1f,%.1f,%.1f L %.1f,%.1f,%.1f\n", item_no, neck[0], neck[1], neck[2],
+                                     spine[0], spine[1], spine[2], right[0], right[1], right[2], left[0], left[1], left[2]);
+                    }
+                }
                 const float centre_x = (right[0] + left[0]) * 0.5f;
                 const float half_w = shoulders * 0.5f * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.9f);
                 box_lo[0] = centre_x - half_w;
@@ -416,9 +424,14 @@ bool Render(int item_no, mgCTexture *icon) {
         }
         std::memcpy(pose, best_pose, sizeof pose);
         measure();
+    } else if (record->type == ITEM_DATA_MAX_HAT) {
+        // Crown up, turned a little so the visor comes round towards the viewer.
+        pose[1] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_YAW", 0.6f);
+        measure();
     } else if (record->type == ITEM_DATA_ROBO_ARM || IsFootwear(record->type)) {
         // The pair lies side by side across the model, so it is shown square on, or the left half would not be an arm.
-        pose[1] = 0.0f;
+        // Footwear is seen from the side, which also puts one of the pair behind the other.
+        pose[1] = IsFootwear(record->type) ? EnvFloat("DC2_ITEM_ICONS_3D_FOOT_YAW", 1.5708f) : 0.0f;
         measure();
     } else if (!EnvOn("DC2_ITEM_ICONS_3D_NO_TURN_SEARCH")) {
         // Kept upright, turned about the vertical to the broadest view, leaning to a three-quarter turn.
@@ -440,8 +453,8 @@ bool Render(int item_no, mgCTexture *icon) {
         std::memcpy(pose, g_forced, sizeof pose);
         measure();
     }
-    // A robo arm's model is the pair side by side, and so are shoes and boots; one of the two is the icon.
-    const bool pair = record->type == ITEM_DATA_ROBO_ARM || IsFootwear(record->type);
+    // A robo arm's model is the pair side by side; the icon is the one on the left.
+    const bool pair = record->type == ITEM_DATA_ROBO_ARM;
     if (pair) {
         box_hi[0] = (box_lo[0] + box_hi[0]) * 0.5f;
     }

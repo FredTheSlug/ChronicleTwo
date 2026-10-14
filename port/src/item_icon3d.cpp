@@ -365,7 +365,14 @@ bool Render(int item_no, mgCTexture *icon) {
         std::fprintf(stderr, "dc2 item icon 3d: item %d %s pose %.2f %.2f %.2f roll %.2f box %.2f x %.2f\n", item_no, path,
                      pose[0], pose[1], pose[2], roll_angle, box_hi[0] - box_lo[0], box_hi[1] - box_lo[1]);
     }
-    if (item_no == static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_TREE", -1.0f))) {
+    static unsigned dumped_types = 0;
+    const unsigned   type_mask = static_cast<unsigned>(EnvFloat("DC2_ITEM_ICONS_3D_TREE_TYPES", 0.0f));
+    const bool       dump_type = record->type < 32 && (type_mask & (1u << record->type)) && !(dumped_types & (1u << record->type));
+    if (dump_type) {
+        dumped_types |= 1u << record->type;
+        std::fprintf(stderr, "  tree for item %d type %d\n", item_no, record->type);
+    }
+    if (dump_type || item_no == static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_TREE", -1.0f))) {
         std::function<void(mgCFrame *, int)> dump = [&](mgCFrame *node, int depth) {
             for (; node != nullptr; node = node->brother) {
                 float lo[4] = {}, hi[4] = {};

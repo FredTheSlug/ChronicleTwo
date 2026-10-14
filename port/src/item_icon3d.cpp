@@ -298,9 +298,11 @@ bool Render(int item_no, mgCTexture *icon) {
         switch (item_record->type) {
             case ITEM_DATA_MAX_CLOTHES:
                 keep[0] = "skin1"; // the jacket and arms; the legs and feet are left out so it can be drawn larger
+                keep[1] = EnvOn("DC2_ITEM_ICONS_3D_NO_SKIN2") ? nullptr : "skin2";
                 break;
             case ITEM_DATA_MONICA_CLOTHES:
                 keep[0] = "skin1";
+                keep[1] = EnvOn("DC2_ITEM_ICONS_3D_NO_SKIN2") ? nullptr : "skin2";
                 break;
             default: // shoes and boots
                 keep[0] = "skin3";
@@ -315,6 +317,8 @@ bool Render(int item_no, mgCTexture *icon) {
                     }
                     if (!wanted) {
                         node->attr->draw &= ~MG_FRAME_DRAW_VISIBLE;
+                    } else {
+                        node->attr->draw |= MG_FRAME_DRAW_VISIBLE;
                     }
                 }
                 hide(node->child);

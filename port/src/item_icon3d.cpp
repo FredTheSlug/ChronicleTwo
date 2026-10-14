@@ -321,6 +321,10 @@ bool Render(int item_no, mgCTexture *icon) {
     chara->SetScale(1.0f, 1.0f, 1.0f);
 
     float pose[3] = {0.0f, 0.0f, 0.0f};
+    if (record->type == ITEM_DATA_MAX_HAT || record->type == ITEM_DATA_MONICA_ACCESSORY) {
+        // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
+        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", 0.0f);
+    }
     float tip = weapon ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
     float roll_angle = 0.0f;
     float box_lo[3], box_hi[3];

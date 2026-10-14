@@ -334,7 +334,7 @@ bool Render(int item_no, mgCTexture *icon) {
         // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
         pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", 3.1416f); // upside down as made: the crown up
     }
-    float tip = weapon ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
+    float tip = (weapon || IsFootwear(record->type)) ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
     float roll_angle = 0.0f;
     float box_lo[3], box_hi[3];
     auto  place = [&]() {
@@ -428,7 +428,7 @@ bool Render(int item_no, mgCTexture *icon) {
         measure();
     } else if (record->type == ITEM_DATA_MAX_HAT) {
         // Crown up, turned a little so the visor comes round towards the viewer.
-        pose[1] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_YAW", 0.6f);
+        pose[1] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_YAW", -0.6f);
         measure();
     } else if (record->type == ITEM_DATA_ROBO_ARM || IsFootwear(record->type)) {
         // The pair lies side by side across the model, so it is shown square on, or the left half would not be an arm.

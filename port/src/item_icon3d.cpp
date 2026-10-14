@@ -19,6 +19,7 @@
 #include "mg_camera.hpp"
 #include "mg_frame.hpp"
 #include "mg_memory.hpp"
+#include "mg_visual.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
@@ -114,10 +115,24 @@ void DrawnBox(mgCFrame *node, float lo[3], float hi[3], bool &any) {
         if (node->visual != nullptr && node->bound != nullptr && (draw & MG_FRAME_DRAW_VISIBLE)) {
             float matrix[4][4];
             node->GetLWMatrix(matrix);
-            for (int corner = 0; corner < 8; corner++) {
-                float point[4] = {(corner & 1) ? node->bound->max[0] : node->bound->min[0],
-                                  (corner & 2) ? node->bound->max[1] : node->bound->min[1],
-                                  (corner & 4) ? node->bound->max[2] : node->bound->min[2], 1.0f};
+            // The stored bound is loose for some models (a robo arm's is far larger than the arm), so the model's own vertices
+            // are used where it has them; the bound's corners are the fallback.
+            const mgCVisualMDT *mdt = dynamic_cast<const mgCVisualMDT *>(node->visual);
+            const bool          vertices = mdt != nullptr && mdt->vertex != nullptr && mdt->vertex_num > 0 && !EnvOn("DC2_ITEM_ICONS_3D_BOUND_BOX");
+            const int           count = vertices ? mdt->vertex_num : 8;
+            for (int n = 0; n < count; n++) {
+                float point[4];
+                if (vertices) {
+                    point[0] = mdt->vertex[n][0];
+                    point[1] = mdt->vertex[n][1];
+                    point[2] = mdt->vertex[n][2];
+                    point[3] = 1.0f;
+                } else {
+                    point[0] = (n & 1) ? node->bound->max[0] : node->bound->min[0];
+                    point[1] = (n & 2) ? node->bound->max[1] : node->bound->min[1];
+                    point[2] = (n & 4) ? node->bound->max[2] : node->bound->min[2];
+                    point[3] = 1.0f;
+                }
                 float world[4];
                 sceVu0ApplyMatrix(world, matrix, point);
                 for (int i = 0; i < 3; i++) {

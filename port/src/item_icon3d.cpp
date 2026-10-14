@@ -79,6 +79,10 @@ bool IsSkinItem(int item_type) {
            item_type == ITEM_DATA_MONICA_BOOTS;
 }
 
+bool IsFootwear(int item_type) {
+    return item_type == ITEM_DATA_MAX_SHOES || item_type == ITEM_DATA_MONICA_BOOTS;
+}
+
 std::vector<unsigned char> &SkinStorage() {
     static std::vector<unsigned char> storage(static_cast<std::size_t>(kWorkQuadwords) * 16 + 128);
     return storage;
@@ -94,10 +98,7 @@ bool ModelPath(int item_no, char *path, std::size_t size) {
     // A hat or a hair accessory is a model of its own (the game hangs it on the character's head); clothes and shoes are
     // skins on the character and are drawn another way.
     if (type == USED_ITEM_TYPE_COSTUME && record->type != ITEM_DATA_MAX_HAT && record->type != ITEM_DATA_MONICA_ACCESSORY) {
-        // Outfits keep the picture on the icon sheet for now: their skins carry the hair, the feet and the arms stretched out
-        // with them, and do not make a good icon. Shoes and boots are drawn.
-        const bool outfit = record->type == ITEM_DATA_MAX_CLOTHES || record->type == ITEM_DATA_MONICA_CLOTHES;
-        if (!IsSkinItem(record->type) || EnvOn("DC2_ITEM_ICONS_3D_NO_SKINS") || (outfit && !EnvOn("DC2_ITEM_ICONS_3D_OUTFITS"))) {
+        if (!IsSkinItem(record->type) || EnvOn("DC2_ITEM_ICONS_3D_NO_SKINS")) {
             return false;
         }
         char *skin = GetItemFilePath(item_no, 0);
@@ -329,7 +330,7 @@ bool Render(int item_no, mgCTexture *icon) {
     float pose[3] = {0.0f, 0.0f, 0.0f};
     if (record->type == ITEM_DATA_MAX_HAT || record->type == ITEM_DATA_MONICA_ACCESSORY) {
         // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
-        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", -1.0f);
+        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", -1.57f);
     }
     float tip = weapon ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
     float roll_angle = 0.0f;
@@ -378,7 +379,7 @@ bool Render(int item_no, mgCTexture *icon) {
         }
         std::memcpy(pose, best_pose, sizeof pose);
         measure();
-    } else if (record->type == ITEM_DATA_ROBO_ARM) {
+    } else if (record->type == ITEM_DATA_ROBO_ARM || IsFootwear(record->type)) {
         // The pair lies side by side across the model, so it is shown square on, or the left half would not be an arm.
         pose[1] = 0.0f;
         measure();
@@ -398,7 +399,8 @@ bool Render(int item_no, mgCTexture *icon) {
         measure();
     }
     // A robo arm's model is the pair side by side; the icon is the one on the left, the right left outside the picture.
-    const bool pair = record->type == ITEM_DATA_ROBO_ARM;
+    // A robo arm's model is the pair side by side, and so are shoes and boots; one of the two is the icon.
+    const bool pair = record->type == ITEM_DATA_ROBO_ARM || IsFootwear(record->type);
     if (pair) {
         box_hi[0] = (box_lo[0] + box_hi[0]) * 0.5f;
     }
@@ -559,6 +561,25 @@ bool Render(int item_no, mgCTexture *icon) {
         mgSetAmbient(ambient);
     }
     mgDrawDirect(&root);
+    if (skinned && !IsFootwear(item_record->type)) {
+        // An outfit's skin brings along feet, hair and the like beyond the part that is the icon: only the box of the jacket
+        // or dress is kept, the rest of the picture wiped.
+        const float centre = static_cast<float>(kScratch) * 0.5f;
+        const float half_x = (box_hi[0] - box_lo[0]) * 0.5f * scale * pixels_per_unit + 6.0f;
+        const float half_y = (box_hi[1] - box_lo[1]) * 0.5f * scale * pixels_per_unit + 6.0f;
+        const float full = static_cast<float>(kScratch);
+        const uint8_t wipe[4] = {0, 0x80, 0, 0x80};
+        const uint8_t *colour = EnvOn("DC2_ITEM_ICONS_3D_RED") ? wipe : none;
+        const gfx::LogicalRect bands[4] = {{0.0f, 0.0f, full, std::max(0.0f, centre - half_y)},
+                                           {0.0f, centre + half_y, full, std::max(0.0f, full - centre - half_y)},
+                                           {0.0f, 0.0f, std::max(0.0f, centre - half_x), full},
+                                           {centre + half_x, 0.0f, std::max(0.0f, full - centre - half_x), full}};
+        for (const auto &band : bands) {
+            if (band.w > 0.0f && band.h > 0.0f) {
+                gfx::Clear(true, colour, false, 0.0f, &band);
+            }
+        }
+    }
     if (pair) {
         // What the arm on the right left over at the crop's edge is wiped, from the plane between them.
         const float split = static_cast<float>(kScratch) * 0.5f + (box_hi[0] - mid[0]) * scale * pixels_per_unit;

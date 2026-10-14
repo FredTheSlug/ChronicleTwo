@@ -23,6 +23,7 @@
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "userdata.hpp"
 
 void MenuWorldTrans(); // menumain.cpp
 
@@ -67,6 +68,18 @@ const char         *SheetPath() {
     return path != nullptr && path[0] != 0 ? path : nullptr;
 }
 
+
+// Clothes and shoes are skins laid over the character's own model, not models of their own.
+bool IsSkinItem(int item_type) {
+    return item_type == ITEM_DATA_MAX_CLOTHES || item_type == ITEM_DATA_MONICA_CLOTHES || item_type == ITEM_DATA_MAX_SHOES ||
+           item_type == ITEM_DATA_MONICA_BOOTS;
+}
+
+std::vector<unsigned char> &SkinStorage() {
+    static std::vector<unsigned char> storage(static_cast<std::size_t>(kWorkQuadwords) * 16 + 128);
+    return storage;
+}
+
 // The model's file, or false where the item has none that is a thing of its own (a costume is a whole character).
 bool ModelPath(int item_no, char *path, std::size_t size) {
     CDataCommon *record = GameItemDataManage.GetCommonData(item_no);
@@ -74,8 +87,18 @@ bool ModelPath(int item_no, char *path, std::size_t size) {
         return false;
     }
     const int type = ConvertUsedItemType(record->type);
-    if (type == USED_ITEM_TYPE_COSTUME) {
-        return false;
+    // A hat or a hair accessory is a model of its own (the game hangs it on the character's head); clothes and shoes are
+    // skins on the character and are drawn another way.
+    if (type == USED_ITEM_TYPE_COSTUME && record->type != ITEM_DATA_MAX_HAT && record->type != ITEM_DATA_MONICA_ACCESSORY) {
+        if (!IsSkinItem(record->type) || EnvOn("DC2_ITEM_ICONS_3D_NO_SKINS")) {
+            return false;
+        }
+        char *skin = GetItemFilePath(item_no, 0);
+        if (skin == nullptr || skin[0] == 0) {
+            return false;
+        }
+        std::snprintf(path, size, "%s", skin);
+        return true;
     }
     // A weapon or a robo part has a model made for the item view; the rest are the one model.
     char *variant = GetItemFilePath(item_no, 1);
@@ -169,6 +192,17 @@ bool Render(int item_no, mgCTexture *icon) {
     stack.lock = 0;
     u_long128 *buffer = stack.stGetTop();
     int        file_size = 0;
+    CDataCommon *item_record = GameItemDataManage.GetCommonData(item_no);
+    const bool   skinned = item_record != nullptr && IsSkinItem(item_record->type);
+    char         skin_path[0x80] = {};
+    if (skinned) {
+        // The character's own model is what the skin is laid on; the item's file is the skin.
+        std::snprintf(skin_path, sizeof skin_path, "%s", path);
+        char model_name[32] = {};
+        const bool max = item_record->type == ITEM_DATA_MAX_CLOTHES || item_record->type == ITEM_DATA_MAX_SHOES;
+        GetMainCharaModelName(max ? USER_CHARA_MAX : USER_CHARA_MONICA, model_name, 0);
+        std::snprintf(path, sizeof path, "mainchr/%s", model_name);
+    }
     if (!LoadFile2(path, buffer, &file_size, LOAD_FILE_READ) || file_size <= 0) {
         // A weapon without an item-view model falls back to the one it is held by.
         char *plain = GetItemFilePath(item_no, 0);
@@ -191,6 +225,16 @@ bool Render(int item_no, mgCTexture *icon) {
     std::strcpy(mgTexManager.name_suffix, "_menu");
     chara->LoadPack(reinterpret_cast<u_int *>(buffer), cfg, &stack, &stack, &stack, kModelBlock, nullptr);
     mgTexManager.name_suffix[0] = 0;
+    if (skinned) {
+        auto *skin_base = reinterpret_cast<u_long128 *>((reinterpret_cast<std::uintptr_t>(SkinStorage().data()) + 63) & ~std::uintptr_t{63});
+        int   skin_size = 0;
+        if (LoadFile2(skin_path, skin_base, &skin_size, LOAD_FILE_READ) && skin_size > 0) {
+            char empty[] = "";
+            chara->LoadSkin(reinterpret_cast<unsigned int *>(skin_base), cfg, empty, &stack, kModelBlock);
+        } else if (Debug()) {
+            std::fprintf(stderr, "dc2 item icon 3d: item %d: no skin %s\n", item_no, skin_path);
+        }
+    }
     mgCFrame *frame = chara->CObjectFrame::frame;
     if (frame == nullptr) {
         if (Debug()) {

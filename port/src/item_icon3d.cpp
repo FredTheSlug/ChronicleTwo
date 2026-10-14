@@ -62,6 +62,9 @@ int                 g_serial = 0;
 
 constexpr int       kSheetColumns = 10, kSheetRows = 8, kSheetCell = 128;
 std::vector<int>    g_sheet_items;
+std::vector<std::string> g_sheet_labels;
+int                g_only_index = -1;   // debug: draw only the nth model part of the item
+std::string        g_part_name;
 gfx::TextureHandle  g_sheet = gfx::kNullTexture;
 const char         *SheetPath() {
     const char *path = std::getenv("DC2_ITEM_ICONS_3D_SHEET");
@@ -242,6 +245,28 @@ bool Render(int item_no, mgCTexture *icon) {
         }
         mgTexManager.DeleteBlock(kModelBlock);
         return false;
+    }
+    g_part_name.clear();
+    if (g_only_index >= 0) {
+        int                                 index = 0;
+        std::function<void(mgCFrame *)>     walk = [&](mgCFrame *node) {
+            for (; node != nullptr; node = node->brother) {
+                if (node->visual != nullptr && node->attr != nullptr) {
+                    if (index == g_only_index) {
+                        g_part_name = node->name != nullptr ? node->name : "?";
+                    } else {
+                        node->attr->draw &= ~MG_FRAME_DRAW_VISIBLE;
+                    }
+                    index++;
+                }
+                walk(node->child);
+            }
+        };
+        walk(frame);
+        if (g_part_name.empty()) {
+            mgTexManager.DeleteBlock(kModelBlock);
+            return false;
+        }
     }
     CDataCommon *record = GameItemDataManage.GetCommonData(item_no);
     const int    type = ConvertUsedItemType(record->type);
@@ -521,6 +546,7 @@ bool Render(int item_no, mgCTexture *icon) {
                              {(cell % kSheetColumns) * kSheetCell, (cell / kSheetColumns) * kSheetCell, kSheetCell, kSheetCell},
                              gfx::Filter::Linear);
             g_sheet_items.push_back(item_no);
+            g_sheet_labels.push_back(g_part_name);
         }
     }
 
@@ -551,6 +577,16 @@ mgCTexture *ItemIcon3DTexture(int item_no) {
     if (SheetPath() != nullptr && !all_started) {
         all_started = true;
         const int first = static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_SHEET_FIRST", 1.0f));
+        const int parts_item = static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_PARTS_ITEM", -1.0f));
+        if (parts_item > 0) {
+            // Debug: each model part of one item drawn alone, to learn which is which.
+            mgCTexture *scratch_icon = mgTexManager.EnterTexture(kIconBlock, "item3d parts", nullptr, kIcon, kIcon, 32, nullptr, 0, 0);
+            for (int part = 0; part < kSheetColumns * kSheetRows && scratch_icon != nullptr; part++) {
+                g_only_index = part;
+                Render(parts_item, scratch_icon);
+            }
+            g_only_index = -1;
+        }
         for (int id = first; id < first + 400 && static_cast<int>(g_sheet_items.size()) < kSheetColumns * kSheetRows; id++) {
             ItemIcon3DTexture(id);
         }
@@ -592,7 +628,8 @@ void ItemIcons3DDumpSheet() {
     if (FILE *file = std::fopen(list.c_str(), "w")) {
         for (std::size_t i = 0; i < g_sheet_items.size(); i++) {
             CDataCommon *record = GameItemDataManage.GetCommonData(g_sheet_items[i]);
-            std::fprintf(file, "%zu item %d %s\n", i, g_sheet_items[i], record != nullptr && record->file_name != nullptr ? record->file_name : "");
+            std::fprintf(file, "%zu item %d %s %s\n", i, g_sheet_items[i], record != nullptr && record->file_name != nullptr ? record->file_name : "",
+                         i < g_sheet_labels.size() ? g_sheet_labels[i].c_str() : "");
         }
         std::fclose(file);
     }

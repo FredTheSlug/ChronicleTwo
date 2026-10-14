@@ -65,6 +65,8 @@ std::vector<int>    g_sheet_items;
 std::vector<std::string> g_sheet_labels;
 int                g_only_index = -1;   // debug: draw only the nth model part of the item
 std::string        g_part_name;
+bool               g_force_pose = false;     // debug: draw in the pose in g_forced, searching for none
+float              g_forced[3] = {0, 0, 0};
 bool               g_box_from_bound = false; // a skin's vertices are in the bones' space, so its stored bound is used
 gfx::TextureHandle  g_sheet = gfx::kNullTexture;
 const char         *SheetPath() {
@@ -346,47 +348,37 @@ bool Render(int item_no, mgCTexture *icon) {
         bool any = false;
         DrawnBox(frame, box_lo, box_hi, any);
         if (skinned && !IsFootwear(item_record->type)) {
-            // An outfit's skin is the whole body's clothes; the icon is the torso, from the hips (the knees, for a dress) up
-            // past the shoulders, so the box is taken from the character's own joints.
-            const char *joints[6] = {"neck", "hip", "R_sdr", "L_sdr", "R_hand", "L_hand"};
-            float       lo[3] = {}, hi[3] = {};
-            float       neck_y = 0.0f, hip_y = 0.0f;
-            int         found = 0;
-            for (const char *joint : joints) {
-                mgCFrame *bone = chara->SearchObject(const_cast<char *>(joint));
+            // An outfit's skin is the whole body's clothes; the icon is the upper torso, from the chest to the neck with the
+            // shoulders and upper arms, so the box is taken from the character's own joints.
+            float neck[3] = {}, spine[3] = {}, right[3] = {}, left[3] = {};
+            bool  have[4] = {false, false, false, false};
+            float *targets[4] = {neck, spine, right, left};
+            const char *joints[4] = {"neck", "spine", "R_sdr", "L_sdr"};
+            for (int j = 0; j < 4; j++) {
+                mgCFrame *bone = chara->SearchObject(const_cast<char *>(joints[j]));
                 if (bone == nullptr) {
                     continue;
                 }
                 float matrix[4][4], origin[4] = {0.0f, 0.0f, 0.0f, 1.0f}, world[4];
                 bone->GetLWMatrix(matrix);
                 sceVu0ApplyMatrix(world, matrix, origin);
-                if (std::strcmp(joint, "neck") == 0) {
-                    neck_y = world[1];
-                } else if (std::strcmp(joint, "hip") == 0) {
-                    hip_y = world[1];
-                }
                 for (int i = 0; i < 3; i++) {
-                    if (found == 0 || world[i] < lo[i]) {
-                        lo[i] = world[i];
-                    }
-                    if (found == 0 || world[i] > hi[i]) {
-                        hi[i] = world[i];
-                    }
+                    targets[j][i] = world[i];
                 }
-                found++;
+                have[j] = true;
             }
-            if (found >= 4) {
-                const float height = std::max(0.001f, hi[1] - lo[1]);
-                const float below = item_record->type == ITEM_DATA_MONICA_CLOTHES ? EnvFloat("DC2_ITEM_ICONS_3D_DRESS_DROP", 0.5f) : 0.05f;
-                const float margin = (hi[0] - lo[0]) * 0.3f;
-                box_lo[0] = lo[0] - margin;
-                box_hi[0] = hi[0] + margin;
-                box_lo[1] = lo[1] - below * height;
-                box_hi[1] = hi[1] + 0.3f * height;
-                box_lo[2] = lo[2];
-                box_hi[2] = hi[2];
-                (void) neck_y;
-                (void) hip_y;
+            if (have[0] && have[1] && have[2] && have[3]) {
+                const float dx = right[0] - left[0], dy = right[1] - left[1], dz = right[2] - left[2];
+                const float shoulders = std::sqrt(dx * dx + dy * dy + dz * dz);
+                const float rise = std::max(0.001f, std::fabs(neck[1] - spine[1]));
+                const float centre_x = (right[0] + left[0]) * 0.5f;
+                const float half_w = shoulders * 0.5f * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.9f);
+                box_lo[0] = centre_x - half_w;
+                box_hi[0] = centre_x + half_w;
+                box_lo[1] = std::min(neck[1], spine[1]) - EnvFloat("DC2_ITEM_ICONS_3D_TORSO_BELOW", 0.1f) * rise;
+                box_hi[1] = std::max(neck[1], spine[1]) + EnvFloat("DC2_ITEM_ICONS_3D_TORSO_ABOVE", 0.5f) * rise;
+                box_lo[2] = std::min(neck[2], spine[2]) - shoulders;
+                box_hi[2] = std::max(neck[2], spine[2]) + shoulders;
                 any = true;
             }
         }
@@ -444,6 +436,10 @@ bool Render(int item_no, mgCTexture *icon) {
         measure();
     }
     // A robo arm's model is the pair side by side; the icon is the one on the left, the right left outside the picture.
+    if (g_force_pose) {
+        std::memcpy(pose, g_forced, sizeof pose);
+        measure();
+    }
     // A robo arm's model is the pair side by side, and so are shoes and boots; one of the two is the icon.
     const bool pair = record->type == ITEM_DATA_ROBO_ARM || IsFootwear(record->type);
     if (pair) {
@@ -451,7 +447,7 @@ bool Render(int item_no, mgCTexture *icon) {
     }
     // Turned in the picture plane to the angle that takes the least room (a long thin model fits best along the diagonal),
     // so it can be drawn larger. The first of equals is the one turned the least, so upright models stay upright.
-    if (!pair && !skinned) {
+    if (!pair && !skinned && !g_force_pose) {
         float best_extent = 0.0f, best_roll = 0.0f;
         for (int step = -6; step <= 6; step++) {
             roll_angle = step * 0.2618f;
@@ -683,6 +679,19 @@ mgCTexture *ItemIcon3DTexture(int item_no) {
     if (SheetPath() != nullptr && !all_started) {
         all_started = true;
         const int first = static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_SHEET_FIRST", 1.0f));
+        const int poses_item = static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_POSES_ITEM", -1.0f));
+        if (poses_item > 0) {
+            // Debug: one item in each of the 64 axis-aligned turns, to find which way up it is made.
+            mgCTexture *pose_icon = mgTexManager.EnterTexture(kIconBlock, "item3d poses", nullptr, kIcon, kIcon, 32, nullptr, 0, 0);
+            for (int n = 0; n < 64 && pose_icon != nullptr; n++) {
+                g_force_pose = true;
+                g_forced[0] = (n / 16) * 1.5707964f;
+                g_forced[1] = ((n / 4) % 4) * 1.5707964f;
+                g_forced[2] = (n % 4) * 1.5707964f;
+                Render(poses_item, pose_icon);
+            }
+            g_force_pose = false;
+        }
         const int parts_item = static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_PARTS_ITEM", -1.0f));
         if (parts_item > 0) {
             // Debug: each model part of one item drawn alone, to learn which is which.

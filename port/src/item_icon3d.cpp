@@ -94,7 +94,9 @@ bool ModelPath(int item_no, char *path, std::size_t size) {
     // A hat or a hair accessory is a model of its own (the game hangs it on the character's head); clothes and shoes are
     // skins on the character and are drawn another way.
     if (type == USED_ITEM_TYPE_COSTUME && record->type != ITEM_DATA_MAX_HAT && record->type != ITEM_DATA_MONICA_ACCESSORY) {
-        if (!IsSkinItem(record->type) || EnvOn("DC2_ITEM_ICONS_3D_NO_SKINS")) {
+        // Monica's outfits keep the picture on the icon sheet: their skins carry her hair with them.
+        if (!IsSkinItem(record->type) || EnvOn("DC2_ITEM_ICONS_3D_NO_SKINS") ||
+            (record->type == ITEM_DATA_MONICA_CLOTHES && !EnvOn("DC2_ITEM_ICONS_3D_MONICA_CLOTHES"))) {
             return false;
         }
         char *skin = GetItemFilePath(item_no, 0);
@@ -255,9 +257,7 @@ bool Render(int item_no, mgCTexture *icon) {
         const char *keep[3] = {nullptr, nullptr, nullptr};
         switch (item_record->type) {
             case ITEM_DATA_MAX_CLOTHES:
-                keep[0] = "skin1";
-                keep[1] = "R_asi";
-                keep[2] = "L_asi";
+                keep[0] = "skin1"; // the jacket and arms; the legs and feet are left out so it can be drawn larger
                 break;
             case ITEM_DATA_MONICA_CLOTHES:
                 keep[0] = "skin1";

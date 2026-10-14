@@ -206,6 +206,18 @@ the row does not query the disk. Loading always rereads the
 complete image and checks the retail digits before changing game state. Files
 are never removed automatically; unrelated names and temporary files are not rows.
 
+The autosave is `<save root>/saves/autosave`, the same image as a numbered
+save, and never written by the save screen. It is written as a town save
+whenever a town starts without an entry event, and as a dungeon save
+(`LOOP_DUNGEON`, `dng_tree_flag` 0) once on each floor, the first frame the
+player has control there. Loading the dungeon one takes retail's path for a
+save made on a floor: the title enters the saved dungeon and floor with
+`mc_load` set. Its counter is the newest, so the load screen, which lists it
+first as "Autosave", starts on it until a later save; choosing it loads at once,
+as it has no file number for the confirmation to name. `game.autosave` (PC
+Settings, Game page) turns it off; headless, `--jump`, input-script and replay
+runs never write it.
+
 On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
 copied byte for byte into new flat files in `saves/`, using exclusive creation.
 The equivalent files from `mc1` get a `.card2` suffix and an `(import 2)` label,
@@ -400,6 +412,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | Key | Type | Default | Values | Meaning |
 |---|---|---|---|---|
 | `game.debug_mode` | bool | false | | the boot debug unlock, and the pad-1 chord; see [DEBUG.md](DEBUG.md) |
+| `game.autosave` | bool | true | | write the autosave on arriving in a town or on a dungeon floor |
 | `video.present_mode` | string | fifo | fifo, mailbox, immediate | Vulkan present mode |
 | `video.interpolation` | bool | true | | interpolate display frames between ticks |
 | `video.max_fps` | number | 0 | 0 or more | display frame cap; 0 is unlimited |
@@ -475,6 +488,7 @@ The PC page uses the game's font and Options artwork. L1/R1 changes tabs, Up/Dow
 | Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, FPS counter |
 | Audio | Master volume and PS2/custom soundtrack |
 | Controls | Mouse sensitivity, Y inversion and capture; stick sensitivity and X/Y inversion; button symbols and glyph style |
+| Game | Autosave |
 | Bindings | Keyboard and mouse bindings for pad buttons, movement, look, FPS and debug menu |
 
 Edits save to `config.json` and apply immediately. Soundtrack selection takes effect the next time a song starts, including one whose data is already loaded. Custom recordings use the original `.sq` filename in `soundtrack/soundtrack.json`; an absent or invalid recording falls back to the PS2 sequence. Current music is not restarted by moving the setting.

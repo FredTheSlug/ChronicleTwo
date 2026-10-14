@@ -25,7 +25,64 @@ int Digit(const CSaveData &save, std::size_t size) {
     }
     return digit;
 }
+
+unsigned long long MaxUniqueCounter(const SaveSlotList &list) {
+    unsigned long long newest = 0;
+    for (const auto &slot : list.saves) {
+        if (slot.state == SaveSlotState::Ready && slot.info.state) {
+            newest = std::max(newest, slot.info.unique_counter);
+        }
+    }
+    return newest;
+}
+
+// The port's existing save image, unchanged: no PC metadata is embedded in the payload.
+void BuildImage(SAVEDATA_FORMAT &image, int program_loop_no, unsigned long long newest) {
+    auto &save = *GetSaveData();
+    std::memset(&image, 0, sizeof(image));
+    std::strcpy(image.version, "dc2Ver4");
+    std::memcpy(&image.save_data, &save, sizeof(save));
+    if (save.GetBitFlag(SAVE_FLAG_COSTUME_UNLOCK)) {
+        image.costume_bit = save.user_data.GetCostumeBit();
+        image.omake_flag |= OMAKE_ENABLE_COSTUME | OMAKE_ENABLE_DUNGEON;
+    }
+    if (save.GetBitFlag(SAVE_FLAG_FINNY_FRENZY_UNLOCKED)) {
+        image.omake_flag |= OMAKE_ENABLE_GYORACE;
+    }
+    image.dng_tree_flag = dungeon_tree_flag;
+    image.unique_counter = newest == std::numeric_limits<unsigned long long>::max() ? newest : newest + 1;
+    image.progress = save.game_progress;
+    image.fish_num = save.user_data.CountFish();
+    image.program_loop_no = program_loop_no;
+    image.map_no = save.map_no;
+    image.dungeon_no = save.save_dungeon.stage_id;
+    if (image.dungeon_no >= 0 && image.dungeon_no < SAVE_DUNGEON_NUM) {
+        image.floor_id = save.save_dungeon.floor_id[image.dungeon_no];
+    }
+    image.check_digit_half = Digit(image.save_data, sizeof(CSaveData) / 2);
+    image.check_digit = Digit(image.save_data, sizeof(CSaveData));
+}
+// Every save's, the autosave's included, so that the newest save is the one written last.
+unsigned long long NewestCounter() {
+    const bool listed = SaveSlotListAutosave;
+    SaveSlotListAutosave = true;
+    const auto list = SaveSlotScan();
+    SaveSlotListAutosave = listed;
+    return MaxUniqueCounter(list);
+}
 } // namespace
+
+bool SaveSlotWriteAutosave(int program_loop_no) {
+    if (FilesCreateDirectory(SaveSlotsRoot()) == FilesResult::kFailed) {
+        return false;
+    }
+    auto image = std::make_unique<SAVEDATA_FORMAT>();
+    BuildImage(*image, program_loop_no, NewestCounter());
+    if (program_loop_no == LOOP_DUNGEON) {
+        image->dng_tree_flag = 0;
+    }
+    return SaveSlotWrite(SaveSlotAutosavePath(), *image, true) == FilesResult::kWritten;
+}
 
 CMemoryCardManager *SaveSlotManager() { return active_manager; }
 
@@ -54,13 +111,7 @@ PORT_OVERRIDE int CMemoryCardManager::GetAllSaveFileInfo() {
 }
 
 PORT_OVERRIDE unsigned long long CMemoryCardManager::CheckMaxUniqueCounter() {
-    unsigned long long newest = 0;
-    for (const auto &slot : SaveSlots.saves) {
-        if (slot.state == SaveSlotState::Ready && slot.info.state) {
-            newest = std::max(newest, slot.info.unique_counter);
-        }
-    }
-    return newest;
+    return MaxUniqueCounter(SaveSlots);
 }
 
 PORT_OVERRIDE int CMemoryCardManager::GetUpdateFile() {
@@ -119,32 +170,8 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
     }
 
     auto &image = *save_buffer;
-    auto &save = *GetSaveData();
-    // The port's existing save image, unchanged: no PC metadata is embedded in
-    // the payload. Publish it only after the complete header and digits exist.
-    std::memset(&image, 0, sizeof(image));
-    std::strcpy(image.version, "dc2Ver4");
-    std::memcpy(&image.save_data, &save, sizeof(save));
-    if (save.GetBitFlag(SAVE_FLAG_COSTUME_UNLOCK)) {
-        image.costume_bit = save.user_data.GetCostumeBit();
-        image.omake_flag |= OMAKE_ENABLE_COSTUME | OMAKE_ENABLE_DUNGEON;
-    }
-    if (save.GetBitFlag(SAVE_FLAG_FINNY_FRENZY_UNLOCKED)) {
-        image.omake_flag |= OMAKE_ENABLE_GYORACE;
-    }
-    image.dng_tree_flag = dungeon_tree_flag;
-    auto newest = CheckMaxUniqueCounter();
-    image.unique_counter = newest == std::numeric_limits<unsigned long long>::max() ? newest : newest + 1;
-    image.progress = save.game_progress;
-    image.fish_num = save.user_data.CountFish();
-    image.program_loop_no = NowProgramLoopNo;
-    image.map_no = save.map_no;
-    image.dungeon_no = save.save_dungeon.stage_id;
-    if (image.dungeon_no >= 0 && image.dungeon_no < SAVE_DUNGEON_NUM) {
-        image.floor_id = save.save_dungeon.floor_id[image.dungeon_no];
-    }
-    image.check_digit_half = Digit(image.save_data, sizeof(CSaveData) / 2);
-    image.check_digit = Digit(image.save_data, sizeof(CSaveData));
+    // Publish it only after the complete header and digits exist.
+    BuildImage(image, NowProgramLoopNo, std::max(CheckMaxUniqueCounter(), NewestCounter()));
 
     std::filesystem::path path;
     FilesResult           result = FilesResult::kFailed;

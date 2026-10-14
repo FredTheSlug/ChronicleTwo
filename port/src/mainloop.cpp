@@ -35,7 +35,9 @@
 #include "platform/arena.hpp"
 #include "platform/config.hpp"
 #include "platform/input.hpp"
+#include "platform/paths.hpp"
 #include "play_time.hpp"
+#include "save_slots.hpp"
 #include "savedata.hpp"
 #include "scene.hpp"
 #include "scenesnd.hpp"
@@ -44,6 +46,33 @@
 #include "test_hooks.hpp"
 #include "userdata.hpp"
 #include "vlgr_info.hpp"
+
+bool PortAutosave = false;
+
+namespace {
+
+int g_autosaved_floor = -1;
+
+void WriteAutosave(int program_loop_no) {
+    if (PortAutosave && ConfigGet().autosave && PortCaptureMode == CAPTURE_OFF && !SaveSlotWriteAutosave(program_loop_no)) {
+        std::fprintf(stderr, "autosave: could not write %s\n", PathsDisplay(SaveSlotAutosavePath()).c_str());
+    }
+}
+
+// Once per floor, the first frame the player has control on it.
+void AutosaveFloor() {
+    const CSaveDataDungeon &dungeon = GetSaveData()->save_dungeon;
+    if (DngStatus.mode != DNG_STATUS_FIELD || dungeon.stage_id < 0 || dungeon.stage_id >= SAVE_DUNGEON_NUM) {
+        return;
+    }
+    const int floor = dungeon.stage_id * 1000 + dungeon.floor_id[dungeon.stage_id];
+    if (floor != g_autosaved_floor) {
+        g_autosaved_floor = floor;
+        WriteAutosave(LOOP_DUNGEON);
+    }
+}
+
+} // namespace
 
 extern u_long128     main_buffer[0x1A0000];
 extern CScene        MainScene;
@@ -271,6 +300,10 @@ PORT_OVERRIDE void MainLoop() {
         mgPortCutInterpolation();
         LoopInit[PortLoopNo](InitArg);
         GameGiveOnArrival(PortLoopNo);
+        if (PortLoopNo == LOOP_EDIT && InitArg.event_no < 0) {
+            WriteAutosave(LOOP_EDIT);
+        }
+        g_autosaved_floor = -1;
         INIT_LOOP_ARG next_arg;
 
         NextLoop(LOOP_MENU, next_arg);
@@ -354,6 +387,9 @@ PORT_OVERRIDE void MainLoop() {
             if (mode_finished != 0) {
                 PauseCancel();
                 break;
+            }
+            if (PortLoopNo == LOOP_DUNGEON) {
+                AutosaveFloor();
             }
 
             if (GamePad__2.On(PAD_CIRCLE)) {

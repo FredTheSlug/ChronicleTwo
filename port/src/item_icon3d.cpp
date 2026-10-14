@@ -451,7 +451,7 @@ bool Render(int item_no, mgCTexture *icon) {
     }
     // Turned in the picture plane to the angle that takes the least room (a long thin model fits best along the diagonal),
     // so it can be drawn larger. The first of equals is the one turned the least, so upright models stay upright.
-    if (!pair) {
+    if (!pair && !skinned) {
         float best_extent = 0.0f, best_roll = 0.0f;
         for (int step = -6; step <= 6; step++) {
             roll_angle = step * 0.2618f;

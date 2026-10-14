@@ -65,6 +65,7 @@ std::vector<int>    g_sheet_items;
 std::vector<std::string> g_sheet_labels;
 int                g_only_index = -1;   // debug: draw only the nth model part of the item
 std::string        g_part_name;
+bool               g_box_from_bound = false; // a skin's vertices are in the bones' space, so its stored bound is used
 gfx::TextureHandle  g_sheet = gfx::kNullTexture;
 const char         *SheetPath() {
     const char *path = std::getenv("DC2_ITEM_ICONS_3D_SHEET");
@@ -144,7 +145,7 @@ void DrawnBox(mgCFrame *node, float lo[3], float hi[3], bool &any) {
             // The stored bound is loose for some models (a robo arm's is far larger than the arm), so the model's own vertices
             // are used where it has them; the bound's corners are the fallback.
             const mgCVisualMDT *mdt = dynamic_cast<const mgCVisualMDT *>(node->visual);
-            const bool          vertices = mdt != nullptr && mdt->vertex != nullptr && mdt->vertex_num > 0 && !EnvOn("DC2_ITEM_ICONS_3D_BOUND_BOX");
+            const bool          vertices = mdt != nullptr && mdt->vertex != nullptr && mdt->vertex_num > 0 && !g_box_from_bound && !EnvOn("DC2_ITEM_ICONS_3D_BOUND_BOX");
             const int           count = vertices ? mdt->vertex_num : 8;
             for (int n = 0; n < count; n++) {
                 float point[4];
@@ -247,6 +248,7 @@ bool Render(int item_no, mgCTexture *icon) {
         return false;
     }
     g_part_name.clear();
+    g_box_from_bound = skinned;
     if (skinned && g_only_index < 0) {
         // Only the item's own parts of the character are drawn: the jacket or dress, the shoes or boots. The rest of the
         // character (and the stand-in triangles the skin leaves in the other slots) stays hidden.
@@ -323,7 +325,7 @@ bool Render(int item_no, mgCTexture *icon) {
     float pose[3] = {0.0f, 0.0f, 0.0f};
     if (record->type == ITEM_DATA_MAX_HAT || record->type == ITEM_DATA_MONICA_ACCESSORY) {
         // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
-        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", 0.0f);
+        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", -1.0f);
     }
     float tip = weapon ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
     float roll_angle = 0.0f;

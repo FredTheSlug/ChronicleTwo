@@ -247,6 +247,36 @@ bool Render(int item_no, mgCTexture *icon) {
         return false;
     }
     g_part_name.clear();
+    if (skinned && g_only_index < 0) {
+        // Only the item's own parts of the character are drawn: the jacket or dress, the shoes or boots. The rest of the
+        // character (and the stand-in triangles the skin leaves in the other slots) stays hidden.
+        const char *keep[2] = {nullptr, nullptr};
+        switch (item_record->type) {
+            case ITEM_DATA_MAX_CLOTHES:
+                keep[0] = "skin1";
+                break;
+            case ITEM_DATA_MONICA_CLOTHES:
+                keep[0] = "skin1";
+                keep[1] = "skin4";
+                break;
+            default: // shoes and boots
+                keep[0] = "skin3";
+                break;
+        }
+        std::function<void(mgCFrame *)> hide = [&](mgCFrame *node) {
+            for (; node != nullptr; node = node->brother) {
+                if (node->visual != nullptr && node->attr != nullptr) {
+                    const bool wanted = node->name != nullptr && ((keep[0] != nullptr && std::strcmp(node->name, keep[0]) == 0) ||
+                                                                  (keep[1] != nullptr && std::strcmp(node->name, keep[1]) == 0));
+                    if (!wanted) {
+                        node->attr->draw &= ~MG_FRAME_DRAW_VISIBLE;
+                    }
+                }
+                hide(node->child);
+            }
+        };
+        hide(frame);
+    }
     if (g_only_index >= 0) {
         int                                 index = 0;
         std::function<void(mgCFrame *)>     walk = [&](mgCFrame *node) {

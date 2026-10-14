@@ -382,7 +382,7 @@ bool Render(int item_no, mgCTexture *icon) {
                 const float centre_x = (right[0] + left[0]) * 0.5f;
                 // The shoulder joints sit at the neck, so the width comes from the chest's height.
                 (void) shoulders;
-                const float half_w = rise * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.0f);
+                const float half_w = rise * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.3f);
                 box_lo[0] = centre_x - half_w;
                 box_hi[0] = centre_x + half_w;
                 box_lo[1] = std::min(neck[1], spine[1]) - EnvFloat("DC2_ITEM_ICONS_3D_TORSO_BELOW", 0.0f) * rise;
@@ -428,7 +428,7 @@ bool Render(int item_no, mgCTexture *icon) {
         measure();
     } else if (record->type == ITEM_DATA_MAX_HAT) {
         // Crown up, turned a little so the visor comes round towards the viewer.
-        pose[1] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_YAW", -0.6f);
+        pose[1] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_YAW", -1.3f);
         measure();
     } else if (record->type == ITEM_DATA_ROBO_ARM || IsFootwear(record->type)) {
         // The pair lies side by side across the model, so it is shown square on, or the left half would not be an arm.

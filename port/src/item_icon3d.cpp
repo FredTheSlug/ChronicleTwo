@@ -293,10 +293,23 @@ bool Render(int item_no, mgCTexture *icon) {
     if (pair) {
         box_hi[0] = (box_lo[0] + box_hi[0]) * 0.5f;
     }
-    // Long and thin as seen: lay it along the diagonal, which is how the retail icons draw them.
-    const float width = box_hi[0] - box_lo[0], height = box_hi[1] - box_lo[1];
-    if (!pair && (width > 1.3f * height || height > 1.3f * width)) {
-        roll_angle = width > height ? 0.785f : -0.785f;
+    // Turned in the picture plane to the angle that takes the least room (a long thin model fits best along the diagonal),
+    // so it can be drawn larger. The first of equals is the one turned the least, so upright models stay upright.
+    if (!pair) {
+        float best_extent = 0.0f, best_roll = 0.0f;
+        for (int step = -6; step <= 6; step++) {
+            roll_angle = step * 0.2618f;
+            measure();
+            const float extent = std::max(box_hi[0] - box_lo[0], box_hi[1] - box_lo[1]);
+            if (step == -6 || extent < best_extent * 0.97f) {
+                best_extent = extent;
+                best_roll = roll_angle;
+            } else if (extent < best_extent * 1.03f && std::fabs(roll_angle) < std::fabs(best_roll)) {
+                best_extent = std::min(extent, best_extent);
+                best_roll = roll_angle;
+            }
+        }
+        roll_angle = best_roll;
         measure();
     }
     const float mid[3] = {(box_lo[0] + box_hi[0]) * 0.5f, (box_lo[1] + box_hi[1]) * 0.5f, (box_lo[2] + box_hi[2]) * 0.5f};

@@ -11,7 +11,7 @@ $names = @(Get-Content -LiteralPath (Join-Path $build 'windows-runtime-files.txt
 # These are OS components on supported Windows versions, not application redistributables.
 $system = @('advapi32.dll', 'bcrypt.dll', 'bcryptprimitives.dll', 'cfgmgr32.dll', 'combase.dll',
     'comctl32.dll', 'comdlg32.dll', 'crypt32.dll', 'd2d1.dll', 'd3d11.dll', 'dcomp.dll',
-    'dwmapi.dll', 'dwrite.dll', 'dxgi.dll', 'gdi32.dll', 'imm32.dll', 'kernel32.dll',
+    'dnsapi.dll', 'dwmapi.dll', 'dwrite.dll', 'dxgi.dll', 'gdi32.dll', 'imm32.dll', 'kernel32.dll',
     'msvcrt.dll', 'ntdll.dll', 'ole32.dll', 'oleaut32.dll', 'opengl32.dll', 'propsys.dll',
     'rpcrt4.dll', 'secur32.dll', 'setupapi.dll', 'shell32.dll', 'shlwapi.dll', 'user32.dll',
     'userenv.dll', 'uxtheme.dll', 'version.dll', 'winmm.dll', 'winspool.drv', 'ws2_32.dll')

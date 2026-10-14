@@ -205,6 +205,13 @@ the row does not query the disk. Loading always rereads the
 complete image and checks the retail digits before changing game state. Files
 are never removed automatically; unrelated names and temporary files are not rows.
 
+The autosave is `<save root>/saves/autosave`, the same image as a town save,
+written over whenever a town starts without an entry event, and never by the
+save screen. Its counter is the newest, so the load screen, which lists it
+first as "Autosave", starts on it until a later save; choosing it loads at once,
+as it has no file number for the confirmation to name. Headless, `--jump`,
+input-script and replay runs do not write it.
+
 On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
 copied byte for byte into new flat files in `saves/`, using exclusive creation.
 The equivalent files from `mc1` get a `.card2` suffix and an `(import 2)` label,

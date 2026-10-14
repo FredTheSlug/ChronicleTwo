@@ -335,6 +335,39 @@ TEST_F(SaveSlotTest, LoadBeyondRetailLimitRestoresPayloadAndTransition) {
     EXPECT_EQ(manager.load_dng_tree_flag, 1);
 }
 
+TEST_F(SaveSlotTest, AutosaveIsOneFileListedFirstForLoadingOnly) {
+    Write(SaveSlotPath(0));
+    live->map_no = 12;
+    ASSERT_TRUE(SaveSlotWriteAutosave());
+    ASSERT_TRUE(SaveSlotWriteAutosave());
+    EXPECT_TRUE(fs::is_regular_file(SaveSlotAutosavePath()));
+    EXPECT_EQ(FlatCount(), 1);
+
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(SaveSlots.saves.size(), 2);
+    EXPECT_TRUE(SaveSlots.saves[0].autosave);
+    EXPECT_EQ(SaveSlots.saves[0].info.unique_counter, 3);
+    EXPECT_EQ(manager.GetUpdateFile(), 0);
+    live->map_no = 0;
+    ASSERT_EQ(manager.LoadFromMc(0), MC_STEP_DONE);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(live->map_no, 12);
+    EXPECT_EQ(manager.load_program_loop_no, LOOP_EDIT);
+
+    // A save made after the autosave is the newest.
+    SaveSlotListAutosave = false;
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(SaveSlots.saves.size(), 1);
+    EXPECT_FALSE(SaveSlots.saves[0].autosave);
+    SaveSlotNew = true;
+    manager.SaveToMc(1);
+    ASSERT_EQ(manager.error.code, MC_ERROR_NONE);
+    SaveSlotListAutosave = true;
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(SaveSlots.saves.size(), 3);
+    EXPECT_EQ(SaveSlots.saves[manager.GetUpdateFile()].number, 1);
+}
+
 TEST_F(SaveSlotTest, FailedLoadDoesNotPartiallyReplaceLiveStateOrDeleteFile) {
     image->check_digit_half = 123456;
     Write(SaveSlotPath(0));

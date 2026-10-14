@@ -1,0 +1,516 @@
+#include "common.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <functional>
+#include <map>
+#include <string>
+#include <vector>
+
+#include "actionchara.hpp"
+#include "dataread.hpp"
+#include "gamedata.hpp"
+#include "gfx/gfx.hpp"
+#include "item_icon3d.hpp"
+#include "menumain.hpp"
+#include "mg_camera.hpp"
+#include "mg_frame.hpp"
+#include "mg_memory.hpp"
+#include "mg_texture.hpp"
+#include "mglib.hpp"
+#include "mglib_port.hpp"
+
+void MenuWorldTrans(); // menumain.cpp
+
+namespace {
+
+constexpr int kIcon = 32;
+constexpr int kScratch = 512;       // the scratch picture's side; the projection's aspect is made for a screen 512 wide
+constexpr int kCrop = 128;           // scratch pixels turned into one icon (4x4 each)
+constexpr float kFill = 120.0f;      // pixels across the model inside the crop
+constexpr int kModelBlock = 0xD1;    // a texture block nothing else loads into
+constexpr int kIconBlock = 0xD2;     // holds every icon's texture
+constexpr int kWorkQuadwords = 0x100000; // 16 MiB of model, motion and image data per draw
+
+bool EnvOn(const char *name) {
+    const char *value = std::getenv(name);
+    return value != nullptr && value[0] != 0 && value[0] != '0';
+}
+
+float EnvFloat(const char *name, float fallback) {
+    const char *text = std::getenv(name);
+    return text != nullptr ? static_cast<float>(std::atof(text)) : fallback;
+}
+
+bool Debug() {
+    static const bool on = EnvOn("DC2_ITEM_ICONS_3D_DEBUG");
+    return on;
+}
+
+struct Icon {
+    mgCTexture *texture = nullptr;
+    bool        failed = false;
+};
+
+std::map<int, Icon> g_icons;
+int                 g_serial = 0;
+
+constexpr int       kSheetColumns = 10, kSheetRows = 8, kSheetCell = 128;
+std::vector<int>    g_sheet_items;
+gfx::TextureHandle  g_sheet = gfx::kNullTexture;
+const char         *SheetPath() {
+    const char *path = std::getenv("DC2_ITEM_ICONS_3D_SHEET");
+    return path != nullptr && path[0] != 0 ? path : nullptr;
+}
+
+// The model's file, or false where the item has none that is a thing of its own (a costume is a whole character).
+bool ModelPath(int item_no, char *path, std::size_t size) {
+    CDataCommon *record = GameItemDataManage.GetCommonData(item_no);
+    if (record == nullptr || record->file_name == nullptr || record->file_name[0] == 0) {
+        return false;
+    }
+    const int type = ConvertUsedItemType(record->type);
+    if (type == USED_ITEM_TYPE_COSTUME) {
+        return false;
+    }
+    // A weapon or a robo part has a model made for the item view; the rest are the one model.
+    char *variant = GetItemFilePath(item_no, 1);
+    char  probe[0x80];
+    if (variant != nullptr && variant[0] != 0 && (type == USED_ITEM_TYPE_WEAPON || type == USED_ITEM_TYPE_ROBO_PART)) {
+        std::snprintf(probe, sizeof probe, "%s", variant);
+        std::snprintf(path, size, "%s", probe);
+        return true;
+    }
+    char *plain = GetItemFilePath(item_no, 0);
+    if (plain == nullptr || plain[0] == 0) {
+        return false;
+    }
+    std::snprintf(path, size, "%s", plain);
+    // The treasure chest's model stands in for items that have none of their own.
+    return std::strstr(path, "d_box") == nullptr;
+}
+
+std::vector<unsigned char> &WorkStorage() {
+    static std::vector<unsigned char> storage(static_cast<std::size_t>(kWorkQuadwords) * 16 + 128);
+    return storage;
+}
+
+mgCCamera *IconCamera() {
+    static mgCCamera camera(1.0f);
+    return &camera;
+}
+
+// The box of what is drawn: the frames the draw flags show (a frame the parent skips, such as a light's cone, is not drawn
+// and is often far larger than the model), each corner taken to world space.
+void DrawnBox(mgCFrame *node, float lo[3], float hi[3], bool &any) {
+    for (; node != nullptr; node = node->brother) {
+        const int draw = node->attr != nullptr ? node->attr->draw : MG_FRAME_DRAW_VISIBLE;
+        if (node->attr != nullptr && (draw & MG_FRAME_DRAW_SKIP_BY_PARENT)) {
+            continue;
+        }
+        if (node->visual != nullptr && node->bound != nullptr && (draw & MG_FRAME_DRAW_VISIBLE)) {
+            float matrix[4][4];
+            node->GetLWMatrix(matrix);
+            for (int corner = 0; corner < 8; corner++) {
+                float point[4] = {(corner & 1) ? node->bound->max[0] : node->bound->min[0],
+                                  (corner & 2) ? node->bound->max[1] : node->bound->min[1],
+                                  (corner & 4) ? node->bound->max[2] : node->bound->min[2], 1.0f};
+                float world[4];
+                sceVu0ApplyMatrix(world, matrix, point);
+                for (int i = 0; i < 3; i++) {
+                    if (!any || world[i] < lo[i]) {
+                        lo[i] = world[i];
+                    }
+                    if (!any || world[i] > hi[i]) {
+                        hi[i] = world[i];
+                    }
+                }
+                any = true;
+            }
+        }
+        if (!(node->attr != nullptr && (draw & MG_FRAME_DRAW_SKIP_CHILDREN))) {
+            DrawnBox(node->child, lo, hi, any);
+        }
+    }
+}
+
+bool Render(int item_no, mgCTexture *icon) {
+    char path[0x80];
+    if (!ModelPath(item_no, path, sizeof path)) {
+        if (Debug()) {
+            std::fprintf(stderr, "dc2 item icon 3d: item %d has no model\n", item_no);
+        }
+        return false;
+    }
+
+    // Retail's own pattern for loading an item model into a stack of its own (the developer item viewer).
+    static mgCMemory stack;
+    auto *base = reinterpret_cast<u_long128 *>((reinterpret_cast<std::uintptr_t>(WorkStorage().data()) + 63) & ~std::uintptr_t{63});
+    stack.stSetBuffer(base, kWorkQuadwords);
+    stack.stack_used = 0;
+    stack.lock = 0;
+    u_long128 *buffer = stack.stGetTop();
+    int        file_size = 0;
+    if (!LoadFile2(path, buffer, &file_size, LOAD_FILE_READ) || file_size <= 0) {
+        // A weapon without an item-view model falls back to the one it is held by.
+        char *plain = GetItemFilePath(item_no, 0);
+        if (plain == nullptr || !LoadFile2(plain, buffer, &file_size, LOAD_FILE_READ) || file_size <= 0) {
+            if (Debug()) {
+                std::fprintf(stderr, "dc2 item icon 3d: item %d: no file %s\n", item_no, path);
+            }
+            return false;
+        }
+        std::snprintf(path, sizeof path, "%s", plain);
+    }
+    stack.Alloc(file_size / 16 + 1);
+    stack.Align64();
+
+    mgTexManager.DeleteBlock(kModelBlock);
+    auto *chara = new (stack.Alloc((sizeof(CActionChara) + 15) / 16 + 2)) CActionChara;
+    chara->Initialize(nullptr);
+    char cfg[] = "info.cfg";
+    // The item menu enters the model's pictures under a suffix of their own.
+    std::strcpy(mgTexManager.name_suffix, "_menu");
+    chara->LoadPack(reinterpret_cast<u_int *>(buffer), cfg, &stack, &stack, &stack, kModelBlock, nullptr);
+    mgTexManager.name_suffix[0] = 0;
+    mgCFrame *frame = chara->CObjectFrame::frame;
+    if (frame == nullptr) {
+        if (Debug()) {
+            std::fprintf(stderr, "dc2 item icon 3d: item %d %s: no frame\n", item_no, path);
+        }
+        mgTexManager.DeleteBlock(kModelBlock);
+        return false;
+    }
+    CDataCommon *record = GameItemDataManage.GetCommonData(item_no);
+    const int    type = ConvertUsedItemType(record->type);
+    const bool   weapon = type == USED_ITEM_TYPE_WEAPON;
+
+    // Turn the model with a chain of frames over it: its own pose (the item's way up, or the axis-aligned turn that
+    // shows its broadest face), then the tip towards the viewer, then the roll in the picture; the outermost scales
+    // and places it. Each is about the axis it names, which a single set of Euler angles cannot say.
+    static mgCFrame root, roll, elev;
+    mgCFrame       *chain[3] = {&root, &roll, &elev};
+    for (mgCFrame *link : chain) {
+        link->child = nullptr;
+        link->brother = nullptr;
+    }
+    frame->parent = nullptr;
+    root.SetChild(&roll);
+    roll.SetChild(&elev);
+    elev.SetChild(frame);
+    root.SetScale(1.0f, 1.0f, 1.0f);
+    root.SetPosition(0.0f, 0.0f, 0.0f);
+    chara->SetPosition(0.0f, 0.0f, 0.0f);
+    chara->SetScale(1.0f, 1.0f, 1.0f);
+
+    float pose[3] = {0.0f, 0.0f, 0.0f};
+    float tip = weapon ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
+    float roll_angle = 0.0f;
+    float box_lo[3], box_hi[3];
+    auto  place = [&]() {
+        chara->SetRotation(pose[0], pose[1], pose[2]);
+        chara->Step();
+        elev.SetRotation(tip, 0.0f, 0.0f);
+        roll.SetRotation(0.0f, 0.0f, roll_angle);
+    };
+    auto measure = [&]() {
+        place();
+        bool any = false;
+        DrawnBox(frame, box_lo, box_hi, any);
+        if (!any) {
+            mgVu0FBOX world;
+            frame->GetWorldBBox(&world);
+            for (int i = 0; i < 3; i++) {
+                box_lo[i] = world.min[i];
+                box_hi[i] = world.max[i];
+            }
+        }
+    };
+    auto area = [&]() { return (box_hi[0] - box_lo[0]) * (box_hi[1] - box_lo[1]); };
+    measure();
+    if (weapon) {
+        // The broadest face to the viewer: of the axis-aligned turns, the one whose picture covers the most, the
+        // smallest turn when two do alike.
+        float best = -1.0f, best_turn = 1e9f, best_pose[3] = {0, 0, 0};
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                for (int k = 0; k < 4; k++) {
+                    pose[0] = i * 1.5707964f;
+                    pose[1] = j * 1.5707964f;
+                    pose[2] = k * 1.5707964f;
+                    measure();
+                    const float turn = static_cast<float>(i + j + k);
+                    const float a = area();
+                    if (a > best * 1.02f || (a > best * 0.98f && turn < best_turn)) {
+                        best = std::max(a, best);
+                        best_turn = turn;
+                        std::memcpy(best_pose, pose, sizeof pose);
+                    }
+                }
+            }
+        }
+        std::memcpy(pose, best_pose, sizeof pose);
+        measure();
+    } else if (!EnvOn("DC2_ITEM_ICONS_3D_NO_TURN_SEARCH")) {
+        // Kept upright, turned about the vertical to the broadest view, leaning to a three-quarter turn.
+        float best = -1.0f, best_yaw = 0.0f;
+        for (int step = -6; step <= 6; step++) {
+            pose[1] = step * 0.2618f;
+            measure();
+            const float score = area() * (1.0f - 0.04f * std::fabs(pose[1] - 0.5f));
+            if (score > best) {
+                best = score;
+                best_yaw = pose[1];
+            }
+        }
+        pose[1] = best_yaw + EnvFloat("DC2_ITEM_ICONS_3D_ITEM_TURN", -0.2618f);
+        measure();
+    }
+    // A robo arm's model is the pair side by side; the icon is the one on the left, the right left outside the picture.
+    const bool pair = record->type == ITEM_DATA_ROBO_ARM;
+    if (pair) {
+        box_hi[0] = (box_lo[0] + box_hi[0]) * 0.5f;
+    }
+    // Long and thin as seen: lay it along the diagonal, which is how the retail icons draw them.
+    const float width = box_hi[0] - box_lo[0], height = box_hi[1] - box_lo[1];
+    if (!pair && (width > 2.0f * height || height > 2.0f * width)) {
+        roll_angle = width > height ? 0.785f : -0.785f;
+        measure();
+    }
+    const float mid[3] = {(box_lo[0] + box_hi[0]) * 0.5f, (box_lo[1] + box_hi[1]) * 0.5f, (box_lo[2] + box_hi[2]) * 0.5f};
+    float       radius = 0.5f * std::max(box_hi[0] - box_lo[0], box_hi[1] - box_lo[1]);
+    if (!(radius > 0.0001f)) {
+        radius = 1.0f;
+    }
+    if (Debug()) {
+        std::fprintf(stderr, "dc2 item icon 3d: item %d %s pose %.2f %.2f %.2f roll %.2f box %.2f x %.2f\n", item_no, path,
+                     pose[0], pose[1], pose[2], roll_angle, box_hi[0] - box_lo[0], box_hi[1] - box_lo[1]);
+    }
+    if (item_no == static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_TREE", -1.0f))) {
+        std::function<void(mgCFrame *, int)> dump = [&](mgCFrame *node, int depth) {
+            for (; node != nullptr; node = node->brother) {
+                float lo[4] = {}, hi[4] = {};
+                if (node->visual != nullptr && node->bound != nullptr) {
+                    for (int i = 0; i < 4; i++) {
+                        hi[i] = node->bound->max[i];
+                        lo[i] = node->bound->min[i];
+                    }
+                }
+                std::fprintf(stderr, "  tree %*s%s draw=%d visual=%d bound %.1f,%.1f,%.1f .. %.1f,%.1f,%.1f\n", depth * 2, "",
+                             node->name != nullptr ? node->name : "?", node->attr != nullptr ? node->attr->draw : -1, node->visual != nullptr,
+                             lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+                dump(node->child, depth + 1);
+            }
+        };
+        dump(frame, 0);
+    }
+    // The screen-bound test is made against the visible extent, which is not this picture's.
+    std::function<void(mgCFrame *)> no_cull = [&](mgCFrame *node) {
+        for (; node != nullptr; node = node->brother) {
+            if (node->attr != nullptr) {
+                node->attr->no_cull = 1;
+            }
+            no_cull(node->child);
+        }
+    };
+    no_cull(frame);
+
+    // The scratch picture is a texture of its own that the frame is drawn into, which is retail's way of drawing to a
+    // texture (and sets the screen size the projection is made for).
+    static mgCTexture *scratch_texture = nullptr;
+    if (scratch_texture == nullptr) {
+        static char scratch_name[] = "dc2 item icon 3d scratch";
+        scratch_texture = mgTexManager.EnterTexture(kIconBlock, scratch_name, nullptr, kScratch, kScratch, 32, nullptr, 0, 0);
+    }
+    gfx::TextureHandle target = mgPortRenderTarget(icon, true);
+    if (scratch_texture == nullptr || target == gfx::kNullTexture) {
+        mgTexManager.DeleteBlock(kModelBlock);
+        return false;
+    }
+
+    // The camera looks down -z from z = distance at the origin; the picture's centre is the screen's.
+    const float distance = 100.0f;
+    mgCCamera  *camera = IconCamera();
+    camera->pos[0] = camera->next_pos[0] = 0.0f;
+    camera->pos[1] = camera->next_pos[1] = 0.0f;
+    camera->pos[2] = camera->next_pos[2] = distance;
+    camera->pos[3] = camera->next_pos[3] = 1.0f;
+    camera->ref[0] = camera->next_ref[0] = 0.0f;
+    camera->ref[1] = camera->next_ref[1] = 0.0f;
+    camera->ref[2] = camera->next_ref[2] = 0.0f;
+    camera->ref[3] = camera->next_ref[3] = 1.0f;
+    camera->roll = 0.0f;
+    float view[4][4];
+    camera->GetCameraMatrix(view);
+
+    const float saved_projection = mgGetProjection();
+    float       saved_ambient[4];
+    float       saved_dir[4][4], saved_colour[4][4];
+    mgGetAmbient(saved_ambient);
+    mgGetLight(saved_dir, saved_colour);
+
+    mgSetPkFrameBuffer(scratch_texture);
+    gfx::TextureHandle scratch = mgPortCurrentTarget();
+    mgSetProjection(800.0f);
+    mgSetViewMatrix(view, camera->pos);
+
+    const float pixels_per_unit = 800.0f / distance;
+    const float scale = (kFill * 0.5f) / (pixels_per_unit * radius);
+    // The projection stretches y (the screen's pixels are not square); the icon's are, so take that out.
+    const float y_scale = mgRenderInfo.aspect[1][1] > 0.01f ? 1.0f / mgRenderInfo.aspect[1][1] : 1.0f;
+    root.SetScale(scale, scale * y_scale, scale);
+    float position[3] = {-mid[0] * scale, -mid[1] * scale * y_scale, -mid[2] * scale};
+    root.SetPosition(position[0], position[1], position[2]);
+    if (EnvOn("DC2_ITEM_ICONS_3D_RED")) {
+        mgSetPkClearScreen(0x80, 0, 0, 0x80);
+    } else {
+        mgSetPkClearScreen(0, 0, 0, 0);
+    }
+    mgTexManager.ReloadTexture(kModelBlock, static_cast<sceVif1Packet *>(nullptr));
+    const uint8_t none[4] = {};
+    if (!EnvOn("DC2_ITEM_ICONS_3D_NO_OUTLINE")) {
+        // The outline and shadow: the unlit (black) model drawn shifted about the picture, a pixel of the icon (4 of
+        // the scratch's) each way and a little more down and right for the shadow, then the lit model on top.
+        float dark_dir[4][4] = {};
+        float dark_colour[4][4] = {};
+        float dark[4] = {0.0f, 0.0f, 0.0f, 128.0f};
+        mgSetLight(dark_dir, dark_colour);
+        mgSetAmbient(dark);
+        const float step = 4.0f / pixels_per_unit;
+        const float shifts[9][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-0.75f, -0.75f}, {0.75f, -0.75f},
+                                    {-0.75f, 0.75f}, {0.75f, 0.75f}, {1.4f, -1.6f}};
+        for (const auto &shift : shifts) {
+            root.SetPosition(position[0] + shift[0] * step, position[1] + shift[1] * step, position[2]);
+            mgDrawDirect(&root);
+        }
+        root.SetPosition(position[0], position[1], position[2]);
+        gfx::Clear(false, none, true, 0.0f, nullptr);
+    }
+    // A key light from the upper left, a weak fill from the other side, and an ambient that keeps the shade side a colour.
+    {
+        float key[3] = {-0.45f, 0.75f, 0.5f};
+        float fill[3] = {0.6f, -0.2f, 0.4f};
+        float key_length = std::sqrt(key[0] * key[0] + key[1] * key[1] + key[2] * key[2]);
+        float fill_length = std::sqrt(fill[0] * fill[0] + fill[1] * fill[1] + fill[2] * fill[2]);
+        float dir[4][4] = {};
+        float colour[4][4] = {};
+        for (int i = 0; i < 3; i++) {
+            dir[i][0] = key[i] / key_length;
+            dir[i][1] = fill[i] / fill_length;
+        }
+        const float key_strength = EnvFloat("DC2_ITEM_ICONS_3D_KEY", 120.0f);
+        const float fill_strength = EnvFloat("DC2_ITEM_ICONS_3D_FILL_LIGHT", 36.0f);
+        colour[0][0] = colour[0][1] = colour[0][2] = key_strength;
+        colour[1][0] = colour[1][1] = colour[1][2] = fill_strength;
+        float ambient[4] = {EnvFloat("DC2_ITEM_ICONS_3D_AMBIENT", 70.0f), 0.0f, 0.0f, 128.0f};
+        ambient[1] = ambient[2] = ambient[0];
+        mgSetLight(dir, colour);
+        mgSetAmbient(ambient);
+    }
+    mgDrawDirect(&root);
+    if (pair) {
+        // What the arm on the right left over at the crop's edge is wiped, from the plane between them.
+        const float split = static_cast<float>(kScratch) * 0.5f + (box_hi[0] - mid[0]) * scale * pixels_per_unit;
+        const gfx::LogicalRect right = {split, 0.0f, static_cast<float>(kScratch) - split, static_cast<float>(kScratch)};
+        const uint8_t wipe[4] = {0, 0x80, 0, 0x80};
+        gfx::Clear(true, EnvOn("DC2_ITEM_ICONS_3D_RED") ? wipe : none, false, 0.0f, &right);
+    }
+
+    // The picture down to the icon in exact halves: kCrop -> kCrop/2 -> the icon.
+    gfx::TextureHandle half = gfx::NamedRenderTarget("dc2 item icon 3d half", kCrop / 2, kCrop / 2, true);
+    if (half != gfx::kNullTexture) {
+        gfx::BlitTexture(scratch, {kScratch / 2 - kCrop / 2, kScratch / 2 - kCrop / 2, kCrop, kCrop}, half, {0, 0, kCrop / 2, kCrop / 2}, gfx::Filter::Linear);
+        gfx::BlitTexture(half, {0, 0, kCrop / 2, kCrop / 2}, target, {0, 0, kIcon, kIcon}, gfx::Filter::Linear);
+    } else {
+        gfx::BlitTexture(scratch, {kScratch / 2 - kCrop / 2, kScratch / 2 - kCrop / 2, kCrop, kCrop}, target, {0, 0, kIcon, kIcon}, gfx::Filter::Linear);
+    }
+    mgSetPkFrameBuffer(-1, -1, -1, -1);
+    if (SheetPath() != nullptr && static_cast<int>(g_sheet_items.size()) < kSheetColumns * kSheetRows) {
+        if (g_sheet == gfx::kNullTexture) {
+            g_sheet = gfx::NamedRenderTarget("dc2 item icon 3d sheet", kSheetColumns * kSheetCell, kSheetRows * kSheetCell, true);
+        }
+        if (g_sheet != gfx::kNullTexture) {
+            const int cell = static_cast<int>(g_sheet_items.size());
+            gfx::BlitTexture(scratch, {kScratch / 2 - kCrop / 2, kScratch / 2 - kCrop / 2, kCrop, kCrop}, g_sheet,
+                             {(cell % kSheetColumns) * kSheetCell, (cell / kSheetColumns) * kSheetCell, kSheetCell, kSheetCell},
+                             gfx::Filter::Linear);
+            g_sheet_items.push_back(item_no);
+        }
+    }
+
+    mgSetProjection(saved_projection);
+    mgSetAmbient(saved_ambient);
+    mgSetLight(saved_dir, saved_colour);
+    if (MenuDrawEnv != nullptr) {
+        MenuWorldTrans(); // puts the menu camera's view back
+    }
+    elev.child = nullptr;
+    frame->parent = nullptr;
+    mgTexManager.DeleteBlock(kModelBlock);
+    return true;
+}
+
+} // namespace
+
+bool ItemIcons3DEnabled() {
+    static const bool on = EnvOn("DC2_ITEM_ICONS_3D");
+    return on;
+}
+
+mgCTexture *ItemIcon3DTexture(int item_no) {
+    if (item_no <= 0 || !ItemIcons3DEnabled() || !gfx::InFrame() || !mgPortRendererReady()) {
+        return nullptr;
+    }
+    static bool all_started = false;
+    if (SheetPath() != nullptr && !all_started) {
+        all_started = true;
+        const int first = static_cast<int>(EnvFloat("DC2_ITEM_ICONS_3D_SHEET_FIRST", 1.0f));
+        for (int id = first; id < first + 400 && static_cast<int>(g_sheet_items.size()) < kSheetColumns * kSheetRows; id++) {
+            ItemIcon3DTexture(id);
+        }
+    }
+    Icon &icon = g_icons[item_no];
+    if (icon.texture != nullptr) {
+        return icon.texture;
+    }
+    if (icon.failed) {
+        return nullptr;
+    }
+    char name[32];
+    std::snprintf(name, sizeof name, "item3d%d_%d", item_no, g_serial++);
+    mgCTexture *texture = mgTexManager.EnterTexture(kIconBlock, name, nullptr, kIcon, kIcon, 32, nullptr, 0, 0);
+    if (texture == nullptr) {
+        icon.failed = true;
+        return nullptr;
+    }
+    texture->tex0.bits.tcc = 1;
+    if (!Render(item_no, texture)) {
+        icon.failed = true;
+        return nullptr;
+    }
+    icon.texture = texture;
+    return texture;
+}
+
+void ItemIcons3DDumpSheet() {
+    const char *path = SheetPath();
+    if (path == nullptr || g_sheet == gfx::kNullTexture) {
+        return;
+    }
+    std::vector<uint8_t> rgba;
+    uint32_t             width = 0, height = 0;
+    if (gfx::ReadbackTexture(g_sheet, rgba, width, height)) {
+        gfx::WritePng(path, rgba.data(), width, height);
+    }
+    std::string list = std::string(path) + ".txt";
+    if (FILE *file = std::fopen(list.c_str(), "w")) {
+        for (std::size_t i = 0; i < g_sheet_items.size(); i++) {
+            CDataCommon *record = GameItemDataManage.GetCommonData(g_sheet_items[i]);
+            std::fprintf(file, "%zu item %d %s\n", i, g_sheet_items[i], record != nullptr && record->file_name != nullptr ? record->file_name : "");
+        }
+        std::fclose(file);
+    }
+}

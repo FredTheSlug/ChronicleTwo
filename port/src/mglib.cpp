@@ -18,6 +18,7 @@
 #include "dng_main.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
+#include "item_icon3d.hpp"
 #include "mainloop.hpp"
 #include "menu_mouse.hpp"
 #include "mg_drawprim_port.hpp"
@@ -1327,6 +1328,7 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
         int status = kExitOk;
 
         if (!screenshot_path.empty()) {
+            ItemIcons3DDumpSheet();
             std::vector<uint8_t> rgba;
             uint32_t             width = 0;
             uint32_t             height = 0;

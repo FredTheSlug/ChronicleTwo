@@ -247,7 +247,7 @@ void ListResolutions() {
 std::string ButtonName(std::string_view action, const Config &config) {
     auto device = config.glyph_device;
     if (!config.glyphs_new) {
-        device = ConfigGlyphDevice::Ps4;
+        device = ConfigGlyphDevice::Ps3; // the PS2 pad's names, as the game's art shows them
     }
     if (device == ConfigGlyphDevice::Auto) {
         switch (InputActiveGlyphFamily()) {
@@ -290,8 +290,7 @@ std::string ButtonName(std::string_view action, const Config &config) {
                                : "Square";
     }
     if (action == "select") {
-        return sw ? "Minus" : xbox ? "View"
-                                   : "Select";
+        return sw ? "Minus" : xbox ? "View" : device == ConfigGlyphDevice::Ps3 ? "Select" : "Touchpad";
     }
     if (action == "l1") {
         return xbox ? "LB" : sw ? "L"

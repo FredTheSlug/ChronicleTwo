@@ -219,6 +219,11 @@ def ps_shape(shape, colour, disc=DARK):
     return draw
 
 
+def touchpad_symbol(d, box, atlas):
+    cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
+    d.rounded_rectangle((cx - 16, cy - 9, cx + 16, cy + 9), radius=4, outline=WHITE, width=3)
+
+
 def playstation(start, select, coloured):
     def build(atlas):
         for glyph in ("cross", "circle", "square", "triangle"):
@@ -226,16 +231,17 @@ def playstation(start, select, coloured):
         for glyph, text in (("l1", "L1"), ("r1", "R1"), ("l2", "L2"), ("r2", "R2")):
             atlas.add(glyph, 96, shoulder(text))
         atlas.add("start", 96, pill(menu_symbol))
-        atlas.add("select", 96, pill(view_symbol if select == "CREATE" else text_symbol("\u25cf", 20)))
+        # DualShock 4 and DualSense have no SELECT: the port maps it to the touchpad button.
+        atlas.add("select", 96, pill(touchpad_symbol))
         atlas.add("start_label", 220, label(start))
-        atlas.add("select_label", 220, label(select))
+        atlas.add("select_label", 260, label(select))
     return build
 
 
 STYLES = {
-    "ps4": playstation("OPTIONS", "SHARE", True),
-    "ps5": playstation("OPTIONS", "CREATE", False),
-    "ps5color": playstation("OPTIONS", "CREATE", True),
+    "ps4": playstation("OPTIONS", "TOUCHPAD", True),
+    "ps5": playstation("OPTIONS", "TOUCHPAD", False),
+    "ps5color": playstation("OPTIONS", "TOUCHPAD", True),
     "xbox": xbox_like,
     "steamcontroller": xbox_like,
     "steamdeck": steam_deck,

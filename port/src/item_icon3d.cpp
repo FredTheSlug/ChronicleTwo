@@ -330,7 +330,7 @@ bool Render(int item_no, mgCTexture *icon) {
     float pose[3] = {0.0f, 0.0f, 0.0f};
     if (record->type == ITEM_DATA_MAX_HAT) {
         // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
-        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", -1.57f);
+        pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", -0.65f);
     }
     float tip = weapon ? 0.0f : EnvFloat("DC2_ITEM_ICONS_3D_TIP", 0.35f);
     float roll_angle = 0.0f;
@@ -378,11 +378,11 @@ bool Render(int item_no, mgCTexture *icon) {
             if (found >= 4) {
                 const float height = std::max(0.001f, hi[1] - lo[1]);
                 const float below = item_record->type == ITEM_DATA_MONICA_CLOTHES ? EnvFloat("DC2_ITEM_ICONS_3D_DRESS_DROP", 0.5f) : 0.05f;
-                const float margin = (hi[0] - lo[0]) * 0.1f;
+                const float margin = (hi[0] - lo[0]) * 0.3f;
                 box_lo[0] = lo[0] - margin;
                 box_hi[0] = hi[0] + margin;
                 box_lo[1] = lo[1] - below * height;
-                box_hi[1] = hi[1] + 0.22f * height;
+                box_hi[1] = hi[1] + 0.3f * height;
                 box_lo[2] = lo[2];
                 box_hi[2] = hi[2];
                 (void) neck_y;

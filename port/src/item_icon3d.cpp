@@ -328,7 +328,7 @@ bool Render(int item_no, mgCTexture *icon) {
     chara->SetScale(1.0f, 1.0f, 1.0f);
 
     float pose[3] = {0.0f, 0.0f, 0.0f};
-    if (record->type == ITEM_DATA_MAX_HAT || record->type == ITEM_DATA_MONICA_ACCESSORY) {
+    if (record->type == ITEM_DATA_MAX_HAT) {
         // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
         pose[0] = EnvFloat("DC2_ITEM_ICONS_3D_HAT_PITCH", -1.57f);
     }

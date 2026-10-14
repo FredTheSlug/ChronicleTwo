@@ -196,7 +196,46 @@ def keyboard(atlas):
         atlas.add(f"mouse{button}", CELL, mouse(button))
 
 
+PS_COLOURS = {"cross": (124, 178, 232, 255), "circle": (230, 92, 92, 255), "square": (214, 130, 196, 255),
+              "triangle": (64, 200, 168, 255)}
+
+
+def ps_shape(shape, colour, disc=DARK):
+    # A PlayStation face button: the shape in its colour (or white) on a dark disc.
+    def draw(cell, atlas):
+        d = ImageDraw.Draw(cell)
+        d.ellipse((2, 2, CELL - 3, CELL - 3), fill=OUTLINE)
+        d.ellipse((6, 6, CELL - 7, CELL - 7), fill=disc)
+        c, w = CELL / 2, 6
+        if shape == "cross":
+            d.line((c - 12, c - 12, c + 12, c + 12), fill=colour, width=w)
+            d.line((c - 12, c + 12, c + 12, c - 12), fill=colour, width=w)
+        elif shape == "circle":
+            d.ellipse((c - 13, c - 13, c + 13, c + 13), outline=colour, width=w)
+        elif shape == "square":
+            d.rectangle((c - 11, c - 11, c + 11, c + 11), outline=colour, width=w)
+        else:
+            d.polygon((c, c - 15, c + 14, c + 10, c - 14, c + 10), outline=colour, width=w)
+    return draw
+
+
+def playstation(start, select, coloured):
+    def build(atlas):
+        for glyph in ("cross", "circle", "square", "triangle"):
+            atlas.add(glyph, CELL, ps_shape(glyph, PS_COLOURS[glyph] if coloured else WHITE))
+        for glyph, text in (("l1", "L1"), ("r1", "R1"), ("l2", "L2"), ("r2", "R2")):
+            atlas.add(glyph, 96, shoulder(text))
+        atlas.add("start", 96, pill(menu_symbol))
+        atlas.add("select", 96, pill(view_symbol if select == "CREATE" else text_symbol("\u25cf", 20)))
+        atlas.add("start_label", 220, label(start))
+        atlas.add("select_label", 220, label(select))
+    return build
+
+
 STYLES = {
+    "ps4": playstation("OPTIONS", "SHARE", True),
+    "ps5": playstation("OPTIONS", "CREATE", False),
+    "ps5color": playstation("OPTIONS", "CREATE", True),
     "xbox": xbox_like,
     "steamcontroller": xbox_like,
     "steamdeck": steam_deck,

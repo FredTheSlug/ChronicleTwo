@@ -254,6 +254,10 @@ bool Render(int item_no, mgCTexture *icon) {
         }
         std::memcpy(pose, best_pose, sizeof pose);
         measure();
+    } else if (record->type == ITEM_DATA_ROBO_ARM) {
+        // The pair lies side by side across the model, so it is shown square on, or the left half would not be an arm.
+        pose[1] = 0.0f;
+        measure();
     } else if (!EnvOn("DC2_ITEM_ICONS_3D_NO_TURN_SEARCH")) {
         // Kept upright, turned about the vertical to the broadest view, leaning to a three-quarter turn.
         float best = -1.0f, best_yaw = 0.0f;

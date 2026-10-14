@@ -382,11 +382,11 @@ bool Render(int item_no, mgCTexture *icon) {
                 const float centre_x = (right[0] + left[0]) * 0.5f;
                 // The shoulder joints sit at the neck, so the width comes from the chest's height.
                 (void) shoulders;
-                const float half_w = rise * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.4f);
+                const float half_w = rise * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.15f);
                 box_lo[0] = centre_x - half_w;
                 box_hi[0] = centre_x + half_w;
-                box_lo[1] = std::min(neck[1], spine[1]) - EnvFloat("DC2_ITEM_ICONS_3D_TORSO_BELOW", 0.0f) * rise;
-                box_hi[1] = std::max(neck[1], spine[1]) + EnvFloat("DC2_ITEM_ICONS_3D_TORSO_ABOVE", -0.1f) * rise;
+                box_lo[1] = std::min(neck[1], spine[1]) - EnvFloat("DC2_ITEM_ICONS_3D_TORSO_BELOW", 0.35f) * rise;
+                box_hi[1] = std::max(neck[1], spine[1]) + EnvFloat("DC2_ITEM_ICONS_3D_TORSO_ABOVE", -0.03f) * rise;
                 box_lo[2] = std::min(neck[2], spine[2]) - rise;
                 box_hi[2] = std::max(neck[2], spine[2]) + rise;
                 any = true;

@@ -208,6 +208,13 @@ bool Render(int item_no, mgCTexture *icon) {
     if (skinned) {
         // The character's own model is what the skin is laid on; the item's file is the skin.
         std::snprintf(skin_path, sizeof skin_path, "%s", path);
+        if (EnvOn("DC2_ITEM_ICONS_3D_COSTUME_T")) {
+            char *dot = std::strrchr(skin_path, '.');
+            if (dot != nullptr && static_cast<size_t>(dot - skin_path) + 6 < sizeof skin_path) {
+                std::memmove(dot + 1, dot, std::strlen(dot) + 1);
+                *dot = 't';
+            }
+        }
         char model_name[32] = {};
         const bool max = item_record->type == ITEM_DATA_MAX_CLOTHES || item_record->type == ITEM_DATA_MAX_SHOES;
         GetMainCharaModelName(max ? USER_CHARA_MAX : USER_CHARA_MONICA, model_name, 0);

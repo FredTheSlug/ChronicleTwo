@@ -258,6 +258,19 @@ bool Render(int item_no, mgCTexture *icon) {
                 mgTexManager.DeleteTexAnime(kModelBlock); // as the menu's own preview does before a skin
             }
             chara->LoadSkin(reinterpret_cast<unsigned int *>(skin_base), cfg, empty, &stack, kModelBlock);
+            if (EnvOn("DC2_ITEM_ICONS_3D_DUMP_TEX") && SheetPath() != nullptr) {
+                // Debug: the pictures the model block holds after the skin is in, as the game's own.
+                mgCTextureBlock *block = mgTexManager.GetTextureBlock(kModelBlock);
+                int              n = 0;
+                for (mgCTexture *tex = block != nullptr ? block->texture : nullptr; tex != nullptr && n < 40; tex = tex->next, n++) {
+                    if (tex->image[0] == nullptr || tex->width <= 0 || tex->height <= 0) {
+                        continue;
+                    }
+                    char file[512];
+                    std::snprintf(file, sizeof file, "%s.tex_%d_%02d_%s.png", SheetPath(), item_no, n, tex->name);
+                    gfx::WritePng(file, reinterpret_cast<const uint8_t *>(tex->image[0]), static_cast<uint32_t>(tex->width), static_cast<uint32_t>(tex->height));
+                }
+            }
         } else if (Debug()) {
             std::fprintf(stderr, "dc2 item icon 3d: item %d: no skin %s\n", item_no, skin_path);
         }

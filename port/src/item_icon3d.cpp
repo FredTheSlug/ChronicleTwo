@@ -546,7 +546,14 @@ bool Render(int item_no, mgCTexture *icon) {
                         lo[i] = node->bound->min[i];
                     }
                 }
-                std::fprintf(stderr, "  tree %*s%s draw=%d visual=%d bound %.1f,%.1f,%.1f .. %.1f,%.1f,%.1f\n", depth * 2, "",
+                int verts = -1, mats = -1;
+                if (node->visual != nullptr) {
+                    if (const auto *mdt = dynamic_cast<const mgCVisualMDT *>(node->visual)) {
+                        verts = mdt->vertex_num;
+                        mats = mdt->material_num;
+                    }
+                }
+                std::fprintf(stderr, "  tree v=%d m=%d %*s%s draw=%d visual=%d bound %.1f,%.1f,%.1f .. %.1f,%.1f,%.1f\n", verts, mats, depth * 2, "",
                              node->name != nullptr ? node->name : "?", node->attr != nullptr ? node->attr->draw : -1, node->visual != nullptr,
                              lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
                 dump(node->child, depth + 1);

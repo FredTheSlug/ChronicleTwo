@@ -318,7 +318,7 @@ PORT_OVERRIDE int ChangeSetUnit(int change) {
 
 // Starts the change effect on the first game frame after the change, once the menu has closed. Dark Cloud's
 // version (gameloop.cpp, GAME_TASK_CHARA_CHANGED) pulses the ambient light toward white and plays its ceffe_s
-// sparkle model; here the character's own palette animation fades from white, with sparkles rising around it.
+// sparkle model; here the character's own palette animation fades from white, with a splash of stars around it.
 // The fade is reapplied every frame from its own count, so a character set up again meanwhile still gets it.
 void PortStepQuickChangeEffect() {
     if (PortLoopNo != change_fx_loop) {

@@ -260,7 +260,7 @@ bool Render(int item_no, mgCTexture *icon) {
             // The skin's pictures keep the names every outfit of the character shares, which the town's own Max (and the
             // pictures already in the block) answer to first; a suffix of their own keeps them to this model.
             if (!EnvOn("DC2_ITEM_ICONS_3D_NO_SKIN_SUFFIX")) {
-                std::strcpy(mgTexManager.name_suffix, "_skin");
+                std::strcpy(mgTexManager.name_suffix, EnvOn("DC2_ITEM_ICONS_3D_SKIN_MENU") ? "_menu" : "_skin");
             }
             chara->LoadSkin(reinterpret_cast<unsigned int *>(skin_base), cfg, empty, &stack, kModelBlock);
             mgTexManager.name_suffix[0] = 0;

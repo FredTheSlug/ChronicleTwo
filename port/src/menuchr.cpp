@@ -6,7 +6,6 @@
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "menudraw.hpp"
-#include "menumain.hpp"
 #include "menuchr_port.hpp"
 #include "mglib.hpp"
 #include "mg_texture.hpp"
@@ -164,10 +163,6 @@ PORT_OVERRIDE int KeyMainCharaBG() {
             banner_phase = BANNER_IN;
             banner_hold = 0;
             banner_x = (float) -kBannerWidth;
-            // The town cross-fades from the old character on a fading change; the effect takes its place.
-            if (MenuArg.end_code == MENU_END_CHARA_CHANGE_FADE) {
-                MenuArg.end_code = MENU_END_CHARA_CHANGE;
-            }
             change_fx_pending = true;
             change_fx_loop = PortLoopNo;
             return 1;
@@ -335,6 +330,11 @@ void PortStepQuickChangeEffect() {
 
     if (change_fx_pending) {
         change_fx_pending = false;
+        // The town cross-fades from a capture of the old character after a change; the effect takes its place.
+        // The end code that asks for it must stay: MenuMainExit reads MENU_END_CHARA_CHANGE as a menu choice.
+        if (scene->fade.cross) {
+            scene->fade.ResetFade();
+        }
         change_fade_frames = kChangeFadeFrames;
         change_spark_frames = kChangeSparkFrames;
         change_spark_count = 0;

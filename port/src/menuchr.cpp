@@ -59,7 +59,7 @@ constexpr float kChangeSparkRadius = 6.0f;
 constexpr int kChangeSparkAlpha = 0x30;
 
 struct alignas(16) ChangeSpark {
-    float pos[4];
+    float pos[4]; // Offset from the character's position, so the sparkles move with it.
     float rise;
     float drift[2];
     float size;
@@ -189,7 +189,7 @@ void StopChangeEffect() {
     change_spark_count = 0;
 }
 
-void SpawnChangeSpark(CActionChara *chara, const sceVu0FVECTOR base) {
+void SpawnChangeSpark(CActionChara *chara) {
     if (change_spark_count >= kChangeSparkMax) {
         return;
     }
@@ -197,10 +197,10 @@ void SpawnChangeSpark(CActionChara *chara, const sceVu0FVECTOR base) {
     ChangeSpark &spark = change_sparks[change_spark_count++];
     const float  angle = fRand(2.0f * PI);
     const float  radius = kChangeSparkRadius * (0.3f + fRand(0.7f));
-    spark.pos[0] = base[0] + radius * cosf(angle);
-    spark.pos[1] = base[1] + fRand(0.8f) * chara->GetBodyHeight();
-    spark.pos[2] = base[2] + radius * sinf(angle);
-    spark.pos[3] = 1.0f;
+    spark.pos[0] = radius * cosf(angle);
+    spark.pos[1] = fRand(0.8f) * chara->GetBodyHeight();
+    spark.pos[2] = radius * sinf(angle);
+    spark.pos[3] = 0.0f;
     spark.rise = 0.25f + fRand(0.25f);
     spark.drift[0] = fRand(0.1f) - 0.05f;
     spark.drift[1] = fRand(0.1f) - 0.05f;
@@ -233,7 +233,7 @@ void StepChangeSparks() {
 
 // Each sparkle is a soft four-pointed star, untextured so it needs no loop's effect texture: a faint warm
 // centre fading to clear tips, added over the scene and hidden behind nearer geometry.
-void DrawChangeSparks() {
+void DrawChangeSparks(const sceVu0FVECTOR base) {
     if (change_spark_count <= 0) {
         return;
     }
@@ -257,8 +257,13 @@ void DrawChangeSparks() {
         const float  size = spark.size * twinkle;
         int          top_left[4];
         int          bottom_right[4];
+        sceVu0FVECTOR world;
+        world[0] = base[0] + spark.pos[0];
+        world[1] = base[1] + spark.pos[1];
+        world[2] = base[2] + spark.pos[2];
+        world[3] = 1.0f;
 
-        if (alpha <= 0 || mgTransWorldPrim3DSprite(top_left, bottom_right, spark.pos, size, size, 0) == 0) {
+        if (alpha <= 0 || mgTransWorldPrim3DSprite(top_left, bottom_right, world, size, size, 0) == 0) {
             continue;
         }
 
@@ -352,15 +357,15 @@ void PortStepQuickChangeEffect() {
 
     if (change_spark_frames > 0) {
         change_spark_frames--;
-        sceVu0FVECTOR base;
-        chara->GetPosition(base);
 
         for (int i = 0; i < kChangeSparksPerFrame; i++) {
-            SpawnChangeSpark(chara, base);
+            SpawnChangeSpark(chara);
         }
     }
 
-    DrawChangeSparks();
+    sceVu0FVECTOR base;
+    chara->GetPosition(base);
+    DrawChangeSparks(base);
 }
 
 // Draws the banner at the bottom of the screen while the game runs. A menu opened meanwhile hides it and keeps

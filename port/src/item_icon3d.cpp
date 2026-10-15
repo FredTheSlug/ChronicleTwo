@@ -240,6 +240,9 @@ bool Render(int item_no, mgCTexture *icon) {
         int   skin_size = 0;
         if (LoadFile2(skin_path, skin_base, &skin_size, LOAD_FILE_READ) && skin_size > 0) {
             char empty[] = "";
+            if (!EnvOn("DC2_ITEM_ICONS_3D_KEEP_TEXANIME")) {
+                mgTexManager.DeleteTexAnime(kModelBlock); // as the menu's own preview does before a skin
+            }
             chara->LoadSkin(reinterpret_cast<unsigned int *>(skin_base), cfg, empty, &stack, kModelBlock);
         } else if (Debug()) {
             std::fprintf(stderr, "dc2 item icon 3d: item %d: no skin %s\n", item_no, skin_path);

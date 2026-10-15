@@ -291,7 +291,7 @@ bool Render(int item_no, mgCTexture *icon) {
     }
     g_part_name.clear();
     g_box_from_bound = skinned;
-    if (skinned && g_only_index < 0) {
+    if (skinned && g_only_index < 0 && !EnvOn("DC2_ITEM_ICONS_3D_NO_HIDE")) {
         // Only the item's own parts of the character are drawn: the jacket or dress, the shoes or boots. The rest of the
         // character (and the stand-in triangles the skin leaves in the other slots) stays hidden.
         const char *keep[3] = {nullptr, nullptr, nullptr};

@@ -50,13 +50,11 @@ int banner_hold = 0;
 float banner_x = 0.0f;
 
 // Dark Cloud's change effect, adapted: the new character starts lit white and fades back to its own colours
-// while a splash of stars bursts out and up around it. Game frames.
+// while stars float up around it to head height, drifting outward. Game frames.
 constexpr int kChangeFadeFrames = 24;
-constexpr int kChangeSparkFrames = 2;
-constexpr int kChangeSparksPerFrame = 18;
+constexpr int kChangeSparkFrames = 6;
+constexpr int kChangeSparksPerFrame = 6;
 constexpr int kChangeSparkMax = 64;
-constexpr float kChangeSparkGravity = 0.07f;
-constexpr float kChangeSparkDrag = 0.95f;
 constexpr int kChangeSparkAlpha = 0x50;
 
 struct alignas(16) ChangeSpark {
@@ -189,7 +187,8 @@ void StopChangeEffect() {
     change_spark_count = 0;
 }
 
-// A splash: each star bursts from around the character's waist, out and up, and falls back as it fades.
+// Each star floats up like a balloon from around the character's legs to about head height, drifting outward
+// away from it all the way, and fades out near the top.
 void SpawnChangeSpark(CActionChara *chara) {
     if (change_spark_count >= kChangeSparkMax) {
         return;
@@ -197,20 +196,23 @@ void SpawnChangeSpark(CActionChara *chara) {
 
     ChangeSpark &spark = change_sparks[change_spark_count++];
     const float  angle = fRand(2.0f * PI);
-    const float  out = 0.6f + fRand(0.8f);
-    const float  start = 0.5f + fRand(1.5f);
+    const float  height = chara->GetBodyHeight();
+    const float  out = 0.15f + fRand(0.25f);
+    const float  start = 1.0f + fRand(2.0f);
+    const float  bottom = fRand(0.35f) * height;
+    const float  top = (0.95f + fRand(0.25f)) * height;
+    spark.life = 30 + (int) fRand(12.0f);
     spark.pos[0] = start * cosf(angle);
-    spark.pos[1] = (0.2f + fRand(0.3f)) * chara->GetBodyHeight();
+    spark.pos[1] = bottom;
     spark.pos[2] = start * sinf(angle);
     spark.pos[3] = 0.0f;
     spark.vel[0] = out * cosf(angle);
-    spark.vel[1] = 0.8f + fRand(0.8f);
+    spark.vel[1] = (top - bottom) / (float) spark.life;
     spark.vel[2] = out * sinf(angle);
     spark.vel[3] = 0.0f;
-    spark.size = 3.0f + fRand(2.5f);
+    spark.size = 3.0f + fRand(2.0f);
     spark.phase = fRand(2.0f * PI);
     spark.age = 0;
-    spark.life = 26 + (int) fRand(10.0f);
 }
 
 // Moves and ages the stars; +y is up.
@@ -228,9 +230,6 @@ void StepChangeSparks() {
         spark.pos[0] += spark.vel[0];
         spark.pos[1] += spark.vel[1];
         spark.pos[2] += spark.vel[2];
-        spark.vel[0] *= kChangeSparkDrag;
-        spark.vel[2] *= kChangeSparkDrag;
-        spark.vel[1] -= kChangeSparkGravity;
         change_sparks[kept++] = spark;
     }
 
@@ -257,7 +256,7 @@ void DrawChangeSparks(const sceVu0FVECTOR base) {
     for (int i = 0; i < change_spark_count; i++) {
         ChangeSpark &spark = change_sparks[i];
         const float  t = (float) spark.age / (float) spark.life;
-        const float  envelope = t < 0.08f ? t / 0.08f : t < 0.5f ? 1.0f : 1.0f - (t - 0.5f) / 0.5f;
+        const float  envelope = t < 0.15f ? t / 0.15f : t < 0.6f ? 1.0f : 1.0f - (t - 0.6f) / 0.4f;
         const float  twinkle = 0.75f + 0.25f * sinf(spark.phase + 0.9f * (float) spark.age);
         const int    alpha = (int) ((float) kChangeSparkAlpha * envelope * twinkle);
         const float  size = spark.size * twinkle;
@@ -318,7 +317,7 @@ PORT_OVERRIDE int ChangeSetUnit(int change) {
 
 // Starts the change effect on the first game frame after the change, once the menu has closed. Dark Cloud's
 // version (gameloop.cpp, GAME_TASK_CHARA_CHANGED) pulses the ambient light toward white and plays its ceffe_s
-// sparkle model; here the character's own palette animation fades from white, with a splash of stars around it.
+// sparkle model; here the character's own palette animation fades from white, with stars floating up around it.
 // The fade is reapplied every frame from its own count, so a character set up again meanwhile still gets it.
 void PortStepQuickChangeEffect() {
     if (PortLoopNo != change_fx_loop) {

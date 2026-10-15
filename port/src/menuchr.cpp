@@ -134,8 +134,13 @@ PORT_OVERRIDE int KeyMainCharaBG() {
 
 extern CMenuPosDataManage *MenuPosData;
 
-// Draws the banner centred at the bottom of the screen, fading in and out, while the game runs. It waits
-// out any menu opened meanwhile and is dropped when the game leaves the loop the change happened in.
+void PortCancelQuickChangeBanner() {
+    banner_chara = -1;
+}
+
+// Draws the banner centred at the bottom of the screen, fading in and out, while the game runs. A menu
+// opened meanwhile hides it and keeps running its time out, so it never comes back after a menu such as
+// the dungeon's floor gate; a mode change drops it.
 void PortDrawQuickChangeBanner() {
     if (banner_chara < 0) {
         return;
@@ -147,6 +152,7 @@ void PortDrawQuickChangeBanner() {
     }
 
     if (MenuPosData != NULL) {
+        banner_ticks += mgFrameRate > 0 ? mgFrameRate : 1;
         return;
     }
 

@@ -270,6 +270,7 @@ PORT_OVERRIDE void MainLoop() {
         printf("##### %d\n", mgGetVSyncCount());
         // Single entry for every mode change: covers the LOOP_MENU->LOOP_TITLE redirect above and the PortNextLoopNo hand-off below.
         mgPortCutInterpolation();
+        PortCancelQuickChangeBanner();
         LoopInit[PortLoopNo](InitArg);
         GameGiveOnArrival(PortLoopNo);
         INIT_LOOP_ARG next_arg;

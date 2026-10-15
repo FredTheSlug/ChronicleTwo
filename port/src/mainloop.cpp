@@ -350,6 +350,7 @@ PORT_OVERRIDE void MainLoop() {
             MainScene.StepSnd();
             GamePad__2.UpDate();
             PadCtrl.Update(&GamePad__2);
+            PortStepQuickChangeEffect();
             PortDrawQuickChangeBanner();
             PortDrawFrameBorder();
             mgEndFrame(NULL);

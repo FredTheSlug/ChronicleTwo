@@ -1,5 +1,9 @@
 #include "menuchr.hpp"
 
+#include "actionchara.hpp"
+#include "dng_effect.hpp"
+#include "dng_main.hpp"
+#include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "menudraw.hpp"
 #include "menuchr_port.hpp"
@@ -37,6 +41,16 @@ constexpr int kBannerBottomMargin = 56;
 int banner_chara = -1;
 int banner_ticks = 0;
 int banner_loop = -1;
+
+// Dark Cloud's change effect, adapted: the new character starts lit white and fades back to its own colours,
+// with sparkles rising around it (dungeons only: their sparkle sprites are the dungeon's). Game frames.
+constexpr int kChangeFadeFrames = 24;
+constexpr int kChangeSparkFrames = 18;
+constexpr int kChangeSparksPerFrame = 3;
+constexpr float kChangeSparkRadius = 6.0f;
+bool change_fx_pending = false;
+int change_fx_loop = -1;
+int change_spark_frames = 0;
 
 // More steps than retail's slowest change needs: its loader phases plus the "change" logo crossing the screen.
 constexpr int kQuickChangeMaxSteps = 256;
@@ -123,6 +137,8 @@ PORT_OVERRIDE int KeyMainCharaBG() {
             banner_chara = quick_change_chara;
             banner_ticks = 0;
             banner_loop = PortLoopNo;
+            change_fx_pending = true;
+            change_fx_loop = PortLoopNo;
             return 1;
         }
     }
@@ -136,6 +152,59 @@ extern CMenuPosDataManage *MenuPosData;
 
 void PortCancelQuickChangeBanner() {
     banner_chara = -1;
+    change_fx_pending = false;
+    change_spark_frames = 0;
+}
+
+// Starts the change effect on the first game frame after the change, once the menu has closed, and keeps
+// the sparkles coming for kChangeSparkFrames. Dark Cloud's version (gameloop.cpp, GAME_TASK_CHARA_CHANGED)
+// pulses the ambient light toward white and plays its ceffe_s sparkle model; here the character's own
+// palette animation fades from white and the dungeon's item sparkles stand in for the model.
+void PortStepQuickChangeEffect() {
+    if (PortLoopNo != change_fx_loop) {
+        change_fx_pending = false;
+        change_spark_frames = 0;
+        return;
+    }
+
+    if (MenuPosData != NULL) {
+        return;
+    }
+
+    CScene       *scene = GetMainScene();
+    CActionChara *chara = scene != NULL ? (CActionChara *) scene->GetCharacter(0) : NULL;
+
+    if (chara == NULL) {
+        change_fx_pending = false;
+        change_spark_frames = 0;
+        return;
+    }
+
+    if (change_fx_pending) {
+        change_fx_pending = false;
+        // One white pulse that starts at its peak, so the character comes in white and fades to its colours.
+        CPalletAnime &fade = chara->pallet[ACTION_PALLET_MAX - 1];
+        fade.SetAnim(0xFF, 0xFF, 0xFF, 1, kChangeFadeFrames * 2, 0);
+        fade.elapsed = kChangeFadeFrames;
+        change_spark_frames = PortLoopNo == LOOP_DUNGEON ? kChangeSparkFrames : 0;
+    }
+
+    if (change_spark_frames <= 0) {
+        return;
+    }
+
+    change_spark_frames--;
+    sceVu0FVECTOR base;
+    chara->GetPosition(base);
+
+    for (int i = 0; i < kChangeSparksPerFrame; i++) {
+        sceVu0FVECTOR spark;
+        sceVu0CopyVector(spark, base);
+        spark[0] += fRand(kChangeSparkRadius * 2.0f) - kChangeSparkRadius;
+        spark[1] += fRand(1.1f) * chara->GetBodyHeight();
+        spark[2] += fRand(kChangeSparkRadius * 2.0f) - kChangeSparkRadius;
+        MiniEffPrimMan.CreatPrim(spark, MINI_EFF_PRIM_GOLD);
+    }
 }
 
 // Draws the banner centred at the bottom of the screen, fading in and out, while the game runs. A menu

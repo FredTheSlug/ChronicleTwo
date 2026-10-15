@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <list>
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
@@ -37,6 +38,29 @@ constexpr uint32_t kMaxDimension = 16384;
 constexpr uint64_t kMaxDecodedBytes = 256ull * 1024 * 1024;
 /** Maximum compressed PNG size accepted before reading its contents. */
 constexpr uint64_t kMaxFileBytes = 256ull * 1024 * 1024;
+/** RGBA storage the decode cache keeps, least recently used first out. */
+constexpr std::size_t kDecodeCacheBytes = 512ull * 1024 * 1024;
+
+/**
+ * One decoded catalog variant, kept so entering the same texture again copies it instead of re-reading
+ * and re-decoding its PNGs. Upscaled packs make that decode slow enough to show: the dungeon's quick
+ * character change re-enters the whole item icon sheet in a single frame.
+ */
+struct CachedDecode {
+    DecodedTexture texture;
+    std::size_t bytes = 0;
+    std::list<std::string>::iterator use;
+};
+
+std::unordered_map<std::string, CachedDecode> decode_cache;
+std::list<std::string> decode_uses; /**< Cache keys, most recently used first. */
+std::size_t decode_cache_bytes = 0;
+
+void ClearDecodeCache() {
+    decode_cache.clear();
+    decode_uses.clear();
+    decode_cache_bytes = 0;
+}
 
 /**
  * Converts a filesystem path to UTF-8 for keys and diagnostics.
@@ -227,6 +251,7 @@ std::vector<uint8_t> Downsample(const std::vector<uint8_t> &pixels, uint32_t wid
  * Clears all configured pack roots and their asset indexes.
  */
 void Clear() {
+    ClearDecodeCache();
     packs.clear();
     retail_root.clear();
 }
@@ -299,8 +324,46 @@ std::optional<std::filesystem::path> Resolve(const std::filesystem::path &relati
 /**
  * Decodes a catalog texture through PNG overlays into padded physical RGBA mip canvases.
  */
-bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, DecodedTexture &decoded,
-            std::string &error) {
+namespace {
+
+/**
+ * Lists the files that can supply one mip, highest-priority pack first and the converted original last.
+ */
+std::vector<std::filesystem::path> Candidates(const std::filesystem::path &level) {
+    std::vector<std::filesystem::path> result;
+    std::error_code path_error;
+    const auto canonical = std::filesystem::weakly_canonical(level, path_error);
+    if (!path_error && !retail_root.empty() && Within(retail_root, canonical)) {
+        const auto relative = canonical.lexically_relative(retail_root);
+        for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
+            if (auto path = PackFile(*pack, relative)) result.push_back(*path);
+        }
+    }
+    result.push_back(level);
+    return result;
+}
+
+/**
+ * Names a variant's decode by every file that can supply it, with each file's size and write time, so a
+ * replaced or edited PNG makes a new key.
+ */
+std::string DecodeKey(const texture_catalog::Entry &entry, std::size_t variant_index) {
+    std::string key = std::to_string(variant_index) + '|' + std::to_string(entry.width) + 'x' +
+                      std::to_string(entry.height);
+    for (const auto &level : entry.variants[variant_index].levels) {
+        for (const auto &path : Candidates(level)) {
+            std::error_code error;
+            const auto size = std::filesystem::file_size(path, error);
+            const auto time = error ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(path, error);
+            key += '|' + Display(path) + '|' + std::to_string(error ? 0 : size) + '|' +
+                   std::to_string(static_cast<unsigned long long>(time.time_since_epoch().count()));
+        }
+    }
+    return key;
+}
+
+bool DecodeUncached(const texture_catalog::Entry &entry, std::size_t variant_index, DecodedTexture &decoded,
+                    std::string &error) {
     decoded = {};
     if (entry.type != "texture" || entry.bpp != 32 || entry.width <= 0 || entry.height <= 0 ||
         entry.width > static_cast<int>(kMaxDimension) || entry.height > static_cast<int>(kMaxDimension) ||
@@ -320,19 +383,7 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, Deco
         error.clear();
         return true;
     }
-    const auto candidates = [&](std::size_t mip) {
-        std::vector<std::filesystem::path> result;
-        std::error_code path_error;
-        const auto canonical = std::filesystem::weakly_canonical(variant.levels[mip], path_error);
-        if (!path_error && !retail_root.empty() && Within(retail_root, canonical)) {
-            const auto relative = canonical.lexically_relative(retail_root);
-            for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
-                if (auto path = PackFile(*pack, relative)) result.push_back(*path);
-            }
-        }
-        result.push_back(variant.levels[mip]);
-        return result;
-    };
+    const auto candidates = [&](std::size_t mip) { return Candidates(variant.levels[mip]); };
     uint32_t scale = 0;
     for (std::size_t mip = 0; mip < variant.levels.size(); ++mip) {
         bool selected = false;
@@ -379,6 +430,43 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, Deco
         }
     }
     error.clear();
+    return true;
+}
+
+} // namespace
+
+/**
+ * Decodes a catalog texture, from the decode cache when the same variant was decoded before.
+ */
+bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, DecodedTexture &decoded,
+            std::string &error) {
+    if (variant_index >= entry.variants.size() || entry.variants[variant_index].levels.empty()) {
+        return DecodeUncached(entry, variant_index, decoded, error);
+    }
+    const std::string key = DecodeKey(entry, variant_index);
+    if (const auto found = decode_cache.find(key); found != decode_cache.end()) {
+        decode_uses.splice(decode_uses.begin(), decode_uses, found->second.use);
+        decoded = found->second.texture;
+        error.clear();
+        return true;
+    }
+    if (!DecodeUncached(entry, variant_index, decoded, error)) {
+        return false;
+    }
+    std::size_t bytes = 0;
+    for (const auto &level : decoded.levels) bytes += level.size();
+    if (bytes == 0 || bytes > kDecodeCacheBytes / 4) {
+        return true;
+    }
+    while (decode_cache_bytes + bytes > kDecodeCacheBytes && !decode_uses.empty()) {
+        const auto oldest = decode_cache.find(decode_uses.back());
+        decode_cache_bytes -= oldest->second.bytes;
+        decode_cache.erase(oldest);
+        decode_uses.pop_back();
+    }
+    decode_uses.push_front(key);
+    decode_cache.emplace(key, CachedDecode{decoded, bytes, decode_uses.begin()});
+    decode_cache_bytes += bytes;
     return true;
 }
 

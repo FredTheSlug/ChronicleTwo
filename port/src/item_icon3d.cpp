@@ -319,6 +319,9 @@ bool Render(int item_no, mgCTexture *icon) {
                         node->attr->draw &= ~MG_FRAME_DRAW_VISIBLE;
                     } else {
                         node->attr->draw |= MG_FRAME_DRAW_VISIBLE;
+                        if (EnvOn("DC2_ITEM_ICONS_3D_CLEAR_SKIP")) {
+                            node->attr->draw &= ~MG_FRAME_DRAW_SKIP_BY_PARENT;
+                        }
                     }
                 }
                 hide(node->child);

@@ -269,6 +269,9 @@ int Run(int argc, const char **argv) {
     ConfigLoad();
     FirstRunRequireData(PathsDataRoot(), options.headless);
     InitCDFile();
+    if (!options.headless) {
+        GameSetDataIcon();
+    }
     if (!DataReadPrepareScriptTiming(options.headless)) {
         return kExitScriptTiming;
     }

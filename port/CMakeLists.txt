@@ -33,6 +33,15 @@ file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated/include/kazarov)
 configure_file(${KZ_ROOT}/include/kazarov/data_version.hpp.in
     ${CMAKE_BINARY_DIR}/generated/include/kazarov/data_version.hpp @ONLY)
 
+# port/icon/chronicletwo-128.rgba, the two moons' raw 128x128 RGBA pixels: the window icon until the game data
+# is there to draw Max's wrench from (main.cpp).
+set(ICON_RGBA ${CMAKE_SOURCE_DIR}/port/icon/chronicletwo-128.rgba)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ICON_RGBA})
+file(READ ${ICON_RGBA} icon_hex HEX)
+string(REGEX REPLACE "(..)" "0x\\1," icon_bytes "${icon_hex}")
+file(CONFIGURE OUTPUT ${CMAKE_BINARY_DIR}/generated/include/icon/chronicletwo.hpp
+    CONTENT "#pragma once\n#include <cstdint>\ninline constexpr int kIconSize = 128;\ninline constexpr std::uint8_t kIconRgba[] = {${icon_bytes}};\n")
+
 include(${KZ_ROOT}/cmake/KazarovPort.cmake)
 
 # Retail textures are converted offline; the native executable only loads PNG assets.
@@ -246,6 +255,8 @@ set_target_properties(darkchronicle PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_
 ct_link_game(darkchronicle)
 if(WIN32)
     target_link_options(darkchronicle PRIVATE -municode)
+    enable_language(RC)
+    target_sources(darkchronicle PRIVATE ${CMAKE_SOURCE_DIR}/port/icon/chronicletwo.rc)
 endif()
 
 include(GNUInstallDirs)

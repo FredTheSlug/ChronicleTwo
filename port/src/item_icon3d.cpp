@@ -319,7 +319,7 @@ bool Render(int item_no, mgCTexture *icon) {
                         node->attr->draw &= ~MG_FRAME_DRAW_VISIBLE;
                     } else {
                         node->attr->draw |= MG_FRAME_DRAW_VISIBLE;
-                        if (EnvOn("DC2_ITEM_ICONS_3D_CLEAR_SKIP")) {
+                        if (!EnvOn("DC2_ITEM_ICONS_3D_KEEP_SKIP")) { // the second layer (overalls, trousers) is drawn by the game itself, here it has to be asked for
                             node->attr->draw &= ~MG_FRAME_DRAW_SKIP_BY_PARENT;
                         }
                     }
@@ -429,7 +429,7 @@ bool Render(int item_no, mgCTexture *icon) {
                 const float half_w = rise * EnvFloat("DC2_ITEM_ICONS_3D_TORSO_WIDTH", 1.15f);
                 box_lo[0] = centre_x - half_w;
                 box_hi[0] = centre_x + half_w;
-                box_lo[1] = std::min(neck[1], spine[1]) - EnvFloat("DC2_ITEM_ICONS_3D_TORSO_BELOW", 0.35f) * rise;
+                box_lo[1] = std::min(neck[1], spine[1]) - EnvFloat("DC2_ITEM_ICONS_3D_TORSO_BELOW", 0.2f) * rise;
                 box_hi[1] = std::max(neck[1], spine[1]) + EnvFloat("DC2_ITEM_ICONS_3D_TORSO_ABOVE", -0.03f) * rise;
                 box_lo[2] = std::min(neck[2], spine[2]) - rise;
                 box_hi[2] = std::max(neck[2], spine[2]) + rise;

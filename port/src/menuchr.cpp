@@ -1,5 +1,10 @@
 #include "menuchr.hpp"
 
+#include "mainloop_port.hpp"
+#include "menudraw.hpp"
+#include "menuchr_port.hpp"
+#include "mglib.hpp"
+#include "mg_texture.hpp"
 #include "userdata.hpp"
 
 #include <cstdio>
@@ -16,6 +21,22 @@ constexpr int kRidepodCapacity[MENU_CHARA_LOAD_MAX] = {
 
 // A quick change (L3, R3) whose target can be loaded, from InitMainCharaBG until KeyMainCharaBG finishes it.
 bool quick_change_pending = false;
+
+// The character the pending quick change loads, for the banner that names it afterwards.
+int quick_change_chara = -1;
+
+// The banner naming the new character: retail's "change" logo row, shown over the game once the change is
+// done, since the instant change no longer leaves time for retail's slide. Ticks of 1/60 s.
+constexpr int kBannerFadeInTicks = 8;
+constexpr int kBannerHoldTicks = 70;
+constexpr int kBannerFadeOutTicks = 20;
+constexpr int kBannerTicks = kBannerFadeInTicks + kBannerHoldTicks + kBannerFadeOutTicks;
+constexpr int kBannerWidth = 0x100;
+constexpr int kBannerHeight = 0x40;
+constexpr int kBannerBottomMargin = 56;
+int banner_chara = -1;
+int banner_ticks = 0;
+int banner_loop = -1;
 
 // More steps than retail's slowest change needs: its loader phases plus the "change" logo crossing the screen.
 constexpr int kQuickChangeMaxSteps = 256;
@@ -82,6 +103,7 @@ PORT_OVERRIDE void InitMainCharaBG(int chara_no, mgCMemory *stack, int mode) {
     if (stack != NULL) {
         int reason;
         quick_change_pending = (GetUserDataMan()->CheckQuickChange(chara_no, &reason) & QUICK_CHANGE_STATE_ENABLED) != 0;
+        quick_change_chara = chara_no;
     }
 
     PortRetailInitMainCharaBG(chara_no, stack, mode);
@@ -98,6 +120,9 @@ PORT_OVERRIDE int KeyMainCharaBG() {
     for (int step = 0; step < kQuickChangeMaxSteps; ++step) {
         if (PortRetailKeyMainCharaBG() != 0) {
             quick_change_pending = false;
+            banner_chara = quick_change_chara;
+            banner_ticks = 0;
+            banner_loop = PortLoopNo;
             return 1;
         }
     }
@@ -105,4 +130,43 @@ PORT_OVERRIDE int KeyMainCharaBG() {
     std::fprintf(stderr, "quick change: not finished after %d steps, continuing frame by frame\n", kQuickChangeMaxSteps);
     quick_change_pending = false;
     return 0;
+}
+
+extern CMenuPosDataManage *MenuPosData;
+
+// Draws the banner centred at the bottom of the screen, fading in and out, while the game runs. It waits
+// out any menu opened meanwhile and is dropped when the game leaves the loop the change happened in.
+void PortDrawQuickChangeBanner() {
+    if (banner_chara < 0) {
+        return;
+    }
+
+    if (PortLoopNo != banner_loop || banner_ticks >= kBannerTicks) {
+        banner_chara = -1;
+        return;
+    }
+
+    if (MenuPosData != NULL) {
+        return;
+    }
+
+    mgCTexture *logo = mgTexManager.GetTexture("change_logo", -1);
+
+    if (logo != NULL) {
+        int alpha = 0x80;
+
+        if (banner_ticks < kBannerFadeInTicks) {
+            alpha = 0x80 * (banner_ticks + 1) / kBannerFadeInTicks;
+        } else if (banner_ticks >= kBannerFadeInTicks + kBannerHoldTicks) {
+            alpha = 0x80 * (kBannerTicks - banner_ticks) / kBannerFadeOutTicks;
+        }
+
+        mgRect<int> row;
+        row.Set(0, banner_chara * kBannerHeight, kBannerWidth, kBannerHeight);
+        mgTexManager.ReloadTexture(logo->block, (sceVif1Packet *) NULL);
+        PrimQuad(logo, (float) ((mgScreenWidth - kBannerWidth) / 2),
+                 (float) (mgScreenHeight - kBannerHeight - kBannerBottomMargin), row, alpha, 0x80, 0x80, 0x80);
+    }
+
+    banner_ticks += mgFrameRate > 0 ? mgFrameRate : 1;
 }

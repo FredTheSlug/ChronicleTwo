@@ -18,6 +18,7 @@
 #include "gamepad.hpp"
 #include "helpmes.hpp"
 #include "inventmn.hpp"
+#include "menuchr_port.hpp"
 #include "main.hpp"
 #include "mainloop.hpp"
 #include "mainloop3.hpp"
@@ -348,6 +349,7 @@ PORT_OVERRIDE void MainLoop() {
             MainScene.StepSnd();
             GamePad__2.UpDate();
             PadCtrl.Update(&GamePad__2);
+            PortDrawQuickChangeBanner();
             PortDrawFrameBorder();
             mgEndFrame(NULL);
 

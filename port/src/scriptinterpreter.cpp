@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <string>
 
 namespace {
@@ -18,7 +19,79 @@ bool SkipArgumentSpace(input_str &input) {
     return input.position < input.size;
 }
 
+// Retail keeps each tag's arguments and their strings in locals of GetNextTAG, which Run calls in
+// a loop at the same stack depth, so a slot past a tag's last argument still holds the value an
+// earlier tag left there. Disc data depends on it: s05.cfg's fc_e230 (Master Utan's poisoned
+// apples in the Fish Monster Swamp) lists seven FUNC_POS values, and its last two scales come
+// from the fc_e220 tag before it. The port zeroes locals, which made those scales zero and the
+// trigger unreachable. One persistent buffer per nesting level keeps the retail leftovers.
+constexpr int kPersistentDepths = 8;
+
+struct TagStorage {
+    char      strings[SPI_STRING_BUFF_SIZE];
+    SPI_STACK arguments[SPI_STACK_SIZE];
+};
+
+TagStorage persistent_storage[kPersistentDepths];
+int        tag_depth = 0;
+
+struct DepthScope {
+    DepthScope() { ++tag_depth; }
+
+    ~DepthScope() { --tag_depth; }
+};
+
 } // namespace
+
+PORT_OVERRIDE int CScriptInterpreter::GetNextTAG(int call) {
+    if (tag == nullptr) {
+        return -1;
+    }
+
+    DepthScope                  scope;
+    std::unique_ptr<TagStorage> deeper;
+    TagStorage                 *storage = &persistent_storage[0];
+    if (tag_depth <= kPersistentDepths) {
+        storage = &persistent_storage[tag_depth - 1];
+    } else {
+        deeper = std::make_unique<TagStorage>();
+        storage = deeper.get();
+    }
+    SetStringBuff(storage->strings, SPI_STRING_BUFF_SIZE);
+
+    for (;;) {
+        int index;
+        SetStack(storage->arguments, SPI_STACK_SIZE);
+
+        if (!SearchCommand(&index)) {
+            return -1;
+        }
+
+        if (!binary) {
+            if (index >= tag_count || index < 0) {
+                // An unknown tag is passed over up to its semicolon.
+                int c;
+                while (get(&c) && c != ';') {
+                }
+                continue;
+            }
+
+            const int argument_count = GetArg();
+
+            if (call && tag[index].function != nullptr) {
+                tag[index].function(stack, argument_count);
+            }
+        } else {
+            const int argument_count = GetArgBin();
+
+            if (index < tag_count && index >= 0 && call && tag[index].function != nullptr) {
+                tag[index].function(stack, argument_count);
+            }
+        }
+
+        return index;
+    }
+}
 
 PORT_OVERRIDE int CScriptInterpreter::GetArg() {
     int  count = 0;

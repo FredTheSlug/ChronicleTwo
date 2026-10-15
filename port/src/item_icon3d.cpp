@@ -257,7 +257,13 @@ bool Render(int item_no, mgCTexture *icon) {
             if (!EnvOn("DC2_ITEM_ICONS_3D_KEEP_TEXANIME")) {
                 mgTexManager.DeleteTexAnime(kModelBlock); // as the menu's own preview does before a skin
             }
+            // The skin's pictures keep the names every outfit of the character shares, which the town's own Max (and the
+            // pictures already in the block) answer to first; a suffix of their own keeps them to this model.
+            if (!EnvOn("DC2_ITEM_ICONS_3D_NO_SKIN_SUFFIX")) {
+                std::strcpy(mgTexManager.name_suffix, "_skin");
+            }
             chara->LoadSkin(reinterpret_cast<unsigned int *>(skin_base), cfg, empty, &stack, kModelBlock);
+            mgTexManager.name_suffix[0] = 0;
             if (EnvOn("DC2_ITEM_ICONS_3D_DUMP_TEX") && SheetPath() != nullptr) {
                 // Debug: the pictures the model block holds after the skin is in, as the game's own.
                 mgCTextureBlock *block = mgTexManager.GetTextureBlock(kModelBlock);

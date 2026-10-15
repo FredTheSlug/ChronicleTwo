@@ -50,16 +50,18 @@ int banner_hold = 0;
 float banner_x = 0.0f;
 
 // Dark Cloud's change effect, adapted: the new character starts lit white and fades back to its own colours
-// while stars splash up and out around it and fall back. Game frames.
+// while a splash of stars bursts out and up around it. Game frames.
 constexpr int kChangeFadeFrames = 24;
 constexpr int kChangeSparkFrames = 2;
 constexpr int kChangeSparksPerFrame = 18;
 constexpr int kChangeSparkMax = 64;
+constexpr float kChangeSparkGravity = 0.07f;
+constexpr float kChangeSparkDrag = 0.95f;
 constexpr int kChangeSparkAlpha = 0x50;
 
 struct alignas(16) ChangeSpark {
     float pos[4]; // Offset from the character's position, so the sparkles move with it.
-    float vel[4]; // The last element is the star's own gravity, so each one peaks at its chosen height.
+    float vel[4];
     float size;
     float phase;
     int   age;
@@ -187,8 +189,7 @@ void StopChangeEffect() {
     change_spark_count = 0;
 }
 
-// A splash, as if the character had just landed in water: each star leaps from around its feet up to about head
-// height while moving out away from it, then falls back with gravity and fades as it comes down.
+// A splash: each star bursts from around the character's waist, out and up, and falls back as it fades.
 void SpawnChangeSpark(CActionChara *chara) {
     if (change_spark_count >= kChangeSparkMax) {
         return;
@@ -196,24 +197,20 @@ void SpawnChangeSpark(CActionChara *chara) {
 
     ChangeSpark &spark = change_sparks[change_spark_count++];
     const float  angle = fRand(2.0f * PI);
-    const float  height = chara->GetBodyHeight();
-    const float  out = 0.25f + fRand(0.25f);
+    const float  out = 0.6f + fRand(0.8f);
     const float  start = 0.5f + fRand(1.5f);
-    const float  bottom = fRand(0.15f) * height;
-    const float  rise = (0.85f + fRand(0.3f)) * height - bottom;
-    const float  peak = 13.0f + fRand(5.0f);
-    spark.life = (int) (peak * 2.1f);
     spark.pos[0] = start * cosf(angle);
-    spark.pos[1] = bottom;
+    spark.pos[1] = (0.2f + fRand(0.3f)) * chara->GetBodyHeight();
     spark.pos[2] = start * sinf(angle);
     spark.pos[3] = 0.0f;
     spark.vel[0] = out * cosf(angle);
-    spark.vel[1] = 2.0f * rise / peak;
+    spark.vel[1] = 0.8f + fRand(0.8f);
     spark.vel[2] = out * sinf(angle);
-    spark.vel[3] = 2.0f * rise / (peak * peak);
-    spark.size = 3.0f + fRand(2.0f);
+    spark.vel[3] = 0.0f;
+    spark.size = 3.0f + fRand(2.5f);
     spark.phase = fRand(2.0f * PI);
     spark.age = 0;
+    spark.life = 26 + (int) fRand(10.0f);
 }
 
 // Moves and ages the stars; +y is up.
@@ -231,7 +228,9 @@ void StepChangeSparks() {
         spark.pos[0] += spark.vel[0];
         spark.pos[1] += spark.vel[1];
         spark.pos[2] += spark.vel[2];
-        spark.vel[1] -= spark.vel[3];
+        spark.vel[0] *= kChangeSparkDrag;
+        spark.vel[2] *= kChangeSparkDrag;
+        spark.vel[1] -= kChangeSparkGravity;
         change_sparks[kept++] = spark;
     }
 
@@ -258,7 +257,7 @@ void DrawChangeSparks(const sceVu0FVECTOR base) {
     for (int i = 0; i < change_spark_count; i++) {
         ChangeSpark &spark = change_sparks[i];
         const float  t = (float) spark.age / (float) spark.life;
-        const float  envelope = t < 0.08f ? t / 0.08f : t < 0.55f ? 1.0f : 1.0f - (t - 0.55f) / 0.45f;
+        const float  envelope = t < 0.08f ? t / 0.08f : t < 0.5f ? 1.0f : 1.0f - (t - 0.5f) / 0.5f;
         const float  twinkle = 0.75f + 0.25f * sinf(spark.phase + 0.9f * (float) spark.age);
         const int    alpha = (int) ((float) kChangeSparkAlpha * envelope * twinkle);
         const float  size = spark.size * twinkle;

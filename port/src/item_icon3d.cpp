@@ -247,6 +247,13 @@ bool Render(int item_no, mgCTexture *icon) {
         int   skin_size = 0;
         if (LoadFile2(skin_path, skin_base, &skin_size, LOAD_FILE_READ) && skin_size > 0) {
             char empty[] = "";
+            if (Debug()) {
+                int   cfg_size = 0;
+                char *cfg_text = reinterpret_cast<char *>(GetPackFile(reinterpret_cast<u_int *>(skin_base), cfg, &cfg_size));
+                if (cfg_text != nullptr) {
+                    std::fprintf(stderr, "dc2 item icon 3d: item %d skin cfg (%d bytes):\n%.*s\n=====\n", item_no, cfg_size, cfg_size > 6000 ? 6000 : cfg_size, cfg_text);
+                }
+            }
             if (!EnvOn("DC2_ITEM_ICONS_3D_KEEP_TEXANIME")) {
                 mgTexManager.DeleteTexAnime(kModelBlock); // as the menu's own preview does before a skin
             }

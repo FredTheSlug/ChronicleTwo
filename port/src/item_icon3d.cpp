@@ -795,12 +795,23 @@ void ItemIcons3DDumpSheet() {
     if (gfx::ReadbackTexture(g_sheet, rgba, width, height)) {
         gfx::WritePng(path, rgba.data(), width, height);
     }
+    if (MenuPosData != nullptr) {
+        // The 2D icon sheets as they are, for comparing against.
+        for (int sheet = 0; sheet < 2; sheet++) {
+            mgCTexture *atlas = MenuPosData->item_icon_tex[0][sheet];
+            if (atlas != nullptr && atlas->image[0] != nullptr) {
+                gfx::WritePng((std::string(path) + ".atlas" + std::to_string(sheet) + ".png").c_str(), reinterpret_cast<const uint8_t *>(atlas->image[0]),
+                              static_cast<uint32_t>(atlas->width), static_cast<uint32_t>(atlas->height));
+            }
+        }
+    }
     std::string list = std::string(path) + ".txt";
     if (FILE *file = std::fopen(list.c_str(), "w")) {
         for (std::size_t i = 0; i < g_sheet_items.size(); i++) {
             CDataCommon *record = GameItemDataManage.GetCommonData(g_sheet_items[i]);
-            std::fprintf(file, "%zu item %d %s %s\n", i, g_sheet_items[i], record != nullptr && record->file_name != nullptr ? record->file_name : "",
-                         i < g_sheet_labels.size() ? g_sheet_labels[i].c_str() : "");
+            std::fprintf(file, "%zu item %d %s %s icon %d %d\n", i, g_sheet_items[i], record != nullptr && record->file_name != nullptr ? record->file_name : "",
+                         i < g_sheet_labels.size() ? g_sheet_labels[i].c_str() : "-", record != nullptr ? record->icon_texture_no : -1,
+                         record != nullptr ? record->icon_no : -1);
         }
         std::fclose(file);
     }

@@ -333,6 +333,7 @@ bool Render(int item_no, mgCTexture *icon) {
                 if (node->visual != nullptr && node->attr != nullptr) {
                     if (index == g_only_index) {
                         g_part_name = node->name != nullptr ? node->name : "?";
+                        node->attr->draw |= MG_FRAME_DRAW_VISIBLE;
                     } else {
                         node->attr->draw &= ~MG_FRAME_DRAW_VISIBLE;
                     }

@@ -40,7 +40,10 @@ def load_port_override(path: Path):
 # change; all calls in the original unit still reach the native public seam.
 RETAIL_BRIDGES = {
     "editctrl.cpp": [("ResetViewMode(CScene*)", "ResetViewMode", "PortRetailResetViewMode")],
-    "dng_main.cpp": [("ResetEyeView(CActionChara*)", "ResetEyeView", "PortRetailResetEyeView")],
+    "dng_main.cpp": [
+        ("ResetEyeView(CActionChara*)", "ResetEyeView", "PortRetailResetEyeView"),
+        ("ChangeSetUnit(int)", "ChangeSetUnit", "PortRetailChangeSetUnit"),
+    ],
     "charasetup.cpp": [("GetRoboPartsInfo(CUserDataManager*)", "GetRoboPartsInfo", "PortRetailGetRoboPartsInfo")],
     "menuchr.cpp": [
         ("InitMainCharaBG(int,mgCMemory*,int)", "InitMainCharaBG", "PortRetailInitMainCharaBG"),

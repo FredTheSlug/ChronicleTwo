@@ -337,11 +337,27 @@ TEST_F(SaveSlotTest, LoadBeyondRetailLimitRestoresPayloadAndTransition) {
     EXPECT_EQ(manager.load_dng_tree_flag, 1);
 }
 
+TEST_F(SaveSlotTest, DungeonAutosaveLoadsOnItsFloor) {
+    live->save_dungeon.stage_id = 3;
+    live->save_dungeon.floor_id[3] = 7;
+    SetDngTreeFlag(1);
+    ASSERT_TRUE(SaveSlotWriteAutosave(LOOP_DUNGEON));
+    SetDngTreeFlag(0);
+
+    manager.GetAllSaveFileInfo();
+    ASSERT_EQ(manager.LoadFromMc(0), MC_STEP_DONE);
+    EXPECT_EQ(manager.error.code, MC_ERROR_NONE);
+    EXPECT_EQ(manager.load_program_loop_no, LOOP_DUNGEON);
+    EXPECT_EQ(manager.load_dungeon_no, 3);
+    EXPECT_EQ(manager.load_floor_id, 7);
+    EXPECT_EQ(manager.load_dng_tree_flag, 0);
+}
+
 TEST_F(SaveSlotTest, AutosaveIsOneFileListedFirstForLoadingOnly) {
     Write(SaveSlotPath(0));
     live->map_no = 12;
-    ASSERT_TRUE(SaveSlotWriteAutosave());
-    ASSERT_TRUE(SaveSlotWriteAutosave());
+    ASSERT_TRUE(SaveSlotWriteAutosave(LOOP_EDIT));
+    ASSERT_TRUE(SaveSlotWriteAutosave(LOOP_EDIT));
     EXPECT_TRUE(fs::is_regular_file(SaveSlotAutosavePath()));
     EXPECT_EQ(FlatCount(), 1);
 

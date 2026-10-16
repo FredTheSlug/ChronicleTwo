@@ -11,7 +11,9 @@
 #include "dataread.hpp"
 #include "debug_mode.hpp"
 #include "dng_main.hpp"
+#include "editctrl_port.hpp"
 #include "editdata.hpp"
+#include "editloop.hpp"
 #include "font.hpp"
 #include "gaiji.hpp"
 #include "gamedata.hpp"
@@ -22,6 +24,7 @@
 #include "mainloop.hpp"
 #include "mainloop3.hpp"
 #include "mainloop_port.hpp"
+#include "mapjump.hpp"
 #include "mapselect.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
@@ -42,17 +45,89 @@
 #include "scene.hpp"
 #include "scenesnd.hpp"
 #include "snd_mngr.hpp"
+#include "subgame.hpp"
 #include "sysmes.hpp"
 #include "test_hooks.hpp"
 #include "userdata.hpp"
 #include "vlgr_info.hpp"
 
-int  PortVSyncCallBack(int unused) asm("MainLoop_VSyncCallBack");
+int PortVSyncCallBack(int unused) asm("MainLoop_VSyncCallBack");
 
 bool PortAutosave = false;
-extern u_long128     main_buffer[0x1A0000];
-extern CScene        MainScene;
-extern CFont         Font;
+
+namespace {
+
+int g_autosaved_floor = -1;
+int g_autosaved_map = -1;
+
+void WriteAutosave(int program_loop_no, AutosaveSpawn *spawn = nullptr) {
+    if (PortAutosave && ConfigGet().autosave && PortCaptureMode == CAPTURE_OFF && !SaveSlotWriteAutosave(program_loop_no, spawn)) {
+        std::fprintf(stderr, "autosave: could not write %s\n", PathsDisplay(SaveSlotAutosavePath()).c_str());
+    }
+}
+
+// Once per floor, the first frame the player has control on it.
+void AutosaveFloor() {
+    const CSaveDataDungeon &dungeon = GetSaveData()->save_dungeon;
+    if (DngStatus.mode != DNG_STATUS_FIELD || dungeon.stage_id < 0 || dungeon.stage_id >= SAVE_DUNGEON_NUM) {
+        return;
+    }
+    const int floor = dungeon.stage_id * 1000 + dungeon.floor_id[dungeon.stage_id];
+    if (floor != g_autosaved_floor) {
+        g_autosaved_floor = floor;
+        WriteAutosave(LOOP_DUNGEON);
+    }
+}
+
+// Once per town map (Palm Brinks, Sindain...), the first frame the player walks it after arriving, however the
+// town was entered: a new mode, a map jump inside the town loop, or a return from a dungeon by its exit,
+// half the party's money or an escape item. Interiors wait until the player is back outside.
+void AutosaveTown() {
+    CScene *scene = GetMainScene();
+    if (!scene || IsEditMode() || PortTownLoopMode != EDIT_LOOP_WALK || PortTownControlMode != EDIT_CONTROL_PLAYER ||
+        PortTownLockChara || PortTownPause || scene->event_run || GamePad__2.key_lock || SubGameRunning() || InInterior()) {
+        return;
+    }
+    CCharacter2 *chara = scene->GetCharacter(scene->player_chara);
+    mgCCamera   *camera = scene->GetCamera(scene->active_camera);
+    const int    map = scene->GetNowMapNo();
+    if (!chara || !camera || map < 0) {
+        return;
+    }
+    // Loading the autosave starts at the map's save point, or at its entrance on a map without one; once the
+    // load's entry event gives the player control, move them back to where the autosave was written, as
+    // leaving an interior restores the spot outside its door.
+    if (SaveSlotSpawnPending) {
+        SaveSlotSpawnPending = false;
+        if (GetSaveData()->map_no == SaveSlotSpawn.map_no) {
+            chara->SetPosition(SaveSlotSpawn.position);
+            chara->SetRotation(SaveSlotSpawn.rotation);
+            chara->ResetDAPosition();
+            chara->Step();
+            chara->StepDA(10);
+            camera->SetPos(SaveSlotSpawn.camera_pos);
+            camera->SetRef(SaveSlotSpawn.camera_ref);
+            g_autosaved_map = map;
+            return;
+        }
+    }
+    if (map != g_autosaved_map) {
+        g_autosaved_map = map;
+        AutosaveSpawn spawn;
+        spawn.map_no = GetSaveData()->map_no;
+        chara->GetPosition(spawn.position);
+        chara->GetRotation(spawn.rotation);
+        camera->GetPos(spawn.camera_pos);
+        camera->GetRef(spawn.camera_ref);
+        WriteAutosave(LOOP_EDIT, &spawn);
+    }
+}
+
+} // namespace
+
+extern u_long128 main_buffer[0x1A0000];
+extern CScene    MainScene;
+extern CFont     Font;
 
 static constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
 
@@ -276,10 +351,8 @@ PORT_OVERRIDE void MainLoop() {
         mgPortCutInterpolation();
         LoopInit[PortLoopNo](InitArg);
         GameGiveOnArrival(PortLoopNo);
-        if (PortAutosave && PortLoopNo == LOOP_EDIT && InitArg.event_no < 0 && PortCaptureMode == CAPTURE_OFF &&
-            !SaveSlotWriteAutosave()) {
-            std::fprintf(stderr, "autosave: could not write %s\n", PathsDisplay(SaveSlotAutosavePath()).c_str());
-        }
+        g_autosaved_floor = -1;
+        g_autosaved_map = -1;
         INIT_LOOP_ARG next_arg;
 
         NextLoop(LOOP_MENU, next_arg);
@@ -363,6 +436,11 @@ PORT_OVERRIDE void MainLoop() {
             if (mode_finished != 0) {
                 PauseCancel();
                 break;
+            }
+            if (PortLoopNo == LOOP_DUNGEON) {
+                AutosaveFloor();
+            } else if (PortLoopNo == LOOP_EDIT) {
+                AutosaveTown();
             }
 
             if (GamePad__2.On(PAD_CIRCLE)) {

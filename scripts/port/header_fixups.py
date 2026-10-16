@@ -26,6 +26,8 @@ LONG64_SUFFIXES = (".h", ".hpp", ".hh", ".inc", ".inl")
 # ClsMes::Init is out-of-line only in dngmenu.cpp; making it inline everywhere leaves one definition.
 # mgVu0FBOX is not trivially copyable, so memset on it trips -Wnontrivial-memcall.
 FIXUPS = [
+    # Paint colours close the menu into paint mode on the first visit as well as returned visits.
+    ("editmenu.hpp", "        paint_top = 0;", "        paint_top = 0; paint_return = 1;"),
     ("dng_event.hpp", "    virtual void Draw();", "    virtual int Draw();"),
     ("dng_hud.hpp", "    virtual void Draw();", "    virtual int Draw();"),
     ("nd_meswin.hpp", "#ifndef MES_WINDOW_OUT_OF_LINE_INIT", "#if 1"),
@@ -84,8 +86,7 @@ UNIT_FIXUPS = [
     ("inventmn.cpp", "\ninline CMenuInvent::CMenuInvent() {", "\nCMenuInvent::CMenuInvent() {"),
     ("editeff.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     ("editmap.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
-    # Host pointers move CMenuPosDataForm::ambient off the 16-byte boundary retail kept it on, so the
-    # quadword copy into it faults when a sphere is fused into the weapon being viewed.
+    # Fusion colours can target a float-aligned ambient field rather than a quadword boundary.
     ("menusys.cpp", "*(u_long128 *) color = *(u_long128 *) fusion_ambient;",
      "memcpy(color, fusion_ambient, sizeof(fusion_ambient));"),
     ("dng_debug.cpp", "\nvoid CTreasureBox::Initialize() {", "\ninline void CTreasureBox::Initialize() {"),
@@ -102,20 +103,8 @@ UNIT_FIXUPS = [
     printf("data memory size = %d kbyte", (data_size - 210128) * 16 / 1024);""",
      """    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - 270128);
     printf("data memory size = %d kbyte", (data_size - 270128) * 16 / 1024);"""),
-    # StepDownLoadAnaunce and DrawDownLoadAnaunce walk 8 message windows of a 6-entry table. Retail's
-    # two extra slots hold nothing; on the host they are the next statics (EventCamera), which the
-    # geostone announcement then scribbled on and drew as message windows, crashing later in the town
-    # or the event. Two more slots, never filled, keep the walk on null entries.
+    # Geostone announcement updates and draws reserve eight nullable message slots.
     ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
-    # MenuGeoramaPaintSelect leaves the menu for paint mode only when paint_return is non-zero, and
-    # retail sets it only when the menu reopens from paint mode; the constructor leaves it alone. On
-    # the PS2 the menu stack still holds earlier data there, so picking a colour on the paint page
-    # always went to paint mode. The port's arena memory is often fresh zeros, which left the colour
-    # picked and the menu open, so no colour could be painted. Start it non-zero as retail found it.
-    ("editmenu.cpp", """    CMenuGeoPt = new (MenuGeoramaStack.Alloc(0x1B92)) CMenuGeorama;
-""", """    CMenuGeoPt = new (MenuGeoramaStack.Alloc(0x1B92)) CMenuGeorama;
-    CMenuGeoPt->paint_return = 1;
-"""),
     ("editloop.cpp", """    main_stack->Alloc(data_size - 210128);
     MenuBuffer__2.stSetBuffer(read_buffer = main_stack->stAlloc64(200000), 200000);
     read_buffer_end = read_buffer + 200000;""",

@@ -7,12 +7,9 @@
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 
-// Retail fills the frame's alpha with 0x80 (an additive black sprite), then draws the river and
-// pond mask pieces with alpha 0 over it; a georama's ground pieces carry DATE so they skip the
-// river, letting its bed and water show. The port's frame keeps no such alpha, so the same bit
-// lives in the stencil: without it the ground covered every river.
+// River coverage clears destination alpha so ground pieces leave water and river beds visible.
 PORT_OVERRIDE void CEditMap::DrawRiverMask() {
-    if (river_piece[0] == NULL || river_piece[1] == NULL || river_piece[2] == NULL || river_piece[3] == NULL) {
+    if (river_piece[0] == nullptr || river_piece[1] == nullptr || river_piece[2] == nullptr || river_piece[3] == nullptr) {
         return;
     }
 
@@ -22,7 +19,7 @@ PORT_OVERRIDE void CEditMap::DrawRiverMask() {
     for (int g = 0; g < grid_max; g++) {
         CEditGrid *grid = this->grid[g];
 
-        if (grid != NULL) {
+        if (grid != nullptr) {
             int   height = grid->num_z;
             int   width = grid->num_x;
             float half_z = grid->step_z / 2.0f;
@@ -37,7 +34,7 @@ PORT_OVERRIDE void CEditMap::DrawRiverMask() {
                 for (int gz = 0; gz < height; gz++) {
                     CGridData *cell = grid->GetFast(gx, gz);
 
-                    if (cell != NULL && cell->river) {
+                    if (cell != nullptr && cell->river) {
                         float corners[4][4] = {
                             {x - quarter_x, y, z - quarter_z, 1.0f},
                             {x + quarter_x, y, z - quarter_z, 1.0f},
@@ -72,11 +69,11 @@ PORT_OVERRIDE void CEditMap::DrawRiverMask() {
         if (!empty && parts->state) {
             CEditPartsInfo *info = parts->info;
 
-            if (info != NULL && info->id == 0x3C) {
+            if (info != nullptr && info->id == 0x3C) {
                 parts->GetPosition(position);
                 parts->GetRotation(rotation);
 
-                if (mask_piece[0] != NULL) {
+                if (mask_piece[0] != nullptr) {
                     mask_piece[0]->SetPosition(position);
                     mask_piece[0]->SetRotation(rotation);
                     mask_piece[0]->DrawDirect();

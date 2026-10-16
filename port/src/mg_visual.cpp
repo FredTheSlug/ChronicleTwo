@@ -19,9 +19,7 @@
 namespace {
 
 constexpr int kFaceUnusedFrameLimit = 600;
-// Fix and Motion faces stay in the table until their address is reused, which never happens for most faces
-// of an unloaded map. Their GPU mesh is released after this many unused frames and rebuilt from the CPU copy
-// when the face is drawn again, so map changes cannot exhaust the renderer's mesh slots.
+// Persistent faces retain CPU geometry while idle GPU meshes release their slots.
 constexpr int kPersistentMeshUnusedFrameLimit = 1800;
 
 // The GS guard band reaches 10% past the screen on each side; the six-plane clip keeps what lies inside it.
@@ -58,7 +56,7 @@ struct CornerStreams {
 };
 
 CornerStreams CornerOf(const mgCFace &face, int corner) {
-    const int   *cursor = face.index + corner * face.index_stride;
+    const int    *cursor = face.index + corner * face.index_stride;
     CornerStreams streams = {cursor[0], -1, -1, -1};
     int           next = 1;
 
@@ -128,9 +126,7 @@ void ReleaseMesh(mgVisualFaceMesh &mesh) {
     }
 }
 
-// Fix and Motion faces are built once during load and cannot be rebuilt, so their CPU copy is kept: it uploads
-// the GPU mesh once the renderer exists, again after the sweep released it, and draws the face immediately if
-// no mesh slot is free.
+// The CPU copy supports reupload after eviction and immediate draws when no mesh slot is free.
 void UploadIfReady(FaceEntry &entry) {
     mgVisualFaceMesh &mesh = *entry.mesh;
     if (!entry.persistent || mesh.mesh != gfx::kNullMesh || mesh.indices.empty() ||
@@ -281,11 +277,11 @@ PORT_OVERRIDE int mgCVisualMDT::SetMaterialRef(u_long128 *packet, mgMaterial *ma
 namespace {
 
 struct RenderRecord {
-    gfx::MeshConstants mesh;
+    gfx::MeshConstants  mesh;
     gfx::Prog0Constants prog0;
-    gfx::MeshTransform transform;
-    gfx::DrawState state;
-    bool drawn = false;
+    gfx::MeshTransform  transform;
+    gfx::DrawState      state;
+    bool                drawn = false;
 };
 
 RenderRecord &CurrentRecord() {
@@ -303,11 +299,11 @@ struct FaceDraw {
 };
 
 struct GroupDraw {
-    gfx::MeshConstants mesh;
+    gfx::MeshConstants  mesh;
     gfx::Prog0Constants prog0;
-    gfx::MeshTransform transform;
-    gfx::DrawState state;
-    const void *object;
+    gfx::MeshTransform  transform;
+    gfx::DrawState      state;
+    const void         *object;
 };
 
 // Both prog0 submissions. Every call goes through here, so the renderer and frame checks mgPortDrawMesh makes
@@ -317,7 +313,7 @@ void SubmitFaces(const GroupDraw &group, const std::vector<FaceDraw> &faces) {
         return;
     }
 
-    mgPortInterpScope scope(group.object, kMgPortFrameTeleportDistance);
+    mgPortInterpScope   scope(group.object, kMgPortFrameTeleportDistance);
     gfx::Prog0Constants prog0 = group.prog0;
 
     for (const FaceDraw &face : faces) {
@@ -337,12 +333,12 @@ void SubmitFaces(const GroupDraw &group, const std::vector<FaceDraw> &faces) {
 // the guard, so at a 4:3 window the matrix is the identity.
 void VisibleClipFit(float (*fit)[4]) {
     const mgPortExtent extent = mgPortVisibleExtent();
-    const float half_screen_w = 0.5f * static_cast<float>(mgScreenWidth);
-    const float half_screen_h = 0.5f * static_cast<float>(mgScreenHeight);
-    const float half_w = 0.5f * (extent.right - extent.left);
-    const float half_h = 0.5f * (extent.bottom - extent.top);
-    const float centre_x = 0.5f * (extent.left + extent.right) - half_screen_w;
-    const float centre_y = 0.5f * (extent.top + extent.bottom) - half_screen_h;
+    const float        half_screen_w = 0.5f * static_cast<float>(mgScreenWidth);
+    const float        half_screen_h = 0.5f * static_cast<float>(mgScreenHeight);
+    const float        half_w = 0.5f * (extent.right - extent.left);
+    const float        half_h = 0.5f * (extent.bottom - extent.top);
+    const float        centre_x = 0.5f * (extent.left + extent.right) - half_screen_w;
+    const float        centre_y = 0.5f * (extent.top + extent.bottom) - half_screen_h;
 
     std::memset(fit, 0, 16 * sizeof(float));
     fit[0][0] = half_screen_w / half_w;
@@ -434,8 +430,8 @@ PORT_OVERRIDE int mgCVisualMDT::CreateRenderInfoPacket(u_int *packet, float (*ma
         return 0;
     }
 
-    const mgCFrameAttr &attr = *info->attr;
-    mgLIGHT_INFO       *lighting = info->GetpLightInfo();
+    const mgCFrameAttr  &attr = *info->attr;
+    mgLIGHT_INFO        *lighting = info->GetpLightInfo();
     gfx::Prog0Constants &prog0 = record.prog0;
 
     std::memset(&prog0, 0, sizeof prog0);
@@ -617,7 +613,7 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
     }
 
     for (mgFACE_GROUP *group = face_group; group != NULL; group = group->next) {
-        mgMaterial *mat = material + group->material;
+        mgMaterial         *mat = material + group->material;
         gfx::TextureBinding binding = mgPortBinding(mat->texture);
         // Retail SetMaterialRef writes this texture's CLAMP for every material.
         // Record it with the mesh instead of inheriting another draw's wrap state.

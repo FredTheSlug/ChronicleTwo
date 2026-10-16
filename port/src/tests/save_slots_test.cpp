@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -6,10 +7,12 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <memory>
 #include <vector>
 
 #include "dataread.hpp"
+#include "dng_main.hpp"
 #include "font.hpp"
 #include "gamepad.hpp"
 #include "inventmn.hpp"
@@ -21,11 +24,13 @@
 #include "menumain.hpp"
 #include "menuop.hpp"
 #include "platform/clock.hpp"
+#include "platform/config.hpp"
 #include "platform/files.hpp"
 #include "platform/paths.hpp"
 #include "platform_fixture.hpp"
 #include "play_time.hpp"
 #include "save_slots.hpp"
+#include "scene.hpp"
 
 namespace fs = std::filesystem;
 
@@ -56,6 +61,7 @@ protected:
         manager.save_buffer = buffer.get();
         manager.InitForMC();
         SaveSlots = {};
+        SaveSlotSetPendingSpawn(std::nullopt);
     }
 
     void TearDown() override {
@@ -63,6 +69,7 @@ protected:
         manager.FinishForMC();
         PortActiveSaveData = previous;
         SaveSlots = {};
+        SaveSlotSetPendingSpawn(std::nullopt);
         SaveSlotNew = false;
         PathsReset();
         std::error_code error;
@@ -373,17 +380,243 @@ TEST_F(SaveSlotTest, AutosaveIsOneFileListedFirstForLoadingOnly) {
     EXPECT_EQ(manager.load_program_loop_no, LOOP_EDIT);
 
     // A save made after the autosave is the newest.
-    SaveSlotListAutosave = false;
-    manager.GetAllSaveFileInfo();
+    SaveSlotRefresh(manager, false);
     ASSERT_EQ(SaveSlots.saves.size(), 1);
     EXPECT_FALSE(SaveSlots.saves[0].autosave);
     SaveSlotNew = true;
     manager.SaveToMc(1);
     ASSERT_EQ(manager.error.code, MC_ERROR_NONE);
-    SaveSlotListAutosave = true;
     manager.GetAllSaveFileInfo();
     ASSERT_EQ(SaveSlots.saves.size(), 3);
     EXPECT_EQ(SaveSlots.saves[manager.GetUpdateFile()].number, 1);
+}
+
+TEST_F(SaveSlotTest, ManualSaveCannotOverwriteAnAutosaveRow) {
+    ASSERT_TRUE(SaveSlotWriteAutosave(LOOP_EDIT));
+    const auto original = Bytes(SaveSlotAutosavePath());
+    manager.GetAllSaveFileInfo();
+    ASSERT_TRUE(SaveSlots.saves[0].autosave);
+    manager.SaveToMc(0);
+    EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
+    EXPECT_EQ(Bytes(SaveSlotAutosavePath()), original);
+    EXPECT_EQ(FlatCount(), 0);
+}
+
+TEST_F(SaveSlotTest, SpawnMetadataIsVersionedFiniteAndTiedToItsSave) {
+    AutosaveSpawn spawn;
+    spawn.counter = 12;
+    spawn.map_no = 42;
+    spawn.position[0] = 15.5f;
+    spawn.camera_ref[2] = -8;
+    ASSERT_TRUE(SaveSlotWriteSpawn(spawn));
+    const auto path = SaveSlotAutosaveSpawnPath(12);
+    const auto original = Bytes(path);
+    EXPECT_NE(std::string(original.begin(), original.end()).find("\n  \"schema_version\""), std::string::npos);
+    const auto loaded = SaveSlotReadSpawn(12, 42);
+    ASSERT_TRUE(loaded);
+    EXPECT_FLOAT_EQ(loaded->position[0], 15.5f);
+    EXPECT_FLOAT_EQ(loaded->camera_ref[2], -8);
+    EXPECT_FALSE(SaveSlotReadSpawn(12, 43));
+    EXPECT_FALSE(SaveSlotReadSpawn(13, 42));
+    const auto valid = nlohmann::json::parse(original);
+    for (const auto &change : {
+             nlohmann::json{{"schema_version", 2}}, nlohmann::json{{"counter", 13}},
+             nlohmann::json{{"map_no", 43}}, nlohmann::json{{"map_no", 4294967338ULL}},
+             nlohmann::json{{"position", {1, 2, 3}}}, nlohmann::json{{"position", {1e100, 0, 0, 0}}}}) {
+        auto invalid = valid;
+        invalid.update(change);
+        const auto bytes = invalid.dump(2);
+        ASSERT_EQ(FilesWrite(path, bytes.data(), bytes.size(), true), FilesResult::kWritten);
+        EXPECT_FALSE(SaveSlotReadSpawn(12, 42)) << change.dump();
+    }
+    ASSERT_EQ(FilesWrite(path, original.data(), original.size() / 2, true), FilesResult::kWritten);
+    EXPECT_FALSE(SaveSlotReadSpawn(12, 42));
+    spawn.position[0] = std::numeric_limits<float>::quiet_NaN();
+    EXPECT_FALSE(SaveSlotWriteSpawn(spawn));
+}
+
+TEST_F(SaveSlotTest, AutosavePublishesMatchingSpawnBeforePayloadAndPrunesOnlyAfterSuccess) {
+    live->map_no = 10;
+    AutosaveSpawn first;
+    first.map_no = 10;
+    first.position[0] = 1;
+    ASSERT_TRUE(SaveSlotWriteAutosave(LOOP_EDIT, &first));
+    const auto original = Bytes(SaveSlotAutosavePath());
+    ASSERT_TRUE(SaveSlotReadSpawn(first.counter, 10));
+    // An unwritable next metadata destination leaves both the current image and its spawn intact.
+    fs::create_directory(SaveSlotAutosaveSpawnPath(first.counter + 1));
+    AutosaveSpawn second = first;
+    second.position[0] = 2;
+    EXPECT_FALSE(SaveSlotWriteAutosave(LOOP_EDIT, &second));
+    EXPECT_EQ(Bytes(SaveSlotAutosavePath()), original);
+    ASSERT_TRUE(SaveSlotReadSpawn(first.counter, 10));
+    fs::remove(SaveSlotAutosaveSpawnPath(first.counter + 1));
+    ASSERT_TRUE(SaveSlotWriteAutosave(LOOP_EDIT, &second));
+    EXPECT_EQ(second.counter, first.counter + 1);
+    EXPECT_FALSE(fs::exists(SaveSlotAutosaveSpawnPath(first.counter)));
+    const auto loaded = SaveSlotReadSpawn(second.counter, 10);
+    ASSERT_TRUE(loaded);
+    EXPECT_FLOAT_EQ(loaded->position[0], 2);
+    manager.GetAllSaveFileInfo();
+    manager.LoadFromMc(0);
+    const auto pending = SaveSlotTakePendingSpawn(10);
+    ASSERT_TRUE(pending);
+    EXPECT_FLOAT_EQ(pending->position[0], 2);
+    EXPECT_FALSE(SaveSlotTakePendingSpawn(10));
+    manager.LoadFromMc(0);
+    manager.LoadFromMc(99);
+    EXPECT_FALSE(SaveSlotTakePendingSpawn(10));
+    Write(SaveSlotPath(0));
+    manager.GetAllSaveFileInfo();
+    manager.LoadFromMc(1);
+    EXPECT_FALSE(SaveSlotTakePendingSpawn(10));
+}
+
+TEST_F(SaveSlotTest, FailedAutosavePayloadCannotApplyOrphanSpawn) {
+    fs::create_directory(SaveSlotAutosavePath());
+    AutosaveSpawn spawn;
+    live->map_no = spawn.map_no = 10;
+    EXPECT_FALSE(SaveSlotWriteAutosave(LOOP_EDIT, &spawn));
+    EXPECT_TRUE(SaveSlotReadSpawn(1, 10));
+    EXPECT_TRUE(fs::is_directory(SaveSlotAutosavePath()));
+    manager.GetAllSaveFileInfo();
+    manager.LoadFromMc(0);
+    EXPECT_EQ(manager.error.code, MC_ERROR_LOAD);
+    EXPECT_FALSE(SaveSlotTakePendingSpawn(10));
+}
+
+TEST_F(SaveSlotTest, PendingSpawnIsDiscardedOnMapMismatchAndNewGame) {
+    AutosaveSpawn spawn;
+    spawn.counter = 1;
+    spawn.map_no = 42;
+    SaveSlotSetPendingSpawn(spawn);
+    EXPECT_FALSE(SaveSlotTakePendingSpawn(43));
+    EXPECT_FALSE(SaveSlotTakePendingSpawn(42));
+    SaveSlotSetPendingSpawn(spawn);
+    InitSaveData();
+    EXPECT_FALSE(SaveSlotTakePendingSpawn(42));
+}
+
+TEST_F(SaveSlotTest, CounterExhaustionPreservesExistingSaves) {
+    image->unique_counter = std::numeric_limits<u64>::max();
+    Write(SaveSlotPath(0));
+    const auto original = Bytes(SaveSlotPath(0));
+    EXPECT_FALSE(SaveSlotWriteAutosave(LOOP_EDIT));
+    manager.GetAllSaveFileInfo();
+    manager.SaveToMc(0);
+    EXPECT_EQ(manager.error.code, MC_ERROR_FILE);
+    EXPECT_EQ(Bytes(SaveSlotPath(0)), original);
+    EXPECT_FALSE(fs::exists(SaveSlotAutosavePath()));
+}
+
+TEST_F(SaveSlotTest, ArrivalAutosaveWaitsForControlAndEnabledConfigurationThenRunsOnce) {
+    const bool old_enabled = PortAutosave;
+    const int  old_capture = PortCaptureMode;
+    const auto old_mode = DngStatus.mode;
+    auto      *old_area = BattleAreaScene;
+    const auto old_event = GetMainScene()->event_run;
+    const auto old_lock = GamePad__2.key_lock;
+    const auto old_config = ConfigGet();
+    auto       area = std::make_unique<DNG_BATTLE_AREA>();
+
+    struct Restore {
+        std::function<void()> action;
+
+        ~Restore() { action(); }
+    } restore{[&] {
+        PortAutosave = old_enabled;
+        PortCaptureMode = old_capture;
+        DngStatus.mode = old_mode;
+        BattleAreaScene = old_area;
+        GetMainScene()->event_run = old_event;
+        GamePad__2.key_lock = old_lock;
+        const auto bytes = ConfigSerialize(old_config);
+        FilesWrite(root / "config.json", bytes.data(), bytes.size(), true);
+        ConfigLoad();
+        PortAutosaveResetArrival();
+    }};
+
+    auto configure = [&](bool enabled) {
+        auto config = old_config;
+        config.autosave = enabled;
+        const auto bytes = ConfigSerialize(config);
+        ASSERT_EQ(FilesWrite(root / "config.json", bytes.data(), bytes.size(), true), FilesResult::kWritten);
+        ASSERT_TRUE(ConfigLoad());
+    };
+    PortAutosaveResetArrival();
+    PortAutosave = true;
+    PortCaptureMode = CAPTURE_OFF;
+    BattleAreaScene = area.get();
+    GamePad__2.key_lock = 0;
+    GetMainScene()->event_run = false;
+    live->save_dungeon.stage_id = 2;
+    live->save_dungeon.floor_id[2] = 7;
+    configure(true);
+    for (auto mode : {DNG_STATUS_MENU, DNG_STATUS_EVENT, DNG_STATUS_EVENT_EDIT, DNG_STATUS_EVENT_MENU, DNG_STATUS_EXIT}) {
+        DngStatus.mode = mode;
+        PortAutosaveStep(LOOP_DUNGEON);
+        EXPECT_FALSE(fs::exists(SaveSlotAutosavePath()));
+    }
+    DngStatus.mode = DNG_STATUS_FIELD;
+    for (int flag : {DNG_PAUSE_PLAYER_STEP, DNG_PAUSE_FIELD_STEP}) {
+        area->pause_flag = flag;
+        PortAutosaveStep(LOOP_DUNGEON);
+        EXPECT_FALSE(fs::exists(SaveSlotAutosavePath()));
+    }
+    area->pause_flag = 0;
+    GamePad__2.key_lock = 1;
+    PortAutosaveStep(LOOP_DUNGEON);
+    GamePad__2.key_lock = 0;
+    GetMainScene()->event_run = true;
+    PortAutosaveStep(LOOP_DUNGEON);
+    GetMainScene()->event_run = false;
+    PortCaptureMode = CAPTURE_OFF + 1;
+    PortAutosaveStep(LOOP_DUNGEON);
+    PortCaptureMode = CAPTURE_OFF;
+    PortAutosave = false;
+    PortAutosaveStep(LOOP_DUNGEON);
+    PortAutosave = true;
+    configure(false);
+    PortAutosaveStep(LOOP_DUNGEON);
+    EXPECT_FALSE(fs::exists(SaveSlotAutosavePath()));
+    configure(true);
+    PortAutosaveStep(LOOP_DUNGEON);
+    ASSERT_EQ(SaveSlotRead(SaveSlotAutosavePath(), *buffer), SaveSlotState::Ready);
+    EXPECT_EQ(buffer->unique_counter, 1);
+    PortAutosaveStep(LOOP_DUNGEON);
+    ASSERT_EQ(SaveSlotRead(SaveSlotAutosavePath(), *buffer), SaveSlotState::Ready);
+    EXPECT_EQ(buffer->unique_counter, 1);
+    live->save_dungeon.floor_id[2] = 8;
+    PortAutosaveStep(LOOP_DUNGEON);
+    ASSERT_EQ(SaveSlotRead(SaveSlotAutosavePath(), *buffer), SaveSlotState::Ready);
+    EXPECT_EQ(buffer->unique_counter, 2);
+    EXPECT_EQ(buffer->floor_id, 8);
+    PortAutosaveResetArrival();
+    PortAutosaveStep(LOOP_DUNGEON);
+    ASSERT_EQ(SaveSlotRead(SaveSlotAutosavePath(), *buffer), SaveSlotState::Ready);
+    EXPECT_EQ(buffer->unique_counter, 3);
+}
+
+TEST_F(SaveSlotTest, FishlessAutosaveCannotBypassFinnyFrenzyEligibility) {
+    Write(SaveSlotAutosavePath());
+    manager.GetAllSaveFileInfo();
+    MenuRig rig;
+    rig.menu.mode = SAVE_MENU_MODE_GYORACE_LOAD;
+    rig.Idle();
+    rig.Press(PAD_CROSS);
+    EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_NOTICE);
+    EXPECT_EQ(rig.message.mes_no, 0x13AA);
+}
+
+TEST_F(SaveSlotTest, EligibleAutosaveLoadsDirectlyFromFinnyFrenzyMenu) {
+    image->fish_num = 1;
+    Write(SaveSlotAutosavePath());
+    manager.GetAllSaveFileInfo();
+    MenuRig rig;
+    rig.menu.mode = SAVE_MENU_MODE_GYORACE_LOAD;
+    rig.Idle();
+    rig.Press(PAD_CROSS);
+    EXPECT_EQ(rig.menu.phase, SAVE_LIST_PHASE_LOADING);
 }
 
 TEST_F(SaveSlotTest, FailedLoadDoesNotPartiallyReplaceLiveStateOrDeleteFile) {
@@ -874,7 +1107,8 @@ TEST_P(SaveSlotImportTest, ArchiveMoveFailureRescansConvergeWithoutExtraCopies) 
     });
     const auto flat = SaveSlotPath(collision ? 1 : 0, card != 0);
     for (int scan = 0; scan < 3; ++scan) {
-        SaveSlots = {}; // No retained import association or menu state.
+        SaveSlots = {};
+        SaveSlotSetPendingSpawn(std::nullopt); // No retained import association or menu state.
         manager.InitForMC();
         auto list = SaveSlotScan();
         ASSERT_EQ(list.saves.size(), collision ? 3 : 2);
@@ -1074,6 +1308,7 @@ TEST_F(SaveSlotTest, RecoveryUsesOnlyPublishedFilesInFreshProcess) {
     EXPECT_EXIT(([&] {
                     PathsSetSaveRoot(recovery);
                     SaveSlots = {};
+                    SaveSlotSetPendingSpawn(std::nullopt);
                     SaveSlotSetImportHook({});
                     const auto source = recovery / "mc1" / SaveSlotPath(0).filename() / SaveSlotPath(0).filename();
                     const auto original = Bytes(source);
@@ -1123,6 +1358,7 @@ TEST_P(SaveSlotImportTest, ComparisonReadFailuresDeferCopyOnBothCardsAndRelocati
     });
     for (int scan = 0; scan < 4; ++scan) {
         SaveSlots = {};
+        SaveSlotSetPendingSpawn(std::nullopt);
         manager.InitForMC();
         const auto list = SaveSlotScan();
         EXPECT_EQ(FlatCount(), flat_count);
@@ -1171,6 +1407,7 @@ TEST_F(SaveSlotTest, OneUnavailableComparisonAmongDifferentTargetsDefersPublicat
     });
     for (int scan = 0; scan < 3; ++scan) {
         SaveSlots = {};
+        SaveSlotSetPendingSpawn(std::nullopt);
         const auto list = SaveSlotScan();
         EXPECT_EQ(FlatCount(), 4);
         EXPECT_EQ(list.saves.size(), 5);
@@ -1219,6 +1456,7 @@ TEST_P(SaveSlotImportTest, OverwriteBetweenUnavailableSourceRescansPreservesNewP
     const auto initial_count = FlatCount();
     for (int scan = 0; scan < 3; ++scan) {
         SaveSlots = {};
+        SaveSlotSetPendingSpawn(std::nullopt);
         EXPECT_EQ(SaveSlotScan().saves.size(), initial_count);
         EXPECT_EQ(FlatCount(), initial_count);
         EXPECT_EQ(Bytes(flat), newer);
@@ -1235,6 +1473,7 @@ TEST_P(SaveSlotImportTest, OverwriteBetweenUnavailableSourceRescansPreservesNewP
     });
     for (int scan = 0; scan < 4; ++scan) {
         SaveSlots = {};
+        SaveSlotSetPendingSpawn(std::nullopt);
         EXPECT_EQ(SaveSlotScan().saves.size(), initial_count + 2);
         EXPECT_EQ(FlatCount(), initial_count + 1);
         EXPECT_EQ(Bytes(flat), newer);
@@ -1283,6 +1522,7 @@ TEST_F(SaveSlotTest, UnavailableComparisonDefersPublicationInFreshProcess) {
                     bool bounded = !original.empty() && FlatCount() == 2;
                     for (int scan = 0; scan < 4; ++scan) {
                         SaveSlots = {};
+                        SaveSlotSetPendingSpawn(std::nullopt);
                         manager.InitForMC();
                         const auto list = SaveSlotScan();
                         bounded = bounded && list.saves.size() == 3 && FlatCount() == 2 &&

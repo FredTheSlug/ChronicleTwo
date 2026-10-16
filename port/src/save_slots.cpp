@@ -12,16 +12,22 @@
 #endif
 #endif
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <charconv>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
+#include <utility>
 
 #include "platform/files.hpp"
 #include "platform/paths.hpp"
@@ -29,16 +35,15 @@
 
 namespace fs = std::filesystem;
 
-SaveSlotList  SaveSlots;
-bool          SaveSlotNew = false;
-bool          SaveSlotListAutosave = true;
-bool          SaveSlotSpawnPending = false;
-AutosaveSpawn SaveSlotSpawn;
+SaveSlotList SaveSlots;
+bool         SaveSlotNew = false;
 
 namespace {
-constexpr char     kPrefix[] = "BESCES-51190dkcl";
-constexpr char     kSecondCard[] = ".card2";
-SaveSlotImportHook import_hook;
+std::optional<AutosaveSpawn> pending_spawn;
+bool                         ValidSpawn(const AutosaveSpawn &spawn);
+constexpr char               kPrefix[] = "BESCES-51190dkcl";
+constexpr char               kSecondCard[] = ".card2";
+SaveSlotImportHook           import_hook;
 
 bool ImportStep(SaveSlotImportStage stage, const fs::path &from, const fs::path &to) {
     return !import_hook || import_hook(stage, from, to);
@@ -288,6 +293,18 @@ int FirstFree(const std::set<int> &occupied) {
 }
 } // namespace
 
+void SaveSlotSetPendingSpawn(std::optional<AutosaveSpawn> spawn) {
+    pending_spawn = spawn && ValidSpawn(*spawn) ? std::move(spawn) : std::nullopt;
+}
+
+std::optional<AutosaveSpawn> SaveSlotTakePendingSpawn(int map_no) {
+    auto spawn = std::exchange(pending_spawn, std::nullopt);
+    if (spawn && spawn->map_no == map_no) {
+        return spawn;
+    }
+    return std::nullopt;
+}
+
 fs::path SaveSlotsRoot() { return PathsSaveRoot() / "saves"; }
 
 fs::path SaveSlotPath(int number, bool second_card) {
@@ -296,7 +313,98 @@ fs::path SaveSlotPath(int number, bool second_card) {
 
 fs::path SaveSlotAutosavePath() { return SaveSlotsRoot() / "autosave"; }
 
-fs::path SaveSlotAutosaveSpawnPath() { return SaveSlotsRoot() / "autosave.spawn"; }
+fs::path SaveSlotAutosaveSpawnPath(u64 counter) {
+    return SaveSlotsRoot() / ("autosave.spawn." + std::to_string(counter) + ".json");
+}
+
+namespace {
+bool ValidSpawn(const AutosaveSpawn &spawn) {
+    if (spawn.counter == 0 || spawn.map_no < 0 || spawn.map_no >= 256) {
+        return false;
+    }
+    for (const auto *vector : {spawn.position, spawn.rotation, spawn.camera_pos, spawn.camera_ref}) {
+        if (!std::all_of(vector, vector + 4, [](float value) { return std::isfinite(value); })) {
+            return false;
+        }
+    }
+    return true;
+}
+} // namespace
+
+bool SaveSlotWriteSpawn(const AutosaveSpawn &spawn) {
+    if (!ValidSpawn(spawn)) {
+        return false;
+    }
+    const nlohmann::json document = {
+        {"schema_version", 1               },
+        {"counter",        spawn.counter   },
+        {"map_no",         spawn.map_no    },
+        {"position",       spawn.position  },
+        {"rotation",       spawn.rotation  },
+        {"camera_pos",     spawn.camera_pos},
+        {"camera_ref",     spawn.camera_ref}
+    };
+    const auto bytes = document.dump(2) + "\n";
+    return FilesWrite(SaveSlotAutosaveSpawnPath(spawn.counter), bytes.data(), bytes.size(), true) == FilesResult::kWritten;
+}
+
+std::optional<AutosaveSpawn> SaveSlotReadSpawn(u64 counter, int map_no) {
+    std::array<char, 16385> bytes{};
+    const auto              count = FilesRead(SaveSlotAutosaveSpawnPath(counter), bytes.data(), bytes.size());
+    if (count == 0 || count == bytes.size()) {
+        return std::nullopt;
+    }
+    try {
+        const auto document = nlohmann::json::parse(bytes.begin(), bytes.begin() + count);
+        if (!document.at("schema_version").is_number_integer() || document.at("schema_version") != 1 ||
+            !document.at("counter").is_number_unsigned() || !document.at("map_no").is_number_integer() ||
+            document.at("map_no") < 0 || document.at("map_no") >= 256) {
+            return std::nullopt;
+        }
+        AutosaveSpawn spawn;
+        spawn.counter = document.at("counter").get<u64>();
+        spawn.map_no = document.at("map_no").get<int>();
+        for (auto [name, vector] : {
+                 std::pair{"position",   spawn.position  },
+                 std::pair{"rotation",   spawn.rotation  },
+                 std::pair{"camera_pos", spawn.camera_pos},
+                 std::pair{"camera_ref", spawn.camera_ref}
+        }) {
+            const auto &values = document.at(name);
+            if (!values.is_array() || values.size() != 4) {
+                return std::nullopt;
+            }
+            for (int i = 0; i < 4; ++i) {
+                vector[i] = values.at(i).get<float>();
+            }
+        }
+        if (spawn.counter == counter && spawn.map_no == map_no && ValidSpawn(spawn)) {
+            return spawn;
+        }
+    } catch (const nlohmann::json::exception &) {
+    }
+    return std::nullopt;
+}
+
+void SaveSlotPruneSpawns(std::optional<u64> keep) {
+    std::error_code error;
+    for (fs::directory_iterator it(SaveSlotsRoot(), error), end; !error && it != end; it.increment(error)) {
+        const auto name = it->path().filename().string();
+        constexpr std::string_view prefix = "autosave.spawn.";
+        if (!name.starts_with(prefix) || !name.ends_with(".json")) {
+            continue;
+        }
+        const auto digits = std::string_view(name).substr(prefix.size(), name.size() - prefix.size() - 5);
+        u64        counter = 0;
+        const auto [last, result] = std::from_chars(digits.data(), digits.data() + digits.size(), counter);
+        if (result == std::errc{} && last == digits.data() + digits.size() && (!keep || counter != *keep)) {
+            std::error_code ignored;
+            if (it->is_regular_file(ignored)) {
+                fs::remove(it->path(), ignored);
+            }
+        }
+    }
+}
 
 int SaveSlotNumber(const std::string &name, bool &second_card) {
     std::string_view text(name);
@@ -386,7 +494,7 @@ SaveSlotState SaveSlotRead(const fs::path &path, SAVEDATA_FORMAT &image) {
     return SaveSlotState::Ready;
 }
 
-SaveSlotList SaveSlotScan() {
+SaveSlotList SaveSlotScan(bool include_autosave) {
     SaveSlotList                             list;
     std::map<std::pair<int, bool>, fs::path> entries;
     std::vector<fs::path>                    paths;
@@ -483,7 +591,7 @@ SaveSlotList SaveSlotScan() {
         entries[key] = source;
     }
     std::set<fs::path> seen;
-    if (SaveSlotListAutosave) {
+    if (include_autosave) {
         SaveSlot slot;
         slot.number = -1;
         slot.autosave = true;

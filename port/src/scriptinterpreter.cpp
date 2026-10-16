@@ -26,7 +26,7 @@ namespace {
 struct NativeSession {
     std::shared_ptr<const config_catalog::Document> document;    /**< Decoded commands for the selected configuration. */
     std::array<SPI_STACK, SPI_STACK_SIZE>           arguments{}; /**< Argument stack used by the current native callback. */
-    std::vector<std::string>                        strings;     /**< Mutable game-encoded string arguments for the current callback. */
+    std::deque<std::string>                         strings;     /**< Stable mutable strings retained for inherited argument slots. */
 };
 
 /**
@@ -78,22 +78,22 @@ bool SkipArgumentSpace(input_str &input) {
  * Retains omitted text-script arguments at each callback nesting depth.
  */
 struct TagStorage {
-    char      strings[SPI_STRING_BUFF_SIZE]{}; /**< Mutable text-script string storage. */
-    SPI_STACK arguments[SPI_STACK_SIZE]{};     /**< Current and inherited typed argument slots. */
+    std::array<char, SPI_STRING_BUFF_SIZE> strings{};   /**< Mutable text-script string storage. */
+    std::array<SPI_STACK, SPI_STACK_SIZE>  arguments{}; /**< Current and inherited typed argument slots. */
 };
 
 std::deque<TagStorage> persistent_storage; /**< Stable argument storage for every active callback depth. */
-std::size_t tag_depth = 0;                 /**< Number of nested text-script callbacks. */
+std::size_t            tag_depth = 0;      /**< Number of nested text-script callbacks. */
 
 /**
  * Isolates a text-script callback's persistent argument storage.
  */
 struct DepthScope {
     DepthScope() {
-        ++tag_depth;
-        if (persistent_storage.size() < tag_depth) {
-            persistent_storage.resize(tag_depth);
+        if (persistent_storage.size() <= tag_depth) {
+            persistent_storage.resize(tag_depth + 1);
         }
+        ++tag_depth;
     }
 
     ~DepthScope() { --tag_depth; }
@@ -226,8 +226,9 @@ PORT_OVERRIDE int CScriptInterpreter::GetNextTAG(int call) {
             if (index < 0) {
                 return -1;
             }
-            session.strings.clear();
-            session.strings.reserve(command.arguments.size());
+            if (session.strings.size() < command.arguments.size()) {
+                session.strings.resize(command.arguments.size());
+            }
             SetStack(session.arguments.data(), SPI_STACK_SIZE);
             for (const auto &argument : command.arguments) {
                 SPI_STACK value{};
@@ -239,9 +240,9 @@ PORT_OVERRIDE int CScriptInterpreter::GetNextTAG(int call) {
                     value.type = SPI_STACK_TYPE_FLOAT;
                     value.value.real = *real;
                 } else if (const auto *text = std::get_if<std::string>(&argument.value)) {
-                    session.strings.push_back(*text);
+                    session.strings[stack_count] = *text;
                     value.type = SPI_STACK_TYPE_STRING;
-                    value.value.string = session.strings.back().data();
+                    value.value.string = session.strings[stack_count].data();
                 }
                 PushStack(value);
             }
@@ -253,10 +254,10 @@ PORT_OVERRIDE int CScriptInterpreter::GetNextTAG(int call) {
         return -1;
     }
     DepthScope scope;
-    auto &storage = persistent_storage[tag_depth - 1];
-    SetStringBuff(storage.strings, SPI_STRING_BUFF_SIZE);
+    auto      &storage = persistent_storage[tag_depth - 1];
+    SetStringBuff(storage.strings.data(), SPI_STRING_BUFF_SIZE);
     for (;;) {
-        SetStack(storage.arguments, SPI_STACK_SIZE);
+        SetStack(storage.arguments.data(), SPI_STACK_SIZE);
         int index = -1;
         if (!SearchCommand(&index)) {
             return -1;

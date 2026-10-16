@@ -1,22 +1,21 @@
 #include "menuchr.hpp"
 
-#include "mainloop_port.hpp"
-#include "menudraw.hpp"
-#include "menuchr_port.hpp"
-#include "mglib.hpp"
-#include "mg_texture.hpp"
-#include "userdata.hpp"
-
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <limits>
 
 #include "dataread_port.hpp"
+#include "mainloop_port.hpp"
 #include "menu_character_assets.hpp"
+#include "menuchr_port.hpp"
+#include "menudraw.hpp"
+#include "mg_texture.hpp"
+#include "mglib.hpp"
 #include "platform/arena.hpp"
 #include "platform/model_assets.hpp"
 #include "swordeffect.hpp"
+#include "userdata.hpp"
 
 namespace {
 
@@ -32,8 +31,7 @@ bool quick_change_pending = false;
 // The character the pending quick change loads, for the banner that names it afterwards.
 int quick_change_chara = -1;
 
-// The banner naming the new character: retail's "change" logo row, shown over the game once the change is
-// done, since the instant change no longer leaves time for retail's slide. Ticks of 1/60 s.
+// Character-change banner timing in native gameplay ticks.
 constexpr int kBannerFadeInTicks = 8;
 constexpr int kBannerHoldTicks = 70;
 constexpr int kBannerFadeOutTicks = 20;
@@ -41,11 +39,11 @@ constexpr int kBannerTicks = kBannerFadeInTicks + kBannerHoldTicks + kBannerFade
 constexpr int kBannerWidth = 0x100;
 constexpr int kBannerHeight = 0x40;
 constexpr int kBannerBottomMargin = 56;
-int banner_chara = -1;
-int banner_ticks = 0;
-int banner_loop = -1;
+int           banner_chara = -1;
+int           banner_ticks = 0;
+int           banner_loop = -1;
 
-// More steps than retail's slowest change needs: its loader phases plus the "change" logo crossing the screen.
+// Maximum synchronous loading steps before normal menu pacing resumes.
 constexpr int kQuickChangeMaxSteps = 256;
 
 } // namespace
@@ -134,15 +132,13 @@ PORT_OVERRIDE void MenuMemoryAdjust(mgCMemory *pool, mgCMemory *rest, mgCMemory 
     rest->lock = 0;
 }
 
-// Retail paces a quick change (Max and Monica on L3, the Ridepod and the monster form on R3) one menu
-// frame at a time: on the PS2 the frames hide the disc reads, and the "change" logo slides across the
-// frozen screen until the reads are done. Natively the reads finish when they are issued, so the
-// frozen screen is only the logo's slide. Note whether this change will load anything, as retail's
-// NowMainCharaChngStatusBit does, so KeyMainCharaBG can tell a load from the "cannot change" message.
+/**
+ * Starts a character change and records whether it can use synchronous loading.
+ */
 PORT_OVERRIDE void InitMainCharaBG(int chara_no, mgCMemory *stack, int mode) {
     quick_change_pending = false;
 
-    if (stack != NULL) {
+    if (stack != nullptr) {
         int reason;
         quick_change_pending = (GetUserDataMan()->CheckQuickChange(chara_no, &reason) & QUICK_CHANGE_STATE_ENABLED) != 0;
         quick_change_chara = chara_no;
@@ -151,9 +147,9 @@ PORT_OVERRIDE void InitMainCharaBG(int chara_no, mgCMemory *stack, int mode) {
     PortRetailInitMainCharaBG(chara_no, stack, mode);
 }
 
-// Runs the whole quick change in one menu frame: retail's own steps, back to back, so the game resumes
-// on the next frame with the new character. The "cannot change" message keeps retail's pacing, and so
-// does a change that has not finished after kQuickChangeMaxSteps.
+/**
+ * Completes an eligible quick change within a bounded number of loading steps.
+ */
 PORT_OVERRIDE int KeyMainCharaBG() {
     if (!quick_change_pending) {
         return PortRetailKeyMainCharaBG();
@@ -174,15 +170,16 @@ PORT_OVERRIDE int KeyMainCharaBG() {
     return 0;
 }
 
-extern CMenuPosDataManage *MenuPosData;
-
+/**
+ * Clears the character-change banner before a gameplay mode transition.
+ */
 void PortCancelQuickChangeBanner() {
     banner_chara = -1;
 }
 
-// Draws the banner centred at the bottom of the screen, fading in and out, while the game runs. A menu
-// opened meanwhile hides it and keeps running its time out, so it never comes back after a menu such as
-// the dungeon's floor gate; a mode change drops it.
+/**
+ * Draws the active character-change banner while its gameplay mode remains active.
+ */
 void PortDrawQuickChangeBanner() {
     if (banner_chara < 0) {
         return;
@@ -193,14 +190,15 @@ void PortDrawQuickChangeBanner() {
         return;
     }
 
-    if (MenuPosData != NULL) {
+    if (MenuPosData != nullptr) {
         banner_ticks += mgFrameRate > 0 ? mgFrameRate : 1;
         return;
     }
 
-    mgCTexture *logo = mgTexManager.GetTexture("change_logo", -1);
+    static char logo_name[] = "change_logo";
+    mgCTexture *logo = mgTexManager.GetTexture(logo_name, -1);
 
-    if (logo != NULL) {
+    if (logo != nullptr) {
         int alpha = 0x80;
 
         if (banner_ticks < kBannerFadeInTicks) {
@@ -211,7 +209,7 @@ void PortDrawQuickChangeBanner() {
 
         mgRect<int> row;
         row.Set(0, banner_chara * kBannerHeight, kBannerWidth, kBannerHeight);
-        mgTexManager.ReloadTexture(logo->block, (sceVif1Packet *) NULL);
+        mgTexManager.ReloadTexture(logo->block, static_cast<sceVif1Packet *>(nullptr));
         PrimQuad(logo, (float) ((mgScreenWidth - kBannerWidth) / 2),
                  (float) (mgScreenHeight - kBannerHeight - kBannerBottomMargin), row, alpha, 0x80, 0x80, 0x80);
     }

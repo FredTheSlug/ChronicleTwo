@@ -248,18 +248,33 @@ once on each town map, the first frame the player walks it outside an interior
 (however the town was entered, including leaving a dungeon by paying half the
 money or with an escape item), and as a dungeon save
 (`LOOP_DUNGEON`, `dng_tree_flag` 0) once on each floor, the first frame the
-player has control there. Loading the dungeon one takes retail's path for a
+player has control there. Menus, events, locked input and paused field or player
+updates defer the save. Turning autosave off leaves the arrival eligible when
+it is enabled again. Loading the dungeon one takes retail's path for a
 save made on a floor: the title enters the saved dungeon and floor with
-`mc_load` set. A town autosave also writes `autosave.spawn` beside it: the player's position,
+`mc_load` set. A town autosave first publishes versioned, pretty-printed
+`autosave.spawn.<counter>.json` beside it: the player's position,
 rotation and camera, with the autosave's counter. Retail saves hold only the
 map, and a loaded town save starts at that map's save point (or its entrance on
 a map without one); after loading the autosave, the first frame the player has
 control on its map moves them back to the recorded spot. A spot file whose
-counter or map does not match the autosave is ignored. The autosave's counter is the newest, so the load screen, which lists it
+schema, counter, map or finite coordinates do not match the autosave is ignored.
+Spawn data is consumed once, after the player regains control. New games and
+manual or failed loads clear pending spawn data. Matching metadata is written
+durably before the autosave image; older sidecars are pruned only after the new
+image is published. Failed publication retains the matching metadata for either
+image that may remain on disk. The autosave's counter is the newest, so the load
+screen, which lists it
 first as "Autosave", starts on it until a later save; choosing it loads at once,
 as it has no file number for the confirmation to name. `game.autosave` (PC
 Settings, Game page) turns it off; headless, `--jump`, input-script and replay
 runs never write it.
+
+The window icon uses the native `port_data/title/dc2_ic.gltf` model. Datapack
+models take priority, with malformed replacements falling back to the next
+valid candidate. The bundled two-moons icon remains available before extraction
+or when no model is valid; headless runs skip icon rendering. On Windows the
+native model also supplies `chronicletwo.ico` and the game shortcut.
 
 On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
 copied byte for byte into new flat files in `saves/`, using exclusive creation.

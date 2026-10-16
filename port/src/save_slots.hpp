@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -37,8 +38,6 @@ struct SaveSlotList {
 
 extern SaveSlotList SaveSlots;
 extern bool         SaveSlotNew;
-// Whether a scan lists the autosave, first; the save screen turns it off while open.
-extern bool SaveSlotListAutosave;
 
 // Where the player stood when a town autosave was written. Retail saves hold only the map, and loading a town save
 // starts at the map's save point, so the PC keeps the spot in a file beside the autosave, tied to it by its counter.
@@ -51,21 +50,43 @@ struct AutosaveSpawn {
     float camera_ref[4] = {};
 };
 
-// Set by loading the autosave when its spot file matches it; the town loop moves the player there once.
-extern bool          SaveSlotSpawnPending;
-extern AutosaveSpawn SaveSlotSpawn;
+/**
+ * Replaces or clears the validated spawn awaiting the town's first controllable frame.
+ */
+void SaveSlotSetPendingSpawn(std::optional<AutosaveSpawn> spawn);
+/**
+ * Consumes a pending spawn once, discarding it when the active map differs.
+ */
+std::optional<AutosaveSpawn> SaveSlotTakePendingSpawn(int map_no);
 
 std::filesystem::path SaveSlotsRoot();
 std::filesystem::path SaveSlotPath(int number, bool second_card = false);
 std::filesystem::path SaveSlotAutosavePath();
-std::filesystem::path SaveSlotAutosaveSpawnPath();
-int                   SaveSlotNumber(const std::string &name, bool &second_card);
-int                   SaveSlotFirstFree(const SaveSlotList &list);
-int                   SaveSlotRows(const SaveSlotList &list, bool saving);
-bool                  SaveSlotIsNew(const SaveSlotList &list, int row, bool saving);
-const char           *SaveSlotStatus(SaveSlotState state);
-SaveSlotState         SaveSlotRead(const std::filesystem::path &path, SAVEDATA_FORMAT &image);
-SaveSlotList          SaveSlotScan();
+std::filesystem::path SaveSlotAutosaveSpawnPath(u64 counter);
+
+/**
+ * Publishes validated town spawn metadata before its matching autosave image.
+ */
+bool SaveSlotWriteSpawn(const AutosaveSpawn &spawn);
+/**
+ * Reads finite, versioned spawn data belonging to the selected save image.
+ */
+std::optional<AutosaveSpawn> SaveSlotReadSpawn(u64 counter, int map_no);
+/**
+ * Removes obsolete spawn sidecars after an autosave has been published.
+ */
+void          SaveSlotPruneSpawns(std::optional<u64> keep);
+int           SaveSlotNumber(const std::string &name, bool &second_card);
+int           SaveSlotFirstFree(const SaveSlotList &list);
+int           SaveSlotRows(const SaveSlotList &list, bool saving);
+bool          SaveSlotIsNew(const SaveSlotList &list, int row, bool saving);
+const char   *SaveSlotStatus(SaveSlotState state);
+SaveSlotState SaveSlotRead(const std::filesystem::path &path, SAVEDATA_FORMAT &image);
+SaveSlotList  SaveSlotScan(bool include_autosave = true);
+/**
+ * Refreshes the manager and its compatibility table with the requested save rows.
+ */
+int SaveSlotRefresh(CMemoryCardManager &manager, bool include_autosave);
 
 // The manager initialized for the currently active menu. The catalog uses rows as
 // operation IDs; display numbers and filenames are kept in SaveSlot, never in a

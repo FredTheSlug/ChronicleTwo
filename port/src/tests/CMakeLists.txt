@@ -64,6 +64,8 @@ set(CT_GPU_SLOW_TESTS
     MgTextureGpu.*
     MenuIconGpu.*
     MgTanimeGpu.*
+    NativeRenderState.*
+    PersistentMesh.*
     GfxMisc.PipelineCache
     MovieGlue.ThirtyFramesOfL5LogoThroughTheMovieTexture)
 set(CT_GPU_TESTS

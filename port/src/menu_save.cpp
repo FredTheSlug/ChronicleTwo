@@ -67,7 +67,6 @@ void Close(CSaveMenuClass &menu) {
     menu.FadeOutMenu(40, 0);
     menu.CBaseMenuClass::mode = MENU_ASK_MODE_CLOSE;
     SaveSlotNew = false;
-    SaveSlotListAutosave = true;
 }
 
 void Load(CSaveMenuClass &menu, CMemoryCardManager &manager) {
@@ -147,8 +146,7 @@ PORT_OVERRIDE int CSaveMenuClass::KeyStep() {
         first_step = false;
         slot = 0;
         step = SAVE_MENU_STEP_READY;
-        SaveSlotListAutosave = !saving;
-        manager->GetAllSaveFileInfo();
+        SaveSlotRefresh(*manager, !saving);
         select = std::max(0, manager->GetUpdateFile());
         top = std::max(0, select - 2);
         list_jump = true;
@@ -236,16 +234,16 @@ PORT_OVERRIDE int CSaveMenuClass::KeyStep() {
                     Notice(*this, SaveSlotStatus(entry->state));
                     break;
                 }
-                // The autosave has no file number for the confirmation to name.
-                if (!saving && entry->autosave) {
-                    Load(*this, *manager);
-                    MenuSePlay(SYSTEM_SE_DECIDE);
-                    break;
-                }
                 if (mode == SAVE_MENU_MODE_GYORACE_LOAD && entry->info.fish_num <= 0) {
                     Notice(*this, 0x13AA);
                     ExeScript(const_cast<char *>("NOT_FISH"));
                     message->SetMsgVolumeNoOne(entry->number + 1);
+                    break;
+                }
+                // The autosave has no file number for the confirmation to name.
+                if (!saving && entry->autosave) {
+                    Load(*this, *manager);
+                    MenuSePlay(SYSTEM_SE_DECIDE);
                     break;
                 }
                 ExeScript(const_cast<char *>("FILE_OKBTN"));
@@ -452,9 +450,9 @@ PORT_OVERRIDE void SaveFileListDraw(int &tex_block, float *pos, int alpha) {
         row_message.MakeMsg(0xC26);
         const int positions[4][2] = {
             {x,       slot->autosave ? -100 : y + 12},
-            {x,       -100  },
-            {x + 135, y + 12},
-            {x + 135, y + 40}
+            {x,       -100                          },
+            {x + 135, y + 12                        },
+            {x + 135, y + 40                        }
         };
         for (int line = 0; line < 4; ++line) {
             row_message.line_pos[line][0] = positions[line][0];

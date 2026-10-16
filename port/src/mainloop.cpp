@@ -6,6 +6,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
+#include <utility>
 
 #include "arena_root.hpp"
 #include "dataread.hpp"
@@ -20,13 +22,14 @@
 #include "gamepad.hpp"
 #include "helpmes.hpp"
 #include "inventmn.hpp"
-#include "menuchr_port.hpp"
+#include "item_icon3d.hpp"
 #include "main.hpp"
 #include "mainloop.hpp"
 #include "mainloop3.hpp"
 #include "mainloop_port.hpp"
 #include "mapjump.hpp"
 #include "mapselect.hpp"
+#include "menuchr_port.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
 #include "mg_memory_port.hpp"
@@ -58,34 +61,40 @@ bool PortAutosave = false;
 
 namespace {
 
-int g_autosaved_floor = -1;
-int g_autosaved_map = -1;
+std::optional<std::pair<int, int> > autosaved_floor;
+std::optional<int>                  autosaved_map;
+
+bool AutosaveEnabled() {
+    return PortAutosave && ConfigGet().autosave && PortCaptureMode == CAPTURE_OFF;
+}
 
 void WriteAutosave(int program_loop_no, AutosaveSpawn *spawn = nullptr) {
-    if (PortAutosave && ConfigGet().autosave && PortCaptureMode == CAPTURE_OFF && !SaveSlotWriteAutosave(program_loop_no, spawn)) {
+    if (!SaveSlotWriteAutosave(program_loop_no, spawn)) {
         std::fprintf(stderr, "autosave: could not write %s\n", PathsDisplay(SaveSlotAutosavePath()).c_str());
     }
 }
 
 // Once per floor, the first frame the player has control on it.
 void AutosaveFloor() {
-    const CSaveDataDungeon &dungeon = GetSaveData()->save_dungeon;
-    if (DngStatus.mode != DNG_STATUS_FIELD || dungeon.stage_id < 0 || dungeon.stage_id >= SAVE_DUNGEON_NUM) {
+    const auto *save = GetSaveData();
+    const auto *scene = GetMainScene();
+    if (!save || !AutosaveEnabled() || DngStatus.mode != DNG_STATUS_FIELD || !scene || scene->event_run || GamePad__2.key_lock ||
+        !BattleAreaScene || (BattleAreaScene->pause_flag & (DNG_PAUSE_PLAYER_STEP | DNG_PAUSE_FIELD_STEP)) ||
+        save->save_dungeon.stage_id < 0 || save->save_dungeon.stage_id >= SAVE_DUNGEON_NUM) {
         return;
     }
-    const int floor = dungeon.stage_id * 1000 + dungeon.floor_id[dungeon.stage_id];
-    if (floor != g_autosaved_floor) {
-        g_autosaved_floor = floor;
+    const auto &dungeon = save->save_dungeon;
+    const auto  floor = std::pair{dungeon.stage_id, static_cast<int>(dungeon.floor_id[dungeon.stage_id])};
+    if (floor != autosaved_floor) {
+        autosaved_floor = floor;
         WriteAutosave(LOOP_DUNGEON);
     }
 }
 
-// Once per town map (Palm Brinks, Sindain...), the first frame the player walks it after arriving, however the
-// town was entered: a new mode, a map jump inside the town loop, or a return from a dungeon by its exit,
-// half the party's money or an escape item. Interiors wait until the player is back outside.
+// Save on the first controllable exterior frame of each town map.
 void AutosaveTown() {
     CScene *scene = GetMainScene();
-    if (!scene || IsEditMode() || PortTownLoopMode != EDIT_LOOP_WALK || PortTownControlMode != EDIT_CONTROL_PLAYER ||
+    if (!GetSaveData() || !scene || IsEditMode() || PortTownLoopMode != EDIT_LOOP_WALK || PortTownControlMode != EDIT_CONTROL_PLAYER ||
         PortTownLockChara || PortTownPause || scene->event_run || GamePad__2.key_lock || SubGameRunning() || InInterior()) {
         return;
     }
@@ -95,25 +104,19 @@ void AutosaveTown() {
     if (!chara || !camera || map < 0) {
         return;
     }
-    // Loading the autosave starts at the map's save point, or at its entrance on a map without one; once the
-    // load's entry event gives the player control, move them back to where the autosave was written, as
-    // leaving an interior restores the spot outside its door.
-    if (SaveSlotSpawnPending) {
-        SaveSlotSpawnPending = false;
-        if (GetSaveData()->map_no == SaveSlotSpawn.map_no) {
-            chara->SetPosition(SaveSlotSpawn.position);
-            chara->SetRotation(SaveSlotSpawn.rotation);
-            chara->ResetDAPosition();
-            chara->Step();
-            chara->StepDA(10);
-            camera->SetPos(SaveSlotSpawn.camera_pos);
-            camera->SetRef(SaveSlotSpawn.camera_ref);
-            g_autosaved_map = map;
-            return;
-        }
+    if (auto spawn = SaveSlotTakePendingSpawn(GetSaveData()->map_no)) {
+        chara->SetPosition(spawn->position);
+        chara->SetRotation(spawn->rotation);
+        chara->ResetDAPosition();
+        chara->Step();
+        chara->StepDA(10);
+        camera->SetPos(spawn->camera_pos);
+        camera->SetRef(spawn->camera_ref);
+        autosaved_map = map;
+        return;
     }
-    if (map != g_autosaved_map) {
-        g_autosaved_map = map;
+    if (AutosaveEnabled() && map != autosaved_map) {
+        autosaved_map = map;
         AutosaveSpawn spawn;
         spawn.map_no = GetSaveData()->map_no;
         chara->GetPosition(spawn.position);
@@ -125,6 +128,19 @@ void AutosaveTown() {
 }
 
 } // namespace
+
+void PortAutosaveResetArrival() {
+    autosaved_floor.reset();
+    autosaved_map.reset();
+}
+
+void PortAutosaveStep(int program_loop_no) {
+    if (program_loop_no == LOOP_DUNGEON) {
+        AutosaveFloor();
+    } else if (program_loop_no == LOOP_EDIT) {
+        AutosaveTown();
+    }
+}
 
 extern u_long128 main_buffer[0x1A0000];
 extern CScene    MainScene;
@@ -141,6 +157,7 @@ int PortPlayTimeVSyncCallback(int) {
 
 PORT_OVERRIDE void InitSaveData() {
     GetSaveData()->Initialize();
+    SaveSlotSetPendingSpawn(std::nullopt);
     PlayTimeReset();
 }
 
@@ -351,10 +368,10 @@ PORT_OVERRIDE void MainLoop() {
         // Single entry for every mode change: covers the LOOP_MENU->LOOP_TITLE redirect above and the PortNextLoopNo hand-off below.
         mgPortCutInterpolation();
         PortCancelQuickChangeBanner();
+        ItemIcons3DReset();
         LoopInit[PortLoopNo](InitArg);
         GameGiveOnArrival(PortLoopNo);
-        g_autosaved_floor = -1;
-        g_autosaved_map = -1;
+        PortAutosaveResetArrival();
         INIT_LOOP_ARG next_arg;
 
         NextLoop(LOOP_MENU, next_arg);
@@ -440,11 +457,7 @@ PORT_OVERRIDE void MainLoop() {
                 PauseCancel();
                 break;
             }
-            if (PortLoopNo == LOOP_DUNGEON) {
-                AutosaveFloor();
-            } else if (PortLoopNo == LOOP_EDIT) {
-                AutosaveTown();
-            }
+            PortAutosaveStep(PortLoopNo);
 
             if (GamePad__2.On(PAD_CIRCLE)) {
                 cat_end();

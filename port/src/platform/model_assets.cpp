@@ -2054,7 +2054,7 @@ std::string ScriptBytes(const Json &resource) {
 /**
  * Decodes an embedded glTF image, optionally using its explicit datapack PNG replacement.
  */
-std::vector<unsigned char> ImagePixels(const Document &document, std::size_t index, bool overlay, int &width, int &height) {
+std::vector<unsigned char> DecodeImagePixels(const Document &document, std::size_t index, bool overlay, int &width, int &height) {
     const auto                &image = document.asset.images.at(index);
     std::vector<unsigned char> bytes;
     std::visit([&](const auto &source) {
@@ -2107,6 +2107,56 @@ std::vector<unsigned char> ImagePixels(const Document &document, std::size_t ind
     std::vector<unsigned char> result(decoded, decoded + static_cast<std::size_t>(width) * height * 4);
     stbi_image_free(decoded);
     return result;
+}
+
+/**
+ * Shares decoded glTF images with the native PNG cache using actual source-file metadata.
+ */
+std::vector<unsigned char> ImagePixels(const Document &document, std::size_t index, bool overlay, int &width, int &height) {
+    std::string key;
+    if (!document.relative.empty()) {
+        auto sources = datapacks::Candidates(document.relative);
+        auto sidecar = document.relative;
+        sidecar.replace_extension(".game.json");
+        const auto append = [&sources](const std::filesystem::path &path) {
+            const auto candidates = datapacks::Candidates(path);
+            sources.insert(sources.end(), candidates.begin(), candidates.end());
+        };
+        append(sidecar);
+        if (const auto *uri = std::get_if<fastgltf::sources::URI>(&document.asset.images.at(index).data)) {
+            append(document.relative.parent_path() / Relative(std::string(uri->uri.path())));
+        }
+        if (overlay && !document.overlaid) {
+            for (const auto &image : *document.images) {
+                if (image.at("image").get<std::size_t>() == index && image.contains("png")) {
+                    append(Relative(image.at("png").get<std::string>()));
+                }
+            }
+        }
+        key = datapacks::ImageDecodeKey("gltf:" + document.relative.generic_string() + ":" + std::to_string(index) +
+                                            ":" + std::to_string(overlay) + ":" + std::to_string(document.overlaid),
+                                        sources);
+    }
+    datapacks::DecodedTexture decoded;
+    std::string               error;
+    if (!datapacks::DecodeCached(key, [&](datapacks::DecodedTexture &image, std::string &failure) {
+            try {
+                int image_width = 0, image_height = 0;
+                auto pixels = DecodeImagePixels(document, index, overlay, image_width, image_height);
+                image.width = image_width;
+                image.height = image_height;
+                image.levels.clear();
+                image.levels.push_back(std::move(pixels));
+                return true;
+            } catch (const std::exception &exception) {
+                failure = exception.what();
+                return false;
+            } }, decoded, error)) {
+        throw std::runtime_error(error);
+    }
+    width = static_cast<int>(decoded.width);
+    height = static_cast<int>(decoded.height);
+    return std::move(decoded.levels.at(0));
 }
 
 /**

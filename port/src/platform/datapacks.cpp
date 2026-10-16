@@ -47,14 +47,14 @@ constexpr std::size_t kDecodeCacheBytes = 512ull * 1024 * 1024;
  * character change re-enters the whole item icon sheet in a single frame.
  */
 struct CachedDecode {
-    DecodedTexture texture;
-    std::size_t bytes = 0;
+    DecodedTexture                   texture;
+    std::size_t                      bytes = 0;
     std::list<std::string>::iterator use;
 };
 
 std::unordered_map<std::string, CachedDecode> decode_cache;
-std::list<std::string> decode_uses; /**< Cache keys, most recently used first. */
-std::size_t decode_cache_bytes = 0;
+std::list<std::string>                        decode_uses; /**< Cache keys, most recently used first. */
+std::size_t                                   decode_cache_bytes = 0;
 
 void ClearDecodeCache() {
     decode_cache.clear();
@@ -463,18 +463,12 @@ std::vector<std::filesystem::path> DecodeCandidates(const std::filesystem::path 
  * replaced or edited PNG makes a new key.
  */
 std::string DecodeKey(const texture_catalog::Entry &entry, std::size_t variant_index) {
-    std::string key = std::to_string(variant_index) + '|' + std::to_string(entry.width) + 'x' +
-                      std::to_string(entry.height);
+    std::vector<std::filesystem::path> sources;
     for (const auto &level : entry.variants[variant_index].levels) {
-        for (const auto &path : DecodeCandidates(level)) {
-            std::error_code error;
-            const auto      size = std::filesystem::file_size(path, error);
-            const auto      time = error ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(path, error);
-            key += '|' + Display(path) + '|' + std::to_string(error ? 0 : size) + '|' +
-                   std::to_string(static_cast<unsigned long long>(time.time_since_epoch().count()));
-        }
+        const auto candidates = DecodeCandidates(level);
+        sources.insert(sources.end(), candidates.begin(), candidates.end());
     }
-    return key;
+    return ImageDecodeKey("texture|" + std::to_string(variant_index) + '|' + std::to_string(entry.width) + 'x' + std::to_string(entry.height), sources);
 }
 
 bool DecodeUncached(const texture_catalog::Entry &entry, std::size_t variant_index, DecodedTexture &decoded,
@@ -555,21 +549,46 @@ bool DecodeUncached(const texture_catalog::Entry &entry, std::size_t variant_ind
  */
 bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, DecodedTexture &decoded,
             std::string &error) {
-    if (variant_index >= entry.variants.size() || entry.variants[variant_index].levels.empty()) {
+    if (entry.type != "texture" || entry.bpp != 32 || entry.width <= 0 || entry.height <= 0 ||
+        entry.width > static_cast<int>(kMaxDimension) || entry.height > static_cast<int>(kMaxDimension) ||
+        variant_index >= entry.variants.size() || entry.variants[variant_index].levels.empty()) {
         return DecodeUncached(entry, variant_index, decoded, error);
     }
-    const std::string key = DecodeKey(entry, variant_index);
+    return DecodeCached(DecodeKey(entry, variant_index), [&](DecodedTexture &out, std::string &failure) { return DecodeUncached(entry, variant_index, out, failure); }, decoded, error);
+}
+
+std::string ImageDecodeKey(std::string_view identity, std::span<const std::filesystem::path> sources) {
+    std::string key = std::to_string(identity.size()) + ':' + std::string(identity);
+    for (const auto &path : sources) {
+        std::error_code error;
+        const auto      size = std::filesystem::file_size(path, error);
+        const auto      time = error ? std::filesystem::file_time_type{} : std::filesystem::last_write_time(path, error);
+        const auto      name = Display(path);
+        key += '|' + std::to_string(name.size()) + ':' + name + '|' + std::to_string(error ? 0 : size) + '|' +
+               std::to_string(static_cast<unsigned long long>(time.time_since_epoch().count()));
+    }
+    return key;
+}
+
+bool DecodeCached(std::string_view identity, const std::function<bool(DecodedTexture &, std::string &)> &decoder,
+                  DecodedTexture &decoded, std::string &error) {
+    if (identity.empty()) {
+        return decoder(decoded, error);
+    }
+    const std::string key(identity);
     if (const auto found = decode_cache.find(key); found != decode_cache.end()) {
         decode_uses.splice(decode_uses.begin(), decode_uses, found->second.use);
         decoded = found->second.texture;
         error.clear();
         return true;
     }
-    if (!DecodeUncached(entry, variant_index, decoded, error)) {
+    if (!decoder(decoded, error)) {
         return false;
     }
     std::size_t bytes = 0;
-    for (const auto &level : decoded.levels) bytes += level.size();
+    for (const auto &level : decoded.levels) {
+        bytes += level.size();
+    }
     if (bytes == 0 || bytes > kDecodeCacheBytes / 4) {
         return true;
     }

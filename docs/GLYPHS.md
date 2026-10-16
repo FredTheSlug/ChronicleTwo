@@ -7,14 +7,14 @@ Controls, **Button symbols**), the port pastes the symbols of a `glyphs/` folder
 when it decodes the texture, so every screen that samples it shows them.
 
 `input.glyph_device` (**Glyph style**) chooses the style: a fixed one, or Auto, which follows the
-device last used. A change takes effect on the next frame; the textures that hold symbols are decoded
-again. A style or symbol that `glyphs/` does not have keeps the game's art, so `ps4` with no atlas
+device last used. A change takes effect on the next frame; active pixels are rebuilt from immutable
+native mip and variant snapshots. Keyboard binding changes also refresh the symbols. A style or symbol that `glyphs/` does not have keeps the game's art, so `ps4` with no atlas
 is the original look.
 
 ## The glyphs folder
 
-`glyphs/` is read beside the executable, then in the save folder; the first one with a
-`glyphs.json` wins. The build copies `port/glyphs/` beside the executable: the art of
+`glyphs/` is read beside the executable, then in the save folder. Save-folder styles override
+same-named installed styles and can add new ones. The build copies `port/glyphs/` beside the executable: the art of
 TheMoonPeople/Chronicle's `port/glyphs` (PS3, PS4, PS5, PS5 Color, Xbox, Switch, Steam Deck, Steam
 Controller and keyboard). Replace any atlas with your own art and keep the rectangles in step.
 
@@ -58,3 +58,8 @@ Controller and keyboard). Replace any atlas with your own art and keep the recta
 
 Symbols painted into other menu textures are not covered yet; add them under `targets` as they are
 found. The converted textures in `port_data/` show where each one is.
+
+The GPU prompts and CPU texture stamping share Kazarov's glyph index and decoded atlas pixels.
+Stamping changes only the active texture, preserving native image identity and animation variants.
+The shared 512 MiB decode cache covers standalone PNGs and embedded glTF images, with source-file
+stamps invalidating edited overlays. Changing the asset root clears the cache.

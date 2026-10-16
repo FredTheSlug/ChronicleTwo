@@ -1,9 +1,14 @@
 #pragma once
 
+#include "platform/game_icon.hpp"
+
 void GameSetIdentity();
 
-// Swaps the two moons the build ships for Max's wrench, the memory card icon (dc2_ic.ico in
-// menu/<lang>/save.pac), drawn from the extracted data so no build carries a copy of it. On Windows the
-// first launch with the data also writes chronicletwo.ico beside data/ and a "Dark Chronicle" shortcut
-// beside the executable that carries it.
+/**
+ * Installs the native title/dc2_ic.gltf icon, retaining the bundled icon if no valid model is available.
+ */
 void GameSetDataIcon();
+/**
+ * Describes the native title icon and its datapack fallback candidates.
+ */
+GameIconSource GameDataIconSource();

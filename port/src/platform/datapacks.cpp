@@ -1,5 +1,7 @@
 #include "platform/datapacks.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cstdio>
@@ -9,8 +11,6 @@
 #include <stdexcept>
 #include <unordered_map>
 #include <utility>
-
-#include <nlohmann/json.hpp>
 
 #define STBI_ONLY_PNG
 #define STBI_NO_STDIO
@@ -23,7 +23,7 @@ namespace {
  * Stores one pack's canonical root and case-insensitive asset index.
  */
 struct Pack {
-    std::filesystem::path root; /**< Canonical directory containing the pack. */
+    std::filesystem::path                                  root;  /**< Canonical directory containing the pack. */
     std::unordered_map<std::string, std::filesystem::path> files; /**< Relative asset keys mapped to on-disk paths. */
 };
 
@@ -52,7 +52,9 @@ std::string Display(const std::filesystem::path &path) {
 std::string Key(const std::filesystem::path &path) {
     std::string key = Display(path);
     for (char &character : key) {
-        if (character >= 'A' && character <= 'Z') character += 'a' - 'A';
+        if (character >= 'A' && character <= 'Z') {
+            character += 'a' - 'A';
+        }
     }
     return key;
 }
@@ -64,9 +66,13 @@ bool Relative(const std::filesystem::path &path) {
     const auto text = Display(path);
     if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory() ||
         text.find('\\') != std::string::npos || text.find(':') != std::string::npos ||
-        text.find('\0') != std::string::npos) return false;
+        text.find('\0') != std::string::npos) {
+        return false;
+    }
     for (const auto &part : path) {
-        if (part.empty() || part == "." || part == "..") return false;
+        if (part.empty() || part == "." || part == "..") {
+            return false;
+        }
     }
     return true;
 }
@@ -78,11 +84,17 @@ bool Within(const std::filesystem::path &root, const std::filesystem::path &path
     auto base = root.begin();
     auto candidate = path.begin();
     for (; base != root.end(); ++base, ++candidate) {
-        if (candidate == path.end()) return false;
+        if (candidate == path.end()) {
+            return false;
+        }
 #ifdef _WIN32
-        if (Key(*base) != Key(*candidate)) return false;
+        if (Key(*base) != Key(*candidate)) {
+            return false;
+        }
 #else
-        if (*base != *candidate) return false;
+        if (*base != *candidate) {
+            return false;
+        }
 #endif
     }
     return candidate != path.end();
@@ -93,7 +105,7 @@ bool Within(const std::filesystem::path &root, const std::filesystem::path &path
  */
 bool SafeFile(const Pack &pack, const std::filesystem::path &path) {
     std::error_code error;
-    const auto canonical = std::filesystem::weakly_canonical(path, error);
+    const auto      canonical = std::filesystem::weakly_canonical(path, error);
     return !error && Within(pack.root, canonical) && std::filesystem::is_regular_file(canonical, error) && !error;
 }
 
@@ -102,7 +114,9 @@ bool SafeFile(const Pack &pack, const std::filesystem::path &path) {
  */
 std::optional<std::filesystem::path> PackFile(const Pack &pack, const std::filesystem::path &relative) {
     const auto found = pack.files.find(Key(relative));
-    if (found == pack.files.end() || !SafeFile(pack, found->second)) return std::nullopt;
+    if (found == pack.files.end() || !SafeFile(pack, found->second)) {
+        return std::nullopt;
+    }
     return found->second;
 }
 
@@ -118,7 +132,9 @@ void Diagnostic(const std::filesystem::path &path, const std::string &message) {
  */
 uint32_t PowerOfTwo(uint32_t value) {
     uint32_t result = 1;
-    while (result < value) result <<= 1;
+    while (result < value) {
+        result <<= 1;
+    }
     return result;
 }
 
@@ -126,7 +142,9 @@ uint32_t PowerOfTwo(uint32_t value) {
  * Checks physical texture dimensions and cumulative RGBA mip storage.
  */
 bool ChainFits(uint32_t width, uint32_t height, std::size_t count) {
-    if (!width || !height || width > kMaxDimension || height > kMaxDimension) return false;
+    if (!width || !height || width > kMaxDimension || height > kMaxDimension) {
+        return false;
+    }
     uint64_t total = 0;
     for (std::size_t mip = 0; mip < count; ++mip) {
         total += uint64_t{std::max(1u, width >> mip)} * std::max(1u, height >> mip) * 4;
@@ -140,12 +158,12 @@ bool ChainFits(uint32_t width, uint32_t height, std::size_t count) {
 bool ReadPng(const std::filesystem::path &path, uint32_t &width, uint32_t &height,
              std::vector<uint8_t> &rgba, std::string &error) {
     std::error_code filesystem_error;
-    const auto size = std::filesystem::file_size(path, filesystem_error);
+    const auto      size = std::filesystem::file_size(path, filesystem_error);
     if (filesystem_error || size < 33 || size > kMaxFileBytes) {
         error = "PNG is unreadable or exceeds the file-size limit";
         return false;
     }
-    std::ifstream file(path, std::ios::binary);
+    std::ifstream                 file(path, std::ios::binary);
     std::array<unsigned char, 33> header{};
     file.read(reinterpret_cast<char *>(header.data()), header.size());
     constexpr std::array<unsigned char, 8> signature{137, 80, 78, 71, 13, 10, 26, 10};
@@ -169,10 +187,13 @@ bool ReadPng(const std::filesystem::path &path, uint32_t &width, uint32_t &heigh
     file.seekg(0);
     std::vector<unsigned char> bytes(static_cast<std::size_t>(size));
     file.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-    if (!file) { error = "cannot read PNG"; return false; }
-    int decoded_width = 0, decoded_height = 0, channels = 0;
+    if (!file) {
+        error = "cannot read PNG";
+        return false;
+    }
+    int            decoded_width = 0, decoded_height = 0, channels = 0;
     unsigned char *pixels = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()),
-                                                &decoded_width, &decoded_height, &channels, 4);
+                                                  &decoded_width, &decoded_height, &channels, 4);
     if (!pixels || decoded_width != static_cast<int>(width) || decoded_height != static_cast<int>(height)) {
         stbi_image_free(pixels);
         error = "cannot decode PNG";
@@ -188,7 +209,9 @@ bool ReadPng(const std::filesystem::path &path, uint32_t &width, uint32_t &heigh
  */
 std::vector<uint8_t> Pad(std::vector<uint8_t> pixels, uint32_t width, uint32_t height,
                          uint32_t canvas_width, uint32_t canvas_height) {
-    if (width == canvas_width && height == canvas_height) return pixels;
+    if (width == canvas_width && height == canvas_height) {
+        return pixels;
+    }
     std::vector<uint8_t> canvas(static_cast<std::size_t>(canvas_width) * canvas_height * 4);
     for (uint32_t row = 0; row < height; ++row) {
         std::copy_n(pixels.begin() + static_cast<std::size_t>(row) * width * 4, width * 4,
@@ -201,7 +224,7 @@ std::vector<uint8_t> Pad(std::vector<uint8_t> pixels, uint32_t width, uint32_t h
  * Builds the next physical mip canvas with a two-by-two box filter.
  */
 std::vector<uint8_t> Downsample(const std::vector<uint8_t> &pixels, uint32_t width, uint32_t height) {
-    const uint32_t next_width = std::max(1u, width / 2), next_height = std::max(1u, height / 2);
+    const uint32_t       next_width = std::max(1u, width / 2), next_height = std::max(1u, height / 2);
     std::vector<uint8_t> next(static_cast<std::size_t>(next_width) * next_height * 4);
     for (uint32_t y = 0; y < next_height; ++y) {
         for (uint32_t x = 0; x < next_width; ++x) {
@@ -210,7 +233,9 @@ std::vector<uint8_t> Downsample(const std::vector<uint8_t> &pixels, uint32_t wid
                 for (uint32_t dy = 0; dy < 2; ++dy) {
                     for (uint32_t dx = 0; dx < 2; ++dx) {
                         const auto offset = (static_cast<std::size_t>(std::min(height - 1, y * 2 + dy)) * width +
-                                             std::min(width - 1, x * 2 + dx)) * 4 + channel;
+                                             std::min(width - 1, x * 2 + dx)) *
+                                                4 +
+                                            channel;
                         sum += pixels[offset];
                     }
                 }
@@ -244,37 +269,51 @@ void Load(const std::filesystem::path &port_data_root) {
     }
     const auto directory = retail_root.parent_path() / "datapacks";
     const auto config = directory / "datapacks.json";
-    if (!std::filesystem::exists(config, error) && !error) return;
+    if (!std::filesystem::exists(config, error) && !error) {
+        return;
+    }
     try {
-        if (error || !std::filesystem::is_regular_file(config) || std::filesystem::file_size(config) > 1024 * 1024)
+        if (error || !std::filesystem::is_regular_file(config) || std::filesystem::file_size(config) > 1024 * 1024) {
             throw std::runtime_error("configuration is unreadable or exceeds 1 MiB");
+        }
         std::ifstream input(config, std::ios::binary);
-        if (!input) throw std::runtime_error("cannot open configuration");
+        if (!input) {
+            throw std::runtime_error("cannot open configuration");
+        }
         const auto root = nlohmann::json::parse(input);
         if (!root.is_object() || !root.contains("schema_version") || !root["schema_version"].is_number_integer() ||
-            root["schema_version"] != 1 || !root.contains("load_order") || !root["load_order"].is_array())
+            root["schema_version"] != 1 || !root.contains("load_order") || !root["load_order"].is_array()) {
             throw std::runtime_error("expected schema_version 1 and a load_order array");
-        const auto pack_directory = std::filesystem::weakly_canonical(directory);
+        }
+        const auto        pack_directory = std::filesystem::weakly_canonical(directory);
         std::vector<Pack> configured;
         for (const auto &item : root["load_order"]) {
-            if (!item.is_string()) throw std::runtime_error("load_order entries must be folder names");
-            const auto folder = item.get<std::string>();
+            if (!item.is_string()) {
+                throw std::runtime_error("load_order entries must be folder names");
+            }
+            const auto                  folder = item.get<std::string>();
             const std::filesystem::path name(std::u8string(folder.begin(), folder.end()));
-            if (!Relative(name) || std::distance(name.begin(), name.end()) != 1)
+            if (!Relative(name) || std::distance(name.begin(), name.end()) != 1) {
                 throw std::runtime_error("load_order contains an unsafe folder name");
+            }
             Pack pack;
             pack.root = std::filesystem::weakly_canonical(directory / name);
-            if (!Within(pack_directory, pack.root)) throw std::runtime_error("pack folder escapes datapacks");
+            if (!Within(pack_directory, pack.root)) {
+                throw std::runtime_error("pack folder escapes datapacks");
+            }
             if (!std::filesystem::is_directory(pack.root)) {
                 Diagnostic(directory / name, "pack folder is missing; skipped");
                 continue;
             }
             for (const auto &file : std::filesystem::recursive_directory_iterator(pack.root)) {
-                if (!file.is_regular_file() || !SafeFile(pack, file.path())) continue;
+                if (!file.is_regular_file() || !SafeFile(pack, file.path())) {
+                    continue;
+                }
                 const auto relative = file.path().lexically_relative(pack.root);
                 const auto key = Key(relative);
-                if (!pack.files.emplace(key, file.path()).second)
+                if (!pack.files.emplace(key, file.path()).second) {
                     throw std::runtime_error("pack contains paths differing only by ASCII case");
+                }
             }
             configured.push_back(std::move(pack));
         }
@@ -289,11 +328,85 @@ void Load(const std::filesystem::path &port_data_root) {
  * Resolves a relative game-data asset from the highest-priority valid pack.
  */
 std::optional<std::filesystem::path> Resolve(const std::filesystem::path &relative) {
-    if (!Relative(relative)) return std::nullopt;
+    if (!Relative(relative)) {
+        return std::nullopt;
+    }
     for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
-        if (auto path = PackFile(*pack, relative)) return path;
+        if (auto path = PackFile(*pack, relative)) {
+            return path;
+        }
     }
     return std::nullopt;
+}
+
+const std::filesystem::path &Root() {
+    return retail_root;
+}
+
+std::vector<std::filesystem::path> Candidates(const std::filesystem::path &relative) {
+    std::vector<std::filesystem::path> candidates;
+    if (!Relative(relative)) {
+        return candidates;
+    }
+    for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
+        if (auto path = PackFile(*pack, relative)) {
+            candidates.push_back(*path);
+        }
+    }
+    if (!retail_root.empty()) {
+        Pack       retail{retail_root, {}};
+        const auto path = retail_root / relative;
+        if (SafeFile(retail, path)) {
+            candidates.push_back(path);
+        }
+    }
+    return candidates;
+}
+
+std::optional<std::filesystem::path> Asset(const std::filesystem::path &relative) {
+    auto candidates = Candidates(relative);
+    if (candidates.empty()) {
+        return std::nullopt;
+    }
+    return candidates.front();
+}
+
+std::vector<std::filesystem::path> DirectoryMembers(const std::filesystem::path &relative) {
+    if (!Relative(relative)) {
+        return {};
+    }
+    std::unordered_map<std::string, std::filesystem::path> members;
+    auto                                                   collect = [&](const Pack &pack) {
+        const auto      directory = pack.root / relative;
+        std::error_code error;
+        const auto      canonical = std::filesystem::weakly_canonical(directory, error);
+        if (error || !Within(pack.root, canonical) || !std::filesystem::is_directory(canonical, error)) {
+            return;
+        }
+        for (const auto &entry : std::filesystem::directory_iterator(canonical, error)) {
+            if (error) {
+                break;
+            }
+            auto filename = relative / entry.path().filename();
+            if (entry.is_regular_file(error) && SafeFile(pack, entry.path())) {
+                members.insert_or_assign(Key(entry.path().filename()), filename);
+            } else if (entry.is_directory(error) && SafeFile(pack, entry.path() / "pack.json")) {
+                members.insert_or_assign(Key(entry.path().filename()), filename);
+            }
+        }
+    };
+    if (!retail_root.empty()) {
+        collect(Pack{retail_root, {}});
+    }
+    for (const auto &pack : packs) {
+        collect(pack);
+    }
+    std::vector<std::filesystem::path> result;
+    for (const auto &[key, path] : members) {
+        result.push_back(path);
+    }
+    std::sort(result.begin(), result.end(), [](const auto &left, const auto &right) { return Key(left) < Key(right); });
+    return result;
 }
 
 /**
@@ -322,12 +435,14 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, Deco
     }
     const auto candidates = [&](std::size_t mip) {
         std::vector<std::filesystem::path> result;
-        std::error_code path_error;
-        const auto canonical = std::filesystem::weakly_canonical(variant.levels[mip], path_error);
+        std::error_code                    path_error;
+        const auto                         canonical = std::filesystem::weakly_canonical(variant.levels[mip], path_error);
         if (!path_error && !retail_root.empty() && Within(retail_root, canonical)) {
             const auto relative = canonical.lexically_relative(retail_root);
             for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
-                if (auto path = PackFile(*pack, relative)) result.push_back(*path);
+                if (auto path = PackFile(*pack, relative)) {
+                    result.push_back(*path);
+                }
             }
         }
         result.push_back(variant.levels[mip]);
@@ -337,16 +452,16 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, Deco
     for (std::size_t mip = 0; mip < variant.levels.size(); ++mip) {
         bool selected = false;
         for (const auto &path : candidates(mip)) {
-            uint32_t width = 0, height = 0;
+            uint32_t             width = 0, height = 0;
             std::vector<uint8_t> pixels;
-            std::string reason;
+            std::string          reason;
             if (!ReadPng(path, width, height, pixels, reason)) {
                 Diagnostic(path, reason + "; trying lower-priority asset");
                 continue;
             }
             if (mip == 0) {
-                const auto logical_width = static_cast<uint32_t>(entry.width);
-                const auto logical_height = static_cast<uint32_t>(entry.height);
+                const auto     logical_width = static_cast<uint32_t>(entry.width);
+                const auto     logical_height = static_cast<uint32_t>(entry.height);
                 const uint32_t candidate_scale = width / logical_width;
                 if (width % logical_width || height % logical_height || candidate_scale == 0 ||
                     candidate_scale != height / logical_height || (candidate_scale & (candidate_scale - 1)) ||
@@ -364,7 +479,7 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, Deco
                 continue;
             }
             decoded.levels.push_back(Pad(std::move(pixels), width, height,
-                                        std::max(1u, decoded.width >> mip), std::max(1u, decoded.height >> mip)));
+                                         std::max(1u, decoded.width >> mip), std::max(1u, decoded.height >> mip)));
             selected = true;
             break;
         }
@@ -375,7 +490,7 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, Deco
                 return false;
             }
             decoded.levels.push_back(Downsample(decoded.levels.back(), std::max(1u, decoded.width >> (mip - 1)),
-                                               std::max(1u, decoded.height >> (mip - 1))));
+                                                std::max(1u, decoded.height >> (mip - 1))));
         }
     }
     error.clear();

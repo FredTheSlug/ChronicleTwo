@@ -1,11 +1,65 @@
 #include "scriptinterpreter.hpp"
 
+#include <nlohmann/json.hpp>
+#include <sifdev.h>
+
+#include <algorithm>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "dataread_port.hpp"
+#include "native_config.hpp"
+#include "platform/config_catalog.hpp"
 
 namespace {
+
+/**
+ * Holds one native interpreter's typed arguments and mutable callback strings.
+ */
+struct NativeSession {
+    std::shared_ptr<const config_catalog::Document> document;    /**< Decoded commands for the selected configuration. */
+    std::array<SPI_STACK, SPI_STACK_SIZE>           arguments{}; /**< Argument stack used by the current native callback. */
+    std::vector<std::string>                        strings;     /**< Mutable game-encoded string arguments for the current callback. */
+};
+
+/**
+ * Retains typed native configuration state independently of the retail interpreter layout.
+ */
+std::unordered_map<const CScriptInterpreter *, NativeSession> &NativeSessions() {
+    static std::unordered_map<const CScriptInterpreter *, NativeSession> sessions;
+    return sessions;
+}
+
+/**
+ * Blanks comments in non-configuration game scripts before their text lexer runs.
+ */
+void PreprocessText(char *script, int size) {
+    for (int index = 0; index + 1 < size;) {
+        if (script[index] == '/' && script[index + 1] == '/') {
+            while (index < size && script[index] != '\n' && script[index] != '\r') {
+                script[index++] = ' ';
+            }
+        } else if (script[index] == '/' && script[index + 1] == '*') {
+            script[index++] = ' ';
+            script[index++] = ' ';
+            while (index < size) {
+                if (index + 1 < size && script[index] == '*' && script[index + 1] == '/') {
+                    script[index++] = ' ';
+                    script[index++] = ' ';
+                    break;
+                }
+                script[index++] = ' ';
+            }
+        } else {
+            ++index;
+        }
+    }
+}
 
 bool IsSpace(char byte) {
     return byte == ' ' || byte == '\t' || byte == '\n' || byte == '\r';
@@ -19,6 +73,180 @@ bool SkipArgumentSpace(input_str &input) {
 }
 
 } // namespace
+
+bool RunNativeConfig(std::string_view game_name, SPI_TAG_PARAM *tags) {
+    const std::string                               requested(game_name);
+    const auto                                      path = DataReadAssetPath(requested.c_str());
+    std::string                                     error;
+    std::shared_ptr<const config_catalog::Document> document;
+    bool                                            host_found = false;
+    if (requested.starts_with("host:") || requested.starts_with("host0:")) {
+        const int descriptor = sceOpen(requested.c_str(), SCE_RDONLY);
+        if (descriptor >= 0) {
+            host_found = true;
+
+            struct CloseFile {
+                int descriptor;
+
+                ~CloseFile() { sceClose(descriptor); }
+            } close_file{descriptor};
+
+            const int length = sceLseek(descriptor, 0, SCE_SEEK_END);
+            if (length >= 0 && sceLseek(descriptor, 0, SCE_SEEK_SET) >= 0) {
+                std::vector<char> bytes(static_cast<std::size_t>(length));
+                if (sceRead(descriptor, bytes.data(), length) == length) {
+                    try {
+                        document = config_catalog::Decode(nlohmann::json::parse(bytes.begin(), bytes.end()), error);
+                    } catch (const std::exception &exception) {
+                        error = exception.what();
+                    }
+                } else {
+                    error = "could not read host configuration";
+                }
+            } else {
+                error = "could not determine host configuration size";
+            }
+        }
+    }
+    if (!host_found) {
+        document = config_catalog::Find(path.value_or(requested), error);
+    }
+    if (!document) {
+        std::fprintf(stderr, "config: %s\n", error.c_str());
+        return false;
+    }
+    CScriptInterpreter interpreter;
+    interpreter.SetTag(tags);
+    NativeSessions().emplace(&interpreter, NativeSession{std::move(document), {}, {}});
+
+    struct Cleanup {
+        CScriptInterpreter *interpreter;
+
+        ~Cleanup() { NativeSessions().erase(interpreter); }
+    } cleanup{&interpreter};
+
+    interpreter.Run();
+    return true;
+}
+
+PORT_OVERRIDE CScriptInterpreter::CScriptInterpreter() {
+    buffer = nullptr;
+    size = position = stack_count = stack_size = string_buff_size = binary = tag_count = 0;
+    stack = nullptr;
+    string_buff = string_buff_next = nullptr;
+    tag = nullptr;
+    hash_table = nullptr;
+    NativeSessions().erase(this);
+}
+
+PORT_OVERRIDE void CScriptInterpreter::SetScript(char *script, int script_size) {
+    NativeSessions().erase(this);
+    buffer = script;
+    size = script_size;
+    position = stack_count = binary = 0;
+    if (!script || script_size <= 0) {
+        size = 0;
+        return;
+    }
+    const auto first = std::find_if(script, script + script_size, [](unsigned char byte) { return byte != ' ' && byte != '\t' && byte != '\r' && byte != '\n'; });
+    const auto path = DataReadBufferPath(script);
+    if ((path && std::filesystem::path(*path).extension() == ".json") || (first != script + script_size && *first == '{')) {
+        std::string                                     error;
+        std::shared_ptr<const config_catalog::Document> document;
+        try {
+            document = path ? config_catalog::Find(*path, error) : config_catalog::Decode(nlohmann::json::parse(script, script + script_size), error);
+        } catch (const std::exception &exception) {
+            error = exception.what();
+        }
+        if (!document) {
+            std::fprintf(stderr, "config: %s\n", error.c_str());
+        }
+        NativeSessions().emplace(this, NativeSession{std::move(document), {}, {}});
+        return;
+    }
+    if (script_size >= 3 && std::memcmp(script, "BIN", 3) == 0) {
+        binary = 1;
+        position = std::min(script_size, 4);
+    } else {
+        PreprocessText(script, script_size);
+    }
+}
+
+PORT_OVERRIDE int CScriptInterpreter::GetNextTAG(int call) {
+    if (!tag) {
+        return -1;
+    }
+    const auto found = NativeSessions().find(this);
+    if (found != NativeSessions().end()) {
+        auto &session = found->second;
+        if (!session.document) {
+            return -1;
+        }
+        while (position < static_cast<int>(session.document->commands.size())) {
+            const auto &command = session.document->commands[position++];
+            int         index = command.index.value_or(-1);
+            if (!command.index) {
+                for (int candidate = 0; candidate < tag_count; ++candidate) {
+                    if (command.name == tag[candidate].name) {
+                        index = candidate;
+                        break;
+                    }
+                }
+                if (index < 0) {
+                    continue;
+                }
+            }
+            if (index < 0) {
+                return -1;
+            }
+            session.strings.clear();
+            session.strings.reserve(command.arguments.size());
+            SetStack(session.arguments.data(), SPI_STACK_SIZE);
+            for (const auto &argument : command.arguments) {
+                SPI_STACK value{};
+                value.type = SPI_STACK_TYPE_INVALID;
+                if (const auto *integer = std::get_if<int>(&argument.value)) {
+                    value.type = SPI_STACK_TYPE_INT;
+                    value.value.integer = *integer;
+                } else if (const auto *real = std::get_if<float>(&argument.value)) {
+                    value.type = SPI_STACK_TYPE_FLOAT;
+                    value.value.real = *real;
+                } else if (const auto *text = std::get_if<std::string>(&argument.value)) {
+                    session.strings.push_back(*text);
+                    value.type = SPI_STACK_TYPE_STRING;
+                    value.value.string = session.strings.back().data();
+                }
+                PushStack(value);
+            }
+            if (call && index < tag_count && tag[index].function) {
+                tag[index].function(stack, stack_count);
+            }
+            return index;
+        }
+        return -1;
+    }
+    char      strings[SPI_STRING_BUFF_SIZE];
+    SPI_STACK arguments[SPI_STACK_SIZE];
+    SetStringBuff(strings, SPI_STRING_BUFF_SIZE);
+    for (;;) {
+        SetStack(arguments, SPI_STACK_SIZE);
+        int index = -1;
+        if (!SearchCommand(&index)) {
+            return -1;
+        }
+        if (!binary && (index < 0 || index >= tag_count)) {
+            int character = 0;
+            while (get(&character) && character != ';') {
+            }
+            continue;
+        }
+        const auto count = binary ? GetArgBin() : GetArg();
+        if (call && index >= 0 && index < tag_count && tag[index].function) {
+            tag[index].function(stack, count);
+        }
+        return index;
+    }
+}
 
 PORT_OVERRIDE int CScriptInterpreter::GetArg() {
     int  count = 0;

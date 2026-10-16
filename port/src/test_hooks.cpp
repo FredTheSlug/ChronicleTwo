@@ -185,13 +185,13 @@ void GamePrepareJump(int &mode, INIT_LOOP_ARG &arg) {
             if (GetMapName(jump.map, nullptr) == nullptr || GetMapType(jump.map) < 0) {
                 BadTarget();
             }
-            LoadGameConfig("dbg/pb.cfg");
+            LoadGameConfig("dbg/pb.cfg.json");
             mode = LOOP_EDIT;
             arg.map_no = jump.map;
             arg.event_no = 100;
             break;
         case JumpMode::Dungeon:
-            LoadGameConfig("dbg/cap1.cfg");
+            LoadGameConfig("dbg/cap1.cfg.json");
             mode = LOOP_DUNGEON;
             arg.map_no = jump.map;
             arg.floor_no = jump.floor;

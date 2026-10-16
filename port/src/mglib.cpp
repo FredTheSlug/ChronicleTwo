@@ -828,7 +828,7 @@ gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1) {
 
 void mgPortAdoptColorVariant(const mgCTexture *src, mgCTexture *dst) {
     if (src != nullptr && dst != nullptr) {
-        MgTextureSelectVariant(dst, MgTexturePaletteSource(src));
+        MgTextureSelectVariant(dst, MgTextureVariantSelector(src));
     }
 }
 

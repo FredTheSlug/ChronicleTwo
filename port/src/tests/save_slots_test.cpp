@@ -130,7 +130,7 @@ std::string MessageText(const CDC2Mes &message) {
 }
 
 std::vector<u_long128> SaveMessages(int language) {
-    const auto    path = PathsDataRoot() / "menu" / std::to_string(language) / "save.pac";
+    const auto    path = PathsDataRoot().parent_path() / "port_data/menu" / std::to_string(language) / "save.pac/allmenu.mes";
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) {
         return {};
@@ -519,6 +519,7 @@ TEST_F(SaveSlotTest, DurableSaveRemainsSuccessfulWhenPostWriteScanFails) {
     manager.GetAllSaveFileInfo();
     // The catalog was readable at selection; an unrelated legacy-card root
     // becomes unreadable before the confirmed overwrite is published.
+    ASSERT_TRUE(fs::remove(root / "mc1"));
     std::ofstream(root / "mc1") << "occupied";
     live->map_no = 21;
     SaveSlotNew = false;
@@ -710,7 +711,7 @@ TEST_F(SaveSlotTest, FirstFreeIsACatalogSnapshotRefreshedByScans) {
 TEST_F(SaveSlotTest, LocalizedSavePromptsContainRetailText) {
     const char *data = std::getenv("DC2_DATA");
     if (!data) {
-        GTEST_SKIP() << "DC2_DATA supplies localized menu archives and the font table";
+        GTEST_SKIP() << "DC2_DATA supplies localized menu folders and the font table";
     }
     PathsSetDataRoot(data);
     LoadFontTblBin();
@@ -718,11 +719,9 @@ TEST_F(SaveSlotTest, LocalizedSavePromptsContainRetailText) {
     Write(SaveSlotPath(7));
     manager.GetAllSaveFileInfo();
     for (int language : {LANG_ENGLISH, LANG_SPANISH}) {
-        auto archive = SaveMessages(language);
-        ASSERT_FALSE(archive.empty());
-        char  name[] = "allmenu.mes";
-        auto *messages = reinterpret_cast<short *>(GetPackFile(reinterpret_cast<u_int *>(archive.data()), name, nullptr));
-        ASSERT_NE(messages, nullptr);
+        auto message_data = SaveMessages(language);
+        ASSERT_FALSE(message_data.empty());
+        auto *messages = reinterpret_cast<short *>(message_data.data());
         for (bool finny : {false, true}) {
             MenuRig rig;
             LanguageCode = language;

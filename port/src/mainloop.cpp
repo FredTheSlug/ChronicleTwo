@@ -45,9 +45,9 @@
 #include "userdata.hpp"
 #include "vlgr_info.hpp"
 
-extern u_long128     main_buffer[0x1A0000];
-extern CScene        MainScene;
-extern CFont         Font;
+extern u_long128 main_buffer[0x1A0000];
+extern CScene    MainScene;
+extern CFont     Font;
 
 static constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
 
@@ -182,9 +182,9 @@ PORT_OVERRIDE void MainLoop() {
     file_buffer = reinterpret_cast<u_long128 *>(buffer_address);
     SystemSND_ID = -1;
 
-    char sy_path[] = "snd2/SY_000.snd";
-    char rev_path[] = "snd2/rev.bin";
-    char map_index_path[] = "snd2/MAP_index.txt";
+    char sy_path[] = "snd2/sy_000.sound.json";
+    char rev_path[] = "snd2/rev.json";
+    char map_index_path[] = "snd2/map_index.json";
 
     if (LoadFile2(sy_path, file_buffer, NULL, 0)) {
         SystemSND_ID = sndLoadSound(SND_PORT_SYSTEM, (u_int *) file_buffer, &SystemSeStack);
@@ -217,7 +217,7 @@ PORT_OVERRIDE void MainLoop() {
     while (1) {
         if (PortLoopNo == LOOP_TITLE || OmakeFlag != 0) {
             PortSubGameSaveData = (CSubGameData *) main_arena;
-            memory->stSetBuffer(&main_arena[kSubGameQuads],0x1A0000 * kArenaHeadroom - kSubGameQuads);
+            memory->stSetBuffer(&main_arena[kSubGameQuads], 0x1A0000 * kArenaHeadroom - kSubGameQuads);
             memory->stack_used = 0;
             memory->lock = 0;
         }

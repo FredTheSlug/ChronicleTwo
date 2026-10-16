@@ -3,6 +3,13 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
+
+#include "dataread_port.hpp"
+#include "menu_character_assets.hpp"
+#include "platform/arena.hpp"
+#include "platform/model_assets.hpp"
+#include "swordeffect.hpp"
 
 namespace {
 
@@ -13,6 +20,41 @@ constexpr int kRidepodCapacity[MENU_CHARA_LOAD_MAX] = {
     0x5240, 0x4514, 0x6E80, 0x1240, 0x05DC, 0, 0};
 
 } // namespace
+
+bool menu_character::PrepareArena(mgCMemory &memory, const std::filesystem::path &model, std::string_view profile,
+                                  std::string &error, std::size_t extra_quadwords) {
+    if (memory.stack_used != 0) {
+        error = "menu character arena must be reset before construction";
+        return false;
+    }
+    const auto estimate = model_assets::EstimateCharacterMemory(model, profile, error);
+    if (!estimate) {
+        return false;
+    }
+    const auto quadwords = (*estimate + sizeof(u_long128) - 1) / sizeof(u_long128) + extra_quadwords + 1;
+    if (quadwords > static_cast<std::size_t>(std::numeric_limits<int>::max() - 63)) {
+        error = "menu character exceeds native arena capacity";
+        return false;
+    }
+    const int capacity = static_cast<int>((quadwords + 63) / 64 * 64);
+    if (memory.stack_size < capacity || !memory.stack) {
+        auto *storage = reinterpret_cast<u_long128 *>(ArenaBlock(&memory, static_cast<std::size_t>(capacity) * sizeof(u_long128)));
+        memory.stSetBuffer(storage, capacity);
+    }
+    error.clear();
+    return true;
+}
+
+void PortPrepareMenuCharacterArena(mgCMemory &memory, const void *model, const char *profile, int part) {
+    const auto  path = DataReadBufferPath(model);
+    std::string error;
+    // Equipped melee weapons reserve the native twelve-point, eight-subdivision sword trail.
+    const std::size_t trail = part == 2 ? (sizeof(CSWordAfterEffect) + 15) / 16 + 2 + 2 * (12 + 1) + 2 * (12 * (8 + 2) + 1) : 0;
+    if (!path || !menu_character::PrepareArena(memory, *path, profile ? profile : "", error, trail)) {
+        std::fprintf(stderr, "menu character %s: %s\n", path ? path->c_str() : "unknown asset", path ? error.c_str() : "actual glTF filename required");
+        std::exit(1);
+    }
+}
 
 PORT_OVERRIDE void MenuMemoryAdjust(mgCMemory *pool, mgCMemory *rest, mgCMemory *buffers, int chara) {
     int capacities[MENU_CHARA_LOAD_MAX]{};

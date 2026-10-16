@@ -15,9 +15,9 @@ namespace datapacks {
  * Holds physical RGBA canvases while the catalog retains the game's logical dimensions.
  */
 struct DecodedTexture {
-    std::vector<std::vector<uint8_t>> levels; /**< RGBA mip canvases, largest first. */
-    uint32_t width = 0; /**< Padded physical width of the base level. */
-    uint32_t height = 0; /**< Padded physical height of the base level. */
+    std::vector<std::vector<uint8_t> > levels;     /**< RGBA mip canvases, largest first. */
+    uint32_t                           width = 0;  /**< Padded physical width of the base level. */
+    uint32_t                           height = 0; /**< Padded physical height of the base level. */
 };
 
 /**
@@ -34,6 +34,25 @@ void Clear();
  * Finds a regular replacement for a relative game-data path, ignoring ASCII case.
  */
 std::optional<std::filesystem::path> Resolve(const std::filesystem::path &relative);
+
+/**
+ * Returns the converted-data directory established by Load.
+ */
+const std::filesystem::path &Root();
+
+/**
+ * Lists safe replacement assets in priority order followed by the retail asset.
+ */
+std::vector<std::filesystem::path> Candidates(const std::filesystem::path &relative);
+/**
+ * Lists merged direct file and child-directory names through datapack priority.
+ */
+std::vector<std::filesystem::path> DirectoryMembers(const std::filesystem::path &relative);
+
+/**
+ * Finds the highest-priority replacement or the corresponding converted retail asset.
+ */
+std::optional<std::filesystem::path> Asset(const std::filesystem::path &relative);
 
 /**
  * Decodes a catalog variant through PNG overlays, falling back to valid lower-priority assets.

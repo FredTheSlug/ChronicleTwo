@@ -118,10 +118,24 @@ foreach(unit IN LISTS PS2_SOURCES)
         set(stubs "")
         set(header "")
     endif()
+    set(native_bridge "")
+    if(unit STREQUAL "character.cpp")
+        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/character_metadata_bridge.inc)
+    elseif(unit STREQUAL "npccfg.cpp")
+        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/npccfg_config_bridge.inc)
+    elseif(unit STREQUAL "vlgr_info.cpp")
+        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/vlgr_info_config_bridge.inc)
+    elseif(unit STREQUAL "movieviewlp.cpp")
+        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/movieviewlp_config_bridge.inc)
+    elseif(unit STREQUAL "editdebug.cpp")
+        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/editdebug_config_bridge.inc)
+    elseif(unit STREQUAL "menuchr.cpp")
+        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/menu_character_assets.hpp)
+    endif()
     add_custom_command(OUTPUT ${copy}
         COMMAND ${Python3_EXECUTABLE} ${UNIT_COPY_SCRIPT} --port-override ${PORT_OVERRIDE_SCRIPT} --overrides ${split}
             ${stubs} ${port_override_defines} ${PS2_DIR}/${unit} ${copy}
-        DEPENDS ${PS2_DIR}/${unit} ${split} ${PORT_OVERRIDE_SCRIPT} ${UNIT_COPY_SCRIPT} ${LONG64_SCRIPT} ${HEADER_FIXUPS_SCRIPT} ${header}
+        DEPENDS ${PS2_DIR}/${unit} ${split} ${PORT_OVERRIDE_SCRIPT} ${UNIT_COPY_SCRIPT} ${LONG64_SCRIPT} ${HEADER_FIXUPS_SCRIPT} ${CMAKE_SOURCE_DIR}/scripts/port/native_asset_paths.py ${header} ${native_bridge}
         COMMENT "Removing overridden definitions from ps2/src/${unit}"
         VERBATIM)
     list(APPEND PS2_UNITS ${copy})
@@ -137,6 +151,7 @@ set(PORT_OVERRIDES_CHECKED ${CMAKE_BINARY_DIR}/port_overrides.checked)
 set(PORT_OVERRIDE_CACHE ${CMAKE_BINARY_DIR}/port_overrides.cache.json)
 add_custom_command(OUTPUT ${PORT_OVERRIDES_CHECKED}
     COMMAND ${Python3_EXECUTABLE} ${PORT_OVERRIDE_SCRIPT} check --overrides ${PORT_OVERRIDES}
+        --private-functions --private-function-unit event_func.cpp --private-function-unit editdebug.cpp
         --stubs ${CMAKE_SOURCE_DIR}/port/include/stubs ${port_override_defines} ${PS2_DIR}
         --split ${CMAKE_BINARY_DIR}/port_overrides --cache ${PORT_OVERRIDE_CACHE}
         -o ${PORT_OVERRIDES_CHECKED}
@@ -194,7 +209,11 @@ list(FILTER PORT_LIB_SOURCES EXCLUDE REGEX "/tests/|/main\\.cpp$")
 kz_port_sce_sources(CT_SCE_SOURCES LIBS libvu0 libpad libmc sifdev sifrpc eekernel libcdvd libgraph libdma libpkt
     eekernel_threads libdev libmpeg libsdr modmsin sifdma)
 add_library(ct_port OBJECT ${PORT_LIB_SOURCES} ${CT_SCE_SOURCES})
-target_link_libraries(ct_port PRIVATE ct_options SDL3::SDL3 Vulkan::Vulkan nlohmann_json::nlohmann_json kz_port_headers kazarov_bridge)
+target_link_libraries(ct_port PRIVATE ct_options SDL3::SDL3 Vulkan::Vulkan nlohmann_json::nlohmann_json kz_port_headers kazarov_bridge fastgltf::fastgltf)
+if(NOT WIN32)
+    find_package(Iconv REQUIRED)
+    target_link_libraries(ct_port PRIVATE Iconv::Iconv)
+endif()
 add_dependencies(ct_port ps2_include)
 target_include_directories(ct_port PRIVATE ${PORT_DIR})
 # Datapack PNGs use the host's decoder with ordinary PNG colour formats.
@@ -230,7 +249,10 @@ endif()
 function(ct_link_game target)
     target_sources(${target} PRIVATE $<TARGET_OBJECTS:ct_port> $<TARGET_OBJECTS:ct_host> $<TARGET_OBJECTS:ct_ps2>)
     add_dependencies(${target} ps2_include)
-    target_link_libraries(${target} PRIVATE ct_options kz_port_headers SDL3::SDL3 Vulkan::Vulkan kazarov_bridge kazarov_core)
+    target_link_libraries(${target} PRIVATE ct_options kz_port_headers SDL3::SDL3 Vulkan::Vulkan kazarov_bridge kazarov_core fastgltf::fastgltf)
+    if(NOT WIN32)
+        target_link_libraries(${target} PRIVATE Iconv::Iconv)
+    endif()
     target_include_directories(${target} PRIVATE ${PORT_DIR})
     target_compile_options(${target} PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-label
         -Wno-overloaded-virtual -Wno-unused-function)

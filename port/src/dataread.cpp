@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cassert>
 #include <chrono>
 #include <cstddef>
@@ -17,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -182,7 +184,8 @@ std::optional<std::uintmax_t> FileSize(const IndexedFile &file) {
     return size;
 }
 
-int ReadWhole(const IndexedFile &file, void *buffer) {
+// Reads a whole file into a sector-padded buffer without recording the buffer, so it is safe off the main thread.
+int ReadUnregistered(const IndexedFile &file, void *buffer) {
     std::optional<std::uintmax_t> sized = FileSize(file);
     if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
         return -1;
@@ -197,8 +200,15 @@ int ReadWhole(const IndexedFile &file, void *buffer) {
     }
     std::size_t size = static_cast<std::size_t>(*sized);
     ZeroSectorTail(buffer, size);
-    loaded_buffers[buffer] = size;
     return static_cast<int>(size);
+}
+
+int ReadWhole(const IndexedFile &file, void *buffer) {
+    const int size = ReadUnregistered(file, buffer);
+    if (size >= 0) {
+        loaded_buffers[buffer] = static_cast<std::size_t>(size);
+    }
+    return size;
 }
 
 // The NTSC timing converts scripts before any loader or cache sees them, including datapack scripts.
@@ -461,37 +471,89 @@ std::vector<std::string> DataReadNativeKeys(std::string_view directory) {
     return keys;
 }
 
-ScriptTimingValidation DataReadValidateScriptTiming() {
-    ScriptTimingValidation     report;
-    const auto                 start = std::chrono::steady_clock::now();
-    const auto                 keys = DataReadScriptKeys();
-    std::vector<unsigned char> bytes;
-    script_timing::Options     options;
+namespace {
+
+// Scripts are independent, so validation reads and decodes them on several threads.
+constexpr std::size_t kScriptTimingThreads = 16;
+
+/**
+ *
+ * One script's validation outcome.
+ *
+ */
+struct ScriptTimingOutcome {
+    std::string error;             /**< Mismatch or read failure; empty when the script is usable. */
+    bool        undecoded = false; /**< An unlisted script the decoder rejects, which loads unchanged. */
+    std::string reason;            /**< The decoder's rejection of an undecoded script. */
+};
+
+ScriptTimingOutcome CheckScriptTiming(const std::string &key, const IndexedFile &file, std::vector<unsigned char> &bytes) {
+    ScriptTimingOutcome outcome{};
+    const auto          size = FileSize(file);
+    if (!size || *size > static_cast<std::uintmax_t>(INT32_MAX)) {
+        outcome.error = "cannot read script size";
+        return outcome;
+    }
+    bytes.resize(std::max(kSector, PaddedSize(static_cast<std::size_t>(*size))));
+    const int read = ReadUnregistered(file, bytes.data());
+    if (read < 0) {
+        outcome.error = "cannot read script";
+        return outcome;
+    }
+    script_timing::Options options;
     options.write = false;
+    const auto result = script_timing::Apply(key, bytes.data(), static_cast<std::size_t>(read), options);
+    if (!result.ok) {
+        outcome.error = result.error;
+    } else if (!result.decoded) {
+        outcome.undecoded = true;
+        outcome.reason = result.error;
+    }
+    return outcome;
+}
+
+} // namespace
+
+ScriptTimingValidation DataReadValidateScriptTiming() {
+    ScriptTimingValidation report;
+    const auto             start = std::chrono::steady_clock::now();
+    const auto             keys = DataReadScriptKeys();
+
+    // The workers see only this snapshot, never the index itself.
+    std::vector<const IndexedFile *> files;
+    files.reserve(keys.size());
     for (const std::string &key : keys) {
-        report.files++;
-        const IndexedFile &file = file_index.at(key);
-        const auto         size = FileSize(file);
-        std::string        error;
-        if (!size || *size > static_cast<std::uintmax_t>(INT32_MAX)) {
-            error = "cannot read script size";
-        } else {
-            bytes.resize(std::max(kSector, PaddedSize(static_cast<std::size_t>(*size))));
-            const int read = ReadWhole(file, bytes.data());
-            if (read < 0) {
-                error = "cannot read script";
-            } else {
-                const auto result = script_timing::Apply(key, bytes.data(), static_cast<std::size_t>(read), options);
-                if (!result.ok) {
-                    error = result.error;
-                } else if (!result.decoded && undecoded_script_warnings.insert(key).second) {
-                    std::fprintf(stderr, "script timing startup: warning: %s is an unlisted, undecodable script; leaving it unchanged (%s)\n",
-                                 key.c_str(), result.error.c_str());
-                }
-            }
+        files.push_back(&file_index.at(key));
+    }
+    std::vector<ScriptTimingOutcome> outcomes(keys.size());
+    std::atomic<std::size_t>         next = 0;
+    const auto                       work = [&] {
+        std::vector<unsigned char> bytes;
+        for (std::size_t i = next++; i < keys.size(); i = next++) {
+            outcomes[i] = CheckScriptTiming(keys[i], *files[i], bytes);
         }
-        if (!error.empty()) {
-            report.errors.push_back(key + (file.replaced ? " [datapack]: " : ": ") + error);
+    };
+    const std::size_t threads =
+        std::max<std::size_t>(1, std::min<std::size_t>({std::thread::hardware_concurrency(), kScriptTimingThreads, keys.size()}));
+    {
+        std::vector<std::jthread> helpers;
+        for (std::size_t i = 1; i < threads; ++i) {
+            helpers.emplace_back(work);
+        }
+        work();
+    }
+
+    // Reported in key order, as a single pass would.
+    for (std::size_t i = 0; i < keys.size(); ++i) {
+        const std::string         &key = keys[i];
+        const ScriptTimingOutcome &outcome = outcomes[i];
+        report.files++;
+        if (outcome.undecoded && undecoded_script_warnings.insert(key).second) {
+            std::fprintf(stderr, "script timing startup: warning: %s is an unlisted, undecodable script; leaving it unchanged (%s)\n",
+                         key.c_str(), outcome.reason.c_str());
+        }
+        if (!outcome.error.empty()) {
+            report.errors.push_back(key + (files[i]->replaced ? " [datapack]: " : ": ") + outcome.error);
         }
     }
     report.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();

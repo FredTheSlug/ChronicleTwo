@@ -45,6 +45,10 @@ bool MgTextureSelectVariant(mgCTexture *texture, std::string_view selector);
  */
 std::string_view MgTextureVariantSelector(const mgCTexture *texture);
 /**
+ * Refreshes loaded button glyphs when the selected style or active device changes.
+ */
+void MgTextureRefreshButtonGlyphs();
+/**
  * Returns the update operation used by this animation destination.
  */
 texture_catalog::AnimationMode MgTextureAnimationMode(const mgCTexture *texture);

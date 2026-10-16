@@ -19,6 +19,7 @@
 #include "mg_texture.hpp"
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
+#include "button_glyphs.hpp"
 #include "photo_hd.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/texture_catalog.hpp"
@@ -596,6 +597,7 @@ mgCTexture *EnterCatalog(mgCTextureManager *manager, int block, const texture_ca
             manager->DeleteTexture(existing);
         }
     }
+    ButtonGlyphsApply(record.name, record.width, record.height, decoded);
     CatalogPixels pixels{std::move(decoded.levels), &record, record.name, std::move(decoder),
                          decoded.width, decoded.height};
     pixels.original = std::move(original);
@@ -1031,6 +1033,7 @@ bool MgTextureSelectVariant(mgCTexture *texture, std::string_view selector) {
                                 : datapacks::Decode(*pixels.record, variant_index, decoded, error))) {
         return false;
     }
+    ButtonGlyphsApply(pixels.record->name, pixels.record->width, pixels.record->height, decoded);
     pixels.levels = std::move(decoded.levels);
     pixels.width = decoded.width;
     pixels.height = decoded.height;
@@ -1040,6 +1043,47 @@ bool MgTextureSelectVariant(mgCTexture *texture, std::string_view selector) {
     BindLogicalPixels(texture, pixels);
     MgTexturePixelsChanged(texture);
     return true;
+}
+
+/**
+ * Rebuilds active button glyph pixels when the selected device style changes.
+ */
+void MgTextureRefreshButtonGlyphs() {
+    static std::string applied = ButtonGlyphsStyle();
+    const std::string  style = ButtonGlyphsStyle();
+    if (style == applied) {
+        return;
+    }
+    applied = style;
+    for (auto &[texture, pixels] : catalog_pixels) {
+        if (!pixels.record || !ButtonGlyphsTarget(pixels.record->name) || pixels.logical_levels.empty() ||
+            texture->image[0] != reinterpret_cast<u_long128 *>(pixels.logical_levels[0].data())) {
+            continue;
+        }
+        const auto               &variants = pixels.record->variants;
+        const auto                variant = std::find_if(variants.begin(), variants.end(), [&](const auto &value) {
+            return value.selector == pixels.selector;
+        });
+        const auto                index = variant == variants.end() ? std::size_t{0} : static_cast<std::size_t>(variant - variants.begin());
+        datapacks::DecodedTexture decoded;
+        std::string               error;
+        if (pixels.original && index < pixels.original->variants.size()) {
+            decoded = pixels.original->variants[index];
+        } else if (!(pixels.decoder ? pixels.decoder(*pixels.record, index, decoded, error)
+                                    : datapacks::Decode(*pixels.record, index, decoded, error))) {
+            continue;
+        }
+        ButtonGlyphsApply(pixels.record->name, pixels.record->width, pixels.record->height, decoded);
+        pixels.levels = std::move(decoded.levels);
+        pixels.width = decoded.width;
+        pixels.height = decoded.height;
+        if (auto entry = Registry().entries.find(texture); entry != Registry().entries.end()) {
+            entry->second.uploaded = false;
+        }
+        MakeLogicalPixels(texture, pixels);
+        BindLogicalPixels(const_cast<mgCTexture *>(texture), pixels);
+        MgTexturePixelsChanged(texture);
+    }
 }
 
 std::string_view MgTextureVariantSelector(const mgCTexture *texture) {

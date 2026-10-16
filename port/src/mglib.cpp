@@ -1211,6 +1211,7 @@ PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
 
     manager->texture_manager = &mgTexManager;
     manager->render_info = &mgRenderInfo;
+    MgTextureRefreshButtonGlyphs();
     mgTimeFrameBegin();
     static const CScene    *last_scene = nullptr;
     static const mgCCamera *last_camera = nullptr;

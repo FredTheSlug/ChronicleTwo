@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <deque>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -71,6 +73,31 @@ bool SkipArgumentSpace(input_str &input) {
     }
     return input.position < input.size;
 }
+
+/**
+ * Retains omitted text-script arguments at each callback nesting depth.
+ */
+struct TagStorage {
+    char      strings[SPI_STRING_BUFF_SIZE]{}; /**< Mutable text-script string storage. */
+    SPI_STACK arguments[SPI_STACK_SIZE]{};     /**< Current and inherited typed argument slots. */
+};
+
+std::deque<TagStorage> persistent_storage; /**< Stable argument storage for every active callback depth. */
+std::size_t tag_depth = 0;                 /**< Number of nested text-script callbacks. */
+
+/**
+ * Isolates a text-script callback's persistent argument storage.
+ */
+struct DepthScope {
+    DepthScope() {
+        ++tag_depth;
+        if (persistent_storage.size() < tag_depth) {
+            persistent_storage.resize(tag_depth);
+        }
+    }
+
+    ~DepthScope() { --tag_depth; }
+};
 
 } // namespace
 
@@ -225,11 +252,11 @@ PORT_OVERRIDE int CScriptInterpreter::GetNextTAG(int call) {
         }
         return -1;
     }
-    char      strings[SPI_STRING_BUFF_SIZE];
-    SPI_STACK arguments[SPI_STACK_SIZE];
-    SetStringBuff(strings, SPI_STRING_BUFF_SIZE);
+    DepthScope scope;
+    auto &storage = persistent_storage[tag_depth - 1];
+    SetStringBuff(storage.strings, SPI_STRING_BUFF_SIZE);
     for (;;) {
-        SetStack(arguments, SPI_STACK_SIZE);
+        SetStack(storage.arguments, SPI_STACK_SIZE);
         int index = -1;
         if (!SearchCommand(&index)) {
             return -1;

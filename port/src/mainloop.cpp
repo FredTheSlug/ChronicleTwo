@@ -35,7 +35,9 @@
 #include "platform/arena.hpp"
 #include "platform/config.hpp"
 #include "platform/input.hpp"
+#include "platform/paths.hpp"
 #include "play_time.hpp"
+#include "save_slots.hpp"
 #include "savedata.hpp"
 #include "scene.hpp"
 #include "scenesnd.hpp"
@@ -45,9 +47,12 @@
 #include "userdata.hpp"
 #include "vlgr_info.hpp"
 
-extern u_long128 main_buffer[0x1A0000];
-extern CScene    MainScene;
-extern CFont     Font;
+int  PortVSyncCallBack(int unused) asm("MainLoop_VSyncCallBack");
+
+bool PortAutosave = false;
+extern u_long128     main_buffer[0x1A0000];
+extern CScene        MainScene;
+extern CFont         Font;
 
 static constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
 
@@ -271,6 +276,10 @@ PORT_OVERRIDE void MainLoop() {
         mgPortCutInterpolation();
         LoopInit[PortLoopNo](InitArg);
         GameGiveOnArrival(PortLoopNo);
+        if (PortAutosave && PortLoopNo == LOOP_EDIT && InitArg.event_no < 0 && PortCaptureMode == CAPTURE_OFF &&
+            !SaveSlotWriteAutosave()) {
+            std::fprintf(stderr, "autosave: could not write %s\n", PathsDisplay(SaveSlotAutosavePath()).c_str());
+        }
         INIT_LOOP_ARG next_arg;
 
         NextLoop(LOOP_MENU, next_arg);

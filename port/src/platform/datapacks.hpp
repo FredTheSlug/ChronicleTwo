@@ -1,9 +1,11 @@
 #pragma once
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <span>
 #include <string>
@@ -72,5 +74,64 @@ std::string ImageDecodeKey(std::string_view identity, std::span<const std::files
 bool DecodeCached(std::string_view                                            identity,
                   const std::function<bool(DecodedTexture &, std::string &)> &decoder,
                   DecodedTexture &decoded, std::string &error);
+
+/**
+ * Shares cached decoded pixels without copying them, decoding and caching them on a miss; returns null on failure.
+ */
+std::shared_ptr<const DecodedTexture> DecodeShared(std::string_view                                            identity,
+                                                   const std::function<bool(DecodedTexture &, std::string &)> &decoder,
+                                                   std::string                                                &error);
+
+/**
+ * Reads a whole file with one sized read; returns false when it is missing, unreadable or larger than max_bytes.
+ */
+bool ReadFileBytes(const std::filesystem::path &path, std::vector<uint8_t> &bytes, std::uint64_t max_bytes = 256ull * 1024 * 1024);
+
+/**
+ * One decode the cache may not hold yet: its DecodeCached identity and the decoder that produces it.
+ */
+struct DecodeJob {
+    std::string                                          identity; /**< DecodeCached identity naming the result. */
+    std::function<bool(DecodedTexture &, std::string &)> decoder;  /**< Thread-safe decoder producing the pixels. */
+};
+
+/**
+ * Decodes the jobs whose identities are not cached on worker threads and stores the results in the decode cache.
+ * Failures are not cached; a later DecodeCached call reruns them serially and reports the error.
+ */
+void Prefetch(std::span<DecodeJob> jobs);
+
+/**
+ * Memoises the source-file stamps ImageDecodeKey reads while alive; the memo clears when the outermost scope ends.
+ */
+struct StampScope {
+    StampScope();
+    ~StampScope();
+    StampScope(const StampScope &) = delete;
+    StampScope &operator=(const StampScope &) = delete;
+};
+
+/**
+ * Adds value to a named load counter when KZ_TEXTURE_TRACE=1; thread-safe; totals print to stderr at exit.
+ */
+void Trace(std::string_view counter, std::uint64_t value = 1);
+
+/**
+ * Returns true when KZ_TEXTURE_TRACE=1 (cached).
+ */
+bool Tracing();
+
+/**
+ * Adds the microseconds between construction and destruction to a named load counter while tracing.
+ */
+struct TraceTimer {
+    explicit TraceTimer(std::string_view counter);
+    ~TraceTimer();
+    TraceTimer(const TraceTimer &) = delete;
+    TraceTimer &operator=(const TraceTimer &) = delete;
+
+    std::string_view                      counter; /**< Static counter name receiving the elapsed time. */
+    std::chrono::steady_clock::time_point start;   /**< Construction time. */
+};
 
 } // namespace datapacks

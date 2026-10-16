@@ -890,6 +890,68 @@ TEST(MgTexture, NativeSetsReuseLiveAnimationGroupsAndRecreateDeletedOrChangedScr
     EXPECT_EQ(h.manager.texture_num, 2);
 }
 
+TEST(MgTexture, NativeSetsReuseIdenticallyNamedPicturesWithoutDecoding) {
+    Harness                h;
+    texture_catalog::Entry entry;
+    entry.type = "texture";
+    entry.name = "shared";
+    entry.width = entry.height = 2;
+    entry.bpp = 32;
+    entry.variants = {
+        {"base", {"#/images/0"}},
+        {"alt",  {"#/images/1"}}
+    };
+    texture_catalog::Source document{"model.gltf", {0}, {entry}};
+    int                     decodes = 0;
+    unsigned char           value = 40;
+    auto                    decode = [&](const texture_catalog::Entry &, std::size_t variant, datapacks::DecodedTexture &decoded, std::string &) {
+        ++decodes;
+        decoded = {};
+        decoded.width = decoded.height = 2;
+        decoded.levels.emplace_back(16, static_cast<unsigned char>(value + variant));
+        return true;
+    };
+    std::string identity = "first";
+    auto        name = [&](const texture_catalog::Entry &, std::size_t variant) { return identity + std::to_string(variant); };
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode, name);
+    EXPECT_EQ(decodes, 2);
+    auto *original = h.manager.GetTexture(const_cast<char *>("shared"), 0);
+    ASSERT_NE(original, nullptr);
+
+    // Identical identities reuse the registered picture without decoding.
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode, name);
+    EXPECT_EQ(decodes, 2);
+    EXPECT_EQ(h.manager.GetTexture(const_cast<char *>("shared"), 0), original);
+    EXPECT_EQ(h.manager.texture_num, 1);
+
+    // A different identity decodes, and identical pixels still keep the registration.
+    identity = "second";
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode, name);
+    EXPECT_EQ(decodes, 4);
+    EXPECT_EQ(h.manager.GetTexture(const_cast<char *>("shared"), 0), original);
+
+    // Without identities the decoded pixels decide, and changed pixels replace the picture.
+    value = 90;
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode);
+    EXPECT_EQ(decodes, 6);
+    auto *replaced = h.manager.GetTexture(const_cast<char *>("shared"), 0);
+    ASSERT_NE(replaced, nullptr);
+    EXPECT_EQ(reinterpret_cast<const unsigned char *>(replaced->image[0])[0], 90);
+
+    // An unnamed variant disables identity reuse for the picture.
+    auto partial = [&](const texture_catalog::Entry &, std::size_t variant) { return variant == 0 ? std::string("third0") : std::string{}; };
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode, partial);
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode, partial);
+    EXPECT_EQ(decodes, 10);
+
+    // Changed semantics with the same identities are entered again.
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode, name);
+    EXPECT_EQ(decodes, 12);
+    document.entries[0].clamp = 1;
+    MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode, name);
+    EXPECT_EQ(decodes, 14);
+}
+
 TEST(MgTexture, KeysLiveInTex0) {
     Harness     h;
     Quads       first_px = Pack(Ct32Pixels(24, 10));

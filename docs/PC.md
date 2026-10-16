@@ -139,10 +139,12 @@ Activate packs and set their priority in `datapacks/datapacks.json`:
 Later entries win when multiple packs replace the same PNG. Packs may contain
 just one file: missing files fall through to earlier packs, then to `port_data/`.
 Unlisted folders are inactive. Packs use the physical asset paths and do not
-need a catalog, bundle JSON or manifest. Folder names must stay within the
-`datapacks/` directory; paths and `..` are rejected. Missing configuration leaves
-the retail textures active; invalid configuration disables the packs and prints
-a diagnostic. Restart the game after changing configuration or pack files.
+need a catalog, bundle JSON or manifest. `load_order` entries are single folder
+names; paths and `..` are rejected. Each pack is indexed once at startup and its
+files are trusted as found: symlinks are followed and pack files are neither
+hashed nor checked against the pack folder. Missing configuration leaves the
+retail textures active; invalid configuration disables the packs and prints a
+diagnostic. Restart the game after changing configuration or pack files.
 
 Texture packs made for the earlier `.img` bundle layout can be migrated with
 `tools/kazarov/scripts/migrate_texture_datapacks.py`. Pass the old v1

@@ -14,7 +14,6 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -25,10 +24,12 @@
 
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "platform/archive_mount.hpp"
 #include "platform/config_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/paths.hpp"
 #include "platform/texture_catalog.hpp"
+#include "platform/vfs.hpp"
 #include "script_timing.hpp"
 #include "texture_source.hpp"
 
@@ -43,11 +44,11 @@ constexpr std::size_t kSector = DATAREAD_SECTOR_SIZE;
 constexpr std::size_t kExpectedFiles = 10240;
 
 // The index replaces DATA.HD4, which never listed these: manifest.txt and the movie/ and sound/ trees
-// are dc2data output that their own subsystems read, not dataread.
+// are converted data that their own subsystems read, not dataread.
 constexpr std::array<std::string_view, 5> kExcludedRootNames = {"manifest.txt", "manifest.json", "movie", "sound", "port_data"};
 
 struct IndexedFile {
-    fs::path    path;
+    vfs::Ref    file;             /**< Data file supplying the bytes. */
     bool        replaced = false; // a datapack file stands in for the extracted one
     std::string relative;         /**< Actual root-relative filename, including directory metadata files. */
 };
@@ -166,7 +167,7 @@ const IndexedFile *Lookup(const std::string &key) {
     if (found == file_index.end()) {
         for (const auto &relative : {key, key + "/pack.json"}) {
             if (const auto replacement = datapacks::Resolve(relative)) {
-                return &file_index.emplace(relative, IndexedFile{*replacement, true, relative}).first->second;
+                return &file_index.emplace(relative, IndexedFile{std::move(*replacement), true, relative}).first->second;
             }
         }
     }
@@ -176,12 +177,7 @@ const IndexedFile *Lookup(const std::string &key) {
 // Sized on demand: stat-ing every file while indexing costs about a millisecond per file on the 9p
 // mounts the host data lives on, and only the files a game opens need a size.
 std::optional<std::uintmax_t> FileSize(const IndexedFile &file) {
-    std::error_code error;
-    std::uintmax_t  size = fs::file_size(file.path, error);
-    if (error) {
-        return std::nullopt;
-    }
-    return size;
+    return vfs::Size(file.file);
 }
 
 // Reads a whole file into a sector-padded buffer without recording the buffer, so it is safe off the main thread.
@@ -190,15 +186,10 @@ int ReadUnregistered(const IndexedFile &file, void *buffer) {
     if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
         return -1;
     }
-    std::ifstream stream(file.path, std::ios::binary);
-    if (!stream) {
-        return -1;
-    }
-    stream.read(static_cast<char *>(buffer), static_cast<std::streamsize>(*sized));
-    if (static_cast<std::uintmax_t>(stream.gcount()) != *sized) {
-        return -1;
-    }
     std::size_t size = static_cast<std::size_t>(*sized);
+    if (!vfs::ReadInto(file.file, buffer, size)) {
+        return -1;
+    }
     ZeroSectorTail(buffer, size);
     return static_cast<int>(size);
 }
@@ -322,49 +313,27 @@ BG_READ_INFO *BgFreeSlot() {
     return nullptr;
 }
 
-void BuildIndex(const fs::path &root, bool reset = true) {
-    if (reset) {
-        file_index.clear();
-    }
+// Indexes every base data file outside the excluded root names, with any datapack replacement already resolved.
+void BuildIndex(const std::shared_ptr<const vfs::Mount> &base, const fs::path &root) {
+    file_index.clear();
     index_built = true;
-
-    std::error_code error;
-    if (!fs::is_directory(root, error)) {
-        std::fprintf(stderr, "dataread: indexed 0 files under %s (not a directory)\n", PathsDisplay(root).c_str());
+    if (!base) {
+        std::fprintf(stderr, "dataread: indexed 0 files under %s (no data)\n", PathsDisplay(root).c_str());
         return;
     }
 
-    // The disc holds about 8.8k files; reserving up front avoids rehashing while the index fills.
-    file_index.reserve(kExpectedFiles);
-
-    // A trailing separator would make lexically_relative climb out of the root.
-    fs::path                         base = root.has_filename() ? root : root.parent_path();
-    fs::recursive_directory_iterator it(root,
-                                        fs::directory_options::follow_directory_symlink |
-                                            fs::directory_options::skip_permission_denied,
-                                        error);
-    for (const fs::recursive_directory_iterator end; !error && it != end; it.increment(error)) {
-        const fs::directory_entry &entry = *it;
-        if (it.depth() == 0 && IsExcludedRootName(PathsDisplay(entry.path().filename()))) {
-            it.disable_recursion_pending();
+    // The disc holds about 8.8k files and the converted data about 64k; reserving avoids rehashing while it fills.
+    const std::size_t count = base->Count();
+    file_index.reserve(std::max(kExpectedFiles, count));
+    for (std::size_t index = 0; index < count; ++index) {
+        std::string relative = base->Name(index);
+        if (IsExcludedRootName(std::string_view(relative).substr(0, relative.find('/')))) {
             continue;
         }
-        std::error_code entry_error;
-        if (!entry.is_regular_file(entry_error) || entry_error) {
-            continue;
-        }
-        std::string relative = entry.path().lexically_relative(base).generic_string();
-        std::string key;
-        key.reserve(relative.size());
-        for (char c : relative) {
-            key.push_back(FoldChar(c));
-        }
-        const auto replacement = datapacks::Resolve(fs::path(relative));
-        file_index.insert_or_assign(std::move(key), IndexedFile{replacement.value_or(entry.path()), replacement.has_value(), relative});
-    }
-
-    if (error) {
-        std::fprintf(stderr, "dataread: walking %s stopped: %s\n", PathsDisplay(root).c_str(), error.message().c_str());
+        std::string key = vfs::FoldKey(relative);
+        auto        replacement = datapacks::Resolve(fs::path(std::u8string(relative.begin(), relative.end())));
+        const bool  replaced = replacement.has_value();
+        file_index.insert_or_assign(std::move(key), IndexedFile{replaced ? std::move(*replacement) : vfs::Ref(base, index), replaced, std::move(relative)});
     }
     std::fprintf(stderr, "dataread: indexed %zu files under %s\n", file_index.size(), PathsDisplay(root).c_str());
 }
@@ -372,18 +341,38 @@ void BuildIndex(const fs::path &root, bool reset = true) {
 } // namespace
 
 void DataReadIndex(const fs::path &root) {
+    const auto start = std::chrono::steady_clock::now();
     TextureSourceClear();
     loaded_buffers.clear();
-    std::string    error;
     const fs::path data_root = root.has_filename() ? root : root.parent_path();
     const fs::path native_root = data_root.parent_path() / "port_data";
-    if (!texture_catalog::Load(native_root, error)) {
-        std::fprintf(stderr, "dataread: %s\n", error.c_str());
+    const fs::path archive = data_root.parent_path() / "data.zip";
+
+    // data.zip holds both converted trees in one namespace; without it the data/ and port_data/ directories are
+    // mounted together, port_data/ winning on a shared name.
+    std::shared_ptr<const vfs::Mount> base;
+    fs::path                          location = data_root;
+    std::error_code                   error;
+    if (fs::is_regular_file(archive, error)) {
+        location = archive;
+        try {
+            base = ArchiveMountOpen(archive);
+        } catch (const std::exception &exception) {
+            std::fprintf(stderr, "dataread: %s: %s\n", PathsDisplay(archive).c_str(), exception.what());
+        }
+    } else {
+        base = vfs::OpenDirectories({data_root, native_root});
     }
-    datapacks::Load(native_root);
+    if (base) {
+        texture_catalog::Load(base);
+    } else {
+        texture_catalog::Clear();
+    }
+    datapacks::Load(base, native_root);
     texture_catalog::SetCandidateResolver(datapacks::Candidates);
-    BuildIndex(root);
-    BuildIndex(native_root, false);
+    BuildIndex(base, location);
+    std::fprintf(stderr, "dataread: index ready in %.3f seconds\n",
+                 std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
 }
 
 std::size_t DataReadBufferSize(const void *buffer) {
@@ -415,18 +404,22 @@ void DataReadCopyBuffer(const void *source, void *destination, std::size_t size)
     }
 }
 
-std::optional<fs::path> DataReadFind(const char *game_name) {
+std::optional<vfs::Ref> DataReadFind(const char *game_name) {
     if (!game_name) {
         return std::nullopt;
     }
-    if (const auto candidates = config_catalog::Paths(IndexKey(game_name)); !candidates.empty()) {
+    const auto key = IndexKey(game_name);
+    if (IsExcludedRootName(std::string_view(key).substr(0, key.find('/')))) {
+        return std::nullopt;
+    }
+    if (const auto candidates = config_catalog::Paths(key); !candidates.empty()) {
         return candidates.front();
     }
-    const IndexedFile *file = Lookup(IndexKey(game_name));
+    const IndexedFile *file = Lookup(key);
     if (!file) {
         return std::nullopt;
     }
-    return file->path;
+    return file->file;
 }
 
 std::optional<std::string> DataReadAssetPath(const char *game_name) {

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "platform/texture_catalog.hpp"
+#include "platform/vfs.hpp"
 
 namespace datapacks {
 
@@ -26,38 +27,53 @@ struct DecodedTexture {
 };
 
 /**
- * Loads the sibling datapacks/datapacks.json; later load_order folders take precedence.
+ * Mounts a converted-data directory or ZIP archive as the base and loads the sibling datapacks/datapacks.json.
  */
-void Load(const std::filesystem::path &port_data_root);
+void Load(const std::filesystem::path &native_root);
 
 /**
- * Clears all configured pack roots and their file indexes.
+ * Uses an open base mount and loads datapacks/datapacks.json beside native_root; later load_order packs win.
+ */
+void Load(std::shared_ptr<const vfs::Mount> base, const std::filesystem::path &native_root);
+
+/**
+ * Clears the base mount, all configured packs and the override index.
  */
 void Clear();
 
 /**
- * Finds a regular replacement for a relative game-data path, ignoring ASCII case.
+ * Returns the mount holding the converted original data, or null before Load.
  */
-std::optional<std::filesystem::path> Resolve(const std::filesystem::path &relative);
+const std::shared_ptr<const vfs::Mount> &Base();
 
 /**
- * Returns the converted-data directory established by Load.
+ * Finds the highest-priority pack replacement for a relative game-data path, ignoring ASCII case.
+ */
+std::optional<vfs::Ref> Resolve(const std::filesystem::path &relative);
+
+/**
+ * Returns the converted-data location given to Load.
  */
 const std::filesystem::path &Root();
 
 /**
- * Lists safe replacement assets in priority order followed by the retail asset.
+ * Lists pack replacements in priority order followed by the original asset.
  */
-std::vector<std::filesystem::path> Candidates(const std::filesystem::path &relative);
+std::vector<vfs::Ref> Candidates(const std::filesystem::path &relative);
 /**
  * Lists merged direct file and child-directory names through datapack priority.
  */
 std::vector<std::filesystem::path> DirectoryMembers(const std::filesystem::path &relative);
 
 /**
- * Finds the highest-priority replacement or the corresponding converted retail asset.
+ * Finds the highest-priority replacement or the corresponding original asset.
  */
-std::optional<std::filesystem::path> Asset(const std::filesystem::path &relative);
+std::optional<vfs::Ref> Asset(const std::filesystem::path &relative);
+
+/**
+ * Reports whether a file comes from a datapack rather than the base data.
+ */
+bool IsReplacement(const vfs::Ref &file);
 
 /**
  * Decodes a catalog variant through PNG overlays, falling back to valid lower-priority assets.
@@ -67,7 +83,7 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant, DecodedTex
 /**
  * Names decoded pixels by a semantic image identity and every possible source file's current stamp.
  */
-std::string ImageDecodeKey(std::string_view identity, std::span<const std::filesystem::path> sources);
+std::string ImageDecodeKey(std::string_view identity, std::span<const vfs::Ref> sources);
 /**
  * Reuses immutable decoded image pixels within the shared 512 MiB least-recently-used cache.
  */
@@ -86,6 +102,10 @@ std::shared_ptr<const DecodedTexture> DecodeShared(std::string_view             
  * Reads a whole file with one sized read; returns false when it is missing, unreadable or larger than max_bytes.
  */
 bool ReadFileBytes(const std::filesystem::path &path, std::vector<uint8_t> &bytes, std::uint64_t max_bytes = 256ull * 1024 * 1024);
+/**
+ * Reads a whole data file; returns false when it is missing, unreadable or larger than max_bytes.
+ */
+bool ReadFileBytes(const vfs::Ref &file, std::vector<uint8_t> &bytes, std::uint64_t max_bytes = 256ull * 1024 * 1024);
 
 /**
  * One decode the cache may not hold yet: its DecodeCached identity and the decoder that produces it.

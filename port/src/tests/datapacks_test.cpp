@@ -93,7 +93,7 @@ protected:
         entry.width = 3;
         entry.height = 2;
         entry.variants.push_back({
-            "color", {retail / "textures/base.png", retail / "textures/mip.png"}
+            "color", {{"textures/base.png", vfs::HostFile(retail / "textures/base.png")}, {"textures/mip.png", vfs::HostFile(retail / "textures/mip.png")}}
         });
         Png(retail / "textures/base.png", 3, 2, 20);
         Png(retail / "textures/mip.png", 1, 1, 30);
@@ -235,7 +235,7 @@ TEST_F(DatapacksTest, GenericOverridesIgnoreCaseAndRejectTraversal) {
     Config(R"({"schema_version":1,"load_order":["files"]})");
     const auto resolved = datapacks::Resolve("chara/hero.DAT");
     ASSERT_TRUE(resolved);
-    EXPECT_EQ(*resolved, std::filesystem::weakly_canonical(path));
+    EXPECT_EQ(std::filesystem::weakly_canonical(*vfs::HostPath(*resolved)), std::filesystem::weakly_canonical(path));
     EXPECT_FALSE(datapacks::Resolve("../Chara/Hero.dat"));
     EXPECT_FALSE(datapacks::Resolve("/Chara/Hero.dat"));
     EXPECT_FALSE(datapacks::Resolve("C:Chara/Hero.dat"));
@@ -312,7 +312,7 @@ TEST_F(DatapacksTest, SharedImageCacheRetainsIndependentPixelsAndClearsWithRoots
 
 TEST_F(DatapacksTest, ImageCacheKeysTrackMissingAndEditedHigherPriorityInputs) {
     const auto                         replacement = retail / "replacement.png";
-    std::vector<std::filesystem::path> paths{replacement, retail / "textures/base.png"};
+    std::vector<vfs::Ref>              paths{vfs::HostFile(replacement), vfs::HostFile(retail / "textures/base.png")};
     const auto                         original = datapacks::ImageDecodeKey("model:image:0:overlay", paths);
     std::ofstream(replacement) << "candidate";
     const auto created = datapacks::ImageDecodeKey("model:image:0:overlay", paths);
@@ -437,7 +437,7 @@ TEST_F(DatapacksTest, PrefetchDecodesCatalogTexturesConcurrently) {
 
 TEST_F(DatapacksTest, StampScopeHoldsSourceStampsUntilItEnds) {
     const auto                         source = retail / "stamped.png";
-    std::vector<std::filesystem::path> paths{source};
+    std::vector<vfs::Ref>              paths{vfs::HostFile(source)};
     std::ofstream(source) << "first";
     std::string scoped;
     {

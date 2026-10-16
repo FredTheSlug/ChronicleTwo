@@ -288,9 +288,27 @@ std::filesystem::path Relative(const std::string &name) {
 }
 
 /**
+ * Resolves a glTF URI reference against its document's directory, allowing ".." components that stay inside the
+ * data namespace.
+ */
+std::string Reference(const std::filesystem::path &relative, std::string_view uri) {
+    const std::filesystem::path path(std::u8string(uri.begin(), uri.end()));
+    if (uri.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory() ||
+        uri.find_first_of(":\\") != std::string_view::npos) {
+        throw std::runtime_error("unsafe asset reference: " + std::string(uri));
+    }
+    const auto  normal = (relative.parent_path() / path).lexically_normal().generic_u8string();
+    std::string name(normal.begin(), normal.end());
+    if (!vfs::SafeRelative(name)) {
+        throw std::runtime_error("asset reference leaves the data: " + std::string(uri));
+    }
+    return name;
+}
+
+/**
  * Resolves a converted asset through the configured datapack priority.
  */
-std::filesystem::path Asset(const std::filesystem::path &path) {
+vfs::Ref Asset(const std::filesystem::path &path) {
     auto asset = datapacks::Asset(path);
     if (!asset) {
         throw std::runtime_error("missing asset: " + path.generic_string());
@@ -473,7 +491,8 @@ std::shared_ptr<Document> ReadBytes(std::span<const std::byte> bytes, const Json
         throw std::runtime_error("cannot read native glTF bytes");
     }
     fastgltf::Parser parser;
-    auto             parsed = parser.loadGltf(input.get(), datapacks::Root() / relative.parent_path(), fastgltf::Options::None);
+    // External buffers and images are resolved through datapack priority below, not by the parser.
+    auto parsed = parser.loadGltf(input.get(), {}, fastgltf::Options::None);
     if (parsed.error() != fastgltf::Error::None) {
         throw std::runtime_error("invalid glTF: " + std::string(fastgltf::getErrorMessage(parsed.error())));
     }
@@ -485,7 +504,7 @@ std::shared_ptr<Document> ReadBytes(std::span<const std::byte> bytes, const Json
     for (auto &buffer : document->asset.buffers) {
         if (auto *uri = std::get_if<fastgltf::sources::URI>(&buffer.data)) {
             std::vector<uint8_t> data;
-            datapacks::ReadFileBytes(Asset(relative.parent_path() / Relative(std::string(uri->uri.path()))), data);
+            datapacks::ReadFileBytes(Asset(Reference(relative, uri->uri.path())), data);
             if (data.size() < buffer.byteLength) {
                 throw std::runtime_error("truncated glTF buffer");
             }
@@ -509,9 +528,7 @@ std::shared_ptr<Document> ReadBytes(std::span<const std::byte> bytes, const Json
 std::shared_ptr<Document> Read(const std::filesystem::path &relative, bool allow_standard = false) {
     std::string error = "native glTF asset missing: " + relative.generic_string();
     for (const auto &path : datapacks::Candidates(relative)) {
-        std::error_code status;
-        const auto      size = std::filesystem::file_size(path, status);
-        if (status) {
+        if (!vfs::Size(path)) {
             continue;
         }
         try {
@@ -522,7 +539,7 @@ std::shared_ptr<Document> Read(const std::filesystem::path &relative, bool allow
                 auto sidecar = relative;
                 sidecar.replace_extension(".game.json");
                 const auto candidates = datapacks::Candidates(sidecar);
-                if (!allow_standard || std::ranges::any_of(candidates, [](const auto &candidate) { return std::filesystem::is_regular_file(candidate); })) {
+                if (!allow_standard || !candidates.empty()) {
                     throw std::runtime_error(sidecar_error);
                 }
                 game = std::make_shared<Json>(Json{
@@ -531,8 +548,7 @@ std::shared_ptr<Document> Read(const std::filesystem::path &relative, bool allow
                     {"meshes",         Json::array()}
                 });
             }
-            const auto stamp = path.generic_string() + '|' + std::to_string(size) + '|' +
-                               std::to_string(static_cast<long long>(std::filesystem::last_write_time(path).time_since_epoch().count()));
+            const auto stamp = path.Display() + '|' + vfs::Stamp(path);
             const auto key = stamp + '|' + (standard_only ? std::string("standard") : sidecar_identity);
             if (const auto found = documents.find(key); found != documents.end()) {
                 return found->second;
@@ -543,7 +559,7 @@ std::shared_ptr<Document> Read(const std::filesystem::path &relative, bool allow
             }
             datapacks::Trace("model.gltf_reads");
             datapacks::Trace("model.gltf_bytes", data.size());
-            auto document = ReadBytes(std::as_bytes(std::span(data)), *game, relative, path != datapacks::Root() / relative);
+            auto document = ReadBytes(std::as_bytes(std::span(data)), *game, relative, datapacks::IsReplacement(path));
             document->standard_only = standard_only;
             if (document->overlaid) {
                 document->source = stamp;
@@ -741,13 +757,12 @@ Json MeshIdentity(const Document &document, const fastgltf::Node &node, Json det
  * Encoded glTF image bytes viewed in place, or owned when the image names an external file.
  */
 struct EmbeddedImage {
-    std::span<const std::byte>                   bytes; /**< Encoded PNG bytes. */
-    std::shared_ptr<const std::vector<uint8_t> > owned; /**< External file contents backing the bytes. */
-    std::filesystem::path                        file;  /**< External file supplying the bytes, empty when embedded. */
+    std::span<const std::byte> bytes;     /**< Encoded PNG bytes, empty for an external image. */
+    std::string                reference; /**< Data path of an external PNG, empty when embedded. */
 };
 
 /**
- * Views a standard image's encoded bytes without copying embedded data.
+ * Views a standard image's encoded bytes without copying embedded data, or names its external PNG unread.
  */
 EmbeddedImage EmbeddedBytes(const Document &document, std::size_t index) {
     EmbeddedImage result;
@@ -759,11 +774,7 @@ EmbeddedImage EmbeddedBytes(const Document &document, std::size_t index) {
             const auto data = fastgltf::DefaultBufferDataAdapter{}(document.asset, source.bufferViewIndex);
             result.bytes = std::span<const std::byte>(data.data(), data.size());
         } else if constexpr (std::is_same_v<T, fastgltf::sources::URI>) {
-            auto owned = std::make_shared<std::vector<uint8_t> >();
-            result.file = Asset(document.relative.parent_path() / Relative(std::string(source.uri.path())));
-            datapacks::ReadFileBytes(result.file, *owned);
-            result.bytes = std::as_bytes(std::span(*owned));
-            result.owned = std::move(owned);
+            result.reference = Reference(document.relative, source.uri.path());
         } else {
             throw std::runtime_error("unsupported embedded image source");
         }
@@ -777,7 +788,30 @@ EmbeddedImage EmbeddedBytes(const Document &document, std::size_t index) {
  */
 void ImageExtent(const Document &document, std::size_t index, int &width, int &height) {
     const auto embedded = EmbeddedBytes(document, index);
-    int        components = 0;
+    if (!embedded.reference.empty()) {
+        // The logical extent is the original PNG's; a datapack may enlarge the image it supplies.
+        auto file = vfs::Find(datapacks::Base(), embedded.reference);
+        if (!file) {
+            file = Asset(embedded.reference);
+        }
+        std::array<std::uint8_t, 24> header{};
+        constexpr std::array<std::uint8_t, 8> signature{137, 80, 78, 71, 13, 10, 26, 10};
+        if (!vfs::ReadPrefix(file, header) || !std::equal(signature.begin(), signature.end(), header.begin()) ||
+            !std::equal(header.begin() + 12, header.begin() + 16, "IHDR")) {
+            throw std::runtime_error("invalid glTF PNG: " + embedded.reference);
+        }
+        const auto word = [&](std::size_t offset) {
+            return (uint32_t{header[offset]} << 24) | (uint32_t{header[offset + 1]} << 16) | (uint32_t{header[offset + 2]} << 8) | header[offset + 3];
+        };
+        if (word(16) == 0 || word(20) == 0 || word(16) > 16384 || word(20) > 16384) {
+            throw std::runtime_error("invalid glTF PNG dimensions: " + embedded.reference);
+        }
+        width = static_cast<int>(word(16));
+        height = static_cast<int>(word(20));
+        datapacks::Trace("model.extent_reads");
+        return;
+    }
+    int components = 0;
     if (!stbi_info_from_memory(reinterpret_cast<const stbi_uc *>(embedded.bytes.data()), static_cast<int>(embedded.bytes.size()), &width, &height, &components)) {
         throw std::runtime_error("invalid embedded glTF PNG");
     }
@@ -790,7 +824,7 @@ void ImageExtent(const Document &document, std::size_t index, int &width, int &h
 struct ImageSource {
     std::shared_ptr<const Document>    document;     /**< Document keeping the embedded bytes alive. */
     EmbeddedImage                      embedded;     /**< Encoded embedded PNG. */
-    std::vector<std::filesystem::path> overlays;     /**< Replacement PNG files in priority order. */
+    std::vector<vfs::Ref>              overlays;     /**< Replacement PNG files in priority order. */
     std::string                        overlay_key;  /**< Decode identity of the replacement files, empty without any. */
     std::string                        embedded_key; /**< Decode identity of the embedded PNG contents. */
 };
@@ -800,11 +834,13 @@ struct ImageSource {
  */
 ImageSource ResolveImage(const Document &document, std::size_t index) {
     ImageSource source{document.shared_from_this(), EmbeddedBytes(document, index), {}, {}, {}};
-    if (const auto found = document.embedded_keys.find(index); found != document.embedded_keys.end()) {
+    std::vector<std::string> paths;
+    if (!source.embedded.reference.empty()) {
+        // An external PNG is decoded like a replacement: through datapack priority, keyed by its files' stamps, so
+        // every document referencing it shares one decode.
+        paths.push_back(source.embedded.reference);
+    } else if (const auto found = document.embedded_keys.find(index); found != document.embedded_keys.end()) {
         source.embedded_key = found->second;
-    } else if (source.embedded.owned) {
-        // External image files can change while the document stays cached.
-        source.embedded_key = datapacks::ImageDecodeKey("embedded-file", std::span(&source.embedded.file, 1));
     } else {
         // Datapack files are named by their stamps rather than hashed.
         source.embedded_key = document.overlaid ? "embedded-pack:" + document.source + ':' + std::to_string(index)
@@ -813,19 +849,24 @@ ImageSource ResolveImage(const Document &document, std::size_t index) {
     }
     // A datapack glTF owns its embedded images; replacement PNGs apply only to the converted document.
     if (!document.overlaid) {
-        std::string paths;
         for (const auto &metadata : *document.images) {
             if (metadata.at("image").get<std::size_t>() != index || !metadata.contains("png")) {
                 continue;
             }
-            const auto path = Relative(metadata.at("png").get<std::string>());
-            paths += path.generic_string() + '\n';
-            const auto candidates = datapacks::Candidates(path);
-            source.overlays.insert(source.overlays.end(), candidates.begin(), candidates.end());
+            const auto path = Relative(metadata.at("png").get<std::string>()).generic_string();
+            if (std::ranges::none_of(paths, [&](const std::string &known) { return vfs::FoldKey(known) == vfs::FoldKey(path); })) {
+                paths.push_back(path);
+            }
         }
-        if (!source.overlays.empty()) {
-            source.overlay_key = datapacks::ImageDecodeKey("png:" + paths, source.overlays);
-        }
+    }
+    std::string names;
+    for (const auto &path : paths) {
+        names += path + '\n';
+        const auto candidates = datapacks::Candidates(std::filesystem::path(std::u8string(path.begin(), path.end())));
+        source.overlays.insert(source.overlays.end(), candidates.begin(), candidates.end());
+    }
+    if (!source.overlays.empty()) {
+        source.overlay_key = datapacks::ImageDecodeKey("png:" + names, source.overlays);
     }
     return source;
 }
@@ -856,7 +897,7 @@ bool DecodePng(std::span<const std::byte> png, datapacks::DecodedTexture &image)
 /**
  * Decodes the first valid replacement PNG; safe on worker threads.
  */
-bool DecodeOverlay(std::span<const std::filesystem::path> candidates, datapacks::DecodedTexture &image, std::string &failure) {
+bool DecodeOverlay(std::span<const vfs::Ref> candidates, datapacks::DecodedTexture &image, std::string &failure) {
     for (const auto &candidate : candidates) {
         std::vector<uint8_t> png;
         if (datapacks::ReadFileBytes(candidate, png) && DecodePng(std::as_bytes(std::span(png)), image)) {
@@ -2400,7 +2441,7 @@ void EnterTextureSet(const std::shared_ptr<Document> &document, std::size_t inde
                 for (const auto &level : variant.levels) {
                     // Invalid references are reported when the registration decodes them.
                     try {
-                        sources.push_back(resolved->Resolve(ImageIndex(level.generic_string())));
+                        sources.push_back(resolved->Resolve(ImageIndex(level.path)));
                     } catch (const std::exception &) {
                     }
                 }
@@ -2419,7 +2460,7 @@ void EnterTextureSet(const std::shared_ptr<Document> &document, std::size_t inde
                     return true;
                 }
                 for (const auto &level : entry.variants.at(variant).levels) {
-                    AppendCanvas(*SourcePixels(*resolved->Resolve(ImageIndex(level.generic_string()))), decoded);
+                    AppendCanvas(*SourcePixels(*resolved->Resolve(ImageIndex(level.path))), decoded);
                 }
                 return true;
             } catch (const std::exception &exception) {
@@ -2434,7 +2475,7 @@ void EnterTextureSet(const std::shared_ptr<Document> &document, std::size_t inde
                 }
                 std::string identity = "levels";
                 for (const auto &level : entry.variants.at(variant).levels) {
-                    identity += '\n' + SourceIdentity(*resolved->Resolve(ImageIndex(level.generic_string())));
+                    identity += '\n' + SourceIdentity(*resolved->Resolve(ImageIndex(level.path)));
                 }
                 return identity;
             } catch (const std::exception &) {

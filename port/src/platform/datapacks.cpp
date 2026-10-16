@@ -23,21 +23,27 @@
 #define STBI_NO_STDIO
 #include "stb_image.h"
 
+#include "platform/archive_mount.hpp"
+
 namespace datapacks {
 namespace {
 
 /**
- * Stores one pack's root and case-insensitive asset index.
+ * Holds one enabled pack's mounted files.
  */
 struct Pack {
-    std::filesystem::path                                  root;  /**< Directory containing the pack. */
-    std::unordered_map<std::string, std::filesystem::path> files; /**< Relative asset keys mapped to on-disk paths. */
+    std::filesystem::path             location; /**< Pack folder or ZIP archive. */
+    std::shared_ptr<const vfs::Mount> mount;    /**< Pack contents. */
 };
 
-/** Canonical converted-data directory used to locate PNG overlays. */
+/** Converted-data location given to Load. */
 std::filesystem::path retail_root;
+/** Mount holding the converted original data. */
+std::shared_ptr<const vfs::Mount> base;
 /** Enabled packs in increasing priority order. */
 std::vector<Pack> packs;
+/** Folded relative names mapped to every pack file replacing them, highest priority first. */
+std::unordered_map<std::string, std::vector<vfs::Ref> > overrides;
 /** Largest accepted physical texture extent on either axis. */
 constexpr uint32_t kMaxDimension = 16384;
 /** Maximum RGBA storage occupied by one decoded mip chain. */
@@ -70,22 +76,12 @@ std::list<std::string> decode_uses;
 /** RGBA bytes currently held by the decode cache. */
 std::size_t decode_cache_bytes = 0;
 
-/**
- * Size and write time of one source file as ImageDecodeKey names it.
- */
-struct Stamp {
-    std::uintmax_t size = 0; /**< File size, or zero when unreadable. */
-    long long      time = 0; /**< Write-time ticks, or zero when unreadable. */
-};
-
 /** Guards the path memos and the stamp memo. */
 std::mutex memo_mutex;
 /** Candidates results per relative path for the current pack configuration. */
-std::unordered_map<std::string, std::vector<std::filesystem::path> > candidates_memo;
-/** DecodeCandidates results per mip path for the current pack configuration. */
-std::unordered_map<std::string, std::vector<std::filesystem::path> > decode_candidates_memo;
-/** Source-file stamps per path while a StampScope is alive. */
-std::unordered_map<std::string, Stamp> stamp_memo;
+std::unordered_map<std::string, std::vector<vfs::Ref> > candidates_memo;
+/** Host file stamps per display name while a StampScope is alive. */
+std::unordered_map<std::string, std::string> stamp_memo;
 /** Number of live StampScope objects. */
 unsigned stamp_scopes = 0;
 
@@ -125,7 +121,6 @@ void ClearDecodeCache() {
 void ClearMemos() {
     const std::lock_guard lock(memo_mutex);
     candidates_memo.clear();
-    decode_candidates_memo.clear();
     stamp_memo.clear();
 }
 
@@ -192,9 +187,12 @@ void CacheInsert(const std::string &key, std::shared_ptr<const DecodedTexture> t
 }
 
 /**
- * Returns a path's size and write time with one status query, memoised while a StampScope is alive.
+ * Returns a file's stamp; host files are queried once while a StampScope is alive and archive stamps are fixed.
  */
-Stamp FileStamp(const std::string &name, const std::filesystem::path &path) {
+std::string FileStamp(const vfs::Ref &file, const std::string &name) {
+    if (!vfs::HostPath(file)) {
+        return vfs::Stamp(file);
+    }
     {
         const std::lock_guard lock(memo_mutex);
         if (stamp_scopes) {
@@ -204,16 +202,7 @@ Stamp FileStamp(const std::string &name, const std::filesystem::path &path) {
             }
         }
     }
-    Stamp                                  stamp;
-    std::error_code                        error;
-    const std::filesystem::directory_entry entry(path, error);
-    if (!error) {
-        const auto size = entry.file_size(error);
-        const auto time = error ? std::filesystem::file_time_type{} : entry.last_write_time(error);
-        if (!error) {
-            stamp = {size, static_cast<long long>(time.time_since_epoch().count())};
-        }
-    }
+    auto                  stamp = vfs::Stamp(file);
     const std::lock_guard lock(memo_mutex);
     if (stamp_scopes) {
         Trace("stamp memo misses");
@@ -231,76 +220,35 @@ std::string Display(const std::filesystem::path &path) {
 }
 
 /**
- * Builds an ASCII case-insensitive asset lookup key.
+ * Returns the replacements of a folded name, highest priority first, or null when no pack replaces it.
  */
-std::string Key(const std::filesystem::path &path) {
-    std::string key = Display(path);
-    for (char &character : key) {
-        if (character >= 'A' && character <= 'Z') {
-            character += 'a' - 'A';
-        }
+const std::vector<vfs::Ref> *Overrides(std::string_view relative) {
+    if (overrides.empty()) {
+        return nullptr;
     }
-    return key;
+    const auto found = overrides.find(vfs::FoldKey(relative));
+    return found == overrides.end() ? nullptr : &found->second;
 }
 
 /**
- * Accepts relative asset paths without traversal or alternate-root syntax.
+ * Mounts one load_order entry: an archive named by the entry or by the entry plus .zip, else a folder.
  */
-bool Relative(const std::filesystem::path &path) {
-    const auto text = Display(path);
-    if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory() ||
-        text.find('\\') != std::string::npos || text.find(':') != std::string::npos ||
-        text.find('\0') != std::string::npos) {
-        return false;
-    }
-    for (const auto &part : path) {
-        if (part.empty() || part == "." || part == "..") {
-            return false;
-        }
-    }
-    return true;
-}
-
-/**
- * Checks that a canonical path is a strict descendant of a root.
- */
-bool Within(const std::filesystem::path &root, const std::filesystem::path &path) {
-    auto base = root.begin();
-    auto candidate = path.begin();
-    for (; base != root.end(); ++base, ++candidate) {
-        if (candidate == path.end()) {
-            return false;
-        }
-#ifdef _WIN32
-        if (Key(*base) != Key(*candidate)) {
-            return false;
-        }
-#else
-        if (*base != *candidate) {
-            return false;
-        }
-#endif
-    }
-    return candidate != path.end();
-}
-
-/**
- * Reports whether a path names an existing regular file.
- */
-bool RegularFile(const std::filesystem::path &path) {
+std::optional<Pack> OpenPack(const std::filesystem::path &directory, const std::filesystem::path &name) {
     std::error_code error;
-    return std::filesystem::is_regular_file(path, error) && !error;
-}
-
-/**
- * Looks up a pack asset in the index built when the pack was loaded.
- */
-std::optional<std::filesystem::path> PackFile(const Pack &pack, const std::filesystem::path &relative) {
-    const auto found = pack.files.find(Key(relative));
-    if (found == pack.files.end()) {
-        return std::nullopt;
+    auto            archive = directory / name;
+    if (vfs::FoldKey(Display(name)).ends_with(".zip") && std::filesystem::is_regular_file(archive, error)) {
+        return Pack{archive, ArchiveMountOpen(archive)};
     }
-    return found->second;
+    archive = directory / name;
+    archive += ".zip";
+    if (std::filesystem::is_regular_file(archive, error)) {
+        return Pack{archive, ArchiveMountOpen(archive)};
+    }
+    const auto folder = directory / name;
+    if (std::filesystem::is_directory(folder, error)) {
+        return Pack{folder, vfs::OpenDirectory(folder, true)};
+    }
+    return std::nullopt;
 }
 
 /**
@@ -338,7 +286,7 @@ bool ChainFits(uint32_t width, uint32_t height, std::size_t count) {
 /**
  * Preflights PNG dimensions and file size before decoding any PNG format to RGBA.
  */
-bool ReadPng(const std::filesystem::path &path, uint32_t &width, uint32_t &height,
+bool ReadPng(const vfs::Ref &path, uint32_t &width, uint32_t &height,
              std::vector<uint8_t> &rgba, std::string &error) {
     std::vector<uint8_t> bytes;
     if (!ReadFileBytes(path, bytes, kMaxFileBytes) || bytes.size() < 33) {
@@ -426,24 +374,49 @@ std::vector<uint8_t> Downsample(const std::vector<uint8_t> &pixels, uint32_t wid
 } // namespace
 
 /**
- * Clears all configured pack roots and their asset indexes.
+ * Clears the base mount, all configured packs and the override index.
  */
 void Clear() {
     ClearDecodeCache();
     ClearMemos();
     packs.clear();
+    overrides.clear();
+    base.reset();
     retail_root.clear();
+    vfs::SetBase(nullptr);
 }
 
 /**
- * Loads and validates ordered pack folders beside the converted-data root.
+ * Mounts the converted data at native_root, a directory or a ZIP archive, and loads its sibling packs.
  */
-void Load(const std::filesystem::path &port_data_root) {
+void Load(const std::filesystem::path &native_root) {
     Clear();
+    if (native_root.empty()) {
+        return;
+    }
+    std::error_code                   error;
+    std::shared_ptr<const vfs::Mount> mount;
+    try {
+        mount = std::filesystem::is_regular_file(native_root, error) ? ArchiveMountOpen(native_root) : vfs::OpenDirectory(native_root);
+    } catch (const std::exception &exception) {
+        Diagnostic(native_root, std::string(exception.what()) + "; data unavailable");
+        return;
+    }
+    Load(std::move(mount), native_root);
+}
+
+/**
+ * Loads and validates ordered packs beside the converted-data location and builds the merged override index.
+ */
+void Load(std::shared_ptr<const vfs::Mount> base_mount, const std::filesystem::path &native_root) {
+    Clear();
+    const TraceTimer timer("datapacks load us");
+    base = std::move(base_mount);
+    vfs::SetBase(base);
     std::error_code error;
-    retail_root = std::filesystem::weakly_canonical(port_data_root, error);
+    retail_root = std::filesystem::weakly_canonical(native_root, error);
     if (error) {
-        Diagnostic(port_data_root, "cannot establish the converted-data root; packs disabled");
+        Diagnostic(native_root, "cannot establish the converted-data location; packs disabled");
         return;
     }
     const auto directory = retail_root.parent_path() / "datapacks";
@@ -464,88 +437,86 @@ void Load(const std::filesystem::path &port_data_root) {
         std::vector<Pack> configured;
         for (const auto &item : root["load_order"]) {
             if (!item.is_string()) {
-                throw std::runtime_error("load_order entries must be folder names");
+                throw std::runtime_error("load_order entries must be pack names");
             }
             const auto                  folder = item.get<std::string>();
             const std::filesystem::path name(std::u8string(folder.begin(), folder.end()));
-            if (!Relative(name) || std::distance(name.begin(), name.end()) != 1) {
-                throw std::runtime_error("load_order contains an unsafe folder name");
+            if (!vfs::SafeRelative(folder) || std::distance(name.begin(), name.end()) != 1) {
+                throw std::runtime_error("load_order contains an unsafe pack name");
             }
-            Pack pack;
-            pack.root = directory / name;
-            if (!std::filesystem::is_directory(pack.root)) {
-                Diagnostic(directory / name, "pack folder is missing; skipped");
+            auto pack = OpenPack(directory, name);
+            if (!pack) {
+                Diagnostic(directory / name, "pack is missing; skipped");
                 continue;
             }
-            for (const auto &file : std::filesystem::recursive_directory_iterator(pack.root)) {
-                if (!file.is_regular_file()) {
-                    continue;
-                }
-                const auto relative = file.path().lexically_relative(pack.root);
-                const auto key = Key(relative);
-                if (!pack.files.emplace(key, file.path()).second) {
-                    throw std::runtime_error("pack contains paths differing only by ASCII case");
-                }
+            configured.push_back(std::move(*pack));
+        }
+        // One merged index resolves load_order once: each name maps to its replacements, highest priority first.
+        std::unordered_map<std::string, std::vector<vfs::Ref> > merged;
+        for (auto pack = configured.rbegin(); pack != configured.rend(); ++pack) {
+            const auto count = pack->mount->Count();
+            for (std::size_t index = 0; index < count; ++index) {
+                merged[vfs::FoldKey(pack->mount->Name(index))].emplace_back(pack->mount, index);
             }
-            configured.push_back(std::move(pack));
         }
         packs = std::move(configured);
+        overrides = std::move(merged);
     } catch (const std::exception &exception) {
         packs.clear();
+        overrides.clear();
         Diagnostic(config, std::string(exception.what()) + "; packs disabled");
     }
 }
 
+const std::shared_ptr<const vfs::Mount> &Base() {
+    return base;
+}
+
 /**
- * Resolves a relative game-data asset from the highest-priority valid pack.
+ * Resolves a relative game-data asset from the highest-priority pack.
  */
-std::optional<std::filesystem::path> Resolve(const std::filesystem::path &relative) {
-    if (!Relative(relative)) {
+std::optional<vfs::Ref> Resolve(const std::filesystem::path &relative) {
+    const auto name = vfs::RelativeName(relative);
+    if (!name) {
         return std::nullopt;
     }
-    for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
-        if (auto path = PackFile(*pack, relative)) {
-            return path;
-        }
+    const auto *replacements = Overrides(*name);
+    if (!replacements) {
+        return std::nullopt;
     }
-    return std::nullopt;
+    return replacements->front();
 }
 
 const std::filesystem::path &Root() {
     return retail_root;
 }
 
-std::vector<std::filesystem::path> Candidates(const std::filesystem::path &relative) {
-    std::vector<std::filesystem::path> candidates;
-    if (!Relative(relative)) {
-        return candidates;
+std::vector<vfs::Ref> Candidates(const std::filesystem::path &relative) {
+    const auto name = vfs::RelativeName(relative);
+    if (!name) {
+        return {};
     }
-    const auto name = Display(relative);
     {
         const std::lock_guard lock(memo_mutex);
-        if (const auto found = candidates_memo.find(name); found != candidates_memo.end()) {
+        if (const auto found = candidates_memo.find(*name); found != candidates_memo.end()) {
             Trace("candidates memo hits");
             return found->second;
         }
     }
     Trace("candidates memo misses");
-    for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
-        if (auto path = PackFile(*pack, relative)) {
-            candidates.push_back(*path);
-        }
+    std::vector<vfs::Ref> candidates;
+    if (const auto *replacements = Overrides(*name)) {
+        candidates = *replacements;
     }
-    if (!retail_root.empty()) {
-        const auto path = retail_root / relative;
-        if (RegularFile(path)) {
-            candidates.push_back(path);
-        }
+    if (auto original = vfs::Find(base, *name)) {
+        candidates.push_back(std::move(original));
     }
     const std::lock_guard lock(memo_mutex);
-    candidates_memo.insert_or_assign(name, candidates);
+    candidates_memo.insert_or_assign(*name, candidates);
     return candidates;
 }
 
-std::optional<std::filesystem::path> Asset(const std::filesystem::path &relative) {
+std::optional<vfs::Ref> Asset(const std::filesystem::path &relative) {
     auto candidates = Candidates(relative);
     if (candidates.empty()) {
         return std::nullopt;
@@ -553,84 +524,69 @@ std::optional<std::filesystem::path> Asset(const std::filesystem::path &relative
     return candidates.front();
 }
 
+bool IsReplacement(const vfs::Ref &file) {
+    return file && file.mount() != base;
+}
+
 std::vector<std::filesystem::path> DirectoryMembers(const std::filesystem::path &relative) {
-    if (!Relative(relative)) {
+    const auto name = vfs::RelativeName(relative);
+    if (!name) {
         return {};
     }
-    std::unordered_map<std::string, std::filesystem::path> members;
-    auto                                                   collect = [&](const std::filesystem::path &root) {
-        const auto      directory = root / relative;
-        std::error_code error;
-        if (!std::filesystem::is_directory(directory, error)) {
+    std::unordered_map<std::string, std::string> members;
+    auto                                         collect = [&](const std::shared_ptr<const vfs::Mount> &mount) {
+        if (!mount) {
             return;
         }
-        for (const auto &entry : std::filesystem::directory_iterator(directory, error)) {
-            if (error) {
-                break;
-            }
-            auto filename = relative / entry.path().filename();
-            if (entry.is_regular_file(error)) {
-                members.insert_or_assign(Key(entry.path().filename()), filename);
-            } else if (entry.is_directory(error) && RegularFile(entry.path() / "pack.json")) {
-                members.insert_or_assign(Key(entry.path().filename()), filename);
+        for (const auto &member : mount->List(*name)) {
+            const auto path = *name + '/' + member.name;
+            if (!member.directory || mount->Find(path + "/pack.json")) {
+                members.insert_or_assign(vfs::FoldKey(member.name), path);
             }
         }
     };
-    if (!retail_root.empty()) {
-        collect(retail_root);
-    }
+    collect(base);
     for (const auto &pack : packs) {
-        collect(pack.root);
+        collect(pack.mount);
     }
-    std::vector<std::filesystem::path> result;
+    std::vector<std::pair<std::string, std::filesystem::path> > sorted;
+    sorted.reserve(members.size());
     for (const auto &[key, path] : members) {
-        result.push_back(path);
+        sorted.emplace_back(vfs::FoldKey(path), std::filesystem::path(std::u8string(path.begin(), path.end())));
     }
-    std::sort(result.begin(), result.end(), [](const auto &left, const auto &right) { return Key(left) < Key(right); });
+    std::sort(sorted.begin(), sorted.end(), [](const auto &left, const auto &right) { return left.first < right.first; });
+    std::vector<std::filesystem::path> result;
+    result.reserve(sorted.size());
+    for (auto &[key, path] : sorted) {
+        result.push_back(std::move(path));
+    }
     return result;
 }
 
-/**
- * Decodes a catalog texture through PNG overlays into padded physical RGBA mip canvases.
- */
 namespace {
 
 /**
  * Lists the files that can supply one mip, highest-priority pack first and the converted original last.
  */
-std::vector<std::filesystem::path> DecodeCandidates(const std::filesystem::path &level) {
-    const auto name = Display(level);
-    {
-        const std::lock_guard lock(memo_mutex);
-        if (const auto found = decode_candidates_memo.find(name); found != decode_candidates_memo.end()) {
-            Trace("decode candidates memo hits");
-            return found->second;
+std::vector<vfs::Ref> DecodeCandidates(const texture_catalog::Entry::Level &level) {
+    std::vector<vfs::Ref> result;
+    if (vfs::SafeRelative(level.path)) {
+        if (const auto *replacements = Overrides(level.path)) {
+            result = *replacements;
         }
     }
-    Trace("decode candidates memo misses");
-    std::vector<std::filesystem::path> result;
-    std::error_code                    path_error;
-    const auto                         canonical = std::filesystem::weakly_canonical(level, path_error);
-    if (!path_error && !retail_root.empty() && Within(retail_root, canonical)) {
-        const auto relative = canonical.lexically_relative(retail_root);
-        for (auto pack = packs.rbegin(); pack != packs.rend(); ++pack) {
-            if (auto path = PackFile(*pack, relative)) {
-                result.push_back(*path);
-            }
-        }
+    if (level.file) {
+        result.push_back(level.file);
     }
-    result.push_back(level);
-    const std::lock_guard lock(memo_mutex);
-    decode_candidates_memo.insert_or_assign(name, result);
     return result;
 }
 
 /**
- * Names a variant's decode by every file that can supply it, with each file's size and write time, so a
- * replaced or edited PNG makes a new key.
+ * Names a variant's decode by every file that can supply it, with each file's stamp, so a replaced or edited
+ * PNG makes a new key.
  */
 std::string DecodeKey(const texture_catalog::Entry &entry, std::size_t variant_index) {
-    std::vector<std::filesystem::path> sources;
+    std::vector<vfs::Ref> sources;
     for (const auto &level : entry.variants[variant_index].levels) {
         const auto candidates = DecodeCandidates(level);
         sources.insert(sources.end(), candidates.begin(), candidates.end());
@@ -668,7 +624,7 @@ bool DecodeUncached(const texture_catalog::Entry &entry, std::size_t variant_ind
             std::vector<uint8_t> pixels;
             std::string          reason;
             if (!ReadPng(path, width, height, pixels, reason)) {
-                Diagnostic(path, reason + "; trying lower-priority asset");
+                Diagnostic(path.Display(), reason + "; trying lower-priority asset");
                 continue;
             }
             if (mip == 0) {
@@ -679,7 +635,7 @@ bool DecodeUncached(const texture_catalog::Entry &entry, std::size_t variant_ind
                     candidate_scale != height / logical_height || (candidate_scale & (candidate_scale - 1)) ||
                     !ChainFits(retail_width * uint64_t{candidate_scale}, retail_height * uint64_t{candidate_scale},
                                variant.levels.size())) {
-                    Diagnostic(path, "expected original dimensions or uniform power-of-two upscale; trying lower-priority asset");
+                    Diagnostic(path.Display(), "expected original dimensions or uniform power-of-two upscale; trying lower-priority asset");
                     continue;
                 }
                 scale = candidate_scale;
@@ -687,7 +643,7 @@ bool DecodeUncached(const texture_catalog::Entry &entry, std::size_t variant_ind
                 decoded.height = retail_height * scale;
             } else if (width != std::max(1u, (static_cast<uint32_t>(entry.width) * scale) >> mip) ||
                        height != std::max(1u, (static_cast<uint32_t>(entry.height) * scale) >> mip)) {
-                Diagnostic(path, "mip dimensions do not match the selected base; trying lower-priority asset");
+                Diagnostic(path.Display(), "mip dimensions do not match the selected base; trying lower-priority asset");
                 continue;
             }
             decoded.levels.push_back(Pad(std::move(pixels), width, height,
@@ -724,13 +680,11 @@ bool Decode(const texture_catalog::Entry &entry, std::size_t variant_index, Deco
     return DecodeCached(DecodeKey(entry, variant_index), [&](DecodedTexture &out, std::string &failure) { return DecodeUncached(entry, variant_index, out, failure); }, decoded, error);
 }
 
-std::string ImageDecodeKey(std::string_view identity, std::span<const std::filesystem::path> sources) {
+std::string ImageDecodeKey(std::string_view identity, std::span<const vfs::Ref> sources) {
     std::string key = std::to_string(identity.size()) + ':' + std::string(identity);
-    for (const auto &path : sources) {
-        const auto name = Display(path);
-        const auto stamp = FileStamp(name, path);
-        key += '|' + std::to_string(name.size()) + ':' + name + '|' + std::to_string(stamp.size) + '|' +
-               std::to_string(static_cast<unsigned long long>(stamp.time));
+    for (const auto &file : sources) {
+        const auto name = file.Display();
+        key += '|' + std::to_string(name.size()) + ':' + name + '|' + FileStamp(file, name);
     }
     return key;
 }
@@ -800,6 +754,16 @@ bool ReadFileBytes(const std::filesystem::path &path, std::vector<uint8_t> &byte
     file.seekg(0);
     bytes.resize(static_cast<std::size_t>(end));
     if (!bytes.empty() && !file.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()))) {
+        bytes.clear();
+        return false;
+    }
+    Trace("files read");
+    Trace("file bytes read", bytes.size());
+    return true;
+}
+
+bool ReadFileBytes(const vfs::Ref &file, std::vector<uint8_t> &bytes, std::uint64_t max_bytes) {
+    if (!vfs::Read(file, bytes, max_bytes)) {
         bytes.clear();
         return false;
     }

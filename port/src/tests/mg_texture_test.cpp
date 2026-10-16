@@ -737,8 +737,8 @@ TEST(MgTexture, NativeSetsReuseExactPixelsAcrossDocumentReferencesAndKeepAnimati
     picture.width = picture.height = 2;
     picture.bpp = 32;
     picture.variants = {
-        {"shared",    {"#/images/0"}},
-        {"alternate", {"#/images/1"}}
+        {"shared",    {{"#/images/0"}}},
+        {"alternate", {{"#/images/1"}}}
     };
     auto decode = [](const texture_catalog::Entry &, std::size_t variant, datapacks::DecodedTexture &decoded, std::string &) {
         decoded = {};
@@ -752,7 +752,7 @@ TEST(MgTexture, NativeSetsReuseExactPixelsAcrossDocumentReferencesAndKeepAnimati
     for (int index = 0; index < 200; ++index) {
         documents.push_back({"models/document" + std::to_string(index) + ".gltf", {0}, {picture}});
         auto &document = documents.back();
-        document.entries[0].variants[0].levels[0] = "#/images/" + std::to_string(index * 2);
+        document.entries[0].variants[0].levels[0] = {"#/images/" + std::to_string(index * 2)};
         MgTextureEnterNativeSet(&h.manager, 0, document, &h.memory, decode);
         char  name[] = "shared";
         auto *texture = h.manager.GetTexture(name, 0);
@@ -776,8 +776,8 @@ TEST(MgTexture, NativeSetsReplaceChangedPixelsVariantsAndSamplersWithoutAllocati
     picture.width = picture.height = 2;
     picture.bpp = 32;
     picture.variants = {
-        {"tile",      {"#/images/0"}},
-        {"alternate", {"#/images/1"}}
+        {"tile",      {{"#/images/0"}}},
+        {"alternate", {{"#/images/1"}}}
     };
     texture_catalog::Source      document{"models/fixture.gltf", {0}, {picture}};
     std::array<unsigned char, 2> colors{10, 20};
@@ -830,7 +830,7 @@ TEST(MgTexture, NativeSetsReuseLiveAnimationGroupsAndRecreateDeletedOrChangedScr
     source.width = source.height = 2;
     source.bpp = 32;
     source.variants = {
-        {"source", {"#/images/0"}}
+        {"source", {{"#/images/0"}}}
     };
     auto destination = source;
     destination.name = "destination";
@@ -898,8 +898,8 @@ TEST(MgTexture, NativeSetsReuseIdenticallyNamedPicturesWithoutDecoding) {
     entry.width = entry.height = 2;
     entry.bpp = 32;
     entry.variants = {
-        {"base", {"#/images/0"}},
-        {"alt",  {"#/images/1"}}
+        {"base", {{"#/images/0"}}},
+        {"alt",  {{"#/images/1"}}}
     };
     texture_catalog::Source document{"model.gltf", {0}, {entry}};
     int                     decodes = 0;
@@ -1156,8 +1156,8 @@ TEST(MgTexture, EmbeddedSetUsesImageReferencesAndRetainsVariantDecoder) {
         << error;
     ASSERT_EQ(source.entries.size(), 1u);
     ASSERT_EQ(source.entries[0].variants.size(), 2u);
-    EXPECT_EQ(source.entries[0].variants[0].levels[0].generic_string(), "#/images/0");
-    EXPECT_EQ(source.entries[0].variants[1].levels[0].generic_string(), "#/images/1");
+    EXPECT_EQ(source.entries[0].variants[0].levels[0].path, "#/images/0");
+    EXPECT_EQ(source.entries[0].variants[1].levels[0].path, "#/images/1");
 
     Harness                     harness;
     int                         decode_count = 0;
@@ -1221,7 +1221,7 @@ TEST(MgTexture, EmbeddedSetTreatsNullOptionalFieldsAsAbsent) {
     ASSERT_EQ(source.entries[0].variants.size(), 1u);
     EXPECT_EQ(source.entries[0].variants[0].selector, "image");
     ASSERT_EQ(source.entries[0].variants[0].levels.size(), 1u);
-    EXPECT_EQ(source.entries[0].variants[0].levels[0].generic_string(), "#/images/0");
+    EXPECT_EQ(source.entries[0].variants[0].levels[0].path, "#/images/0");
     EXPECT_TRUE(source.entries[1].no_image);
     EXPECT_EQ(source.entries[1].width, 4);
     EXPECT_EQ(source.entries[1].height, 8);

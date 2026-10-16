@@ -29,7 +29,6 @@
 #include "mainloop_port.hpp"
 #include "mapjump.hpp"
 #include "mapselect.hpp"
-#include "menuchr_port.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_memory.hpp"
 #include "mg_memory_port.hpp"
@@ -367,7 +366,6 @@ PORT_OVERRIDE void MainLoop() {
         printf("##### %d\n", mgGetVSyncCount());
         // Single entry for every mode change: covers the LOOP_MENU->LOOP_TITLE redirect above and the PortNextLoopNo hand-off below.
         mgPortCutInterpolation();
-        PortCancelQuickChangeBanner();
         ItemIcons3DReset();
         LoopInit[PortLoopNo](InitArg);
         GameGiveOnArrival(PortLoopNo);
@@ -449,7 +447,6 @@ PORT_OVERRIDE void MainLoop() {
             MainScene.StepSnd();
             GamePad__2.UpDate();
             PadCtrl.Update(&GamePad__2);
-            PortDrawQuickChangeBanner();
             PortDrawFrameBorder();
             mgEndFrame(NULL);
 

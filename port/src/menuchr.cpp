@@ -21,6 +21,7 @@
 #include "platform/arena.hpp"
 #include "platform/model_assets.hpp"
 #include "prespr.hpp"
+#include "quick_loadout.hpp"
 #include "swordeffect.hpp"
 #include "userdata.hpp"
 
@@ -201,17 +202,25 @@ PORT_OVERRIDE void InitMainCharaBG(int chara_no, mgCMemory *stack, int mode) {
  */
 PORT_OVERRIDE int KeyMainCharaBG() {
     if (!quick_change_pending) {
-        return PortRetailKeyMainCharaBG();
+        const int done = PortRetailKeyMainCharaBG();
+        if (done != 0) {
+            PortQuickLoadoutReloadDone();
+        }
+        return done;
     }
 
     for (int step = 0; step < kQuickChangeMaxSteps; ++step) {
         if (PortRetailKeyMainCharaBG() != 0) {
             quick_change_pending = false;
-            banner_chara = quick_change_chara;
-            banner_loop = PortLoopNo;
-            banner_phase = BANNER_IN;
-            banner_hold = 0;
-            banner_x = static_cast<float>(-kBannerWidth);
+            // A quick loadout loads the same character again with other equipment: the effect, but no name.
+            if (!PortQuickLoadoutReloading()) {
+                banner_chara = quick_change_chara;
+                banner_loop = PortLoopNo;
+                banner_phase = BANNER_IN;
+                banner_hold = 0;
+                banner_x = static_cast<float>(-kBannerWidth);
+            }
+            PortQuickLoadoutReloadDone();
             change_fx_pending = true;
             change_fx_loop = PortLoopNo;
             return 1;

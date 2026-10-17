@@ -146,25 +146,16 @@ bool PadOrFocusOwnsPointer() {
 }
 
 void MovePointer(MenuMouseSample &point, float dx, float dy) {
-    const auto extent = mgPortVisibleExtent(gfx::kMainTarget);
-    float      left = extent.left;
-    float      top = extent.top;
-    float      right = extent.right;
-    float      bottom = extent.bottom;
+    const auto extent = mgPortVisibleUiExtent(gfx::kMainTarget);
     float      units_x = 1;
     float      units_y = 1;
     if (mgPortRendererReady()) {
         const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
-        const auto scene = gfx::GetLogicalMapping(gfx::kMainTarget);
         int        width = static_cast<int>(mapping.pixel_width);
         int        height = static_cast<int>(mapping.pixel_height);
         WindowSize(width, height);
         units_x = MenuMouseUnits(mapping.scale_x, mapping.pixel_width, width);
         units_y = MenuMouseUnits(mapping.scale_y, mapping.pixel_height, height);
-        left = (extent.left * scene.scale_x + scene.offset_x - mapping.offset_x) / mapping.scale_x;
-        right = (extent.right * scene.scale_x + scene.offset_x - mapping.offset_x) / mapping.scale_x;
-        top = (extent.top * scene.scale_y + scene.offset_y - mapping.offset_y) / mapping.scale_y;
-        bottom = (extent.bottom * scene.scale_y + scene.offset_y - mapping.offset_y) / mapping.scale_y;
     }
     if (std::isfinite(dx)) {
         point.x += dx * units_x;
@@ -172,8 +163,8 @@ void MovePointer(MenuMouseSample &point, float dx, float dy) {
     if (std::isfinite(dy)) {
         point.y += dy * units_y;
     }
-    point.x = std::clamp(point.x, left, right - 1);
-    point.y = std::clamp(point.y, top, bottom - 1);
+    point.x = std::clamp(point.x, extent.left, extent.right - 1);
+    point.y = std::clamp(point.y, extent.top, extent.bottom - 1);
 }
 
 void SetCapture(bool on) {

@@ -81,6 +81,9 @@ struct mgPortExtent {
 
 mgPortExtent mgPortVisibleExtent();
 mgPortExtent mgPortVisibleExtent(gfx::TextureHandle target);
+// The visible extent of `target` in the UI units its depthless 2D is drawn in, which video.ui_scale
+// scales about the centre.
+mgPortExtent mgPortVisibleUiExtent(gfx::TextureHandle target);
 
 // GS state (context 1) for draws whose packets are replaced
 

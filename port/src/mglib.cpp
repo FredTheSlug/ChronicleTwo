@@ -658,6 +658,20 @@ mgPortExtent mgPortVisibleExtent() {
     return mgPortVisibleExtent(mgPortCurrentTarget());
 }
 
+mgPortExtent mgPortVisibleUiExtent(gfx::TextureHandle target) {
+    mgPortExtent extent = mgPortVisibleExtent(target);
+
+    if (mgPortRendererReady()) {
+        const gfx::LogicalMapping scene = gfx::GetLogicalMapping(target);
+        const gfx::LogicalMapping ui = gfx::GetUiMapping(target);
+        const auto                ui_x = [&](float x) { return (x * scene.scale_x + scene.offset_x - ui.offset_x) / ui.scale_x; };
+        const auto                ui_y = [&](float y) { return (y * scene.scale_y + scene.offset_y - ui.offset_y) / ui.scale_y; };
+        extent = ExtentOf(ui_x(extent.left), ui_y(extent.top), ui_x(extent.right), ui_y(extent.bottom));
+    }
+
+    return extent;
+}
+
 // GS state
 
 mgPortGsState &mgPortGs() {
@@ -1243,8 +1257,8 @@ PORT_OVERRIDE void mgSetPacketBuffer(mgCMemory * /*unused*/, mgCMemory * /*unuse
 }
 
 PORT_OVERRIDE void mgSetDataBuffer(mgCMemory *pool_a, mgCMemory *pool_b, int skip_header) {
-    auto   *base = reinterpret_cast<u_char *>(pool_a->stAllocTest(1));
-    int     size = pool_a->stack_size - pool_a->stack_used;
+    auto *base = reinterpret_cast<u_char *>(pool_a->stAllocTest(1));
+    int   size = pool_a->stack_size - pool_a->stack_used;
 
     if (skip_header != 0) {
         base += 0x4000;
@@ -1593,8 +1607,8 @@ void SetFrameBuffer(uint32_t tbp0, int width, int height, int psm, gfx::TextureH
     mgScreenOffx = 0x800 - width / 2;
     mgScreenOffy = 0x800 - height / 2;
 
-    const int  aligned_width = (width + 63) & ~63;
-    auto       frame = FromRaw<sceGsFrame>(0);
+    const int aligned_width = (width + 63) & ~63;
+    auto      frame = FromRaw<sceGsFrame>(0);
     frame.FBP = tbp0 >> 5;
     frame.FBW = aligned_width / 64;
     frame.PSM = psm;

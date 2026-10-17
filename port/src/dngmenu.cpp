@@ -1,6 +1,8 @@
 #include "common.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <numbers>
 #include <vector>
@@ -82,52 +84,103 @@ constexpr RootMarkOffset kRoomLabelOffset[4] = {
 // Room-mark animation speed in menu and event modes.
 constexpr float kRoomMarkStep[2] = {0.0628318563f, 0.125663713f};
 
-// Retail strokes a passage with three lines a pixel apart. The GS draws a line one pixel thick across its minor
-// axis, so the three join into one solid stroke; a host line is one physical pixel wide and leaves three hairlines
-// at native resolution. Each line is filled here as the pixel-wide band the GS covers.
+// Retail strokes a passage with three lines a pixel apart, some of them not parallel. The GS draws a line one pixel
+// thick across its minor axis, so the three join into one solid stroke; a host line is one physical pixel wide and
+// leaves three hairlines at native resolution. Each three lines are filled here as one band: the convex hull of the
+// pixel-wide bands the GS covers.
 class PassageStroke {
 public:
-    explicit PassageStroke(mgCDrawPrim &prim) : prim_(prim) {}
+    explicit PassageStroke(mgCDrawPrim &builder) : prim(builder) {}
 
     void Color() {
         Flush();
-        mgPortPrimColor(prim_, color_);
+        mgPortPrimColor(prim, color);
     }
 
     void Line(float x0, float y0, float x1, float y1) {
         const bool  x_major = std::fabs(x1 - x0) >= std::fabs(y1 - y0);
         const float across_x = x_major ? 0.0f : 1.0f;
         const float across_y = x_major ? 1.0f : 0.0f;
-        const auto  vertex = [this](float x, float y) {
-            return mgPortPrimVertex(prim_, x, y, 0.0f, 0.0f, 0.0f, color_);
-        };
-        const gfx::Vertex2D a = vertex(x0, y0);
-        const gfx::Vertex2D b = vertex(x1, y1);
-        const gfx::Vertex2D c = vertex(x1 + across_x, y1 + across_y);
-        const gfx::Vertex2D d = vertex(x0 + across_x, y0 + across_y);
-        vertices_.insert(vertices_.end(), {a, b, c, a, c, d});
+        points.push_back({.x = x0, .y = y0});
+        points.push_back({.x = x1, .y = y1});
+        points.push_back({.x = x1 + across_x, .y = y1 + across_y});
+        points.push_back({.x = x0 + across_x, .y = y0 + across_y});
+
+        if (points.size() == kBandPoints) {
+            FillBand();
+        }
     }
 
     void Flush() {
-        if (!vertices_.empty()) {
-            mgPortPrimSubmit(prim_, gfx::Primitive::Triangles, vertices_);
-            vertices_.clear();
+        FillBand();
+
+        if (!vertices.empty()) {
+            mgPortPrimSubmit(prim, gfx::Primitive::Triangles, vertices);
+            vertices.clear();
         }
     }
 
 private:
-    mgCDrawPrim               &prim_;
-    uint8_t                    color_[4] = {};
-    std::vector<gfx::Vertex2D> vertices_;
+    struct Point {
+        float x;
+        float y;
+    };
+
+    // Four corners for each of a passage's three lines.
+    static constexpr std::size_t kBandPoints = 12;
+
+    // Fills the convex hull of the pending corners as a triangle fan.
+    void FillBand() {
+        if (points.empty()) {
+            return;
+        }
+
+        std::ranges::sort(points, [](const Point &a, const Point &b) { return a.x < b.x || (a.x == b.x && a.y < b.y); });
+        const auto cross = [](const Point &o, const Point &a, const Point &b) {
+            return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+        };
+        // Andrew's monotone chain: the lower hull, then the upper, without collinear points.
+        std::vector<Point> hull;
+
+        for (int pass = 0; pass < 2; ++pass) {
+            const std::size_t first = hull.size();
+
+            for (std::size_t n = 0; n < points.size(); ++n) {
+                const Point &point = pass == 0 ? points[n] : points[points.size() - 1 - n];
+
+                while (hull.size() >= first + 2 && cross(hull[hull.size() - 2], hull.back(), point) <= 0.0f) {
+                    hull.pop_back();
+                }
+
+                hull.push_back(point);
+            }
+
+            hull.pop_back();
+        }
+
+        points.clear();
+        const auto vertex = [this](const Point &point) {
+            return mgPortPrimVertex(prim, point.x, point.y, 0.0f, 0.0f, 0.0f, color);
+        };
+
+        for (std::size_t i = 1; i + 1 < hull.size(); ++i) {
+            vertices.insert(vertices.end(), {vertex(hull[0]), vertex(hull[i]), vertex(hull[i + 1])});
+        }
+    }
+
+    mgCDrawPrim               &prim;
+    uint8_t                    color[4] = {};
+    std::vector<Point>         points;
+    std::vector<gfx::Vertex2D> vertices;
 };
 
 } // namespace
 
 // Retail skips passages and rooms past the right and bottom of the 4:3 screen, which a wider window shows.
-// Both are culled against the visible extent instead, and the passage lines are filled as solid strokes.
+// Both are culled against the visible extent in UI units instead, and the passage lines are filled as solid strokes.
 PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *root, int shadow, unsigned int marks,
                                          int opacity) {
-    const auto extent = mgPortVisibleExtent();
+    const auto extent = mgPortVisibleUiExtent(mgPortCurrentTarget());
 
     if (root == nullptr || extent.right < rect.left || rect.top > extent.bottom + 20.0f) {
         return;
@@ -339,7 +392,7 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
 
 PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO *room, unsigned int /*unused*/,
                                             int opacity, float brightness) {
-    const auto extent = mgPortVisibleExtent();
+    const auto extent = mgPortVisibleUiExtent(mgPortCurrentTarget());
 
     if (room == nullptr || rect.left > extent.right + 20.0f || rect.top > extent.bottom + 30.0f) {
         return;

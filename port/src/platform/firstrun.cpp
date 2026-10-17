@@ -1,5 +1,4 @@
 #include "kazarov_bridge/rust/lib.h"
-#include "platform/firstrun.hpp"
 
 #include <SDL3/SDL.h>
 #include <nlohmann/json.hpp>
@@ -9,11 +8,13 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <print>
 #include <string>
 #include <system_error>
 
 #include "exitcodes.hpp"
 #include "kazarov/data_version.hpp"
+#include "platform/firstrun.hpp"
 #include "platform/paths.hpp"
 
 namespace fs = std::filesystem;
@@ -40,7 +41,7 @@ bool FirstRunDataMissing(const fs::path &root) {
     if ((!archive && !directories) || !fs::is_regular_file(game_root / "data.json", error)) {
         return true;
     }
-    std::ifstream marker(root.parent_path() / "data.json");
+    std::ifstream marker(game_root / "data.json");
     const auto    parsed = nlohmann::json::parse(marker, nullptr, false);
     return !parsed.is_object() || !parsed.contains("schema_version") || !parsed["schema_version"].is_number_integer() ||
            parsed["schema_version"] != 1 || !parsed.contains("data_version") ||
@@ -73,7 +74,7 @@ void FirstRunRequireData(const fs::path &root, bool headless) {
                 return;
             }
         } catch (const std::exception &error) {
-            std::fprintf(stderr, "Game data setup: %s\n", error.what());
+            std::println(stderr, "Game data setup: {}", error.what());
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Dark Chronicle", error.what(), nullptr);
         }
     }

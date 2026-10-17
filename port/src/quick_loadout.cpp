@@ -1,41 +1,40 @@
 #include "common.h"
 
-#include "quick_loadout.hpp"
+#include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <map>
+#include <numbers>
+#include <print>
+#include <span>
 
 #include "actionchara.hpp"
 #include "actscript.hpp"
 #include "dng_hud.hpp"
 #include "dng_main.hpp"
 #include "dng_object.hpp"
+#include "font.hpp"
 #include "gamedata.hpp"
 #include "gamepad.hpp"
+#include "gfx/gfx.hpp"
 #include "item_icon3d.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "maintex.hpp"
 #include "menumain.hpp"
+#include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
-#include "mg_texture.hpp"
+#include "photo.hpp"
 #include "platform/config.hpp"
 #include "platform/paths.hpp"
+#include "prespr.hpp"
+#include "quick_loadout.hpp"
 #include "scenesnd.hpp"
 #include "snd_mngr.hpp"
-#include "photo.hpp"
-#include "prespr.hpp"
 #include "subgame.hpp"
 #include "userdata.hpp"
-#include "font.hpp"
-
-#include "gfx/gfx.hpp"
-
-#include <algorithm>
-#include <cmath>
-#include <cstdio>
-#include <cstring>
-#include <map>
-#include <span>
-#include <vector>
 
 int PortRetailDngMainKey() asm("DngMain_DngMainKey");
 
@@ -58,21 +57,27 @@ constexpr int kFadeTicks = 6;
 struct Rect {
     int x, y, w, h;
 };
-constexpr int  kPanelX = 52;   // under the active items' circles
-constexpr int  kRidepodX = 42; // the Ridepod's board has none
-constexpr int  kPanelOffsetY = 66;
-constexpr int  kRidepodOffsetY = 54;
+
+constexpr int kPanelX = 52;   // under the active items' circles
+constexpr int kRidepodX = 42; // the Ridepod's board has none
+constexpr int kPanelOffsetY = 66;
+constexpr int kRidepodOffsetY = 54;
 // The two title styles of PC settings: a bar shrunk from the item circles, over the box's top edge, or a plate like
 // the EXP gauge's, standing on it, with the box a little lower to make room.
-constexpr Rect kBox = {0, 8, 176, 134};
-constexpr Rect kTitleBar = {20, -1, 136, 25};
-constexpr Rect kPlateBox = {0, 16, 176, 126};
-constexpr Rect kTitlePlate = {7, -1, 128, 18};
+constexpr Rect kBox = {.x = 0, .y = 8, .w = 176, .h = 134};
+constexpr Rect kTitleBar = {.x = 20, .y = -1, .w = 136, .h = 25};
+constexpr Rect kPlateBox = {.x = 0, .y = 16, .w = 176, .h = 126};
+constexpr Rect kTitlePlate = {.x = 7, .y = -1, .w = 128, .h = 18};
 // Square, Triangle, Cross, Circle.
-constexpr Rect kSlotRect[kSlots] = {{11, 26, 76, 50}, {89, 26, 76, 50}, {11, 80, 76, 50}, {89, 80, 76, 50}};
-constexpr int  kDiscSize = 24;
-constexpr int  kDiscOffset = -3; // the disc over the slot's top left corner
-constexpr int  kGlyphSize = 22;
+constexpr Rect kSlotRect[kSlots] = {
+    {.x = 11, .y = 26, .w = 76, .h = 50},
+    {.x = 89, .y = 26, .w = 76, .h = 50},
+    {.x = 11, .y = 80, .w = 76, .h = 50},
+    {.x = 89, .y = 80, .w = 76, .h = 50}
+};
+constexpr int kDiscSize = 24;
+constexpr int kDiscOffset = -3; // the disc over the slot's top left corner
+constexpr int kGlyphSize = 22;
 
 // In the system frame texture: the EXP gauge's box, its gold border 10 across and 9 down to the black inside...
 constexpr int kBoxU0 = 288, kBoxUMiddle = 340, kBoxV0 = 154, kBoxVMiddle = 172;
@@ -96,7 +101,12 @@ constexpr int kPlateV0 = 146, kPlateTop = 3, kPlateMiddleV = 149, kPlateMiddle =
 // halves hold the joints between them).
 constexpr int kCircleLeftU = 236, kCircleLeftV = 55, kCircleRightU = 364, kCircleRightV = 96, kCircleHalf = 20;
 // The buttons in the font's own picture of them ("gaiji"): Square, Triangle, Cross, Circle.
-constexpr int kGlyphUV[kSlots][2] = {{44, 22}, {22, 22}, {66, 22}, {0, 22}};
+constexpr int kGlyphUV[kSlots][2] = {
+    {44, 22},
+    {22, 22},
+    {66, 22},
+    {0,  22}
+};
 constexpr int kGlyphTexels = 22;
 
 // The side of each item's picture.
@@ -111,11 +121,12 @@ Entry slots[kCharas][kSlots];
 bool  slots_loaded = false;
 
 bool panel_open = false;
-int  fade = 0;          // ticks of the panel's fade, 0 (hidden) to kFadeTicks
-int  raw_previous = 0;  // the face buttons before this session took any away
-int  swallowed = 0;     // buttons taken from the game, until they are let go
+int  fade = 0;         // ticks of the panel's fade, 0 (hidden) to kFadeTicks
+int  raw_previous = 0; // the face buttons before this session took any away
+int  swallowed = 0;    // buttons taken from the game, until they are let go
 int  request_slot = -1;
 bool reloading = false;
+
 // The enemy the player was locked on to when a slot reloaded the character, given back once the floor runs again: the
 // reload starts the character afresh, which would let go of it in the middle of a combo.
 struct {
@@ -125,12 +136,8 @@ struct {
 } kept_target;
 
 // Each item's picture is a render target of its own, never a texture entered in the game's texture table: two of those
-// in one block share GS memory, and the targets behind them with it.
-struct Picture {
-    gfx::TextureHandle texture = gfx::kNullTexture;
-    bool               failed = false;
-};
-std::map<int, Picture> pictures; // by item number
+// in one block share GS memory, and the targets behind them with it. An item whose picture failed keeps kNullTexture.
+std::map<int, gfx::TextureHandle> pictures; // by item number
 
 std::filesystem::path SlotsPath() { return PathsSaveRoot() / "quick_loadout.txt"; }
 
@@ -142,7 +149,9 @@ void LoadSlots() {
     }
     char line[256];
     while (std::fgets(line, sizeof line, file) != nullptr) {
-        int  chara = -1, slot = -1, item = 0;
+        int  chara = -1;
+        int  slot = -1;
+        int  item = 0;
         char hex[kNameSize * 2 + 1] = {};
         if (std::sscanf(line, "%d %d %d %64s", &chara, &slot, &item, hex) < 3 || chara < 0 || chara >= kCharas || slot < 0 ||
             slot >= kSlots) {
@@ -163,7 +172,7 @@ void LoadSlots() {
 void SaveSlots() {
     std::FILE *file = std::fopen(SlotsPath().string().c_str(), "w");
     if (file == nullptr) {
-        std::fprintf(stderr, "quick loadout: cannot write %s\n", SlotsPath().string().c_str());
+        std::println(stderr, "quick loadout: cannot write {}", SlotsPath().string());
         return;
     }
     for (int chara = 0; chara < kCharas; chara++) {
@@ -172,11 +181,11 @@ void SaveSlots() {
             if (entry.item_no <= 0) {
                 continue;
             }
-            std::fprintf(file, "%d %d %d ", chara, slot, entry.item_no);
+            std::print(file, "{} {} {} ", chara, slot, entry.item_no);
             for (int i = 0; i < kNameSize && entry.name[i] != 0; i++) {
-                std::fprintf(file, "%02x", static_cast<unsigned char>(entry.name[i]));
+                std::print(file, "{:02x}", static_cast<unsigned char>(entry.name[i]));
             }
-            std::fprintf(file, "\n");
+            std::println(file, "");
         }
     }
     std::fclose(file);
@@ -289,7 +298,7 @@ void Open() {
 bool RidepodTakes(CGameDataUsed *part, CGameDataUsed *fitted) {
     int        capacity = 0;
     const int  used = CheckNowRoboUseCapacity(&DngUserData->robo_data, &capacity) - fitted->GetUseCapacity();
-    const auto data = GameItemDataManage.GetRoboData(part->item_no);
+    auto *const data = GameItemDataManage.GetRoboData(part->item_no);
     return data != nullptr && capacity - used >= data->use_capacity;
 }
 
@@ -324,7 +333,7 @@ bool Equip(int slot) {
     Close();
     fade = 0;
     reloading = true;
-    kept_target = {true, MainChara__2->target_no, MainChara__2->lock_on};
+    kept_target = {.pending = true, .target_no = MainChara__2->target_no, .lock_on = MainChara__2->lock_on};
 
     // As DngMainKey opens a quick change (L3, R3), for the character already in play.
     VoiceUnit.StopVoice(10);
@@ -351,7 +360,8 @@ void Piece(CPreSprite &sprite, int x, int y, int w, int h, int u, int v, int tw,
 // A rounded box in the item circles' plum and gold: their quarters in the corners, size across, and their middle
 // rows and columns stretched between.
 void Rounded(CPreSprite &sprite, const Rect &r, int size) {
-    const int c = size, h = kCircleHalf;
+    const int c = size;
+    const int h = kCircleHalf;
     Piece(sprite, r.x, r.y, c, c, kCircleLeftU, kCircleLeftV, h, h);
     Piece(sprite, r.x, r.y + r.h - c, c, c, kCircleLeftU, kCircleLeftV + h, h, h);
     Piece(sprite, r.x + r.w - c, r.y, c, c, kCircleRightU, kCircleRightV, h, h);
@@ -370,7 +380,7 @@ void DrawPanel(int left, int top, uint8_t alpha) {
         return;
     }
     CPreSprite sprite;
-    sprite.Initialize(NULL, NULL);
+    sprite.Initialize(nullptr, nullptr);
     sprite.Preset2D();
     sprite.Begin(MG_PRIM_SPRITE);
     sprite.Bilinear(0); // texel for texel, as the board is drawn
@@ -382,8 +392,10 @@ void DrawPanel(int left, int top, uint8_t alpha) {
     // and the see-through black runs right up to it.
     const bool plate_style = TitlePlate();
     const Rect frame = plate_style ? kPlateBox : kBox;
-    const Rect box = {left + frame.x, top + frame.y, frame.w, frame.h};
-    const int  side = kBoxSide, gold = kBoxGold, gold_top = kBoxGoldTop;
+    const Rect box = {.x = left + frame.x, .y = top + frame.y, .w = frame.w, .h = frame.h};
+    const int  side = kBoxSide;
+    const int  gold = kBoxGold;
+    const int  gold_top = kBoxGoldTop;
     const int  right = box.x + box.w - side;
     sprite.Color(0x80, 0x80, 0x80, alpha * 0x4C / 0x80);
     Piece(sprite, box.x + gold, box.y + gold_top, box.w - 2 * gold, box.h - 2 * gold_top, kBlackU, kBlackV, 1, 1);
@@ -415,16 +427,19 @@ void DrawPanel(int left, int top, uint8_t alpha) {
     Piece(sprite, box.x + 1, box.y + box.h - kBoxEdge, kBoxBolt, kBoxBolt + 1, kBoxBoltBottomU, kBoxBoltBottomV, kBoxBolt,
           kBoxBolt + 1);
     for (const Rect &slot : kSlotRect) {
-        Rounded(sprite, {left + slot.x, top + slot.y, slot.w, slot.h}, kCircleHalf);
+        Rounded(sprite, {.x = left + slot.x, .y = top + slot.y, .w = slot.w, .h = slot.h}, kCircleHalf);
     }
 
     if (plate_style) {
         // The title's plate, the EXP plate widened and heightened, texel for texel at its sides and top.
-        const Rect plate = {left + kTitlePlate.x, top + kTitlePlate.y, kTitlePlate.w, kTitlePlate.h};
-        const int  middle_h = plate.h - kPlateTop - 1, middle_w = plate.w - 2 * kPlateSide;
-        const int  columns[3][3] = {{plate.x, kPlateSide, kPlateLeftU},
-                                    {plate.x + kPlateSide, middle_w, kPlateMiddleU},
-                                    {plate.x + plate.w - kPlateSide, kPlateSide, kPlateRightU}};
+        const Rect plate = {.x = left + kTitlePlate.x, .y = top + kTitlePlate.y, .w = kTitlePlate.w, .h = kTitlePlate.h};
+        const int  middle_h = plate.h - kPlateTop - 1;
+        const int  middle_w = plate.w - 2 * kPlateSide;
+        const int  columns[3][3] = {
+            {plate.x,                        kPlateSide, kPlateLeftU  },
+            {plate.x + kPlateSide,           middle_w,   kPlateMiddleU},
+            {plate.x + plate.w - kPlateSide, kPlateSide, kPlateRightU }
+        };
         for (const auto &c : columns) {
             const int tw = c[2] == kPlateMiddleU ? 1 : kPlateSide;
             Piece(sprite, c[0], plate.y, c[1], kPlateTop, c[2], kPlateV0, tw, kPlateTop);
@@ -441,7 +456,7 @@ void DrawPanel(int left, int top, uint8_t alpha) {
     sprite.Bilinear(1);
     sprite.Texture(TEX_SystenFrame);
     sprite.Color(0x80, 0x80, 0x80, alpha);
-    Rounded(sprite, {left + kTitleBar.x, top + kTitleBar.y, kTitleBar.w, kTitleBar.h}, kTitleBar.h / 2);
+    Rounded(sprite, {.x = left + kTitleBar.x, .y = top + kTitleBar.y, .w = kTitleBar.w, .h = kTitleBar.h}, kTitleBar.h / 2);
     sprite.End();
 }
 
@@ -452,14 +467,16 @@ void DrawButtons(int left, int top, uint8_t alpha) {
         return;
     }
     CPreSprite sprite;
-    sprite.Initialize(NULL, NULL);
+    sprite.Initialize(nullptr, nullptr);
     sprite.Preset2D();
     sprite.Begin(MG_PRIM_SPRITE);
     sprite.Bilinear(1);
     sprite.Texture(TEX_SystenFrame);
     sprite.Color(0x80, 0x80, 0x80, alpha);
     for (const Rect &slot : kSlotRect) {
-        const int x = left + slot.x + kDiscOffset, y = top + slot.y + kDiscOffset, half = kDiscSize / 2;
+        const int x = left + slot.x + kDiscOffset;
+        const int y = top + slot.y + kDiscOffset;
+        const int half = kDiscSize / 2;
         Piece(sprite, x, y, half, kDiscSize, kCircleLeftU, kCircleLeftV, kCircleHalf, 2 * kCircleHalf);
         Piece(sprite, x + half, y, half, kDiscSize, kCircleRightU, kCircleRightV, kCircleHalf, 2 * kCircleHalf);
     }
@@ -485,7 +502,7 @@ void DrawButtons(int left, int top, uint8_t alpha) {
 // "QUICK LOADOUT" in the game's own font, in the middle of the title bar or plate.
 void DrawTitle(float x, float y, uint8_t alpha) {
     static const char kTitle[] = "QUICK LOADOUT";
-    CFont font;
+    CFont             font;
     font.Init();
     // The game's own size for its menu text, 16 by 20, which draws the font texel for texel (any other size stretches
     // its letters unevenly). The font is fixed width, so the letters are set one by one: a narrow I would otherwise
@@ -493,23 +510,33 @@ void DrawTitle(float x, float y, uint8_t alpha) {
     font.SetDrawSize(16, 20);
     font.SetClearance(16, 20);
     constexpr float kCell = 8.0f; // a half-width letter's cell
-    auto advance = [](char c) { return c == 'I' ? 5.0f : c == ' ' ? 7.0f : 9.0f; };
-    float width = 0.0f;
+    auto            advance = [](char c) { return c == 'I' ? 5.0f : c == ' ' ? 7.0f
+                                                                             : 9.0f; };
+    float           width = 0.0f;
     for (const char *c = kTitle; *c != 0; c++) {
         width += c[1] != 0 ? advance(*c) : kCell;
     }
-    int w = 0, h = 0;
+    int w = 0;
+    int h = 0;
     font.CalcDrawWH(const_cast<char *>("Q"), &w, &h);
+
     struct Pass {
         int     dx, dy;
         uint8_t r, g, b;
     };
+
     // On the bar, white with the font's black outline. On the plate, engraved as the EXP plate's letters: dark brown
     // and heavy, each stroke with a light gold edge under it and to its right; the light edge first, then the letters,
     // twice across.
-    static const Pass kBarPasses[] = {{0, 0, 0x80, 0x80, 0x80}};
+    static const Pass kBarPasses[] = {
+        {.dx = 0, .dy = 0, .r = 0x80, .g = 0x80, .b = 0x80}
+    };
     static const Pass kPlatePasses[] = {
-        {1, 1, 0x75, 0x6A, 0x58}, {2, 1, 0x75, 0x6A, 0x58}, {0, 0, 0x1F, 0x11, 0x08}, {1, 0, 0x1F, 0x11, 0x08}};
+        {.dx = 1, .dy = 1, .r = 0x75, .g = 0x6A, .b = 0x58},
+        {.dx = 2, .dy = 1, .r = 0x75, .g = 0x6A, .b = 0x58},
+        {.dx = 0, .dy = 0, .r = 0x1F, .g = 0x11, .b = 0x08},
+        {.dx = 1, .dy = 0, .r = 0x1F, .g = 0x11, .b = 0x08}
+    };
     const bool plate = TitlePlate();
     font.SetFuchi(plate ? FUCHI_NONE : FUCHI_OUTLINE);
     const std::span<const Pass> passes = plate ? std::span<const Pass>(kPlatePasses) : std::span<const Pass>(kBarPasses);
@@ -521,8 +548,8 @@ void DrawTitle(float x, float y, uint8_t alpha) {
             // A narrow letter keeps to the middle of the room it is given.
             const float shift = (advance(*c) - kCell) * 0.5f;
             if (*c != ' ') {
-                font.DrawDirect(letter, (int) (pen + (*c == 'I' ? shift : 0.0f) + 0.5f) + pass.dx,
-                                (int) (y - h * 0.5f + 0.5f) + pass.dy);
+                font.DrawDirect(letter, static_cast<int>(pen + (*c == 'I' ? shift : 0.0f) + 0.5f) + pass.dx,
+                                static_cast<int>(y - h * 0.5f + 0.5f) + pass.dy);
             }
             pen += advance(*c);
         }
@@ -531,7 +558,7 @@ void DrawTitle(float x, float y, uint8_t alpha) {
 
 gfx::TextureHandle ItemPicture(int item_no) {
     const auto found = pictures.find(item_no);
-    return found != pictures.end() ? found->second.texture : gfx::kNullTexture;
+    return found != pictures.end() ? found->second : gfx::kNullTexture;
 }
 
 gfx::Vertex2D Corner(float x, float y, float u, float v, uint8_t alpha, uint8_t bright = 0x80) {
@@ -562,11 +589,11 @@ void DrawQuad(gfx::TextureHandle texture, float x, float y, float w, float h, fl
 // eight dashes, from the system frame texture, is unrolled and its dashes follow the slot's rounded edge, bending
 // round its corners, added, and travelling round it as the retail one turns, a degree of its ring a frame.
 constexpr float kRingU = 0x84 + 27.5f, kRingV = 0xCA + 27.5f; // the ring's centre in the texture
-constexpr float kRingRadius = 22.0f;                           // the middle of its dashes
-constexpr float kRingInner = 18.0f, kRingOuter = 26.0f;        // what is taken across them
-constexpr float kDashFrom = -135.0f * DEG_TO_RAD;               // one dash, the top left one, and the gap after it
+constexpr float kRingRadius = 22.0f;                          // the middle of its dashes
+constexpr float kRingInner = 18.0f, kRingOuter = 26.0f;       // what is taken across them
+constexpr float kDashFrom = -135.0f * DEG_TO_RAD;             // one dash, the top left one, and the gap after it
 constexpr float kDashArc = 45.0f * DEG_TO_RAD;
-constexpr float kDashLength = kRingRadius * kDashArc;          // the length of a dash and its gap along the ring
+constexpr float kDashLength = kRingRadius * kDashArc; // the length of a dash and its gap along the ring
 constexpr int   kDashSlices = 8;
 constexpr float kEdgeInset = 1.0f; // the dashes' middle line, just inside the slot's edge
 
@@ -575,25 +602,42 @@ float halo_travel = 0.0f; // how far the dashes have gone round, in dashes
 // The point s along the slot's rounded edge, clockwise from the end of the top left corner, and the edge's direction
 // there.
 void EdgePoint(float x0, float y0, float x1, float y1, float r, float s, float *x, float *y, float *dir) {
-    const float across = x1 - x0 - 2.0f * r, down = y1 - y0 - 2.0f * r, arc = 0.5f * PI * r;
+    const float across = x1 - x0 - 2.0f * r;
+    const float down = y1 - y0 - 2.0f * r;
+    const float arc = 0.5f * PI * r;
     const float sides[4] = {across, down, across, down};
     // Where each side starts, where its corner turns about, and which way the side runs.
-    const float start[4][2] = {{x0 + r, y0}, {x1, y0 + r}, {x1 - r, y1}, {x0, y1 - r}};
-    const float centre[4][2] = {{x1 - r, y0 + r}, {x1 - r, y1 - r}, {x0 + r, y1 - r}, {x0 + r, y0 + r}};
-    const float run[4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+    const float start[4][2] = {
+        {x0 + r, y0    },
+        {x1,     y0 + r},
+        {x1 - r, y1    },
+        {x0,     y1 - r}
+    };
+    const float centre[4][2] = {
+        {x1 - r, y0 + r},
+        {x1 - r, y1 - r},
+        {x0 + r, y1 - r},
+        {x0 + r, y0 + r}
+    };
+    const float run[4][2] = {
+        {1,  0 },
+        {0,  1 },
+        {-1, 0 },
+        {0,  -1}
+    };
     for (int side = 0; side < 4; side++) {
         if (s < sides[side]) {
             *x = start[side][0] + run[side][0] * s;
             *y = start[side][1] + run[side][1] * s;
-            *dir = side * 0.5f * PI;
+            *dir = side * 0.5f * std::numbers::pi_v<float>;
             return;
         }
         s -= sides[side];
         if (s < arc || side == 3) {
-            const float a = (side - 1) * 0.5f * PI + s / r;
+            const float a = (side - 1) * 0.5f * std::numbers::pi_v<float> + s / r;
             *x = centre[side][0] + r * cosf(a);
             *y = centre[side][1] + r * sinf(a);
-            *dir = a + 0.5f * PI;
+            *dir = a + 0.5f * std::numbers::pi_v<float>;
             return;
         }
         s -= arc;
@@ -604,22 +648,25 @@ void DrawHalo(float x0, float y0, float w, float h, float alpha) {
     if (TEX_SystenFrame == nullptr) {
         return;
     }
-    const float left = x0 + kEdgeInset, top = y0 + kEdgeInset, right = x0 + w - kEdgeInset, bottom = y0 + h - kEdgeInset;
+    const float left = x0 + kEdgeInset;
+    const float top = y0 + kEdgeInset;
+    const float right = x0 + w - kEdgeInset;
+    const float bottom = y0 + h - kEdgeInset;
     const float radius = kCircleHalf - kEdgeInset;
     const float perimeter = 2.0f * (right - left - 2.0f * radius) + 2.0f * (bottom - top - 2.0f * radius) +
-                            2.0f * PI * radius;
-    const int   dashes = std::max(1, (int) lroundf(perimeter / kDashLength));
+                            2.0f * std::numbers::pi_v<float> * radius;
+    const int   dashes = std::max(1, static_cast<int>(lroundf(perimeter / kDashLength)));
     const float length = perimeter / dashes;
     const float stretch = length / kDashLength;
 
     CPreSprite sprite;
-    sprite.Initialize(NULL, NULL);
+    sprite.Initialize(nullptr, nullptr);
     sprite.Preset2D();
     sprite.Bilinear(1);
     sprite.Begin(MG_PRIM_TRIANGLE);
     sprite.Texture(TEX_SystenFrame);
     sprite.SetAlphaBlend(MG_ALPHA_BLEND_ADD);
-    sprite.Color(0x80, 0x80, 0x80, (int) (128.0f * alpha));
+    sprite.Color(0x80, 0x80, 0x80, static_cast<int>(128.0f * alpha));
     // Each slice of a dash: its inner and outer corner on the screen and in the texture, in sixteenths of a texel.
     float screen[kDashSlices + 1][2][4] = {};
     int   texel[kDashSlices + 1][2][2] = {};
@@ -627,18 +674,21 @@ void DrawHalo(float x0, float y0, float w, float h, float alpha) {
         const float a = kDashFrom + kDashArc * j / kDashSlices;
         const float radii[2] = {kRingInner, kRingOuter};
         for (int k = 0; k < 2; k++) {
-            texel[j][k][0] = (int) lroundf((kRingU + radii[k] * cosf(a)) * 16.0f);
-            texel[j][k][1] = (int) lroundf((kRingV + radii[k] * sinf(a)) * 16.0f);
+            texel[j][k][0] = static_cast<int>(lroundf((kRingU + radii[k] * cosf(a)) * 16.0f));
+            texel[j][k][1] = static_cast<int>(lroundf((kRingV + radii[k] * sinf(a)) * 16.0f));
         }
     }
     for (int dash = 0; dash < dashes; dash++) {
         for (int j = 0; j <= kDashSlices; j++) {
             float s = (dash + halo_travel) * length + length * j / kDashSlices;
             s = fmodf(s, perimeter);
-            float x, y, dir;
+            float x;
+            float y;
+            float dir;
             EdgePoint(left, top, right, bottom, radius, s, &x, &y, &dir);
             // Outward from the edge, as the ring's radius grows outward.
-            const float nx = sinf(dir), ny = -cosf(dir);
+            const float nx = sinf(dir);
+            const float ny = -cosf(dir);
             const float offsets[2] = {kRingInner - kRingRadius, kRingOuter - kRingRadius};
             for (int k = 0; k < 2; k++) {
                 screen[j][k][0] = x + nx * offsets[k] * stretch;
@@ -646,7 +696,14 @@ void DrawHalo(float x0, float y0, float w, float h, float alpha) {
             }
         }
         for (int j = 0; j < kDashSlices; j++) {
-            const int corner[6][2] = {{j, 0}, {j, 1}, {j + 1, 0}, {j, 1}, {j + 1, 0}, {j + 1, 1}};
+            const int corner[6][2] = {
+                {j,     0},
+                {j,     1},
+                {j + 1, 0},
+                {j,     1},
+                {j + 1, 0},
+                {j + 1, 1}
+            };
             for (const auto &c : corner) {
                 sprite.TextureCrd4(texel[c[0]][c[1]][0], texel[c[0]][c[1]][1]);
                 sprite.Vertex(screen[c[0]][c[1]]);
@@ -711,7 +768,7 @@ void PortQuickLoadoutPad() {
     GamePad__2.pad[0].button &= ~swallowed;
 
     fade += panel_open ? ticks : -ticks;
-    fade = fade < 0 ? 0 : fade > kFadeTicks ? kFadeTicks : fade;
+    fade = std::clamp(fade, 0, kFadeTicks);
 }
 
 // The item's own model, drawn once into a texture of its own the first time a slot shows it (Jeffiest's 3D item icons).
@@ -722,19 +779,14 @@ void PortQuickLoadoutPrepare() {
         return;
     }
     for (const Entry &entry : slots[chara]) {
-        if (entry.item_no <= 0 || pictures.count(entry.item_no) != 0) {
+        if (entry.item_no <= 0 || pictures.contains(entry.item_no)) {
             continue;
         }
-        Picture &picture = pictures[entry.item_no];
         char name[48];
         std::snprintf(name, sizeof name, "quick loadout item %d", entry.item_no);
-        // An ordinary target: a frame target maps its width onto the widened frame, which moved the model aside.
+        // An ordinary target: a frame target would map its width onto the widened frame and shift the model aside.
         const gfx::TextureHandle target = gfx::NamedRenderTarget(name, kIconSize, kIconSize, true);
-        if (ItemIcon3DRenderTo(entry.item_no, target, kIconSize)) {
-            picture.texture = target;
-        } else {
-            picture.failed = true;
-        }
+        pictures[entry.item_no] = ItemIcon3DRenderTo(entry.item_no, target, kIconSize) ? target : gfx::kNullTexture;
         return;
     }
 }
@@ -745,16 +797,18 @@ void PortQuickLoadoutDraw(float statusbar_rate) {
     }
     // The panel follows the status board while it is open. Once it closes it fades where it is, with what it showed:
     // a character change closes it while the board slides away and back with the other character.
-    static int chara = -1, left = 0, top = 0;
+    static int chara = -1;
+    static int left = 0;
+    static int top = 0;
     if (panel_open || chara < 0) {
         chara = ActiveChara();
         // The Ridepod's board has no active items, so its panel sits higher, under its numbers and clear of the
         // danger sign.
         const bool ridepod = chara == USER_CHARA_ROBO;
         left = ridepod ? kRidepodX : kPanelX;
-        top = (int) (80.0f * statusbar_rate) - 72 + (ridepod ? kRidepodOffsetY : kPanelOffsetY);
+        top = static_cast<int>(80.0f * statusbar_rate) - 72 + (ridepod ? kRidepodOffsetY : kPanelOffsetY);
     }
-    const uint8_t alpha = static_cast<uint8_t>(0x80 * fade / kFadeTicks);
+    const auto alpha = static_cast<uint8_t>(0x80 * fade / kFadeTicks);
     DrawPanel(left, top, alpha);
     const Rect title = TitlePlate() ? kTitlePlate : kTitleBar;
     DrawTitle(left + title.x + title.w * 0.5f, top + title.y + title.h * 0.5f, alpha);
@@ -770,24 +824,27 @@ void PortQuickLoadoutDraw(float statusbar_rate) {
     }
     for (int slot = 0; slot < kSlots; slot++) {
         const Rect  &r = kSlotRect[slot];
-        const float  x0 = (float) (left + r.x), y0 = (float) (top + r.y);
-        const float  w = (float) r.w, h = (float) r.h;
+        const float  x0 = static_cast<float>(left + r.x);
+        const float  y0 = static_cast<float>(top + r.y);
+        const float  w = static_cast<float>(r.w);
+        const float  h = static_cast<float>(r.h);
         const Entry &entry = slots[chara][slot];
         if (entry.item_no > 0) {
+            const CGameDataUsed     *equipped = RowEquip(chara, slot / 2);
+            const bool               in_hand = equipped != nullptr && Matches(entry, equipped);
             const gfx::TextureHandle handle = ItemPicture(entry.item_no);
             if (handle != gfx::kNullTexture) {
                 // Clear of the button's disc in the slot's top left corner.
                 const float size = h * 0.83f;
-                const float cx = x0 + w * 0.5f + h * 0.14f, cy = y0 + h * 0.5f + h * 0.02f;
-                CGameDataUsed *equipped = RowEquip(chara, slot / 2);
-                const bool     have = (equipped != nullptr && Matches(entry, equipped)) || FindOwned(entry) != nullptr;
+                const float cx = x0 + w * 0.5f + h * 0.14f;
+                const float cy = y0 + h * 0.5f + h * 0.02f;
+                const bool  have = in_hand || FindOwned(entry) != nullptr;
                 DrawQuad(handle, cx - size * 0.5f, cy - size * 0.5f, size, size, kIconSize, kIconSize,
                          have ? alpha : alpha / 3, have ? 0x80 : 0x50);
             }
-            // The slot whose item is equipped now wears the active item's cursor round its picture.
-            CGameDataUsed *equipped = RowEquip(chara, slot / 2);
-            if (equipped != nullptr && Matches(entry, equipped)) {
-                DrawHalo(x0, y0, w, h, (float) fade / kFadeTicks);
+            // The slot whose item is equipped wears the active item's cursor round its picture.
+            if (in_hand) {
+                DrawHalo(x0, y0, w, h, static_cast<float>(fade) / kFadeTicks);
             }
         }
     }
@@ -811,33 +868,34 @@ bool PortQuickLoadoutTarget(const CGameDataUsed *item, int *chara, int *row) {
         return false;
     }
     switch (GetItemDataType(item->item_no)) {
-    case ITEM_DATA_MAX_MELEE:
-        *chara = USER_CHARA_MAX, *row = 0;
-        break;
-    case ITEM_DATA_MAX_GUN:
-        *chara = USER_CHARA_MAX, *row = 1;
-        break;
-    case ITEM_DATA_MONICA_MELEE:
-        *chara = USER_CHARA_MONICA, *row = 0;
-        break;
-    case ITEM_DATA_MONICA_MAGIC:
-        *chara = USER_CHARA_MONICA, *row = 1;
-        break;
-    case ITEM_DATA_ROBO_ARM:
-        *chara = USER_CHARA_ROBO, *row = 0;
-        break;
-    case ITEM_DATA_ROBO_LEG:
-        *chara = USER_CHARA_ROBO, *row = 1;
-        break;
-    default:
-        return false;
+        case ITEM_DATA_MAX_MELEE:
+            *chara = USER_CHARA_MAX, *row = 0;
+            break;
+        case ITEM_DATA_MAX_GUN:
+            *chara = USER_CHARA_MAX, *row = 1;
+            break;
+        case ITEM_DATA_MONICA_MELEE:
+            *chara = USER_CHARA_MONICA, *row = 0;
+            break;
+        case ITEM_DATA_MONICA_MAGIC:
+            *chara = USER_CHARA_MONICA, *row = 1;
+            break;
+        case ITEM_DATA_ROBO_ARM:
+            *chara = USER_CHARA_ROBO, *row = 0;
+            break;
+        case ITEM_DATA_ROBO_LEG:
+            *chara = USER_CHARA_ROBO, *row = 1;
+            break;
+        default:
+            return false;
     }
     // The rods have their own way into Max's hand: fishing.
     return !const_cast<CGameDataUsed *>(item)->IsFishingRod();
 }
 
 bool PortQuickLoadoutAssign(const CGameDataUsed *item, int slot) {
-    int chara, row;
+    int chara;
+    int row;
     if (slot < 0 || slot >= kSlots || !PortQuickLoadoutTarget(item, &chara, &row) || slot / 2 != row) {
         return false;
     }

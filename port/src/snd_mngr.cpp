@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <new>
+#include <print>
 #include <vector>
 
 #include "audio/sq.hpp"
@@ -46,7 +47,7 @@ int GetCSndPortNo(int port_no, int *port, int *sq_port, int *vol) {
             *sq_port = -1;
             *vol = 0x100;
             break;
-        case 2:
+        case SND_PORT_ENV:
             *port = 1;
             *sq_port = 1;
             break;
@@ -70,7 +71,7 @@ int GetCSndPortNo(int port_no, int *port, int *sq_port, int *vol) {
             *sq_port = -1;
             *vol = 0x100;
             break;
-        case 7:
+        case SND_PORT_CHARA:
             *port = 9;
             *sq_port = -1;
             *vol = 0x100;
@@ -84,7 +85,7 @@ int GetCSndPortNo(int port_no, int *port, int *sq_port, int *vol) {
             *port = 3;
             *sq_port = 3;
             break;
-        case 9:
+        case SND_PORT_BATTLE:
             *port = 8;
             *sq_port = -1;
             *vol = 0x100;
@@ -99,6 +100,18 @@ int GetCSndPortNo(int port_no, int *port, int *sq_port, int *vol) {
     }
 
     return 1;
+}
+
+// The SPU2 core whose reverb a driver port's sound config sets, or -1.
+int ReverbCore(int port) {
+    switch (port) {
+        case 0:
+            return 0;
+        case 7:
+            return 1;
+        default:
+            return -1;
+    }
 }
 
 } // namespace
@@ -127,25 +140,21 @@ PORT_OVERRIDE void sndInitMngr() {
 }
 
 PORT_OVERRIDE void sndSetPortVol(int port_no, float vol) {
-    sndPortInfo *info;
-    int          driver_vol;
+    sndPortInfo *info = nullptr;
+    int          driver_vol = 0;
 
     info = GetPortInfo(port_no);
 
-    if (info == NULL || info->port < 0 || info->port >= 16) {
+    if (info == nullptr || info->port < 0 || info->port >= 16) {
         return;
     }
 
-    if (vol < 0.0f) {
-        vol = 0.0f;
-    }
+    vol = std::max(vol, 0.0f);
 
-    if (vol > 1.0f) {
-        vol = 1.0f;
-    }
+    vol = std::min(vol, 1.0f);
 
     PortVolf[port_no] = vol;
-    driver_vol = (int) (127.0f * vol);
+    driver_vol = static_cast<int>(127.0f * vol);
 
     if (vol == 1.0f) {
         driver_vol = 0x100;
@@ -229,7 +238,8 @@ unsigned SoundLoadBundleData(int port_no, std::span<const std::byte> bytes, mgCM
         };
         const auto                                        config = read(root.at("config"), "sound_config");
         const auto                                        volume = read(root.at("volume"), "sound_volume");
-        std::vector<std::pair<std::string, std::string> > sequences, effects;
+        std::vector<std::pair<std::string, std::string> > sequences;
+        std::vector<std::pair<std::string, std::string> > effects;
         for (const auto &uri : root.at("sequences")) {
             sequences.emplace_back(uri.get<std::string>(), read(uri, "sequence"));
         }
@@ -287,7 +297,7 @@ unsigned SoundLoadBundleData(int port_no, std::span<const std::byte> bytes, mgCM
         info->LoadVolInfoTxt(bank_no, const_cast<char *>(volume.data()), static_cast<int>(volume.size()));
         return ((port_no & 255) << 24) | ((bank_no & 255) << 16);
     } catch (const std::exception &error) {
-        std::fprintf(stderr, "sound bundle: %s\n", error.what());
+        std::println(stderr, "sound bundle: {}", error.what());
         return -1;
     }
 }
@@ -327,7 +337,7 @@ PORT_OVERRIDE void sndPortInfo::LoadSeInfoTxt(int bank_no, char *source, int siz
                 return;
             }
             std::vector<sndSeInfo>            effects;
-            std::vector<std::pair<int, int> > reverbs;
+            std::vector<std::pair<int, int>> reverbs;
             for (const auto &r : root.at("reverb")) {
                 reverbs.emplace_back(r.at("type").get<int>(), r.at("depth").get<int>());
             }
@@ -349,9 +359,8 @@ PORT_OVERRIDE void sndPortInfo::LoadSeInfoTxt(int bank_no, char *source, int siz
             bank_info->se_num = static_cast<int>(count);
             bank_info->se = new (memory->Alloc((count * sizeof(sndSeInfo) + 15) / 16 + 2)) sndSeInfo[count];
             std::memset(bank_info->se, 0, count * sizeof(sndSeInfo));
-            std::copy(effects.begin(), effects.end(), bank_info->se);
-            const int core = port == 0 ? 0 : port == 7 ? 1
-                                                       : -1;
+            std::ranges::copy(effects, bank_info->se);
+            const int core = ReverbCore(port);
             if (core >= 0) {
                 for (const auto &[type, depth] : reverbs) {
                     CSnd.SetReverb(core, type, depth);
@@ -361,7 +370,7 @@ PORT_OVERRIDE void sndPortInfo::LoadSeInfoTxt(int bank_no, char *source, int siz
         } catch (const nlohmann::json::exception &) {
         }
     }
-    std::fprintf(stderr, "sound: missing or invalid sound config JSON\n");
+    std::println(stderr, "sound: missing or invalid sound config JSON");
 }
 
 PORT_OVERRIDE void sndPortInfo::LoadVolInfoTxt(int bank_no, char *source, int size) {
@@ -377,7 +386,8 @@ PORT_OVERRIDE void sndPortInfo::LoadVolInfoTxt(int bank_no, char *source, int si
             if (root.at("schema_version") != 1 || root.at("kind") != "sound_volume") {
                 return;
             }
-            std::vector<std::pair<int, int> > levels, reverbs;
+            std::vector<std::pair<int, int> > levels;
+            std::vector<std::pair<int, int> > reverbs;
             for (const auto &e : root.at("entries")) {
                 levels.emplace_back(e.at("index").get<int>(), e.at("volume").get<int>());
             }
@@ -389,8 +399,7 @@ PORT_OVERRIDE void sndPortInfo::LoadVolInfoTxt(int bank_no, char *source, int si
                     effect->def_vol = static_cast<s8>(volume);
                 }
             }
-            const int core = port == 0 ? 0 : port == 7 ? 1
-                                                       : -1;
+            const int core = ReverbCore(port);
             if (core >= 0) {
                 for (const auto &[type, depth] : reverbs) {
                     sndSetReverb(core, type, depth);
@@ -400,5 +409,5 @@ PORT_OVERRIDE void sndPortInfo::LoadVolInfoTxt(int bank_no, char *source, int si
         } catch (const nlohmann::json::exception &) {
         }
     }
-    std::fprintf(stderr, "sound: missing or invalid volume JSON\n");
+    std::println(stderr, "sound: missing or invalid volume JSON");
 }

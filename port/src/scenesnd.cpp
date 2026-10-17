@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <limits>
 #include <optional>
+#include <print>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -62,7 +63,7 @@ std::optional<std::vector<Record> > SceneRows(char *source, int size, const char
             error = exception.what();
         }
     }
-    std::fprintf(stderr, "scene audio: %s\n", error.c_str());
+    std::println(stderr, "scene audio: {}", error);
     return std::nullopt;
 }
 
@@ -125,7 +126,8 @@ PORT_OVERRIDE int CScene::GetDefEventSeFile(int id, char *path) {
     if (!entry) {
         return 0;
     }
-    char bank_digits[16], number_digits[16];
+    char bank_digits[16];
+    char number_digits[16];
     SoundNumber(bank_digits, entry->event_se[0]);
     SoundNumber(number_digits, entry->event_se[1]);
     std::sprintf(path, "snd2/event/ev_%s_%s.sound.json", bank_digits, number_digits);

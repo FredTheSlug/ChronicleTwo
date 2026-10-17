@@ -59,7 +59,8 @@ void WritePng(const std::filesystem::path &path, uint32_t width, uint32_t height
         compressed.insert(compressed.end(), raw.begin() + pos, raw.begin() + pos + count);
         pos += count;
     }
-    uint32_t a = 1, b = 0;
+    uint32_t a = 1;
+    uint32_t b = 0;
     for (uint8_t value : raw) {
         a = (a + value) % 65521;
         b = (b + a) % 65521;
@@ -93,7 +94,7 @@ protected:
         entry.width = 3;
         entry.height = 2;
         entry.variants.push_back({
-            "color", {{"textures/base.png", vfs::HostFile(retail / "textures/base.png")}, {"textures/mip.png", vfs::HostFile(retail / "textures/mip.png")}}
+            .selector = "color", .levels = {{.path = "textures/base.png", .file = vfs::HostFile(retail / "textures/base.png")}, {.path = "textures/mip.png", .file = vfs::HostFile(retail / "textures/mip.png")}}
         });
         Png(retail / "textures/base.png", 3, 2, 20);
         Png(retail / "textures/mip.png", 1, 1, 30);
@@ -105,7 +106,7 @@ protected:
         std::filesystem::remove_all(directory, error);
     }
 
-    void Png(const std::filesystem::path &path, uint32_t width, uint32_t height, uint8_t color, bool rgb = false) {
+    static void Png(const std::filesystem::path &path, uint32_t width, uint32_t height, uint8_t color, bool rgb = false) {
         std::filesystem::create_directories(path.parent_path());
         std::vector<uint8_t> pixels(static_cast<std::size_t>(width) * height * 4, color);
         for (std::size_t i = 3; i < pixels.size(); i += 4) {
@@ -295,10 +296,11 @@ TEST_F(DatapacksTest, SharedImageCacheRetainsIndependentPixelsAndClearsWithRoots
     int  calls = 0;
     auto provider = [&](datapacks::DecodedTexture &out, std::string &) {
         ++calls;
-        out = {{{10, 20, 30, 255}}, 1, 1};
+        out = {.levels = {{10, 20, 30, 255}}, .width = 1, .height = 1};
         return true;
     };
-    datapacks::DecodedTexture first, second;
+    datapacks::DecodedTexture first;
+    datapacks::DecodedTexture second;
     std::string               error;
     ASSERT_TRUE(datapacks::DecodeCached("embedded-model:image:0", provider, first, error));
     first.levels[0][0] = 99;
@@ -333,7 +335,7 @@ TEST_F(DatapacksTest, ReadFileBytesReadsWholeFilesWithinTheLimit) {
     EXPECT_FALSE(datapacks::ReadFileBytes(path, bytes, 6));
     EXPECT_TRUE(bytes.empty());
     EXPECT_FALSE(datapacks::ReadFileBytes(directory / "missing.bin", bytes));
-    std::ofstream(directory / "empty.bin", std::ios::binary);
+    std::ofstream(directory / "empty.bin", std::ios::binary).close();
     EXPECT_TRUE(datapacks::ReadFileBytes(directory / "empty.bin", bytes));
     EXPECT_TRUE(bytes.empty());
 }
@@ -341,9 +343,9 @@ TEST_F(DatapacksTest, ReadFileBytesReadsWholeFilesWithinTheLimit) {
 TEST_F(DatapacksTest, PrefetchCachesResultsAndSkipsCachedIdentities) {
     std::atomic<int> calls = 0;
     auto             job = [&](std::string identity, uint8_t value) {
-        return datapacks::DecodeJob{std::move(identity), [&calls, value](datapacks::DecodedTexture &out, std::string &) {
+        return datapacks::DecodeJob{.identity = std::move(identity), .decoder = [&calls, value](datapacks::DecodedTexture &out, std::string &) {
                                         ++calls;
-                                        out = {{{value, value, value, 255}}, 1, 1};
+                                        out = {.levels = {{value, value, value, 255}}, .width = 1, .height = 1};
                                         return true;
                                     }};
     };
@@ -369,10 +371,11 @@ TEST_F(DatapacksTest, PrefetchCachesResultsAndSkipsCachedIdentities) {
 }
 
 TEST_F(DatapacksTest, PrefetchDoesNotCacheFailuresAndDecodesDuplicatesOnce) {
-    std::atomic<int>                  failures = 0, successes = 0;
+    std::atomic<int>                  failures = 0;
+    std::atomic<int>                  successes = 0;
     std::vector<datapacks::DecodeJob> jobs;
     for (int copy = 0; copy < 4; ++copy) {
-        jobs.push_back({"prefetch:failing", [&](datapacks::DecodedTexture &out, std::string &error) {
+        jobs.push_back({.identity = "prefetch:failing", .decoder = [&](datapacks::DecodedTexture &out, std::string &error) {
                             ++failures;
                             out.levels = {
                                 {1, 2, 3, 4}
@@ -380,9 +383,9 @@ TEST_F(DatapacksTest, PrefetchDoesNotCacheFailuresAndDecodesDuplicatesOnce) {
                             error = "broken";
                             return false;
                         }});
-        jobs.push_back({"prefetch:duplicate", [&](datapacks::DecodedTexture &out, std::string &) {
+        jobs.push_back({.identity = "prefetch:duplicate", .decoder = [&](datapacks::DecodedTexture &out, std::string &) {
                             ++successes;
-                            out = {{{40, 40, 40, 255}}, 1, 1};
+                            out = {.levels = {{40, 40, 40, 255}}, .width = 1, .height = 1};
                             return true;
                         }});
     }
@@ -407,10 +410,11 @@ TEST_F(DatapacksTest, PrefetchDecodesCatalogTexturesConcurrently) {
     std::mutex                        mutex;
     std::set<std::thread::id>         threads;
     std::vector<datapacks::DecodeJob> jobs;
+    jobs.reserve(64);
     for (int index = 0; index < 64; ++index) {
-        jobs.push_back({"prefetch:catalog:" + std::to_string(index), [&, index](datapacks::DecodedTexture &out, std::string &error) {
+        jobs.push_back({.identity = "prefetch:catalog:" + std::to_string(index), .decoder = [&, index](datapacks::DecodedTexture &out, std::string &error) {
                             {
-                                const std::lock_guard lock(mutex);
+                                const std::scoped_lock lock(mutex);
                                 threads.insert(std::this_thread::get_id());
                             }
                             const auto key = datapacks::ImageDecodeKey("prefetch", datapacks::Candidates("textures/base.png"));
@@ -465,7 +469,7 @@ TEST_F(DatapacksTest, MissingGlyphAtlasPreservesEveryOriginalMipPixel) {
             PathsSetSaveRoot(root);
             ButtonGlyphsReset();
         }
-    } cleanup{previous_root, previous_settings};
+    } cleanup{.root = previous_root, .settings = previous_settings};
 
     PathsSetSaveRoot(directory / "save");
     std::filesystem::create_directories(PathsSaveRoot() / "glyphs");

@@ -75,8 +75,8 @@ void MdtFile::Build(const ModelSpec &model) {
     const size_t faces_ofs = material_ofs + sizeof(MDT_MATERIAL_);
     const size_t total = faces_ofs + faces_bytes;
 
-    words_.assign((total + 15) / 16, u_long128(0));
-    uint8_t *base = reinterpret_cast<uint8_t *>(words_.data());
+    words_.assign((total + 15) / 16, static_cast<u_long128>(0));
+    auto *base = reinterpret_cast<uint8_t *>(words_.data());
 
     MDT_HEADER header = {};
     std::memcpy(header.magic, "MDT", 3);
@@ -110,7 +110,7 @@ void MdtFile::Build(const ModelSpec &model) {
 
     size_t cursor = faces_ofs + sizeof(MDT_FACES);
     for (const FaceSpec &face : model.faces) {
-        const u_int vertex_num = static_cast<u_int>(face.corners.size());
+        const auto  vertex_num = static_cast<u_int>(face.corners.size());
         const u_int material_index = 0;
         std::memcpy(base + cursor, &face.type, sizeof(u_int));
         std::memcpy(base + cursor + 4, &vertex_num, sizeof(u_int));
@@ -147,7 +147,7 @@ class VisualRenderer {
 public:
     VisualRenderer(int width, int height) {
         SetEnv("VK_LAYER_VALIDATE_SYNC", "1", 0);
-        WindowConfig window{width, height, true};
+        WindowConfig window{.width = width, .height = height, .headless = true};
         window.vulkan = false;
         WindowInit(window);
 
@@ -182,7 +182,10 @@ ModelSpec CentreTriangle(bool reversed, std::array<float, 4> diffuse = {1.0f, 1.
     ModelSpec model;
     model.vertices = {{-50.0f, -50.0f, 100.0f}, {150.0f, -50.0f, 100.0f}, {-50.0f, 150.0f, 100.0f}};
     model.diffuse = diffuse;
-    model.faces.push_back({kPrimTriangle | kUntextured, reversed ? std::vector<int>{0, 2, 1} : std::vector<int>{0, 1, 2}});
+    model.faces.push_back({
+        .type = kPrimTriangle | kUntextured, .corners = reversed ? std::vector<int>{0, 2, 1}
+                 : std::vector<int>{0, 1, 2}
+    });
     return model;
 }
 
@@ -251,8 +254,12 @@ uint64_t KeyOf(const void *object) {
 TEST(MgVisual, FaceMeshListAndStrip) {
     ModelSpec model;
     model.vertices = {{0, 0, 0}, {1, 0, 0}, {2, 0, 0}, {3, 0, 0}, {4, 0, 0}};
-    model.faces.push_back({kPrimTriangle | kUntextured, {0, 1, 2}});
-    model.faces.push_back({kPrimStrip | kUntextured, {0, 1, 2, 3, 4}});
+    model.faces.push_back({
+        .type = kPrimTriangle | kUntextured, .corners = {0, 1, 2}
+    });
+    model.faces.push_back({
+        .type = kPrimStrip | kUntextured, .corners = {0, 1, 2, 3, 4}
+    });
 
     MdtFile file(model);
     MemoryPool pool;
@@ -451,7 +458,9 @@ namespace {
 size_t DrawBoxRecords() {
     ModelSpec model;
     model.vertices = {{-76.0f, -2.0f, 98.0f}, {-72.0f, -2.0f, 98.0f}, {-72.0f, 2.0f, 98.0f}};
-    model.faces.push_back({kPrimTriangle | kUntextured, {0, 1, 2}});
+    model.faces.push_back({
+        .type = kPrimTriangle | kUntextured, .corners = {0, 1, 2}
+    });
 
     MdtFile file(model);
     MemoryPool pool;
@@ -739,7 +748,9 @@ void CheckMaterialWrap(bool queued) {
     mgCFrameAttr attr;
     attr.no_light = 1;
     SetColour(attr, {128, 128, 128, 128});
-    MemoryPool data_a, data_b, packets;
+    MemoryPool data_a;
+    MemoryPool data_b;
+    MemoryPool packets;
     mgSetDataBuffer(&data_a.memory(), &data_b.memory(), 0);
     for (int repeat = 0; repeat < 2; ++repeat) {
         texture->clamp.WMS = texture->clamp.WMT = repeat ? 0 : 1;

@@ -29,9 +29,9 @@ int                narration_frames;
 bool               narration_finished;
 } // namespace
 
-PORT_OVERRIDE void MenuChapterInit(mgCMemory *stack, int *tex_block, int open_type, int chapter) {
-    static const char *voices[] = {"sound/0060600.wav", "sound/2070310.wav", "sound/3060260.wav", "sound/4020120.wav",
-                                   "sound/5000010.wav", "sound/6000360.wav", "sound/7000010.wav", "sound/8000140.wav"};
+PORT_OVERRIDE void MenuChapterInit(mgCMemory *stack, int *tex_block, int /*open_type*/, int chapter) {
+    constexpr const char *voices[] = {"sound/0060600.wav", "sound/2070310.wav", "sound/3060260.wav", "sound/4020120.wav",
+                                      "sound/5000010.wav", "sound/6000360.wav", "sound/7000010.wav", "sound/8000140.wav"};
     chapter_memory.stSetBuffer(stack->stGetTop(), stack->stGetRest());
     chapter_info = new (chapter_memory.Alloc((sizeof(MENU_CHAPTER_INFO) + 15) / 16)) MENU_CHAPTER_INFO{};
     std::copy_n(tex_block, 2, chapter_info->tex_block);
@@ -47,7 +47,7 @@ PORT_OVERRIDE void MenuChapterInit(mgCMemory *stack, int *tex_block, int open_ty
     background = logo = nullptr;
     if (size > 0) {
         chapter_memory.Alloc((size + 15) / 16);
-        mgTexManager.EnterIMGFile(reinterpret_cast<unsigned char *>(image), tex_block[0], nullptr, 0);
+        mgTexManager.EnterIMGFile(reinterpret_cast<unsigned char *>(image), tex_block[0], nullptr, nullptr);
         background = mgTexManager.GetTexture("chapbg", -1);
         logo = mgTexManager.GetTexture("chaplogo", -1);
     }

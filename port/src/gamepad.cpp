@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <print>
 #include <vector>
 
 #include "dualsense_haptics.hpp"
@@ -27,8 +28,8 @@ void Neutral(PAD_STATUS &status) {
 } // namespace
 
 PORT_OVERRIDE void CGamePad::UpDate() {
-    // Only the retail menu threshold may turn stick axes into D-pad buttons.
-    // Disable the host fallback so movement keys cannot select field slots.
+    // Only the retail menu threshold turns stick axes into D-pad buttons; the host fallback would let
+    // movement keys select field slots.
     InputSetKeyboardStickNavigation(false);
     for (int port = 0; port < 2; ++port) {
         previous_pad[port] = pad[port];
@@ -43,8 +44,7 @@ PORT_OVERRIDE void CGamePad::UpDate() {
         Play(&pad[0]);
     }
 
-    // Retail applies pad 0's left stick to both configured thresholds, regardless
-    // of which host device supplies each axis. MenuModeOff disables conversion.
+    // Retail applies pad 0's left stick to both thresholds, whichever host device supplies each axis.
     for (int port = 0; port < 2; ++port) {
         const int threshold = axis_threshold[port];
         if (threshold <= 0) {
@@ -170,8 +170,7 @@ PORT_OVERRIDE void CGamePad::Capture(PAD_STATUS *status) {
     if (capture_frame != recording.size()) {
         return;
     }
-    recording.push_back({static_cast<u16>(status->button), status->left_y, status->left_x,
-                         status->right_y, status->right_x});
+    recording.push_back({.button = static_cast<u16>(status->button), .left_y = status->left_y, .left_x = status->left_x, .right_y = status->right_y, .right_x = status->right_x});
     ++capture_frame;
 }
 
@@ -204,7 +203,7 @@ PORT_OVERRIDE void CGamePad::SaveCapture() {
         file.write(reinterpret_cast<const char *>(bytes), sizeof(bytes));
     }
     if (!file) {
-        std::fprintf(stderr, "gamepad: could not save key_cap.bin\n");
+        std::println(stderr, "gamepad: could not save key_cap.bin");
     }
 }
 
@@ -218,7 +217,7 @@ PORT_OVERRIDE void CGamePad::LoadCapture() {
     }
     const auto size = file.tellg();
     if (size < 0 || size > static_cast<std::streamoff>(PAD_CAPTURE_FRAME_MAX * 6) || size % 6 != 0) {
-        std::fprintf(stderr, "gamepad: invalid key_cap.bin size\n");
+        std::println(stderr, "gamepad: invalid key_cap.bin size");
         return;
     }
     file.seekg(0);
@@ -229,7 +228,7 @@ PORT_OVERRIDE void CGamePad::LoadCapture() {
         if (!file.read(reinterpret_cast<char *>(bytes), sizeof(bytes))) {
             return;
         }
-        loaded.push_back({static_cast<u16>(bytes[0] | (bytes[1] << 8)), bytes[2], bytes[3], bytes[4], bytes[5]});
+        loaded.push_back({.button = static_cast<u16>(bytes[0] | (bytes[1] << 8)), .left_y = bytes[2], .left_x = bytes[3], .right_y = bytes[4], .right_x = bytes[5]});
     }
     recording = std::move(loaded);
 }
@@ -268,12 +267,7 @@ PORT_OVERRIDE int CGamePad::Down2(int mask) {
     return ((real | single) & mask) != 0;
 }
 
-PORT_OVERRIDE int CGamePad::Down(int mask) {
-    if (key_lock) {
-        return 0;
-    }
-    return (GetPadDown() & mask) != 0;
-}
+PORT_OVERRIDE int CGamePad::Down(int mask) { return (GetPadDown() & mask) != 0; }
 
 PORT_OVERRIDE int CGamePad::GetPadDown() {
     if (key_lock) {

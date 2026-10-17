@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -58,7 +59,7 @@ CCollisionMDT *BuildCollision(const mgCVisualMDT &visual, mgCMemory &memory) {
     auto *collision = Allocate<CCollisionMDT>(memory);
     collision->poly_count = static_cast<int>(polygons.size());
     collision->poly = Allocate<CCPoly>(memory, polygons.size());
-    std::copy(polygons.begin(), polygons.end(), collision->poly);
+    std::ranges::copy(polygons, collision->poly);
     collision->CreateBBox();
     return collision;
 }
@@ -72,8 +73,8 @@ mgCFrame *LoadGeometry(const std::filesystem::path &path, mgCMemory *memory, std
     }
     char               default_name[] = "";
     mgCreateVisualType visual_types[] = {
-        {MG_VISUAL_CREATE_MDT, default_name},
-        {MG_VISUAL_CREATE_END, nullptr     }
+        {.type = MG_VISUAL_CREATE_MDT, .name = default_name},
+        {.type = MG_VISUAL_CREATE_END, .name = nullptr     }
     };
     mgLoadData load{};
     load.memory = memory;
@@ -82,7 +83,7 @@ mgCFrame *LoadGeometry(const std::filesystem::path &path, mgCMemory *memory, std
     auto       *frames = scene.empty() ? model_assets::LoadModel(path, load, error)
                                        : model_assets::LoadModelScene(path, scene, load, error);
     if (!frames) {
-        std::fprintf(stderr, "collision: %s\n", error.c_str());
+        std::println(stderr, "collision: {}", error);
     }
     return frames;
 }

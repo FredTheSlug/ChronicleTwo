@@ -8,7 +8,7 @@
 
 struct MenuMouseRect {
     float x, y, w, h;
-    bool  Contains(float px, float py) const;
+    [[nodiscard]] bool Contains(float px, float py) const;
 };
 
 struct MenuMouseSample {
@@ -45,7 +45,6 @@ gfx::InterpKey                  MenuMouseNoteHand(const gfx::TextureBinding &tex
 
 // Exclusive adapters translate this sampled frame into retail buttons.
 void MenuMouseSetButtons(int buttons);
-bool MenuMouseActive();
 
 class CSaveMenuClass;
 void MenuMouseSave(CSaveMenuClass &save);

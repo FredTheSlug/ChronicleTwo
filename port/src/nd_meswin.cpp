@@ -7,7 +7,7 @@
 // top and left edges undarkened. Drawing one pixel up and left covers them.
 PORT_OVERRIDE void FillRect(int x, int y, int w, int h, int r, int g, int b, int a) {
     mgCDrawPrim drawer;
-    drawer.Initialize(NULL, NULL);
+    drawer.Initialize(nullptr, nullptr);
     drawer.AlphaBlendEnable(1);
     drawer.AlphaBlend(MG_ALPHA_BLEND_NORMAL);
     drawer.AlphaTestEnable(1);

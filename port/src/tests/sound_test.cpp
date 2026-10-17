@@ -1,19 +1,13 @@
 #include <gtest/gtest.h>
 
-#include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <memory>
-#include <optional>
-#include <set>
-#include <span>
 #include <string>
-#include <system_error>
 #include <vector>
 
 #include "audio/hdbank.hpp"

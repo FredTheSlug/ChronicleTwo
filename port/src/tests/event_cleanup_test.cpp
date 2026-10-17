@@ -16,12 +16,12 @@
 namespace {
 struct CleanupProgram {
     RS_PROG_HEADER header{};
-    RS_PROGDATA    entry{100, offsetof(CleanupProgram, function)};
+    RS_PROGDATA    entry{.no = 100, .func = offsetof(CleanupProgram, function)};
     funcdata       function{};
     vmcode_t       code[3]{
-        {RS_OP_PUSH_CONST, RS_CONST_INT, EVENT_EXT_DNG_EFFECT_ALL_CLEAR},
-        {RS_OP_EXT,        1,            0                             },
-        {RS_OP_END,        0,            0                             }
+        {.op = RS_OP_PUSH_CONST, .arg1 = RS_CONST_INT, .arg2 = EVENT_EXT_DNG_EFFECT_ALL_CLEAR},
+        {.op = RS_OP_EXT,        .arg1 = 1,            .arg2 = 0                             },
+        {.op = RS_OP_END,        .arg1 = 0,            .arg2 = 0                             }
     };
 
     CleanupProgram() {

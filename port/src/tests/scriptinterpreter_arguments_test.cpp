@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "command_replay.hpp"
 #include "scriptinterpreter.hpp"
 
 namespace {
@@ -16,9 +17,13 @@ std::vector<int>                         counts;              /**< Explicit argu
 int                                      remaining_depth = 0; /**< Additional nested text callbacks requested by a test. */
 
 /**
- * Executes an independent text or typed JSON script with the supplied callback table.
+ * Executes an independent text script, or a typed command list as character resources embed, with the supplied callback table.
  */
 void Execute(std::string text, SPI_TAG_PARAM *tags) {
+    if (command_replay::IsCommandBuffer(text.data(), static_cast<int>(text.size()))) {
+        ASSERT_TRUE(command_replay::RunBuffer(text.data(), static_cast<int>(text.size()), tags));
+        return;
+    }
     CScriptInterpreter interpreter;
     interpreter.SetScript(text.data(), static_cast<int>(text.size()));
     interpreter.SetTag(tags);
@@ -39,8 +44,8 @@ int CapturePosition(SPI_STACK *stack, int count) {
         const int     value = 100 + remaining_depth--;
         char          name[] = "POS";
         SPI_TAG_PARAM tags[]{
-            {name,    CapturePosition},
-            {nullptr, nullptr        }
+            {.name = name,    .function = CapturePosition},
+            {.name = nullptr, .function = nullptr        }
         };
         Execute("POS 0,1,2,3,4,5,6," + std::to_string(value) + "," + std::to_string(value) + ";POS 7,8,9,10,11,12,13;", tags);
     }
@@ -123,8 +128,8 @@ void ExpectNestedPositions() {
 TEST_F(ScriptArguments, NativeCommandsRetainOmittedTrailingScales) {
     char          name[] = "POS";
     SPI_TAG_PARAM tags[]{
-        {name,    CapturePosition},
-        {nullptr, nullptr        }
+        {.name = name,    .function = CapturePosition},
+        {.name = nullptr, .function = nullptr        }
     };
     Execute(NativePositions(), tags);
     ASSERT_EQ(positions.size(), 2u);
@@ -148,8 +153,8 @@ TEST_F(ScriptArguments, NativeInheritedStringsSurviveShorterAndLongerArgumentRep
     }
     char          name[] = "TEXT";
     SPI_TAG_PARAM tags[]{
-        {name,    CaptureStrings},
-        {nullptr, nullptr       }
+        {.name = name,    .function = CaptureStrings},
+        {.name = nullptr, .function = nullptr       }
     };
     Execute(Json{
                 {"schema_version", 1       },
@@ -170,8 +175,8 @@ TEST_F(ScriptArguments, TextCallbackStorageRemainsStableBeyondEightNestedScripts
     remaining_depth = 12;
     char          name[] = "POS";
     SPI_TAG_PARAM tags[]{
-        {name,    CapturePosition},
-        {nullptr, nullptr        }
+        {.name = name,    .function = CapturePosition},
+        {.name = nullptr, .function = nullptr        }
     };
     Execute("POS 0,1,2,3,4,5,6,100,100;POS 7,8,9,10,11,12,13;", tags);
     ExpectNestedPositions();
@@ -181,8 +186,8 @@ TEST_F(ScriptArguments, NativeArgumentsRemainIsolatedFromNestedTextScripts) {
     remaining_depth = 12;
     char          name[] = "POS";
     SPI_TAG_PARAM tags[]{
-        {name,    CapturePosition},
-        {nullptr, nullptr        }
+        {.name = name,    .function = CapturePosition},
+        {.name = nullptr, .function = nullptr        }
     };
     Execute(NativePositions(), tags);
     ExpectNestedPositions();

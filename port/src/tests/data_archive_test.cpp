@@ -82,7 +82,7 @@ protected:
         fs::remove_all(root, error);
     }
 
-    std::vector<std::uint8_t> Read(const vfs::Ref &file) {
+    static std::vector<std::uint8_t> Read(const vfs::Ref &file) {
         std::vector<std::uint8_t> bytes;
         EXPECT_TRUE(vfs::Read(file, bytes)) << file.Display();
         return bytes;
@@ -153,12 +153,13 @@ TEST_F(DataArchive, ArchiveStampsAreFixedAndNameTheEntry) {
 TEST_F(DataArchive, ArchiveListsDirectMembersAndImpliedDirectories) {
     Pack(tree, root / "data.zip");
     const auto archive = ArchiveMountOpen(root / "data.zip");
-    auto       names = [](std::vector<vfs::Member> members) {
+    auto       names = [](const std::vector<vfs::Member> &members) {
         std::vector<std::string> result;
+        result.reserve(members.size());
         for (const auto &member : members) {
             result.push_back(member.name + (member.directory ? "/" : ""));
         }
-        std::sort(result.begin(), result.end());
+        std::ranges::sort(result);
         return result;
     };
     EXPECT_EQ(names(archive->List("CHARA")), (std::vector<std::string>{"hero.bin", "pack.pac/"}));
@@ -171,10 +172,12 @@ TEST_F(DataArchive, ConcurrentReadsReturnEveryEntryIntact) {
     const auto               archive = ArchiveMountOpen(root / "data.zip");
     std::atomic<int>         failures = 0;
     std::vector<std::thread> threads;
+    threads.reserve(16);
     for (int worker = 0; worker < 16; ++worker) {
         threads.emplace_back([&] {
             for (int pass = 0; pass < 50; ++pass) {
-                std::vector<std::uint8_t> hero, png;
+                std::vector<std::uint8_t> hero;
+                std::vector<std::uint8_t> png;
                 if (!vfs::Read(vfs::Find(archive, "chara/hero.bin"), hero) || hero != Bytes(5000, 2) ||
                     !vfs::Read(vfs::Find(archive, "menu/example_0.png"), png) || png != Bytes(300, 1)) {
                     ++failures;
@@ -251,7 +254,8 @@ TEST_F(DataArchive, MoviePlaysIdenticallyFromAStoredArchiveEntry) {
     datapacks::Load(root / "data.zip");
     ASSERT_TRUE(vfs::Stored(*datapacks::Asset("movie/clip.mp4")));
 
-    video::MoviePlayer direct, archived;
+    video::MoviePlayer direct;
+    video::MoviePlayer archived;
     ASSERT_TRUE(direct.Open(fixture, true));
     ASSERT_TRUE(archived.Open("movie/clip.mp4", true));
     ASSERT_NE(archived.Audio(), nullptr);

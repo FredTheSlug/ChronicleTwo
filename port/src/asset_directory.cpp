@@ -48,7 +48,7 @@ std::string Key(std::string value) {
  */
 bool Relative(const fs::path &path) {
     const auto name = path.generic_string();
-    if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory() || name.find(':') != std::string::npos || name.find('\0') != std::string::npos) {
+    if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory() || name.contains(':') || name.contains('\0')) {
         return false;
     }
     for (const auto &part : path) {
@@ -69,6 +69,35 @@ std::vector<fs::path> Members(const std::string &directory) {
         return name == "pack.json" || name.ends_with(".game.json");
     });
     return members;
+}
+
+constexpr std::string_view kAssetDirectory = "asset_directory";
+
+/**
+ * Parses a file's bytes as JSON, discarding malformed documents.
+ */
+Json Parse(const File &file, int size) {
+    const auto *begin = reinterpret_cast<const char *>(file.bytes.data());
+    return Json::parse(begin, begin + size, nullptr, false);
+}
+
+/**
+ * Validates a typed native document: an asset directory's pack.json, a texture table or a configuration.
+ */
+bool Valid(const Json &data, std::string_view kind) {
+    if (data.is_discarded() || !data.is_object() || !data.contains("schema_version")) {
+        return false;
+    }
+    const auto &version = data["schema_version"];
+    if (kind == "texture") {
+        return version == 3 && data.contains("entries") && data["entries"].is_array() && data.contains("groups") &&
+               data["groups"].is_array();
+    }
+    if (kind == "commands") {
+        // Configurations are native semantic documents of a named kind.
+        return version == 2 && data.contains("kind") && data["kind"].is_string();
+    }
+    return version == 1 && data.contains("kind") && data["kind"] == "asset_directory";
 }
 
 /**
@@ -100,23 +129,9 @@ File *Read(fs::path relative, std::string_view kind = {}) {
         if (!vfs::ReadInto(path, file->bytes.data(), static_cast<std::size_t>(*size))) {
             continue;
         }
-        if (relative.filename() == "pack.json" || kind == "texture" || kind == "commands") {
-            const auto *begin = reinterpret_cast<const char *>(file->bytes.data());
-            const auto  data = Json::parse(begin, begin + *size, nullptr, false);
-            if (data.is_discarded() || !data.is_object()) {
-                continue;
-            }
-            if (relative.filename() == "pack.json") {
-                if (!data.contains("schema_version") || data["schema_version"] != 1 || !data.contains("kind") || data["kind"] != "asset_directory") {
-                    continue;
-                }
-            } else if (kind == "texture") {
-                if (!data.contains("schema_version") || data["schema_version"] != 3 || !data.contains("entries") || !data["entries"].is_array() || !data.contains("groups") || !data["groups"].is_array()) {
-                    continue;
-                }
-            } else if (!data.contains("schema_version") || data["schema_version"] != 1 || !data.contains("commands") || !data["commands"].is_array()) {
-                continue;
-            }
+        const std::string_view document = relative.filename() == "pack.json" ? kAssetDirectory : kind;
+        if (!document.empty() && !Valid(Parse(*file, static_cast<int>(*size)), document)) {
+            continue;
         }
         file->size = static_cast<int>(*size);
         file->name = (relative.filename() == "pack.json" ? relative.parent_path() : relative).filename().generic_string();
@@ -141,15 +156,8 @@ bool Kind(const fs::path &path, std::string_view kind, File *&file) {
     if (!file) {
         return false;
     }
-    const auto *begin = reinterpret_cast<const char *>(file->bytes.data());
-    const auto  data = Json::parse(begin, begin + file->size, nullptr, false);
-    if (data.is_discarded() || !data.is_object() || !data.contains("schema_version") || !data["schema_version"].is_number_integer()) {
-        return false;
-    }
-    if (kind == "texture") {
-        return data["schema_version"] == 3 && data.contains("entries") && data["entries"].is_array() && data.contains("groups") && data["groups"].is_array();
-    }
-    return data["schema_version"] == 1 && data.contains("commands") && data["commands"].is_array();
+    const auto data = Parse(*file, file->size);
+    return Valid(data, kind) && data["schema_version"].is_number_integer();
 }
 } // namespace
 
@@ -160,15 +168,14 @@ std::optional<std::string> AssetDirectoryPath(const void *directory) {
         return std::nullopt;
     }
     const auto *begin = static_cast<const char *>(directory);
-    auto        valid = [](const Json &data) { return !data.is_discarded() && data.is_object() && data.contains("schema_version") && data["schema_version"] == 1 && data.contains("kind") && data["kind"] == "asset_directory"; };
-    bool        accepted = size > 0 && valid(Json::parse(begin, begin + size, nullptr, false));
+    bool        accepted = size > 0 && Valid(Json::parse(begin, begin + size, nullptr, false), kAssetDirectory);
     if (!accepted) {
         for (const auto &candidate : datapacks::Candidates(*path)) {
             std::vector<uint8_t> bytes;
             if (!datapacks::ReadFileBytes(candidate, bytes)) {
                 continue;
             }
-            if (valid(Json::parse(bytes, nullptr, false))) {
+            if (Valid(Json::parse(bytes, nullptr, false), kAssetDirectory)) {
                 accepted = true;
                 break;
             }
@@ -190,7 +197,7 @@ u_int *AssetDirectoryRead(const void *directory, const char *name, int *out_size
         return nullptr;
     }
     std::string normalized(name);
-    std::replace(normalized.begin(), normalized.end(), '\\', '/');
+    std::ranges::replace(normalized, '\\', '/');
     const fs::path member(normalized);
     if (!Relative(member)) {
         return nullptr;

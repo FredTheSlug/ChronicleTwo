@@ -2,9 +2,9 @@
 
 #include <cmath>
 #include <cstdint>
+#include <numbers>
 #include <vector>
 
-#include "dngmenu.hpp"
 #include "mainloop.hpp"
 #include "memcard.hpp"
 #include "menudraw.hpp"
@@ -14,10 +14,7 @@
 #include "mg_drawprim_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
-
-extern CDngFreeMap  *TreeDngMap asm("MenuMouse_DngMap");
-extern CMenuTreeMap *TreeMap asm("MenuMouse_Tree");
-extern short         TreeMode asm("MenuMouse_TreeMode");
+#include "stubs/dngmenu.hpp"
 
 namespace {
 
@@ -42,20 +39,20 @@ struct RootMarkOffset {
 };
 
 constexpr RootMarkOffset kRootMarkOffsets[10] = {
-    {6, -2},
-    {4, -2},
-    {4, -2},
-    {4, -2},
-    {4, -2},
-    {4, -2},
-    {4, -2},
-    {4, -2},
-    {4, -2},
-    {4, -2},
+    {.x = 6, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
+    {.x = 4, .y = -2},
 };
 
 // The one passage mark of dungeon six that sits off its usual place.
-constexpr RootMarkOffset kZerumaitoMarkOffset = {13, -11};
+constexpr RootMarkOffset kZerumaitoMarkOffset = {.x = 13, .y = -11};
 
 // Texture coordinates of the passage-type marks.
 constexpr s16 kRootTypeTexture[5][2] = {
@@ -76,10 +73,10 @@ constexpr s16 kRoomLabelTexture[4][4] = {
 
 // Destination offsets of the visited-room labels within the room picture.
 constexpr RootMarkOffset kRoomLabelOffset[4] = {
-    {20, -7},
-    {20, -7},
-    {20, 0 },
-    {10, 10},
+    {.x = 20, .y = -7},
+    {.x = 20, .y = -7},
+    {.x = 20, .y = 0 },
+    {.x = 10, .y = 10},
 };
 
 // Room-mark animation speed in menu and event modes.
@@ -132,7 +129,7 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
                                          int opacity) {
     const auto extent = mgPortVisibleExtent();
 
-    if (root == NULL || extent.right < rect.left || rect.top > extent.bottom + 20.0f) {
+    if (root == nullptr || extent.right < rect.left || rect.top > extent.bottom + 20.0f) {
         return;
     }
 
@@ -160,10 +157,10 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
     mgCDrawPrim *prim = GetMenuPrim();
     SetSpriteEnv(prim, MENU_SPRITE_ENV_COLOR_AA);
     prim->Begin(MG_PRIM_LINE);
-    prim->Color((int) red, (int) green, (int) blue, opacity);
+    prim->Color(static_cast<int>(red), static_cast<int>(green), static_cast<int>(blue), opacity);
 
     if (shadow) {
-        prim->Color(0, 0, 0, (int) (0.05f * (float) opacity));
+        prim->Color(0, 0, 0, static_cast<int>(0.05f * static_cast<float>(opacity)));
     }
 
     PassageStroke stroke(*prim);
@@ -182,8 +179,8 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
         case RootShape::Vertical:
             put.left += 26.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left + (float) i, put.top, put.left + (float) i + -16.0f, put.bottom);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left + i, put.top, put.left + i + -16.0f, put.bottom);
             }
 
             mark = &kRootMarkOffsets[0];
@@ -200,8 +197,8 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
 
             put.top += 10.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left - (float) i, put.top + (float) i, put.right - (float) i, put.top + (float) i);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left - i, put.top + i, put.right - i, put.top + i);
             }
 
             mark = &kRootMarkOffsets[1];
@@ -210,12 +207,12 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             put.left += 25.0f;
             put.top += 10.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left - (float) i, put.top + (float) i, put.right - (float) i, put.top + (float) i);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left - i, put.top + i, put.right - i, put.top + i);
             }
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left + (float) i, put.top, put.left + (float) i - 10.0f, put.bottom);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left + i, put.top, put.left + i - 10.0f, put.bottom);
             }
 
             mark = &kRootMarkOffsets[2];
@@ -224,12 +221,12 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             put.right -= 27.0f;
             put.top += 10.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left - (float) i, put.top + (float) i, put.right - (float) i, put.top + (float) i);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left - i, put.top + i, put.right - i, put.top + i);
             }
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.right + (float) i, put.top, put.right + (float) i - 10.0f, put.bottom);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.right + i, put.top, put.right + i - 10.0f, put.bottom);
             }
 
             mark = &kRootMarkOffsets[3];
@@ -240,13 +237,13 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             const float inner_left = put.left - 2.0f;
             const float inner_bottom = put.bottom + 2.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left + (float) i, put.top, put.left + (float) i - 10.0f, inner_bottom);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left + i, put.top, put.left + i - 10.0f, inner_bottom);
             }
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(inner_left - (float) i - 5.0f, put.bottom + (float) i, put.right - (float) i - 5.0f,
-                            put.bottom + (float) i);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(inner_left - i - 5.0f, put.bottom + i, put.right - i - 5.0f,
+                            put.bottom + i);
             }
 
             mark = &kRootMarkOffsets[4];
@@ -257,13 +254,13 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             put.bottom -= 10.0f;
             put.left += 1.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left - (float) i - 5.0f - 1.0f, put.bottom + (float) i, put.right - (float) i - 5.0f - 1.0f,
-                            put.bottom + (float) i);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left - i - 5.0f - 1.0f, put.bottom + i, put.right - i - 5.0f - 1.0f,
+                            put.bottom + i);
             }
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.right + (float) i, put.top, put.right + (float) i - 10.0f + 1.0f, put.bottom);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.right + i, put.top, put.right + i - 10.0f + 1.0f, put.bottom);
             }
 
             mark = &kRootMarkOffsets[5];
@@ -273,8 +270,8 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             put.left += 15.5f;
             put.top += 10.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left + (float) i, put.bottom, put.right - (float) i, put.top + (float) i);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left + i, put.bottom, put.right - i, put.top + i);
             }
 
             break;
@@ -283,8 +280,8 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             put.right -= 35.0f;
             put.top += 10.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left - (float) i / 2.0f, put.top + (float) i, put.right - (float) i, put.bottom);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left - i / 2.0f, put.top + i, put.right - i, put.bottom);
             }
 
             break;
@@ -293,8 +290,8 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             put.right -= 5.5f;
             put.bottom -= 10.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left + 1.5f - (float) i, put.top, put.right - (float) i / 2.0f, put.bottom + (float) i);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left + 1.5f - i, put.top, put.right - i / 2.0f, put.bottom + i);
             }
 
             break;
@@ -303,8 +300,8 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
             put.right -= 26.0f;
             put.bottom -= 10.0f;
 
-            for (int i = 0; i < 3; i++) {
-                stroke.Line(put.left - (float) i, put.bottom + (float) i, put.right + (float) i, put.top);
+            for (float i = 0.0f; i < 3.0f; i++) {
+                stroke.Line(put.left - i, put.bottom + i, put.right + i, put.top);
             }
 
             break;
@@ -315,36 +312,36 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
     prim->Bilinear(0);
     prim->TextureMapEnable(1);
     prim->Begin(MG_PRIM_SPRITE);
-    prim->Color((int) red, (int) green, (int) blue, opacity);
+    prim->Color(static_cast<int>(red), static_cast<int>(green), static_cast<int>(blue), opacity);
 
     if (shadow) {
-        prim->Color(0, 0, 0, (int) (0.05f * (float) opacity));
+        prim->Color(0, 0, 0, static_cast<int>(0.05f * static_cast<float>(opacity)));
     }
 
     prim->Texture(map_tex);
 
-    if (root->type != DNGMAP_ROOT_NORMAL && (u8) root->opened != 0 && root->show_mark && mark != NULL) {
-        prim->Color((int) mark_color, (int) mark_color, (int) mark_color, opacity);
+    if (root->type != DNGMAP_ROOT_NORMAL && static_cast<u8>(root->opened) != 0 && root->show_mark && mark != nullptr) {
+        prim->Color(static_cast<int>(mark_color), static_cast<int>(mark_color), static_cast<int>(mark_color), opacity);
 
         if (shadow) {
-            prim->Color(0, 0, 0, (int) (0.05f * (float) opacity));
+            prim->Color(0, 0, 0, static_cast<int>(0.05f * static_cast<float>(opacity)));
         }
 
         const int type = root->type;
         prim->TextureCrd(kRootTypeTexture[type][0], kRootTypeTexture[type][1]);
-        prim->Vertex(rect.left + (float) mark->x, rect.top + (float) mark->y, 0.0f);
+        prim->Vertex(rect.left + static_cast<float>(mark->x), rect.top + static_cast<float>(mark->y), 0.0f);
         prim->TextureCrd(kRootTypeTexture[type][0] + 22, kRootTypeTexture[type][1] + 22);
-        prim->Vertex(rect.left + (float) mark->x + 22.0f, rect.top + (float) mark->y + 22.0f, 0.0f);
+        prim->Vertex(rect.left + static_cast<float>(mark->x) + 22.0f, rect.top + static_cast<float>(mark->y) + 22.0f, 0.0f);
     }
 
     prim->End();
 }
 
-PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO *room, unsigned int unused,
+PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO *room, unsigned int /*unused*/,
                                             int opacity, float brightness) {
     const auto extent = mgPortVisibleExtent();
 
-    if (room == NULL || rect.left > extent.right + 20.0f || rect.top > extent.bottom + 30.0f) {
+    if (room == nullptr || rect.left > extent.right + 20.0f || rect.top > extent.bottom + 30.0f) {
         return;
     }
 
@@ -396,27 +393,27 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO
                 tex.bottom = 90;
             }
 
-            picture.right = (float) special.right;
-            picture.bottom = (float) special.bottom;
+            picture.right = static_cast<float>(special.right);
+            picture.bottom = static_cast<float>(special.bottom);
         }
 
-        picture.left += (float) room->offset_x;
-        picture.top += (float) room->offset_y;
+        picture.left += static_cast<float>(room->offset_x);
+        picture.top += static_cast<float>(room->offset_y);
     }
 
-    int   level = (int) (128.0f * brightness);
+    int   level = static_cast<int>(128.0f * brightness);
     float shadow_alpha = 0.25f * static_cast<float>(opacity);
     float event_brightness = 1.0f;
 
-    if (mode == DNGMAP_MODE_EVENT && user_glid != NULL && &user_glid->room != room) {
-        level = (int) (64.0f * brightness);
+    if (mode == DNGMAP_MODE_EVENT && user_glid != nullptr && &user_glid->room != room) {
+        level = static_cast<int>(64.0f * brightness);
         event_brightness = 0.5f;
     }
 
     if (mode == DNGMAP_MODE_MENU) {
         prim->Begin(MG_PRIM_SPRITE);
         prim->Texture(map_tex);
-        prim->Color(0, 0, 0, (int) shadow_alpha);
+        prim->Color(0, 0, 0, static_cast<int>(shadow_alpha));
         PrimQuad(prim, picture.left + 8.0f, picture.top + 8.0f, tex);
         prim->End();
     }
@@ -424,25 +421,27 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO
     SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     room->mark_phase += kRoomMarkStep[mode];
 
-    if (room->mark_phase > PI) {
+    if (room->mark_phase > std::numbers::pi_v<float>) {
         room->mark_phase -= TWO_PI;
     }
 
-    int r = 192, g = 192, b = 192;
+    int r = 192;
+    int g = 192;
+    int b = 192;
 
     if (room->mark) {
         float phase = room->mark_phase;
 
-        while (phase > PI) {
+        while (phase > std::numbers::pi_v<float>) {
             phase -= TWO_PI;
         }
 
-        while (phase < -PI) {
+        while (phase < -std::numbers::pi_v<float>) {
             phase += TWO_PI;
         }
 
         if (phase > 0.0f) {
-            b = g = r = (int) (7.0f * (float) level / 8.0f);
+            b = g = r = static_cast<int>(7.0f * static_cast<float>(level) / 8.0f);
         }
     } else {
         b = g = r = level;
@@ -455,7 +454,7 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO
     PrimQuad(prim, picture, tex);
     prim->End();
 
-    if (!room->visited && user_glid != NULL && &user_glid->room != room) {
+    if (!room->visited && user_glid != nullptr && &user_glid->room != room) {
         const float overlay_left = picture.left + 40.0f;
         const float overlay_top = picture.top + 25.0f;
         prim->Begin(MG_PRIM_SPRITE);
@@ -478,7 +477,7 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO
 
     const float tint = 128.0f * event_brightness;
 
-    if (name_tex != NULL && room->visited == 1) {
+    if (name_tex != nullptr && room->visited == 1) {
         for (int i = 0; i < 3; i++) {
             if (!(room->flag & (1 << (i + 1))) || kRoomLabelTexture[i][0] < 0) {
                 continue;
@@ -488,10 +487,10 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO
             prim->TextureMapEnable(1);
             prim->Begin(MG_PRIM_SPRITE);
             prim->Texture(name_tex);
-            prim->Color((int) tint, (int) tint, (int) tint, opacity);
+            prim->Color(static_cast<int>(tint), static_cast<int>(tint), static_cast<int>(tint), opacity);
             mgRect<int> label_rect;
             label_rect.Set(label[0], label[1], label[2], label[3]);
-            PrimQuad(prim, picture.left + (float) kRoomLabelOffset[i].x, picture.top + (float) kRoomLabelOffset[i].y,
+            PrimQuad(prim, picture.left + static_cast<float>(kRoomLabelOffset[i].x), picture.top + static_cast<float>(kRoomLabelOffset[i].y),
                      label_rect);
             prim->End();
         }
@@ -499,41 +498,41 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO
 }
 
 // Retail opens the floor map with no room under the cursor when the saved floor has no room cell and
-// no floor is marked. Its step then reads the floor of that NULL cell (the debug flag editor at once,
+// no floor is marked. Its step then reads the floor of that null cell (the debug flag editor at once,
 // a directional key otherwise). On the PS2 that reads low RAM; natively it faults. Put the cursor on
 // the entrance room, which is the floor retail's decide already falls back to with no selection.
 PORT_OVERRIDE int DngTreeMapKey() {
     int result = 0;
 
-    if (TreeMode == DNG_TREE_MODE_MAP) {
-        if (TreeMap->select_glid == NULL && TreeMap->key_arg_no == DNG_TREE_MAP_SCREEN_MAP &&
-            TreeMap->mode == MENU_ASK_MODE_NONE) {
-            TreeMap->select_glid = TreeDngMap->GetEntranceRoomGlid();
+    if (DngTreeMode == DNG_TREE_MODE_MAP) {
+        if (CMenuTreePt->select_glid == nullptr && CMenuTreePt->key_arg_no == DNG_TREE_MAP_SCREEN_MAP &&
+            CMenuTreePt->mode == MENU_ASK_MODE_NONE) {
+            CMenuTreePt->select_glid = MenuDngMap->GetEntranceRoomGlid();
         }
 
-        result = TreeMap->Step();
+        result = CMenuTreePt->Step();
 
-        if (TreeMode == DNG_TREE_MODE_SAVE) {
+        if (DngTreeMode == DNG_TREE_MODE_SAVE) {
             SetDngTreeFlag(1);
-            SaveMapInfo(TreeDngMap->dng_no);
+            SaveMapInfo(MenuDngMap->dng_no);
             NowProgramLoopNo = LOOP_DUNGEON;
             mgCMemory  save_stack;
             int        rest = MenuTreeMapStack.stGetRest();
             u_long128 *top = MenuTreeMapStack.stGetTop();
             save_stack.stSetBuffer(top, rest);
-            MenuSaveInit(&save_stack, &TreeMap->tex_block[3], MENU_OPEN_SAVE);
+            MenuSaveInit(&save_stack, &CMenuTreePt->tex_block[3], MENU_OPEN_SAVE);
         }
-    } else if (TreeMode == DNG_TREE_MODE_SAVE) {
+    } else if (DngTreeMode == DNG_TREE_MODE_SAVE) {
         result = MenuSaveKey();
 
         if (result != 0) {
             SetDngTreeFlag(0);
-            TreeMode = DNG_TREE_MODE_MAP;
+            DngTreeMode = DNG_TREE_MODE_MAP;
             result = 0;
-            TreeMap->FadeInMenu(40, 0.0f);
-            TreeMap->mode = MENU_ASK_MODE_EXTEND;
-            TreeMap->step = 1;
-            TreeMap->MsgInit();
+            CMenuTreePt->FadeInMenu(40, 0.0f);
+            CMenuTreePt->mode = MENU_ASK_MODE_EXTEND;
+            CMenuTreePt->step = 1;
+            CMenuTreePt->MsgInit();
         }
     }
 

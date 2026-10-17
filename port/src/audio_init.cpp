@@ -38,7 +38,7 @@ void RenderTicks() {
     auto         frames = total - g_span_frames;
     g_span_frames = total;
     g_fraction = budget - static_cast<double>(total);
-    std::array<float, 2048> samples;
+    std::array<float, 2048> samples{};
     while (frames > 0) {
         const int count = static_cast<int>(std::min<std::int64_t>(frames, samples.size() / 2));
         mixer.Render(samples.data(), count);

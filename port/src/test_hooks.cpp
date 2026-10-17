@@ -3,7 +3,9 @@
 #include <charconv>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <optional>
+#include <print>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -25,6 +27,8 @@ std::optional<GameJump> target;
 std::vector<int>        gifts;
 bool                    fast_load = false;
 
+constexpr int kNoLimit = std::numeric_limits<int>::max();
+
 bool Number(std::string_view text, int &value, int maximum) {
     if (text.empty()) {
         return false;
@@ -34,28 +38,35 @@ bool Number(std::string_view text, int &value, int maximum) {
 }
 
 [[noreturn]] void BadTarget() {
-    std::fprintf(stderr, "bad --jump: target is absent from the game tables\n");
+    std::println(stderr, "bad --jump: target is absent from the game tables");
     std::exit(2);
+}
+
+void RequireKnownItem(int item) {
+    if (GetCommonItemData(item) == nullptr) {
+        std::println(stderr, "bad --give: unknown item {}", item);
+        std::exit(2);
+    }
 }
 
 bool ResolveEvent(int event, int &mode, INIT_LOOP_ARG &arg) {
     std::vector<std::uint8_t> bytes;
     vfs::Read(vfs::Find(vfs::Base(), "event/view_pal.txt"), bytes);
     std::istringstream file(std::string(bytes.begin(), bytes.end()));
-    std::string   line;
+    std::string        line;
     while (std::getline(file, line)) {
         std::vector<std::string_view> columns;
         std::string_view              rest = line;
         for (;;) {
             auto tab = rest.find('\t');
             columns.push_back(rest.substr(0, tab));
-            if (tab == rest.npos) {
+            if (tab == std::string_view::npos) {
                 break;
             }
             rest.remove_prefix(tab + 1);
         }
         int id = 0;
-        if (columns.size() < 4 || !Number(columns[3], id, 2147483647) || id != event) {
+        if (columns.size() < 4 || !Number(columns[3], id, kNoLimit) || id != event) {
             continue;
         }
         arg.event_no = id;
@@ -81,33 +92,33 @@ bool GameParseJump(std::string_view text, GameJump &jump) {
     GameJump parsed;
     auto     colon = text.find(':');
     auto     name = text.substr(0, colon);
-    auto     arg = colon == text.npos ? std::string_view{} : text.substr(colon + 1);
+    auto     arg = colon == std::string_view::npos ? std::string_view{} : text.substr(colon + 1);
     if (name == "town" || name == "edit") {
         parsed.mode = JumpMode::Town;
-        if (colon != text.npos && !Number(arg, parsed.map, 188)) {
+        if (colon != std::string_view::npos && !Number(arg, parsed.map, 188)) {
             return false;
         }
     } else if (name == "dungeon") {
         parsed.mode = JumpMode::Dungeon;
         parsed.map = 0;
         auto floor = arg.find(':');
-        if (colon != text.npos && !Number(arg.substr(0, floor), parsed.map, 6)) {
+        if (colon != std::string_view::npos && !Number(arg.substr(0, floor), parsed.map, 6)) {
             return false;
         }
-        if (floor != arg.npos && (!Number(arg.substr(floor + 1), parsed.floor, 99) || parsed.floor == 0)) {
+        if (floor != std::string_view::npos && (!Number(arg.substr(floor + 1), parsed.floor, 99) || parsed.floor == 0)) {
             return false;
         }
-        CSaveDataDungeon floors;
+        CSaveDataDungeon floors{};
         if (!floors.GetFloorInfoPtr(parsed.map, parsed.floor)) {
             return false;
         }
     } else if (name == "event") {
         parsed.mode = JumpMode::Event;
-        if (colon == text.npos || !Number(arg, parsed.event, 2147483647) || parsed.event == 0) {
+        if (colon == std::string_view::npos || !Number(arg, parsed.event, kNoLimit) || parsed.event == 0) {
             return false;
         }
     } else {
-        if (colon != text.npos) {
+        if (colon != std::string_view::npos) {
             return false;
         }
         if (name == "title") {
@@ -126,18 +137,18 @@ bool GameParseJump(std::string_view text, GameJump &jump) {
 
 bool GameParseGive(std::string_view text, std::vector<int> &items) {
     std::vector<int> parsed;
-    do {
+    for (;;) {
         auto comma = text.find(',');
         int  item = 0;
         if (!Number(text.substr(0, comma), item, 32767) || item == 0) {
             return false;
         }
         parsed.push_back(item);
-        if (comma == text.npos) {
+        if (comma == std::string_view::npos) {
             break;
         }
         text.remove_prefix(comma + 1);
-    } while (true);
+    }
     items = std::move(parsed);
     return true;
 }
@@ -163,10 +174,7 @@ bool GameFastLoad() { return fast_load; }
 
 void GamePrepareJump(int &mode, INIT_LOOP_ARG &arg) {
     for (int item : gifts) {
-        if (!GetCommonItemData(item)) {
-            std::fprintf(stderr, "bad --give: unknown item %d\n", item);
-            std::exit(2);
-        }
+        RequireKnownItem(item);
     }
     if (!target) {
         return;
@@ -228,10 +236,7 @@ void GameGiveOnArrival(int mode) {
     }
     auto &user = GetSaveData()->user_data;
     for (int item : gifts) {
-        if (GetCommonItemData(item) == nullptr) {
-            std::fprintf(stderr, "bad --give: unknown item %d\n", item);
-            std::exit(2);
-        }
+        RequireKnownItem(item);
         if (user.SearchAllHaveItem(item) == nullptr) {
             user.GetItem(item, 1);
         }

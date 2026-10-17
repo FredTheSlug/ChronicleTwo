@@ -10,9 +10,11 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <print>
 #include <vector>
 
 #include "character.hpp"
+#include "character_motion.hpp"
 #include "collision.hpp"
 #include "collision_assets.hpp"
 #include "dataread_port.hpp"
@@ -192,7 +194,7 @@ TEST_F(NativeModel, CharacterTextureOwnershipDoesNotSkipDeletedReinitializedOrSu
     textures.SetTableBuffer(8, 8, &texture_memory);
     textures.Initialize(0x1000, -1);
     CCharacter2                        character;
-    model_assets::CharacterLoadOptions options{&memory, &memory, &memory, &textures, nullptr, 2, false};
+    model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory, .textures = &textures, .parent = nullptr, .texture_block = 2, .outline = false};
     std::string                        error;
     auto                               load = [&] {
         character.Initialize();
@@ -263,7 +265,7 @@ TEST_F(NativeModel, MenuCostumeArenaUsesActualNativeCountsInsteadOfRetailPartiti
     auto       *native_storage = slot.stack;
     CCharacter2 character;
     character.Initialize();
-    model_assets::CharacterLoadOptions options{&slot, &slot, &slot, nullptr, nullptr, 0, false};
+    model_assets::CharacterLoadOptions options{.model_memory = &slot, .motion_memory = &slot, .image_memory = &slot, .textures = nullptr, .parent = nullptr, .texture_block = 0, .outline = false};
     ASSERT_TRUE(model_assets::LoadCharacter(character, "models/model.gltf", "info", options, error)) << error;
     ASSERT_NE(character.GetFrame(), nullptr);
     EXPECT_GT(slot.stack_used, retail_capacity);
@@ -276,37 +278,183 @@ TEST_F(NativeModel, MenuCostumeArenaUsesActualNativeCountsInsteadOfRetailPartiti
     EXPECT_EQ(slot.stack, native_storage);
 }
 
-TEST_F(NativeModel, MotionOnlyCharacterProfileExtendsExistingGeometryWithoutAPlaceholderModel) {
-    auto *root = Instantiate();
-    ASSERT_NE(root, nullptr);
-    CCharacter2 character;
-    character.Initialize();
-    character.CObjectFrame::frame = root;
-    const Json animation{
+namespace {
+/** Typed profile argument helpers for named-action fixtures. */
+Json IntegerArgument(int value) {
+    return {
+        {"type",  "int"},
+        {"value", value}
+    };
+}
+
+Json RealArgument(float value) {
+    return {
+        {"type",  "float"},
+        {"value", value  }
+    };
+}
+
+Json TextArgument(const char *value) {
+    return {
+        {"type",  "string"},
+        {"value", value   }
+    };
+}
+
+Json AnimationArgument(int index) {
+    return {
         {"type",  "resource" },
         {"kind",  "animation"},
-        {"index", 0          }
+        {"index", index      }
     };
-    const Json integer{
-        {"type",  "int"},
-        {"value", 1    }
+}
+
+/** Builds a character whose motion set plays the fixture clip as two named actions and publishes an external one. */
+Json NamedActionCharacter(const Json &model, const Json &commands) {
+    return {
+        {"schema_version",  1                                                                                        },
+        {"kind",            "character"                                                                              },
+        {"default_profile", "info"                                                                                   },
+        {"models",          Json::array({model})                                                                     },
+        {"game_names",      {{"idle", TextArgument("\xE7\xAB\x8B\xE3\x81\xA1")}, {"walk", TextArgument("walk_game")}}},
+        {"profiles",        {{"info", {{"commands", commands}}}}                                                     },
+        {"resources",
+         {{"animations",
+           Json::array({{{"actions", Json::array({{{"name", "idle"}, {"duration", 10}}, {{"name", "walk"}, {"duration", 30}}})},
+                         {"variants", Json::array({{{"model", 0}, {"node_offset", 0}, {"animations", {0, 0}}}})}},
+                        {{"external", "models/wave.gltf#0"},
+                         {"actions", Json::array({{{"name", "wave"}, {"duration", 30}, {"channels", Json::array()}}})},
+                         {"variants", Json::array({{{"model", 0}, {"node_offset", 0}, {"animations", {0}}}})}}})}}   }
     };
-    game = {
-        {"schema_version",  1                                                                                                                                                                                            },
-        {"kind",            "character"                                                                                                                                                                                  },
-        {"default_profile", "info"                                                                                                                                                                                       },
-        {"models",          Json::array()                                                                                                                                                                                },
-        {"resources",       {{"animations", Json::array({{{"animation", 0}, {"model", nullptr}, {"channels", Json::array()}, {"variants", Json::array({{{"model", nullptr}, {"animation", 0}, {"node_offset", 0}}})}}})}}},
-        {"profiles",        {{"info", {{"commands", Json::array({{{"command", "MOTION"}, {"args", Json::array({integer, animation})}}})}}}}                                                                              }
+}
+
+/** Loads the named-action character and returns whether it succeeded. */
+bool LoadNamedActionCharacter(CCharacter2 &character, const Json &gltf, const Json &game, mgCMemory &memory, std::string &error) {
+    model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory};
+    options.outline = false;
+    const auto bytes = gltf.dump();
+    return model_assets::LoadCharacter(character, {reinterpret_cast<const std::byte *>(bytes.data()), bytes.size()}, game, "info", options, error);
+}
+
+} // namespace
+
+TEST_F(NativeModel, KeysSelectNamedActionsInProfileOrderWithDisjointGameFrames) {
+    const Json  commands = Json::array({
+        {{"command", "MODEL"},     {"args", {{{"type", "resource"}, {"kind", "model"}, {"index", 0}}}}                        },
+        {{"command", "MOTION"},    {"args", {IntegerArgument(0), AnimationArgument(0)}}                                       },
+        {{"command", "KEY_START"}, {"args", Json::array()}                                                                    },
+        {{"command", "KEY"},       {"args", {TextArgument("idle"), RealArgument(.5f)}}                                        },
+        {{"command", "KEY"},       {"args", {TextArgument("walk"), RealArgument(1)}}                                          },
+        {{"command", "KEY_END"},   {"args", Json::array()}                                                                    },
+        {{"command", "SE_START"},  {"args", {IntegerArgument(1)}}                                                             },
+        {{"command", "SE"},        {"args", {TextArgument("walk"), IntegerArgument(0), IntegerArgument(3), RealArgument(.5f)}}},
+        {{"command", "SE_END"},    {"args", Json::array()}                                                                    }
+    });
+    CCharacter2 character;
+    character.Initialize();
+    std::string error;
+    ASSERT_TRUE(LoadNamedActionCharacter(character, gltf, NamedActionCharacter(game, commands), memory, error)) << error;
+    // The game sees each action under its original name, in KEY order, on its own game frames.
+    auto *idle = character.GetKeyListIndexPtr(0, nullptr);
+    auto *walk = character.GetKeyListIndexPtr(1, nullptr);
+    ASSERT_NE(idle, nullptr);
+    ASSERT_NE(walk, nullptr);
+    EXPECT_STREQ(idle->name, "\x97\xA7\x82\xBF");
+    EXPECT_STREQ(walk->name, "walk_game");
+    EXPECT_EQ(idle->start_frame, 2);
+    EXPECT_EQ(idle->end_frame, 12);
+    EXPECT_EQ(walk->start_frame, 14);
+    EXPECT_EQ(walk->end_frame, 44);
+    EXPECT_FLOAT_EQ(walk->step, 1);
+    EXPECT_EQ(character.GetKeyListPtr(const_cast<char *>("walk_game"), nullptr), walk);
+    // A sound's ratio lands on its action's game frames.
+    ASSERT_NE(character.se_list[0], nullptr);
+    EXPECT_FLOAT_EQ(character.se_list[0][0].frame, 14 + 15);
+    auto *root = character.CObjectFrame::frame;
+    SetMotionTime(root, &character.motion[0], 14 + 7, nullptr);
+    EXPECT_NEAR(root->trans_matrix[3][0], 7, 1e-4f);
+    SetMotionTime(root, &character.motion[0], 2 + 4, nullptr);
+    EXPECT_NEAR(root->trans_matrix[3][0], 4, 1e-4f);
+    // A blend within one action interpolates both of its samples as the game does.
+    ChangeMotion(root, &character.motion[0], 14 + 10, 14 + 20, .5f, nullptr);
+    EXPECT_NEAR(root->trans_matrix[3][0], 15, 1e-4f);
+}
+
+TEST_F(NativeModel, ExternalMotionPlaysActionsPublishedIntoTheCharacterModelAndBlendsAcrossSets) {
+    const Json  base_commands = Json::array({
+        {{"command", "MODEL"},     {"args", {{{"type", "resource"}, {"kind", "model"}, {"index", 0}}}}},
+        {{"command", "MOTION"},    {"args", {IntegerArgument(0), AnimationArgument(0)}}               },
+        {{"command", "KEY_START"}, {"args", Json::array()}                                            },
+        {{"command", "KEY"},       {"args", {TextArgument("idle"), RealArgument(.5f)}}                },
+        {{"command", "KEY"},       {"args", {TextArgument("walk"), RealArgument(1)}}                  },
+        {{"command", "KEY_END"},   {"args", Json::array()}                                            }
+    });
+    CCharacter2 character;
+    character.Initialize();
+    std::string error;
+    ASSERT_TRUE(LoadNamedActionCharacter(character, gltf, NamedActionCharacter(game, base_commands), memory, error)) << error;
+    const Json extension = {
+        {"schema_version",  1                                                                                                                                                                          },
+        {"kind",            "character"                                                                                                                                                                },
+        {"default_profile", "info"                                                                                                                                                                     },
+        {"models",          Json::array()                                                                                                                                                              },
+        {"game_names",      {{"wave", TextArgument("wave_game")}}                                                                                                                                      },
+        {"resources",       {{"animations", Json::array({{{"external", "models/wave.gltf#0"}, {"actions", Json::array({{{"name", "wave"}, {"duration", 30}}})}, {"targets", {"models/model.gltf"}}}})}}},
+        {"profiles",
+         {{"info",
+           {{"commands", Json::array({{{"command", "MOTION"}, {"args", {IntegerArgument(1), AnimationArgument(0)}}},
+                                      {{"command", "KEY_START"}, {"args", Json::array()}},
+                                      {{"command", "KEY"}, {"args", {TextArgument("wave"), RealArgument(1)}}},
+                                      {{"command", "KEY_END"}, {"args", Json::array()}}})}}}}                                                                                                          }
     };
-    const std::string                  text = gltf.dump();
-    model_assets::CharacterLoadOptions options{&memory, &memory, &memory, nullptr, nullptr, 0, false};
-    std::string                        error;
-    ASSERT_TRUE(model_assets::LoadCharacter(character, std::as_bytes(std::span(text.data(), text.size())), game, "info", options, error)) << error;
-    EXPECT_EQ(character.GetFrame(), root);
-    ASSERT_NE(character.motion[1].motion_list, nullptr);
-    SetMotionTime(root, &character.motion[1], 7.5f, nullptr);
-    EXPECT_FLOAT_EQ(root->trans_matrix[3][0], 7.5f);
+    const Json empty = {
+        {"asset", {{"version", "2.0"}}}
+    };
+    ASSERT_TRUE(LoadNamedActionCharacter(character, empty, extension, memory, error)) << error;
+    auto *wave = character.GetKeyListPtr(const_cast<char *>("wave_game"), nullptr);
+    ASSERT_NE(wave, nullptr);
+    // Extension actions continue after every game frame the base set uses.
+    EXPECT_EQ(wave->start_frame, 46);
+    EXPECT_EQ(wave->end_frame, 76);
+    auto *root = character.CObjectFrame::frame;
+    SetMotionTime(root, &character.motion[1], 46 + 20, nullptr);
+    EXPECT_NEAR(root->trans_matrix[3][0], 20, 1e-4f);
+    // The blend source is the action last posed, even from another motion set.
+    SetMotionTime(root, &character.motion[0], 2 + 10, nullptr);
+    EXPECT_NEAR(root->trans_matrix[3][0], 10, 1e-4f);
+    ChangeMotion(root, &character.motion[1], 2 + 10, 46 + 20, .5f, nullptr);
+    EXPECT_NEAR(root->trans_matrix[3][0], 15, 1e-4f);
+    character.DeleteExtMotion();
+    EXPECT_TRUE(character_motion::Actions(character.motion[1]).empty());
+    EXPECT_FALSE(character_motion::Actions(character.motion[0]).empty());
+}
+
+TEST_F(NativeModel, ProfilesNamingUnknownActionsOrMissingExternalActionsFail) {
+    const Json  commands = Json::array({
+        {{"command", "MODEL"},     {"args", {{{"type", "resource"}, {"kind", "model"}, {"index", 0}}}}},
+        {{"command", "MOTION"},    {"args", {IntegerArgument(0), AnimationArgument(0)}}               },
+        {{"command", "KEY_START"}, {"args", Json::array()}                                            },
+        {{"command", "KEY"},       {"args", {TextArgument("run"), RealArgument(1)}}                   },
+        {{"command", "KEY_END"},   {"args", Json::array()}                                            }
+    });
+    CCharacter2 character;
+    character.Initialize();
+    std::string error;
+    EXPECT_FALSE(LoadNamedActionCharacter(character, gltf, NamedActionCharacter(game, commands), memory, error));
+    EXPECT_NE(error.find("KEY names no action"), std::string::npos) << error;
+    auto external = NamedActionCharacter(game, Json::array({
+                                                   {{"command", "MODEL"},  {"args", {{{"type", "resource"}, {"kind", "model"}, {"index", 0}}}}},
+                                                   {{"command", "MOTION"}, {"args", {IntegerArgument(1), AnimationArgument(2)}}               }
+    }));
+    external["resources"]["animations"].push_back({
+        {"external", "models/elsewhere.gltf#0"                          },
+        {"actions",  Json::array({{{"name", "wave"}, {"duration", 30}}})},
+        {"targets",  Json::array()                                      }
+    });
+    CCharacter2 other;
+    other.Initialize();
+    EXPECT_FALSE(LoadNamedActionCharacter(other, gltf, external, memory, error));
+    EXPECT_NE(error.find("lacks the actions of external motion models/elsewhere.gltf#0"), std::string::npos) << error;
 }
 
 TEST_F(NativeModel, BuildsNativeFramesAndStreamsWithoutRetailRecords) {
@@ -334,7 +482,8 @@ TEST_F(NativeModel, SelectsStandardScenesByNameAcrossDifferentBundleOrders) {
         {{"name", "alert"},  {"nodes", {0}}},
         {{"name", "cursor"}, {"nodes", {1}}}
     });
-    auto first = metadata, second = metadata;
+    auto first = metadata;
+    auto second = metadata;
     first["scene"] = 0;
     second["scene"] = 1;
     second["node_offset"] = 1;
@@ -560,21 +709,22 @@ TEST_F(NativeModel, LoadsCharacterProfileResourcesAndGameplayInOrder) {
         {{"command", "MODEL"},     {"args", {resource("model", 0)}}                                                              },
         {{"command", "MOTION"},    {"args", {integer(0), resource("animation", 0), {{"type", "invalid"}}, {{"type", "invalid"}}}}},
         {{"command", "KEY_START"}, {"args", Json::array()}                                                                       },
-        {{"command", "KEY"},       {"args", {text("walk"), integer(0), integer(30), real(1)}}                                    },
+        {{"command", "KEY"},       {"args", {text("walk"), real(1)}}                                                             },
         {{"command", "KEY_END"},   {"args", Json::array()}                                                                       },
         {{"command", "POLY_NUM"},  {"args", {integer(1), integer(0)}}                                                            }
     });
     game = {
-        {"schema_version", 1                                                                                                               },
-        {"kind",           "character"                                                                                                     },
-        {"models",         Json::array({model})                                                                                            },
-        {"profiles",       {{"info", {{"commands", commands}}}}                                                                            },
-        {"resources",      {{"animations", Json::array({{{"name", "walk"}, {"animation", 0}, {"model", 0}, {"channels", Json::array()}}})}}}
+        {"schema_version", 1                                                                                                                                                                                        },
+        {"kind",           "character"                                                                                                                                                                              },
+        {"models",         Json::array({model})                                                                                                                                                                     },
+        {"profiles",       {{"info", {{"commands", commands}}}}                                                                                                                                                     },
+        {"game_names",     {{"walk", text("walk")}}                                                                                                                                                                 },
+        {"resources",      {{"animations", Json::array({{{"actions", Json::array({{{"name", "walk"}, {"duration", 30}}})}, {"variants", Json::array({{{"model", 0}, {"node_offset", 0}, {"animations", {0}}}})}}})}}}
     };
     Write(directory / "port_data/models/model.gltf", gltf);
     CCharacter2 character;
     character.Initialize();
-    model_assets::CharacterLoadOptions options{&memory, &memory, &memory};
+    model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory};
     options.outline = false;
     std::string error;
     ASSERT_TRUE(model_assets::LoadCharacter(character, std::filesystem::path("models/model.gltf"), "info", options, error)) << error;
@@ -587,94 +737,16 @@ TEST_F(NativeModel, LoadsCharacterProfileResourcesAndGameplayInOrder) {
     ASSERT_NE(character.GetKeyListIndexPtr(0, nullptr), nullptr);
     EXPECT_STREQ(character.GetKeyListIndexPtr(0, nullptr)->name, "walk");
     EXPECT_EQ(character.key_num[0], 2);
-    SetMotionTime(character.CObjectFrame::frame, &character.motion[0], 7.5f, nullptr);
+    // The first action's game frames start at two, so the game's ratio arithmetic never meets frame zero.
+    EXPECT_EQ(character.key_list[0][0].start_frame, 2);
+    EXPECT_EQ(character.key_list[0][0].end_frame, 32);
+    SetMotionTime(character.CObjectFrame::frame, &character.motion[0], 9.5f, nullptr);
     EXPECT_NEAR(character.CObjectFrame::frame->trans_matrix[3][0], 7.5f, .0001f);
     EXPECT_EQ(model_assets::Profiles("models/model.gltf", error), std::vector<std::string>{"info"});
     const auto estimate = model_assets::EstimateCharacterMemory("models/model.gltf", "info", error);
     ASSERT_TRUE(estimate.has_value()) << error;
     EXPECT_GE(*estimate, static_cast<std::size_t>(memory.stack_used) * 16);
     EXPECT_LT(*estimate, 16384u);
-}
-
-TEST_F(NativeModel, AnimationOnlyVariantUsesItsOwnNodeOffset) {
-    const auto model = game;
-    gltf["nodes"].push_back({
-        {"name", "clip_root"}
-    });
-    gltf["scenes"].push_back({
-        {"nodes", {1}}
-    });
-    gltf["animations"][0]["channels"][0]["target"]["node"] = 1;
-    game = {
-        {"schema_version", 1                                                                                                                                                                        },
-        {"models",         Json::array({model})                                                                                                                                                     },
-        {"profiles",       Json::object()                                                                                                                                                           },
-        {"resources",      {{"animations", Json::array({{{"animation", 0}, {"channels", Json::array()}, {"variants", Json::array({{{"model", nullptr}, {"animation", 0}, {"node_offset", 1}}})}}})}}}
-    };
-    Write(directory / "port_data/models/model.gltf", gltf);
-    auto *root = Instantiate();
-    ASSERT_NE(root, nullptr);
-    auto motion = Motion();
-    ASSERT_NE(motion.motion_list, nullptr);
-    EXPECT_EQ(motion.motion_list->frame, 0);
-    SetMotionTime(root, &motion, 7.5f, nullptr);
-    EXPECT_FLOAT_EQ(root->trans_matrix[3][0], 7.5f);
-}
-
-TEST_F(NativeModel, StandaloneShiftedAnimationUsesItsOwnOffsetAndGlobalRotationHelpers) {
-    const float                half = std::sqrt(.5f);
-    const std::vector<float>   values{0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 30, 0, 0, 0, 0, 0, 1, 0, 0, half, half};
-    std::vector<unsigned char> bytes(values.size() * sizeof(float));
-    std::memcpy(bytes.data(), values.data(), bytes.size());
-    gltf["buffers"][0]["byteLength"] = bytes.size();
-    gltf["buffers"][0]["uri"] = "data:application/octet-stream;base64," + Base64(bytes);
-    gltf["bufferViews"].push_back({
-        {"buffer",     0                 },
-        {"byteOffset", 17 * sizeof(float)},
-        {"byteLength", 8 * sizeof(float) }
-    });
-    gltf["accessors"].push_back({
-        {"bufferView",    3     },
-        {"componentType", 5126  },
-        {"count",         2     },
-        {"type",          "VEC4"}
-    });
-    gltf["nodes"].push_back({
-        {"name",     "clip_root"},
-        {"children", {2}        }
-    });
-    gltf["nodes"].push_back({
-        {"name", "clip_rotation"}
-    });
-    gltf["scenes"].push_back({
-        {"nodes", {1}}
-    });
-    gltf["animations"][0]["samplers"].push_back({
-        {"input",  1},
-        {"output", 3}
-    });
-    gltf["animations"][0]["channels"][0]["target"]["node"] = 1;
-    gltf["animations"][0]["channels"].push_back({
-        {"sampler", 1                                  },
-        {"target",  {{"node", 2}, {"path", "rotation"}}}
-    });
-    game["animation_node_offsets"] = {
-        {"0", 1}
-    };
-    game["rotation_nodes"] = {
-        {"2", 0}
-    };
-    Write(directory / "port_data/models/model.gltf", gltf);
-    auto *root = Instantiate();
-    ASSERT_NE(root, nullptr);
-    auto motion = Motion();
-    ASSERT_NE(motion.motion_list, nullptr);
-    ASSERT_NE(motion.motion_list->next, nullptr);
-    EXPECT_EQ(motion.motion_list->frame, 0);
-    EXPECT_EQ(motion.motion_list->next->frame, 0);
-    SetMotionTime(root, &motion, 15, nullptr);
-    EXPECT_FLOAT_EQ(root->trans_matrix[3][0], 15);
-    EXPECT_NEAR(root->trans_matrix[0][1], half, 1e-5f);
 }
 
 TEST_F(NativeModel, ExplicitAbsentResourcesPreserveFollowingGameplayCommands) {
@@ -691,7 +763,7 @@ TEST_F(NativeModel, ExplicitAbsentResourcesPreserveFollowingGameplayCommands) {
     };
     CCharacter2 character;
     character.Initialize();
-    model_assets::CharacterLoadOptions options{&memory, &memory, &memory};
+    model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory};
     const auto                         bytes = gltf.dump();
     std::string                        error;
     ASSERT_TRUE(model_assets::LoadCharacter(character, {reinterpret_cast<const std::byte *>(bytes.data()), bytes.size()}, game, "info", options, error)) << error;
@@ -710,7 +782,7 @@ TEST_F(NativeModel, ImageEndSetsTheCharacterBlockWithoutImagesAndSkinEndRetainsI
     };
     CCharacter2 character;
     character.Initialize();
-    model_assets::CharacterLoadOptions options{&memory, &memory, &memory};
+    model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory};
     options.texture_block = 0x68;
     const auto                       bytes = gltf.dump();
     const std::span<const std::byte> data{reinterpret_cast<const std::byte *>(bytes.data()), bytes.size()};
@@ -768,10 +840,15 @@ TEST_F(NativeModel, ConvertsStandardRotationsToNativeMatricesAndMotionRecords) {
         ASSERT_NE(root, nullptr);
         auto motion = Motion();
         ASSERT_NE(motion.motion_list, nullptr);
-        EXPECT_FLOAT_EQ(motion.motion_list->values[0][0], 1);
-        EXPECT_FLOAT_EQ(motion.motion_list->values[0][3], 0);
-        EXPECT_NEAR(motion.motion_list->values[1][0], half, 1e-6f);
-        EXPECT_NEAR(motion.motion_list->values[1][3], -half, 1e-6f);
+        // The channel samples the document's (x, y, z, w) keys; the game arena holds only its record.
+        const auto actions = character_motion::Actions(motion);
+        ASSERT_EQ(actions.size(), 1u);
+        const auto *channel = actions[0].head;
+        ASSERT_NE(channel, nullptr);
+        EXPECT_TRUE(model_assets::IsNativeChannel(*channel));
+        EXPECT_EQ(channel->key_count, 2u);
+        EXPECT_EQ(channel->values, nullptr);
+        EXPECT_EQ(channel->key_frames, nullptr);
         root->SetPosition(5, 7, 11);
         SetMotionTime(root, &motion, 0, nullptr);
         EXPECT_NEAR(root->trans_matrix[0][0], 1, 1e-6f);
@@ -991,6 +1068,74 @@ TEST_F(NativeModel, StandardNonuniformScaleOverridesUseRotationBeforeScaleAndCle
     EXPECT_FLOAT_EQ(local[1][0], -2);
 }
 
+TEST_F(NativeModel, GameModelsKeepAuthoredScaleInTheMatrixSoGameplayScaleUsesTheGameOrder) {
+    const float        half = std::sqrt(.5f);
+    std::vector<float> values{0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 30, 0, 0};
+    auto               accessor = [&](std::initializer_list<float> components, const char *type, std::size_t width) {
+        gltf["bufferViews"].push_back({
+            {"buffer",     0                                },
+            {"byteOffset", values.size() * sizeof(float)    },
+            {"byteLength", components.size() * sizeof(float)}
+        });
+        values.insert(values.end(), components);
+        gltf["accessors"].push_back({
+            {"bufferView",    gltf["bufferViews"].size() - 1},
+            {"componentType", 5126                          },
+            {"count",         components.size() / width     },
+            {"type",          type                          }
+        });
+        return gltf["accessors"].size() - 1;
+    };
+    gltf["asset"]["generator"] = "Kazarov";
+    gltf["nodes"][0]["rotation"] = {0, 0, half, half};
+    gltf["nodes"][0]["scale"] = {2, 3, 4};
+    const auto                 rotation = accessor({0, 0, 0, 1, 0, 0, 0, 1}, "VEC4", 4);
+    const auto                 ones = accessor({1, 1, 1, 1, 1, 1}, "VEC3", 3);
+    std::vector<unsigned char> bytes(values.size() * sizeof(float));
+    std::memcpy(bytes.data(), values.data(), bytes.size());
+    gltf["buffers"][0]["byteLength"] = bytes.size();
+    gltf["buffers"][0]["uri"] = "data:application/octet-stream;base64," + Base64(bytes);
+    gltf["animations"][0]["samplers"].push_back({
+        {"input",  1       },
+        {"output", rotation}
+    });
+    gltf["animations"][0]["samplers"].push_back({
+        {"input",  1   },
+        {"output", ones}
+    });
+    gltf["animations"][0]["channels"].push_back({
+        {"sampler", 1                                  },
+        {"target",  {{"node", 0}, {"path", "rotation"}}}
+    });
+    gltf["animations"][0]["channels"].push_back({
+        {"sampler", 2                               },
+        {"target",  {{"node", 0}, {"path", "scale"}}}
+    });
+    Write(directory / "port_data/models/model.gltf", gltf);
+    auto *root = Instantiate();
+    ASSERT_NE(root, nullptr);
+    EXPECT_FALSE(model_assets::UsesStandardScaleOrder(root));
+    float local[4][4];
+    root->GetLocalMatrix(local);
+    EXPECT_NEAR(local[0][1], 2, 1e-5f);
+    EXPECT_NEAR(local[1][0], -3, 1e-5f);
+    EXPECT_NEAR(local[2][2], 4, 1e-5f);
+    // Gameplay scale multiplies the authored matrix's columns, as the game does.
+    root->SetScale(5, 6, 7);
+    root->GetLocalMatrix(local);
+    EXPECT_NEAR(local[0][1], 2 * 6, 1e-5f);
+    EXPECT_NEAR(local[1][0], -3 * 5, 1e-5f);
+    EXPECT_NEAR(local[2][2], 4 * 7, 1e-5f);
+    // Rotation keys replace the authored matrix, scale included; the unit scale key leaves gameplay scale alone.
+    auto motion = Motion();
+    SetMotionTime(root, &motion, 15, nullptr);
+    root->GetLocalMatrix(local);
+    EXPECT_NEAR(local[0][0], 5, 1e-5f);
+    EXPECT_NEAR(local[1][1], 6, 1e-5f);
+    EXPECT_NEAR(local[2][2], 7, 1e-5f);
+    EXPECT_FLOAT_EQ(root->scale[0], 5);
+}
+
 TEST_F(NativeModel, GeneratedBaseRotationsPreserveRetailNearOppositeSnapWhileOverridesUseStandardSlerp) {
     const std::vector<float>   values{0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0};
     std::vector<unsigned char> bytes(values.size() * sizeof(float));
@@ -1075,24 +1220,17 @@ TEST_F(NativeModel, ModelListsIncludeModelsAddedOnlyByDatapacks) {
         {"kind",           "asset_directory"}
     };
     Write(directory / "port_data/models/pack.json", marker);
-    Json commands = Json::array();
+    Json models = Json::array();
     for (const auto *name : {"model.gltf", "added.gltf"}) {
-        commands.push_back({
-            {"command", "MDS"                                  },
-            {"args",    {{{"type", "string"}, {"value", name}}}}
-        });
-        commands.push_back({
-            {"command", "TYPE"                           },
-            {"args",    {{{"type", "int"}, {"value", 0}}}}
-        });
-        commands.push_back({
-            {"command", "MDS_END"    },
-            {"args",    Json::array()}
+        models.push_back({
+            {"model", name},
+            {"type",  0   }
         });
     }
     Write(directory / "datapacks/test/models/info.cfg.json", {
-                                                                 {"schema_version", 1       },
-                                                                 {"commands",       commands}
+                                                                 {"schema_version", 2           },
+                                                                 {"kind",           "model_list"},
+                                                                 {"models",         models      }
     });
     datapacks::Load(directory / "port_data");
     auto metadata = marker.dump(2);
@@ -1515,8 +1653,8 @@ TEST_F(NativeModel, ShadowCpuSkinRetainsMoreThanThirtyTwoBones) {
     std::string        error;
     char               empty[] = "";
     mgCreateVisualType types[] = {
-        {MG_VISUAL_CREATE_SHADOW_MDT, empty  },
-        {MG_VISUAL_CREATE_END,        nullptr}
+        {.type = MG_VISUAL_CREATE_SHADOW_MDT, .name = empty  },
+        {.type = MG_VISUAL_CREATE_END,        .name = nullptr}
     };
     mgLoadData load{};
     load.memory = &memory;
@@ -1609,8 +1747,8 @@ TEST_F(NativeModel, ReadsAllStandardJointGroupsAndPreservesNativeGpuInfluenceLim
     Write(directory / "port_data/models/model.gltf", gltf);
     char               empty[] = "";
     mgCreateVisualType types[] = {
-        {MG_VISUAL_CREATE_MOTION_MDT, empty  },
-        {MG_VISUAL_CREATE_END,        nullptr}
+        {.type = MG_VISUAL_CREATE_MOTION_MDT, .name = empty  },
+        {.type = MG_VISUAL_CREATE_END,        .name = nullptr}
     };
     mgLoadData load{};
     load.memory = &memory;
@@ -1634,36 +1772,45 @@ TEST(NativeCharacterRetail, LoadsConvertedC01ProfileAndEvaluatesItsNativeMotion)
     if (!fixture) {
         GTEST_SKIP() << "CT_NATIVE_CHARACTER_FIXTURE selects an extracted glTF/game JSON pair";
     }
-    std::filesystem::path path(fixture), sidecar = path;
+    std::filesystem::path path(fixture);
+    std::filesystem::path sidecar = path;
     sidecar.replace_extension(".game.json");
-    std::ifstream gltf_file(path, std::ios::binary), game_file(sidecar, std::ios::binary);
+    std::ifstream gltf_file(path, std::ios::binary);
+    std::ifstream game_file(sidecar, std::ios::binary);
     ASSERT_TRUE(gltf_file && game_file);
     const std::string gltf((std::istreambuf_iterator<char>(gltf_file)), {});
     Json              game;
     game_file >> game;
-    std::vector<u_long128> arena(2 * 1024 * 1024), texture_arena(65536);
-    mgCMemory              memory, textures;
+    std::vector<u_long128> arena(2 * 1024 * 1024);
+    std::vector<u_long128> texture_arena(65536);
+    mgCMemory              memory;
+    mgCMemory              textures;
     memory.stSetBuffer(arena.data(), static_cast<int>(arena.size()));
     textures.stSetBuffer(texture_arena.data(), static_cast<int>(texture_arena.size()));
     mgTexManager.SetTableBuffer(1024, 64, &textures);
     mgTexManager.Initialize(0x1000, -1);
     CCharacter2 character;
     character.Initialize();
-    model_assets::CharacterLoadOptions options{&memory, &memory, &memory};
+    model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory};
     options.outline = false;
     std::string error;
+    // The fixture's directory supplies its buffer file and PNGs.
+    datapacks::Load(path.parent_path());
     ASSERT_TRUE(model_assets::LoadCharacter(character, {reinterpret_cast<const std::byte *>(gltf.data()), gltf.size()}, game, "info", options, error)) << error;
     ASSERT_NE(character.CObjectFrame::frame, nullptr);
     EXPECT_GT(character.CObjectFrame::frame->frame_num, 1);
     ASSERT_NE(character.GetKeyListIndexPtr(0, nullptr), nullptr);
     EXPECT_GT(character.key_num[0], 1);
-    datapacks::Load(path.parent_path());
     const auto estimate = model_assets::EstimateCharacterMemory(path.filename(), "info", error);
     ASSERT_TRUE(estimate.has_value()) << error;
     EXPECT_GE(*estimate, static_cast<std::size_t>(memory.stack_used) * 16);
-    std::fprintf(stderr, "native c01 arena: %zu bytes; allocation estimate: %zu bytes\n", static_cast<std::size_t>(memory.stack_used) * 16, *estimate);
+    std::println(stderr, "native c01 arena: {} bytes; allocation estimate: {} bytes", static_cast<std::size_t>(memory.stack_used) * 16, *estimate);
     ASSERT_NE(character.motion[0].motion_list, nullptr);
-    SetMotionTime(character.CObjectFrame::frame, &character.motion[0], 7.5f, nullptr);
+    // The idle action keeps its original name for the game's own lookups.
+    auto *idle = character.GetKeyListPtr(const_cast<char *>("\x97\xA7\x82\xBF"), nullptr);
+    ASSERT_NE(idle, nullptr);
+    ASSERT_NE(character_motion::At(character.motion[0], idle->start_frame + .5f), nullptr);
+    SetMotionTime(character.CObjectFrame::frame, &character.motion[0], idle->start_frame + .5f, nullptr);
     for (int index = 0; index < character.CObjectFrame::frame->frame_num; ++index) {
         const auto *frame = character.CObjectFrame::frame->GetFrame(index);
         ASSERT_NE(frame, nullptr);

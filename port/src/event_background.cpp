@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -50,7 +51,7 @@ bool CanReadEventFiles() {
     if (EdEventInfo.stream_reading != 1) {
         return true;
     }
-    std::fprintf(stderr, "event: file access requested while a stream is open\n");
+    std::println(stderr, "event: file access requested while a stream is open");
     return false;
 }
 } // namespace

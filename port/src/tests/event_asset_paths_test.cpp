@@ -10,7 +10,6 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <vector>
 
 #include "dataread.hpp"
 #include "dataread_port.hpp"
@@ -85,7 +84,7 @@ protected:
         std::ofstream(path) << document.dump(2);
     }
 
-    std::string GltfFile(const std::filesystem::path &path, std::size_t size) {
+    static std::string GltfFile(const std::filesystem::path &path, std::size_t size) {
         std::filesystem::create_directories(path.parent_path());
         std::string bytes = R"({"asset":{"version":"2.0","generator":"event buffer fixture"}})";
         bytes.resize(size, ' ');
@@ -140,12 +139,11 @@ TEST_F(EventAssetPaths, BackgroundCharacterBatchExceedsSceneScratchWithoutWritin
     // d01b01's e111 event queues these eight models together before constructing its characters.
     const std::array<std::size_t, 8> sizes{403513, 2296979, 1488476, 1136475, 363715, 356350, 16351, 20278};
     std::array<std::string, 8>       names;
-    std::array<std::string, 8>       bytes;
     std::array<RS_STACKDATA, 8>      arguments{};
     std::size_t                      total = 0;
     for (std::size_t index = 0; index < names.size(); ++index) {
         names[index] = "model" + std::to_string(index) + ".gltf";
-        bytes[index] = GltfFile(root / "port_data/event/ui" / names[index], sizes[index]);
+        GltfFile(root / "port_data/event/ui" / names[index], sizes[index]);
         arguments[index].type = RS_STR;
         arguments[index].val.s = names[index].data();
         total += sizes[index];
@@ -160,25 +158,28 @@ TEST_F(EventAssetPaths, BackgroundCharacterBatchExceedsSceneScratchWithoutWritin
     ASSERT_TRUE(_SET_LOADBG_FILE(arguments.data(), static_cast<int>(arguments.size())));
     EXPECT_EQ(std::memcmp(marker.data(), previous.data(), sizeof(marker)), 0);
     EXPECT_EQ(ReadBGSync(), 1);
+    // A glTF is read by name: each buffer is one zeroed sector registered with the file's path.
     for (std::size_t index = 0; index < names.size(); ++index) {
         int         size = 0;
         const auto *buffer = GetLoadBGBuff(names[index].data(), &size);
         ASSERT_NE(buffer, nullptr);
-        EXPECT_EQ(size, static_cast<int>(sizes[index]));
-        EXPECT_EQ(DataReadBufferSize(buffer), sizes[index]);
+        const auto sector = std::min<std::size_t>(sizes[index], 2048);
+        EXPECT_EQ(size, static_cast<int>(sector));
+        EXPECT_EQ(DataReadBufferSize(buffer), sector);
         EXPECT_EQ(DataReadBufferPath(buffer), "event/ui/" + names[index]);
-        EXPECT_EQ(std::memcmp(buffer, bytes[index].data(), sizes[index]), 0);
+        const auto *data = reinterpret_cast<const unsigned char *>(buffer);
+        EXPECT_TRUE(std::all_of(data, data + sector, [](unsigned char byte) { return byte == 0; }));
     }
     while (ReadBGSync()) {
     }
     EXPECT_EQ(std::memcmp(marker.data(), previous.data(), sizeof(marker)), 0);
 }
 
-TEST_F(EventAssetPaths, OversizedGltfReplacementAndUnqueuedFallbackUseOwnedActualBytes) {
-    const auto path = "event/ui/replacement.gltf";
+TEST_F(EventAssetPaths, OversizedGltfReplacementAndUnqueuedFallbackRegisterTheirNamesInOneZeroedSector) {
+    const auto *const path = "event/ui/replacement.gltf";
     GltfFile(root / "port_data" / path, 128);
-    const auto replacement = GltfFile(root / "datapacks/large" / path, 5 * 1024 * 1024 + 13);
-    const auto fallback = GltfFile(root / "port_data/event/ui/fallback.gltf", 6 * 1024 * 1024 + 7);
+    GltfFile(root / "datapacks/large" / path, 5 * 1024 * 1024 + 13);
+    GltfFile(root / "port_data/event/ui/fallback.gltf", 6 * 1024 * 1024 + 7);
     std::ofstream(root / "port_data/event/ui/next.txt", std::ios::binary).write("replacement.gltf", 17);
     std::ofstream(root / "datapacks/datapacks.json") << R"({"schema_version":1,"load_order":["large"]})";
     DataReadIndex(root / "data");
@@ -192,23 +193,25 @@ TEST_F(EventAssetPaths, OversizedGltfReplacementAndUnqueuedFallbackUseOwnedActua
     argument.type = RS_STR;
     argument.val.s = name;
     ASSERT_TRUE(_SET_LOADBG_FILE(&argument, 1));
+    const auto zeroed = [](const void *buffer) {
+        const auto *bytes = reinterpret_cast<const unsigned char *>(buffer);
+        return std::all_of(bytes, bytes + 2048, [](unsigned char byte) { return byte == 0; });
+    };
+    // The model loader reads the glTF itself, through datapack priority, from the registered name.
     int         size = 0;
     const auto *loaded = GetLoadBGBuff(name, &size);
     ASSERT_NE(loaded, nullptr);
-    EXPECT_EQ(size, static_cast<int>(replacement.size()));
-    EXPECT_EQ(DataReadBufferSize(loaded), replacement.size());
-    EXPECT_EQ(std::memcmp(loaded, replacement.data(), replacement.size()), 0);
-    const auto *tail = reinterpret_cast<const unsigned char *>(loaded) + replacement.size();
-    const auto  padding = 2048 - replacement.size() % 2048;
-    EXPECT_TRUE(std::all_of(tail, tail + padding, [](unsigned char byte) { return byte == 0; }));
+    EXPECT_EQ(size, 2048);
+    EXPECT_EQ(DataReadBufferSize(loaded), 2048u);
+    EXPECT_EQ(DataReadBufferPath(loaded), path);
+    EXPECT_TRUE(zeroed(loaded));
     char        unqueued[] = "fallback.gltf";
     const auto *other = GetLoadBGBuff(unqueued, &size);
     ASSERT_NE(other, nullptr);
     EXPECT_NE(other, loaded);
-    EXPECT_EQ(size, static_cast<int>(fallback.size()));
+    EXPECT_EQ(size, 2048);
     EXPECT_EQ(DataReadBufferPath(other), "event/ui/fallback.gltf");
-    EXPECT_EQ(std::memcmp(other, fallback.data(), fallback.size()), 0);
-    EXPECT_EQ(std::memcmp(loaded, replacement.data(), replacement.size()), 0);
+    EXPECT_TRUE(zeroed(other));
     EXPECT_EQ(std::memcmp(marker.data(), previous.data(), sizeof(marker)), 0);
     char instructions[] = "next.txt";
     argument.val.s = reinterpret_cast<char *>(GetLoadBGBuff(instructions, nullptr));
@@ -216,8 +219,8 @@ TEST_F(EventAssetPaths, OversizedGltfReplacementAndUnqueuedFallbackUseOwnedActua
     ASSERT_TRUE(_SET_LOADBG_FILE(&argument, 1));
     loaded = GetLoadBGBuff(name, &size);
     ASSERT_NE(loaded, nullptr);
-    EXPECT_EQ(size, static_cast<int>(replacement.size()));
-    EXPECT_EQ(std::memcmp(loaded, replacement.data(), replacement.size()), 0);
+    EXPECT_EQ(size, 2048);
+    EXPECT_EQ(DataReadBufferPath(loaded), path);
 }
 
 TEST_F(EventAssetPaths, SmallUnqueuedDocumentsRetainZeroedSectorPadding) {

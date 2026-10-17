@@ -1,7 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <array>
-#include <cstdint>
 #include <span>
 #include <vector>
 
@@ -31,7 +29,9 @@ public:
         prim.write = nullptr;
         mgPortSetPrimSink([this](gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices,
                                  const gfx::TextureBinding &, const gfx::DrawState &) {
-            batches.push_back({primitive, {vertices.begin(), vertices.end()}});
+            batches.push_back({
+                .primitive = primitive, .vertices = {vertices.begin(), vertices.end()}
+            });
         });
     }
 
@@ -46,7 +46,7 @@ public:
     Harness(const Harness &) = delete;
     Harness &operator=(const Harness &) = delete;
 
-    void Screen(int width, int height, int offx, int offy) {
+    static void Screen(int width, int height, int offx, int offy) {
         mgScreenWidth = width;
         mgScreenHeight = height;
         mgScreenOffx = offx;

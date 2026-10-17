@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
+#include <print>
 #include <utility>
 
 #include "arena_root.hpp"
@@ -22,8 +23,6 @@
 #include "gamepad.hpp"
 #include "helpmes.hpp"
 #include "inventmn.hpp"
-#include "menuchr_port.hpp"
-#include "quick_loadout.hpp"
 #include "item_icon3d.hpp"
 #include "main.hpp"
 #include "mainloop.hpp"
@@ -46,6 +45,7 @@
 #include "platform/input.hpp"
 #include "platform/paths.hpp"
 #include "play_time.hpp"
+#include "quick_loadout.hpp"
 #include "save_slots.hpp"
 #include "savedata.hpp"
 #include "scene.hpp"
@@ -63,7 +63,7 @@ bool PortAutosave = false;
 
 namespace {
 
-std::optional<std::pair<int, int> > autosaved_floor;
+std::optional<std::pair<int, int>> autosaved_floor;
 std::optional<int>                  autosaved_map;
 
 bool AutosaveEnabled() {
@@ -72,7 +72,7 @@ bool AutosaveEnabled() {
 
 void WriteAutosave(int program_loop_no, AutosaveSpawn *spawn = nullptr) {
     if (!SaveSlotWriteAutosave(program_loop_no, spawn)) {
-        std::fprintf(stderr, "autosave: could not write %s\n", PathsDisplay(SaveSlotAutosavePath()).c_str());
+        std::println(stderr, "autosave: could not write {}", PathsDisplay(SaveSlotAutosavePath()));
     }
 }
 
@@ -148,9 +148,11 @@ extern u_long128 main_buffer[0x1A0000];
 extern CScene    MainScene;
 extern CFont     Font;
 
-static constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
+namespace {
+constexpr int kSubGameQuads = std::max(5000, static_cast<int>((sizeof(CSubGameData) + 15) / 16));
+} // namespace
 
-int PortPlayTimeVSyncCallback(int) {
+int PortPlayTimeVSyncCallback(int /*unused*/) {
     if (PortPlayTimeCountFlag != 0) {
         GetSaveData()->play_time += PlayTimeTick(true);
     }
@@ -166,7 +168,7 @@ PORT_OVERRIDE void InitSaveData() {
 void PortDrawFrameBorder() {
     const auto  edge = mgPortVisibleExtent();
     mgCDrawPrim frame_border;
-    frame_border.Initialize(NULL, NULL);
+    frame_border.Initialize(nullptr, nullptr);
     frame_border.DepthTestEnable(false);
     frame_border.AlphaTestEnable(false);
     frame_border.AlphaBlendEnable(false);
@@ -185,14 +187,14 @@ void PortDrawFrameBorder() {
 PORT_OVERRIDE void MainLoop() {
     static u_long128 *vu_prog[16];
 
-    mgCMemory        *memory;
-    mgCMemory        *read_memory;
-    CUserDataManager *user_data;
-    u_long128        *file_buffer;
-    int               file_size;
-    int               mode_finished;
-    std::uintptr_t    buffer_address;
-    std::uintptr_t    alignment;
+    mgCMemory        *memory = nullptr;
+    mgCMemory        *read_memory = nullptr;
+    CUserDataManager *user_data = nullptr;
+    u_long128        *file_buffer = nullptr;
+    int               file_size = 0;
+    int               mode_finished = 0;
+    std::uintptr_t    buffer_address = 0;
+    std::uintptr_t    alignment = 0;
     u_long128        *main_arena = ArenaRoot(&main_buffer, 0x1A0000, "MainBuffer");
 
     memory = GetMainStack();
@@ -202,10 +204,10 @@ PORT_OVERRIDE void MainLoop() {
     SaveData.Initialize();
     PlayTimeReset();
     PortActiveSaveData = &SaveData;
-    PortSubGameSaveData = NULL;
+    PortSubGameSaveData = nullptr;
     DebugFlag = false;
     GamePad__2.Init();
-    InitFileCache(NULL, 0);
+    InitFileCache(nullptr, 0);
     mgInit(MG_SCREEN_MODE_512X480, 3);
     PortPlayTimeCountFlag = false;
     mgInitVSyncCallBack(PortPlayTimeVSyncCallback);
@@ -254,9 +256,9 @@ PORT_OVERRIDE void MainLoop() {
     LoadGameInfo(&InfoStack);
     InitPauseData();
     InitSaveData();
-    user_data = NULL;
+    user_data = nullptr;
 
-    if (PortActiveSaveData != NULL) {
+    if (PortActiveSaveData != nullptr) {
         user_data = &PortActiveSaveData->user_data;
     }
 
@@ -267,7 +269,7 @@ PORT_OVERRIDE void MainLoop() {
     PortCaptureMode = CAPTURE_OFF;
     sndInitMngr();
     MainScene.InitSnd();
-    SetCurrentDir(NULL);
+    SetCurrentDir(nullptr);
     SystemSeStack.stSetBuffer(ArenaRoot(PortSystemSeBuff, 400, "SystemSeStack"), 400 * kArenaHeadroom);
     SystemSeStack.stack_used = 0;
     SystemSeStack.lock = 0;
@@ -286,16 +288,16 @@ PORT_OVERRIDE void MainLoop() {
     char rev_path[] = "snd2/rev.json";
     char map_index_path[] = "snd2/map_index.json";
 
-    if (LoadFile2(sy_path, file_buffer, NULL, 0)) {
-        SystemSND_ID = sndLoadSound(SND_PORT_SYSTEM, (u_int *) file_buffer, &SystemSeStack);
+    if (LoadFile2(sy_path, file_buffer, nullptr, 0)) {
+        SystemSND_ID = sndLoadSound(SND_PORT_SYSTEM, reinterpret_cast<u_int *>(file_buffer), &SystemSeStack);
     }
 
     if (LoadFile2(rev_path, file_buffer, &file_size, 0)) {
-        MainScene.LoadSndRevInfo((char *) file_buffer, file_size);
+        MainScene.LoadSndRevInfo(reinterpret_cast<char *>(file_buffer), file_size);
     }
 
     if (LoadFile2(map_index_path, file_buffer, &file_size, 0)) {
-        MainScene.LoadSndFileInfo((char *) file_buffer, file_size);
+        MainScene.LoadSndFileInfo(reinterpret_cast<char *>(file_buffer), file_size);
     }
 
     LoadHelpMes(file_buffer);
@@ -307,22 +309,22 @@ PORT_OVERRIDE void MainLoop() {
     Font.SetFuchi(0);
     Font.SetClearance(15, 18);
     CreateGamePadThread(&GamePad__2);
-    LoadGameConfig(NULL);
+    LoadGameConfig(nullptr);
     SetIoErrCallBack(EmergencyMessage);
     if (!GameHasJump()) {
         SCElogoFade(1, memory);
     }
     GamePrepareJump(PortLoopNo, InitArg);
 
-    while (1) {
+    while (true) {
         if (PortLoopNo == LOOP_TITLE || OmakeFlag != 0) {
-            PortSubGameSaveData = (CSubGameData *) main_arena;
+            PortSubGameSaveData = reinterpret_cast<CSubGameData *>(main_arena);
             memory->stSetBuffer(&main_arena[kSubGameQuads], 0x1A0000 * kArenaHeadroom - kSubGameQuads);
             memory->stack_used = 0;
             memory->lock = 0;
         }
 
-        printf("main_data remain = %dkb\n", ((memory->stack_size - memory->stack_used) * 16) / 1024);
+        std::println("main_data remain = {}kb", ((memory->stack_size - memory->stack_used) * 16) / 1024);
 
         if (PortLoopNo < 0 || PortLoopNo >= LOOP_MODE_NUM) {
             break;
@@ -366,8 +368,8 @@ PORT_OVERRIDE void MainLoop() {
             MainScene.InitSnd();
         }
 
-        printf("##### %d\n", mgGetVSyncCount());
-        // Single entry for every mode change: covers the LOOP_MENU->LOOP_TITLE redirect above and the PortNextLoopNo hand-off below.
+        std::println("##### {}", mgGetVSyncCount());
+        // Every mode change passes here, including the LOOP_MENU->LOOP_TITLE redirect above and the PortNextLoopNo hand-off below.
         mgPortCutInterpolation();
         PortCancelQuickChangeBanner();
         PortQuickLoadoutReset();
@@ -380,7 +382,7 @@ PORT_OVERRIDE void MainLoop() {
         NextLoop(LOOP_MENU, next_arg);
 
         bool developer_menu_requested = false;
-        auto request_developer_menu = [&]() {
+        auto request_developer_menu = [&] {
             if (!GameDeveloperMenuRequested(PortLoopNo)) {
                 return false;
             }
@@ -390,7 +392,7 @@ PORT_OVERRIDE void MainLoop() {
             return true;
         };
 
-        while (1) {
+        while (true) {
             request_developer_menu();
             if (developer_menu_requested) {
                 DebugFlag = 1;
@@ -404,9 +406,9 @@ PORT_OVERRIDE void MainLoop() {
                     if (PortLoopNo == LOOP_DUNGEON) {
                         DngStatus.mode = DNG_STATUS_EXIT;
                     }
-                    mgBeginFrame(NULL);
+                    mgBeginFrame(nullptr);
                     LoopMain[PortLoopNo]();
-                    mgEndFrame(NULL);
+                    mgEndFrame(nullptr);
                     GamePad__2.pad[0].button = buttons;
                 }
                 PauseCancel();
@@ -446,7 +448,7 @@ PORT_OVERRIDE void MainLoop() {
                 DebugFlag = !DebugFlag;
             }
 
-            mgBeginFrame(NULL);
+            mgBeginFrame(nullptr);
             mode_finished = LoopMain[PortLoopNo]();
             PortFinishQuickChange();
             sndStep(mgGetNowFrameRate());
@@ -457,7 +459,7 @@ PORT_OVERRIDE void MainLoop() {
             PortStepQuickChangeEffect();
             PortDrawQuickChangeBanner();
             PortDrawFrameBorder();
-            mgEndFrame(NULL);
+            mgEndFrame(nullptr);
 
             if (mode_finished != 0) {
                 PauseCancel();

@@ -7,7 +7,9 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <numbers>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "actionchara.hpp"
@@ -129,10 +131,8 @@ bool ModelPath(int item_no, char *path, std::size_t size) {
     }
     // A weapon or a robo part has a model made for the item view; the rest are the one model.
     char *variant = GetItemFilePath(item_no, 1);
-    char  probe[0x80];
     if (variant != nullptr && variant[0] != 0 && (type == USED_ITEM_TYPE_WEAPON || type == USED_ITEM_TYPE_ROBO_PART)) {
-        std::snprintf(probe, sizeof probe, "%s", variant);
-        std::snprintf(path, size, "%s", probe);
+        std::snprintf(path, size, "%s", variant);
         return true;
     }
     char *plain = GetItemFilePath(item_no, 0);
@@ -166,7 +166,7 @@ void DrawnBox(mgCFrame *node, float lo[3], float hi[3], bool &any) {
             node->GetLWMatrix(matrix);
             // The stored bound is loose for some models (a robo arm's is far larger than the arm), so the model's own vertices
             // are used where it has them; the bound's corners are the fallback.
-            const mgCVisualMDT *mdt = dynamic_cast<const mgCVisualMDT *>(node->visual);
+            const auto         *mdt = dynamic_cast<const mgCVisualMDT *>(node->visual);
             const bool          vertices = mdt != nullptr && mdt->vertex != nullptr && mdt->vertex_num > 0 && !g_box_from_bound;
             const int           count = vertices ? mdt->vertex_num : 8;
             for (int n = 0; n < count; n++) {
@@ -195,7 +195,7 @@ void DrawnBox(mgCFrame *node, float lo[3], float hi[3], bool &any) {
                 any = true;
             }
         }
-        if (!(node->attr != nullptr && (draw & MG_FRAME_DRAW_SKIP_CHILDREN))) {
+        if (node->attr == nullptr || !(draw & MG_FRAME_DRAW_SKIP_CHILDREN)) {
             DrawnBox(node->child, lo, hi, any);
         }
     }
@@ -209,18 +209,17 @@ void DrawnBox(mgCFrame *node, float lo[3], float hi[3], bool &any) {
 bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHandle into = gfx::kNullTexture) {
     char path[0x80];
     if (!ModelPath(item_no, path, sizeof path)) {
-
         return false;
     }
 
-    CDataCommon *item_record = GameItemDataManage.GetCommonData(item_no);
-    const bool   skinned = item_record && IsSkinItem(item_record->type);
+    CDataCommon *record = GameItemDataManage.GetCommonData(item_no);
+    const bool   skinned = IsSkinItem(record->type);
     char         skin_path[0x80] = {};
     if (skinned) {
         std::snprintf(skin_path, sizeof(skin_path), "%s", path);
 
         char       model_name[32] = {};
-        const bool max = item_record->type == ITEM_DATA_MAX_CLOTHES || item_record->type == ITEM_DATA_MAX_SHOES;
+        const bool max = record->type == ITEM_DATA_MAX_CLOTHES || record->type == ITEM_DATA_MAX_SHOES;
         GetMainCharaModelName(max ? USER_CHARA_MAX : USER_CHARA_MONICA, model_name, 0);
         std::snprintf(path, sizeof(path), "mainchr/%s", model_name);
     }
@@ -235,7 +234,6 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
         estimated = model_assets::EstimateCharacterMemory(path, "info", error);
     }
     if (!estimated) {
-
         return false;
     }
     std::size_t bytes = *estimated + sizeof(CActionChara) + 65536;
@@ -294,7 +292,7 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
         // Only the item's own parts of the character are drawn: the jacket or dress, the shoes or boots. The rest of the
         // character (and the stand-in triangles the skin leaves in the other slots) stays hidden.
         const char *keep[3] = {nullptr, nullptr, nullptr};
-        switch (item_record->type) {
+        switch (record->type) {
             case ITEM_DATA_MAX_CLOTHES:
                 keep[0] = "skin1"; // the jacket and arms; the legs and feet are left out so it can be drawn larger
                 keep[1] = "skin2";
@@ -328,14 +326,14 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
         hide(frame);
     }
 
-    CDataCommon *record = GameItemDataManage.GetCommonData(item_no);
-    const int    type = ConvertUsedItemType(record->type);
-    const bool   weapon = type == USED_ITEM_TYPE_WEAPON;
+    const bool weapon = ConvertUsedItemType(record->type) == USED_ITEM_TYPE_WEAPON;
 
     // Turn the model with a chain of frames over it: its own pose (the item's way up, or the axis-aligned turn that
     // shows its broadest face), then the tip towards the viewer, then the roll in the picture; the outermost scales
     // and places it. Each is about the axis it names, which a single set of Euler angles cannot say.
-    static mgCFrame root, roll, elev;
+    static mgCFrame root;
+    static mgCFrame roll;
+    static mgCFrame elev;
     mgCFrame       *chain[3] = {&root, &roll, &elev};
     for (mgCFrame *link : chain) {
         link->child = nullptr;
@@ -354,7 +352,7 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
             parent.child = nullptr;
             child.parent = nullptr;
         }
-    } detach{elev, *frame};
+    } detach{.parent = elev, .child = *frame};
 
     root.SetScale(1.0f, 1.0f, 1.0f);
     root.SetPosition(0.0f, 0.0f, 0.0f);
@@ -364,25 +362,29 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
     float pose[3] = {0.0f, 0.0f, 0.0f};
     if (record->type == ITEM_DATA_MAX_HAT) {
         // A hat is modelled to be worn, so it is tipped back to be seen from the front and a little above, not from above.
-        pose[0] = 3.1416f; // upside down as made: the crown up
+        pose[0] = std::numbers::pi_v<float>; // upside down as made: the crown up
     }
     float tip = (weapon || IsFootwear(record->type)) ? 0.0f : 0.35f;
     float roll_angle = 0.0f;
-    float box_lo[3], box_hi[3];
-    auto  place = [&]() {
+    float box_lo[3];
+    float box_hi[3];
+    auto  place = [&] {
         chara->SetRotation(pose[0], pose[1], pose[2]);
         chara->Step();
         elev.SetRotation(tip, 0.0f, 0.0f);
         roll.SetRotation(0.0f, 0.0f, roll_angle);
     };
-    auto measure = [&]() {
+    auto measure = [&] {
         place();
         bool any = false;
         DrawnBox(frame, box_lo, box_hi, any);
-        if (skinned && !IsFootwear(item_record->type)) {
+        if (skinned && !IsFootwear(record->type)) {
             // An outfit's skin is the whole body's clothes; the icon is the upper torso, from the chest to the neck with the
             // shoulders and upper arms, so the box is taken from the character's own joints.
-            float       neck[3] = {}, spine[3] = {}, right[3] = {}, left[3] = {};
+            float       neck[3] = {};
+            float       spine[3] = {};
+            float       right[3] = {};
+            float       left[3] = {};
             bool        have[4] = {false, false, false, false};
             float      *targets[4] = {neck, spine, right, left};
             const char *joints[4] = {"neck", "spine", "R_sdr", "L_sdr"};
@@ -391,7 +393,9 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
                 if (bone == nullptr) {
                     continue;
                 }
-                float matrix[4][4], origin[4] = {0.0f, 0.0f, 0.0f, 1.0f}, world[4];
+                float matrix[4][4];
+                float origin[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+                float world[4];
                 bone->GetLWMatrix(matrix);
                 sceVu0ApplyMatrix(world, matrix, origin);
                 for (int i = 0; i < 3; i++) {
@@ -400,13 +404,9 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
                 have[j] = true;
             }
             if (have[0] && have[1] && have[2] && have[3]) {
-                const float dx = right[0] - left[0], dy = right[1] - left[1], dz = right[2] - left[2];
-                const float shoulders = std::sqrt(dx * dx + dy * dy + dz * dz);
                 const float rise = std::max(0.001f, std::fabs(neck[1] - spine[1]));
-
                 const float centre_x = (right[0] + left[0]) * 0.5f;
                 // The shoulder joints sit at the neck, so the width comes from the chest's height.
-                (void) shoulders;
                 const float half_w = rise * 1.15f;
                 box_lo[0] = centre_x - half_w;
                 box_hi[0] = centre_x + half_w;
@@ -418,7 +418,7 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
             }
         }
         if (!any) {
-            mgVu0FBOX world;
+            mgVu0FBOX world{};
             frame->GetWorldBBox(&world);
             for (int i = 0; i < 3; i++) {
                 box_lo[i] = world.min[i];
@@ -426,12 +426,14 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
             }
         }
     };
-    auto area = [&]() { return (box_hi[0] - box_lo[0]) * (box_hi[1] - box_lo[1]); };
+    auto area = [&] { return (box_hi[0] - box_lo[0]) * (box_hi[1] - box_lo[1]); };
     measure();
     if (weapon) {
         // The broadest face to the viewer: of the axis-aligned turns, the one whose picture covers the most, the
         // smallest turn when two do alike.
-        float best = -1.0f, best_turn = 1e9f, best_pose[3] = {0, 0, 0};
+        float best = -1.0f;
+        float best_turn = 1e9f;
+        float best_pose[3] = {0, 0, 0};
         for (int i = 0; i < 4; i++) {
             for (int j = 0; j < 4; j++) {
                 for (int k = 0; k < 4; k++) {
@@ -439,7 +441,7 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
                     pose[1] = j * 1.5707964f;
                     pose[2] = k * 1.5707964f;
                     measure();
-                    const float turn = static_cast<float>(i + j + k);
+                    const auto  turn = static_cast<float>(i + j + k);
                     const float a = area();
                     if (a > best * 1.02f || (a > best * 0.98f && turn < best_turn)) {
                         best = std::max(a, best);
@@ -462,7 +464,8 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
         measure();
     } else {
         // Kept upright, turned about the vertical to the broadest view, leaning to a three-quarter turn.
-        float best = -1.0f, best_yaw = 0.0f;
+        float best = -1.0f;
+        float best_yaw = 0.0f;
         for (int step = -6; step <= 6; step++) {
             pose[1] = step * 0.2618f;
             measure();
@@ -484,7 +487,8 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
     // Turned in the picture plane to the angle that takes the least room (a long thin model fits best along the diagonal),
     // so it can be drawn larger. The first of equals is the one turned the least, so upright models stay upright.
     if (!pair && !skinned) {
-        float best_extent = 0.0f, best_roll = 0.0f;
+        float best_extent = 0.0f;
+        float best_roll = 0.0f;
         for (int step = -6; step <= 6; step++) {
             roll_angle = step * 0.2618f;
             measure();
@@ -558,7 +562,7 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
     root.SetScale(scale, scale * y_scale, scale);
     float position[3] = {-mid[0] * scale, -mid[1] * scale * y_scale, -mid[2] * scale};
     root.SetPosition(position[0], position[1], position[2]);
-    if (IsFootwear(item_record->type)) {
+    if (IsFootwear(record->type)) {
         // The pair is seen from the side, one behind the other: a far clip between the two leaves the nearer one alone.
         float       depth[2] = {};
         int         found = 0;
@@ -568,7 +572,9 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
             if (bone == nullptr) {
                 continue;
             }
-            float matrix[4][4], origin[4] = {0.0f, 0.0f, 0.0f, 1.0f}, world[4];
+            float matrix[4][4];
+            float origin[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+            float world[4];
             bone->GetLWMatrix(matrix);
             sceVu0ApplyMatrix(world, matrix, origin);
             depth[j] = world[2];
@@ -631,48 +637,47 @@ bool Render(int item_no, mgCTexture *icon, int icon_size = kIcon, gfx::TextureHa
         const float fill_strength = 36.0f;
         colour[0][0] = colour[0][1] = colour[0][2] = key_strength;
         colour[1][0] = colour[1][1] = colour[1][2] = fill_strength;
-        float ambient[4] = {70.0f, 0.0f, 0.0f, 128.0f};
-        ambient[1] = ambient[2] = ambient[0];
+        float ambient[4] = {70.0f, 70.0f, 70.0f, 128.0f};
         mgSetLight(dir, colour);
         mgSetAmbient(ambient);
     }
     mgDrawDirect(&root);
-    if (skinned && !IsFootwear(item_record->type)) {
+    if (skinned && !IsFootwear(record->type)) {
         // An outfit's skin brings along feet, hair and the like beyond the part that is the icon: only the box of the jacket
         // or dress is kept, the rest of the picture wiped.
         const float            centre = static_cast<float>(kScratch) * 0.5f;
         const float            half_x = (box_hi[0] - box_lo[0]) * 0.5f * scale * pixels_per_unit + 6.0f;
         const float            half_y = (box_hi[1] - box_lo[1]) * 0.5f * scale * pixels_per_unit + 6.0f;
-        const float            full = static_cast<float>(kScratch);
-        const uint8_t         *colour = none;
+        const auto             full = static_cast<float>(kScratch);
         const gfx::LogicalRect bands[4] = {
-            {0.0f,            0.0f,            full,          std::max(0.0f,           centre - half_y)       },
-            {0.0f,            centre + half_y, full,          std::max(0.0f,           full - centre - half_y)},
-            {0.0f,            0.0f,            std::max(0.0f, centre - half_x),        full                   },
-            {centre + half_x, 0.0f,            std::max(0.0f, full - centre - half_x), full                   }
+            {.x = 0.0f,            .y = 0.0f,            .w = full,          .h = std::max(0.0f,      centre - half_y)       },
+            {.x = 0.0f,            .y = centre + half_y, .w = full,          .h = std::max(0.0f,      full - centre - half_y)},
+            {.x = 0.0f,            .y = 0.0f,            .w = std::max(0.0f, centre - half_x),        .h = full              },
+            {.x = centre + half_x, .y = 0.0f,            .w = std::max(0.0f, full - centre - half_x), .h = full              }
         };
         for (const auto &band : bands) {
             if (band.w > 0.0f && band.h > 0.0f) {
-                gfx::Clear(true, colour, false, 0.0f, &band);
+                gfx::Clear(true, none, false, 0.0f, &band);
             }
         }
     }
     if (pair) {
         // What the arm on the right left over at the crop's edge is wiped, from the plane between them.
         const float            split = static_cast<float>(kScratch) * 0.5f + (box_hi[0] - mid[0]) * scale * pixels_per_unit;
-        const gfx::LogicalRect right = {split, 0.0f, static_cast<float>(kScratch) - split, static_cast<float>(kScratch)};
+        const gfx::LogicalRect right = {.x = split, .y = 0.0f, .w = static_cast<float>(kScratch) - split, .h = static_cast<float>(kScratch)};
         gfx::Clear(true, none, false, 0.0f, &right);
     }
 
     // The picture down to the icon in exact halves: kCrop -> kCrop/2 -> the icon.
+    const gfx::Rect    crop{.x = kScratch / 2 - kCrop / 2, .y = kScratch / 2 - kCrop / 2, .w = kCrop, .h = kCrop};
     gfx::TextureHandle half = icon_size == kIcon ? gfx::NamedRenderTarget("dc2 item icon 3d half", kCrop / 2, kCrop / 2, true) : gfx::kNullTexture;
     if (icon_size != kIcon) {
-        gfx::BlitTexture(scratch, {kScratch / 2 - kCrop / 2, kScratch / 2 - kCrop / 2, kCrop, kCrop}, target, {0, 0, icon_size, icon_size}, gfx::Filter::Linear);
+        gfx::BlitTexture(scratch, crop, target, {.x = 0, .y = 0, .w = icon_size, .h = icon_size}, gfx::Filter::Linear);
     } else if (half != gfx::kNullTexture) {
-        gfx::BlitTexture(scratch, {kScratch / 2 - kCrop / 2, kScratch / 2 - kCrop / 2, kCrop, kCrop}, half, {0, 0, kCrop / 2, kCrop / 2}, gfx::Filter::Linear);
-        gfx::BlitTexture(half, {0, 0, kCrop / 2, kCrop / 2}, target, {0, 0, kIcon, kIcon}, gfx::Filter::Linear);
+        gfx::BlitTexture(scratch, crop, half, {.x = 0, .y = 0, .w = kCrop / 2, .h = kCrop / 2}, gfx::Filter::Linear);
+        gfx::BlitTexture(half, {.x = 0, .y = 0, .w = kCrop / 2, .h = kCrop / 2}, target, {.x = 0, .y = 0, .w = kIcon, .h = kIcon}, gfx::Filter::Linear);
     } else {
-        gfx::BlitTexture(scratch, {kScratch / 2 - kCrop / 2, kScratch / 2 - kCrop / 2, kCrop, kCrop}, target, {0, 0, kIcon, kIcon}, gfx::Filter::Linear);
+        gfx::BlitTexture(scratch, crop, target, {.x = 0, .y = 0, .w = kIcon, .h = kIcon}, gfx::Filter::Linear);
     }
     mgSetPkFrameBuffer(-1, -1, -1, -1);
 
@@ -694,10 +699,10 @@ mgCTexture *ItemIcon3DTexture(int item_no) {
     if (g_icon_frame != frame) {
         g_icon_frame = frame;
         while (g_icons.size() >= kCachedIcons) {
-            const auto oldest = std::min_element(g_icons.begin(), g_icons.end(), [](const auto &a, const auto &b) {
+            const auto oldest = std::ranges::min_element(g_icons, [](const auto &a, const auto &b) {
                 return a.second.used < b.second.used;
             });
-            if (oldest->second.used == static_cast<unsigned long long>(frame)) {
+            if (std::cmp_equal(oldest->second.used, frame)) {
                 break;
             }
             if (oldest->second.texture) {

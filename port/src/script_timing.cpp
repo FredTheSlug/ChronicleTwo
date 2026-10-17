@@ -6,7 +6,9 @@
 #include <cstring>
 #include <map>
 #include <optional>
+#include <print>
 #include <set>
+#include <utility>
 #include <vector>
 
 // The compiled script format is ps2/include/runscript.hpp's: an RS_PROG_HEADER, funcdata blocks of 0x38
@@ -66,7 +68,7 @@ std::int32_t Read32(const unsigned char *bytes, std::size_t offset) {
 }
 
 void Write32(unsigned char *bytes, std::size_t offset, std::int32_t value) {
-    std::uint32_t bits = static_cast<std::uint32_t>(value);
+    auto bits = static_cast<std::uint32_t>(value);
     for (int i = 0; i < 4; ++i) {
         bytes[offset + i] = static_cast<unsigned char>(bits >> (8 * i));
     }
@@ -106,31 +108,31 @@ struct Item {
 };
 
 constexpr Item Op(int op) {
-    return {op, 0, 0, kExact};
+    return {.op = op, .a1 = 0, .a2 = 0, .flags = kExact};
 }
 
 constexpr Item PushInt(int value) {
-    return {kOpPush, kConstInt, value, kExact};
+    return {.op = kOpPush, .a1 = kConstInt, .a2 = value, .flags = kExact};
 }
 
 constexpr Item PushFloat(float value) {
-    return {kOpPush, kConstFloat, Bits(value), kExact};
+    return {.op = kOpPush, .a1 = kConstFloat, .a2 = Bits(value), .flags = kExact};
 }
 
 constexpr Item PushFloatBits(std::int32_t bits) {
-    return {kOpPush, kConstFloat, bits, kExact};
+    return {.op = kOpPush, .a1 = kConstFloat, .a2 = bits, .flags = kExact};
 }
 
 constexpr Item LocalLoad() {
-    return {kOpLoad, 0, kAddrLocal, kAnyArg1};
+    return {.op = kOpLoad, .a1 = 0, .a2 = kAddrLocal, .flags = kAnyArg1};
 }
 
 constexpr Item LocalAddr() {
-    return {kOpLoadAddr, 0, kAddrLocal, kAnyArg1};
+    return {.op = kOpLoadAddr, .a1 = 0, .a2 = kAddrLocal, .flags = kAnyArg1};
 }
 
 constexpr Item Compare(int how) {
-    return {kOpCmp, how, 0, kExact};
+    return {.op = kOpCmp, .a1 = how, .a2 = 0, .flags = kExact};
 }
 
 bool Matches(const Item &item, const Insn &insn) {
@@ -147,17 +149,17 @@ struct Pattern {
 
 const std::vector<Pattern> &Patterns() {
     static const std::vector<Pattern> patterns = {
-        {kEventAssign,       {LocalAddr(), LocalLoad(), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Op(kOpStore), Op(kOpPop)},           2, 4},
-        {kEventCue,          {LocalAddr(), LocalLoad(), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Op(kOpStore), Op(kOpPop)},           0, 8},
-        {kEventInline,       {PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv)},                                                               0, 4},
-        {kEventInlineFloat,  {PushFloat(50.0f), Op(kOpMul), PushFloat(60.0f), Op(kOpDiv)},                                                     0, 4},
-        {kEventInverse,      {PushInt(60), Op(kOpDiv), PushInt(50), Op(kOpMul)},                                                               0, 4},
-        {kEventInverseFloat, {PushFloat(60.0f), Op(kOpDiv), PushFloat(50.0f), Op(kOpMul)},                                                     0, 4},
-        {kMonsterConvert,
-         {{kOpLoad, 0, kAddrLocal, kExact}, Op(kOpItof), PushFloat(30.0f), Op(kOpDiv), PushFloat(25.0f), Op(kOpMul), Op(kOpFtoi), Op(kOpRet)},
-         1,
-         5                                                                                                                                         },
-        {kInteger3025,       {PushInt(30), Op(kOpDiv), PushInt(25), Op(kOpMul)},                                                               0, 4},
+        {.recipe = kEventAssign,       .items = {LocalAddr(), LocalLoad(), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Op(kOpStore), Op(kOpPop)},                            .first_nop = 2, .nops = 4},
+        {.recipe = kEventCue,          .items = {LocalAddr(), LocalLoad(), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Op(kOpStore), Op(kOpPop)},                            .first_nop = 0, .nops = 8},
+        {.recipe = kEventInline,       .items = {PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv)},                                                                                .first_nop = 0, .nops = 4},
+        {.recipe = kEventInlineFloat,  .items = {PushFloat(50.0f), Op(kOpMul), PushFloat(60.0f), Op(kOpDiv)},                                                                      .first_nop = 0, .nops = 4},
+        {.recipe = kEventInverse,      .items = {PushInt(60), Op(kOpDiv), PushInt(50), Op(kOpMul)},                                                                                .first_nop = 0, .nops = 4},
+        {.recipe = kEventInverseFloat, .items = {PushFloat(60.0f), Op(kOpDiv), PushFloat(50.0f), Op(kOpMul)},                                                                      .first_nop = 0, .nops = 4},
+        {.recipe = kMonsterConvert,
+         .items = {{.op = kOpLoad, .a1 = 0, .a2 = kAddrLocal, .flags = kExact}, Op(kOpItof), PushFloat(30.0f), Op(kOpDiv), PushFloat(25.0f), Op(kOpMul), Op(kOpFtoi), Op(kOpRet)},
+         .first_nop = 1,
+         .nops = 5                                                                                                                                                                                          },
+        {.recipe = kInteger3025,       .items = {PushInt(30), Op(kOpDiv), PushInt(25), Op(kOpMul)},                                                                                .first_nop = 0, .nops = 4},
     };
     return patterns;
 }
@@ -184,59 +186,59 @@ const std::vector<Anchor> &Anchors() {
     static const std::vector<Anchor> anchors = {
         // d03 jump: PAL speeds up the jump by 6/5 (horizontal 16.0f * 1.2f, fewer steps) and retunes its
         // vertical start; the loop and the per-step move are kEventInline sites.
-        {"d03-jump-speed",        "map/d/d03/d03",             true,  -1,      false, {PushFloat(16.0f), PushFloat(1.2f), Op(kOpMul)},                            {{1, true, 0}, {2, true, 0}}},
-        {"d03-jump-rise",
-         "map/d/d03/d03",
-         true,
-         -1,
-         false,
-         {{kOpLoadAddr, 0, kAddrLocalIndexFloat, kAnyArg1}, PushFloat(6.2f), Op(kOpNeg), Op(kOpStore)},
-         {{1, false, Bits(6.0f)}}                                                                                                                                                             },
+        {.id = "d03-jump-speed",        .path = "map/d/d03/d03",             .language = true,  .offset = -1,      .window = false, .items = {PushFloat(16.0f), PushFloat(1.2f), Op(kOpMul)},                                                       .writes = {{.pos = 1, .nop = true, .ntsc_a2 = 0}, {.pos = 2, .nop = true, .ntsc_a2 = 0}}},
+        {.id = "d03-jump-rise",
+         .path = "map/d/d03/d03",
+         .language = true,
+         .offset = -1,
+         .window = false,
+         .items = {{.op = kOpLoadAddr, .a1 = 0, .a2 = kAddrLocalIndexFloat, .flags = kAnyArg1}, PushFloat(6.2f), Op(kOpNeg), Op(kOpStore)},
+         .writes = {{.pos = 1, .nop = false, .ntsc_a2 = Bits(6.0f)}}                                                                                                                                                                                                                                                                        },
         // s03: a turn of pi/20 per field, sped up by 6/5 over a loop shortened from 40 to 33.
-        {"s03-turn-step",
-         "map/s/s03/s03",
-         true,
-         -1,
-         false,
-         {PushFloatBits(0x40490fdb), PushFloat(20.0f), Op(kOpDiv), PushFloat(1.2f), Op(kOpMul)},
-         {{3, true, 0}, {4, true, 0}}                                                                                                                                                         },
-        {"s03-turn-loop",         "map/s/s03/s03",             true,  -1,      false, {LocalLoad(), PushInt(33), Compare(kCmpLt), {kOpJmpFalse, 0, 0, kAnyArg1}}, {{1, false, 40}}            },
+        {.id = "s03-turn-step",
+         .path = "map/s/s03/s03",
+         .language = true,
+         .offset = -1,
+         .window = false,
+         .items = {PushFloatBits(0x40490fdb), PushFloat(20.0f), Op(kOpDiv), PushFloat(1.2f), Op(kOpMul)},
+         .writes = {{.pos = 3, .nop = true, .ntsc_a2 = 0}, {.pos = 4, .nop = true, .ntsc_a2 = 0}}                                                                                                                                                                                                                                           },
+        {.id = "s03-turn-loop",         .path = "map/s/s03/s03",             .language = true,  .offset = -1,      .window = false, .items = {LocalLoad(), PushInt(33), Compare(kCmpLt), {.op = kOpJmpFalse, .a1 = 0, .a2 = 0, .flags = kAnyArg1}}, .writes = {{.pos = 1, .nop = false, .ntsc_a2 = 40}}                                     },
         // m06b: an object's motion delay and the wait after it, written as PAL literals.
-        {"m06b-motion-delay",
-         "map/m/m06/m06b",
-         true,
-         -1,
-         false,
-         {PushFloat(0.08f), {kOpExt, 3, 0, kExact}, PushInt(464), PushInt(4), PushInt(34), {kOpExt, 3, 0, kExact}},
-         {{4, false, 30}}                                                                                                                                                                     },
-        {"m06b-wait",             "map/m/m06/m06b",            true,  -1,      false, {LocalLoad(), PushInt(25), Compare(kCmpLt), {kOpJmpFalse, 0, 0, kAnyArg1}}, {{1, false, 30}}            },
+        {.id = "m06b-motion-delay",
+         .path = "map/m/m06/m06b",
+         .language = true,
+         .offset = -1,
+         .window = false,
+         .items = {PushFloat(0.08f), {.op = kOpExt, .a1 = 3, .a2 = 0, .flags = kExact}, PushInt(464), PushInt(4), PushInt(34), {.op = kOpExt, .a1 = 3, .a2 = 0, .flags = kExact}},
+         .writes = {{.pos = 4, .nop = false, .ntsc_a2 = 30}}                                                                                                                                                                                                                                                                                },
+        {.id = "m06b-wait",             .path = "map/m/m06/m06b",            .language = true,  .offset = -1,      .window = false, .items = {LocalLoad(), PushInt(25), Compare(kCmpLt), {.op = kOpJmpFalse, .a1 = 0, .a2 = 0, .flags = kAnyArg1}}, .writes = {{.pos = 1, .nop = false, .ntsc_a2 = 30}}                                     },
         // i01h01b backpack scene: NTSC loops 42 times over wait(1), two resumes each, with the sound cue at
         // step 12; PAL loops over a bare wait. With the factors gone the loop counts resumes: 84, cue at 24.
-        {"i01h01b-backpack-loop",
-         "map/i/i01/h01/i01h01b",
-         true,
-         -1,
-         false,
-         {LocalLoad(), PushInt(42), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Compare(kCmpLt)},
-         {{1, false, 84}}                                                                                                                                                                     },
-        {"i01h01b-backpack-cue",
-         "map/i/i01/h01/i01h01b",
-         true,
-         -1,
-         false,
-         {LocalLoad(), PushInt(25), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Compare(kCmpEq)},
-         {{1, false, 24}}                                                                                                                                                                     },
+        {.id = "i01h01b-backpack-loop",
+         .path = "map/i/i01/h01/i01h01b",
+         .language = true,
+         .offset = -1,
+         .window = false,
+         .items = {LocalLoad(), PushInt(42), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Compare(kCmpLt)},
+         .writes = {{.pos = 1, .nop = false, .ntsc_a2 = 84}}                                                                                                                                                                                                                                                                                },
+        {.id = "i01h01b-backpack-cue",
+         .path = "map/i/i01/h01/i01h01b",
+         .language = true,
+         .offset = -1,
+         .window = false,
+         .items = {LocalLoad(), PushInt(25), PushInt(50), Op(kOpMul), PushInt(60), Op(kOpDiv), Compare(kCmpEq)},
+         .writes = {{.pos = 1, .nop = false, .ntsc_a2 = 24}}                                                                                                                                                                                                                                                                                },
         // e221a: one turn passes conv(15) where NTSC passed 12.
-        {"e221a-turn",            "dungeon/monster/e221a.stb", false, 0x12cd8, false, {PushInt(15), {kOpCall, 0, 0, kAnyArg1 | kAnyArg2}},                        {{0, false, 12}}            },
+        {.id = "e221a-turn",            .path = "dungeon/monster/e221a.stb", .language = false, .offset = 0x12cd8, .window = false, .items = {PushInt(15), {.op = kOpCall, .a1 = 0, .a2 = 0, .flags = kAnyArg1 | kAnyArg2}},                        .writes = {{.pos = 0, .nop = false, .ntsc_a2 = 12}}                                     },
         // Max (c01) and Monica (c02) motion-ratio windows.
-        {"c01-trail-start",       "mainchr/c01.stb",           false, 0x11a0,  true,  {PushFloat(0.26f), {kOpPush, kConstFloat, 0, kAnyArg2}},                    {{0, false, Bits(0.27f)}}   },
-        {"c01-trail-end",         "mainchr/c01.stb",           false, 0x11ac,  true,  {PushFloat(0.3f), {kOpPush, 3, 0, kAnyArg2}},                               {{0, false, Bits(0.29f)}}   },
-        {"c01-catch-start",       "mainchr/c01.stb",           false, 0x87c0,  true,  {PushFloat(0.12f), Compare(kCmpGe)},                                        {{0, false, Bits(0.14f)}}   },
-        {"c01-catch-end",         "mainchr/c01.stb",           false, 0x87f0,  true,  {PushFloat(0.24f), Compare(kCmpLt)},                                        {{0, false, Bits(0.233f)}}  },
-        {"c01-catch2-start",      "mainchr/c01.stb",           false, 0x932c,  true,  {PushFloat(0.12f), Compare(kCmpGe)},                                        {{0, false, Bits(0.14f)}}   },
-        {"c01-catch2-end",        "mainchr/c01.stb",           false, 0x935c,  true,  {PushFloat(0.24f), Compare(kCmpLt)},                                        {{0, false, Bits(0.233f)}}  },
-        {"c02-shot-end",          "mainchr/c02.stb",           false, 0xb308,  true,  {PushFloat(0.48f), Compare(kCmpLe)},                                        {{0, false, Bits(0.45f)}}   },
-        {"c02-shot2-end",         "mainchr/c02.stb",           false, 0xb3bc,  true,  {PushFloat(0.45f), Compare(kCmpLe)},                                        {{0, false, Bits(0.42f)}}   },
+        {.id = "c01-trail-start",       .path = "mainchr/c01.stb",           .language = false, .offset = 0x11a0,  .window = true,  .items = {PushFloat(0.26f), {.op = kOpPush, .a1 = kConstFloat, .a2 = 0, .flags = kAnyArg2}},                    .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.27f)}}                            },
+        {.id = "c01-trail-end",         .path = "mainchr/c01.stb",           .language = false, .offset = 0x11ac,  .window = true,  .items = {PushFloat(0.3f), {.op = kOpPush, .a1 = 3, .a2 = 0, .flags = kAnyArg2}},                               .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.29f)}}                            },
+        {.id = "c01-catch-start",       .path = "mainchr/c01.stb",           .language = false, .offset = 0x87c0,  .window = true,  .items = {PushFloat(0.12f), Compare(kCmpGe)},                                                                   .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.14f)}}                            },
+        {.id = "c01-catch-end",         .path = "mainchr/c01.stb",           .language = false, .offset = 0x87f0,  .window = true,  .items = {PushFloat(0.24f), Compare(kCmpLt)},                                                                   .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.233f)}}                           },
+        {.id = "c01-catch2-start",      .path = "mainchr/c01.stb",           .language = false, .offset = 0x932c,  .window = true,  .items = {PushFloat(0.12f), Compare(kCmpGe)},                                                                   .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.14f)}}                            },
+        {.id = "c01-catch2-end",        .path = "mainchr/c01.stb",           .language = false, .offset = 0x935c,  .window = true,  .items = {PushFloat(0.24f), Compare(kCmpLt)},                                                                   .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.233f)}}                           },
+        {.id = "c02-shot-end",          .path = "mainchr/c02.stb",           .language = false, .offset = 0xb308,  .window = true,  .items = {PushFloat(0.48f), Compare(kCmpLe)},                                                                   .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.45f)}}                            },
+        {.id = "c02-shot2-end",         .path = "mainchr/c02.stb",           .language = false, .offset = 0xb3bc,  .window = true,  .items = {PushFloat(0.45f), Compare(kCmpLe)},                                                                   .writes = {{.pos = 0, .nop = false, .ntsc_a2 = Bits(0.42f)}}                            },
     };
     return anchors;
 }
@@ -255,7 +257,7 @@ bool AnchorApplies(const Anchor &anchor, std::string_view key) {
 constexpr int kMarkAnchorBase = 32;
 
 Insn Marker(int kind, int pos, std::int32_t value) {
-    return {0, kOpNop, kTag, (kind << 24) | (pos << 16) | (value & 0xFFFF)};
+    return {.offset = 0, .op = kOpNop, .a1 = kTag, .a2 = (kind << 24) | (pos << 16) | (value & 0xFFFF)};
 }
 
 // The PAL instruction a marker replaced, or nullopt for an op-22 that is not a recipe marker.
@@ -269,12 +271,12 @@ std::optional<Insn> Unmark(const Insn &insn, bool &bad) {
     const Item        *item = nullptr;
     if (kind < kRecipeCount) {
         const Pattern &pattern = Patterns()[kind];
-        if (pos < static_cast<int>(pattern.items.size())) {
+        if (std::cmp_less(pos, pattern.items.size())) {
             item = &pattern.items[pos];
         }
     } else if (kind >= kMarkAnchorBase && kind - kMarkAnchorBase < static_cast<int>(Anchors().size())) {
         const Anchor &anchor = Anchors()[kind - kMarkAnchorBase];
-        if (pos < static_cast<int>(anchor.items.size())) {
+        if (std::cmp_less(pos, anchor.items.size())) {
             item = &anchor.items[pos];
         }
     }
@@ -282,7 +284,7 @@ std::optional<Insn> Unmark(const Insn &insn, bool &bad) {
         bad = true;
         return std::nullopt;
     }
-    return Insn{insn.offset, item->op, (item->flags & kAnyArg1) ? value : item->a1, item->a2};
+    return Insn{.offset = insn.offset, .op = item->op, .a1 = (item->flags & kAnyArg1) ? value : item->a1, .a2 = item->a2};
 }
 
 // ---------------------------------------------------------------- decoding
@@ -313,11 +315,11 @@ public:
         const std::int32_t code = Read32(bytes_, 8);
         const std::int32_t prog = Read32(bytes_, 12);
         const std::int32_t prog_num = Read32(bytes_, 16);
-        if (code < static_cast<std::int32_t>(kHeaderSize) || static_cast<std::size_t>(code) >= size_ || code % 4 != 0) {
+        if (std::cmp_less(code, kHeaderSize) || std::cmp_greater_equal(code, size_) || code % 4 != 0) {
             error = "code offset out of range";
             return false;
         }
-        if (prog_num < 0 || prog_num > kMaxPrograms || prog < static_cast<std::int32_t>(kHeaderSize) ||
+        if (prog_num < 0 || prog_num > kMaxPrograms || std::cmp_less(prog, kHeaderSize) ||
             static_cast<std::size_t>(prog) + static_cast<std::size_t>(prog_num) * 8 > size_) {
             error = "program table out of range";
             return false;
@@ -330,7 +332,7 @@ public:
         }
         for (std::size_t next = 0; next < todo.size(); ++next) {
             const std::int64_t block = todo[next];
-            if (seen_.count(block)) {
+            if (seen_.contains(block)) {
                 continue;
             }
             seen_.insert(block);
@@ -351,7 +353,7 @@ public:
             if (static_cast<std::uint32_t>(Read32(bytes_, at)) != at - code_ + kBlockSize) {
                 continue;
             }
-            if (covered_[at] || seen_.count(static_cast<std::int64_t>(at))) {
+            if (covered_[at] || seen_.contains(static_cast<std::int64_t>(at))) {
                 continue;
             }
             const std::int32_t local = Read32(bytes_, at + 8);
@@ -374,12 +376,12 @@ public:
 
 private:
     bool DecodeAt(std::int64_t block, Function &function, std::string &error) {
-        if (block < static_cast<std::int64_t>(kHeaderSize) || block % 4 != 0 || static_cast<std::size_t>(block) + 16 > size_) {
+        if (std::cmp_less(block, kHeaderSize) || block % 4 != 0 || static_cast<std::size_t>(block) + 16 > size_) {
             error = "function block out of range";
             return false;
         }
-        const std::size_t   at = static_cast<std::size_t>(block);
-        const std::uint32_t addr = static_cast<std::uint32_t>(Read32(bytes_, at));
+        const auto at = static_cast<std::size_t>(block);
+        const auto addr = static_cast<std::uint32_t>(Read32(bytes_, at));
         function.block = at;
         function.local = Read32(bytes_, at + 8);
         function.arg = Read32(bytes_, at + 12);
@@ -398,7 +400,7 @@ private:
                 error = "function runs past the end";
                 return false;
             }
-            Insn insn{offset, Read32(bytes_, offset), Read32(bytes_, offset + 4), Read32(bytes_, offset + 8)};
+            Insn insn{.offset = offset, .op = Read32(bytes_, offset), .a1 = Read32(bytes_, offset + 4), .a2 = Read32(bytes_, offset + 8)};
             if (!ValidOp(insn.op)) {
                 error = "invalid opcode";
                 return false;
@@ -443,34 +445,34 @@ private:
 
 // ---------------------------------------------------------------- families
 
-enum Family {
-    kFamilyNone,
-    kFamilyEvent,
-    kFamilyMonster,
-    kFamilyEffect
+enum class Family {
+    None,
+    Event,
+    Monster,
+    Effect
 };
 
 Family FamilyOf(std::string_view key) {
     if (key.starts_with("map/") || key.starts_with("event/")) {
-        return kFamilyEvent;
+        return Family::Event;
     }
     if (key.starts_with("dungeon/monster/")) {
-        return kFamilyMonster;
+        return Family::Monster;
     }
     if (key.starts_with("dungeon/eff_script/")) {
-        return kFamilyEffect;
+        return Family::Effect;
     }
-    return kFamilyNone;
+    return Family::None;
 }
 
 bool Allowed(Recipe recipe, Family family) {
     switch (recipe) {
         case kMonsterConvert:
-            return family == kFamilyMonster;
+            return family == Family::Monster;
         case kInteger3025:
-            return family == kFamilyMonster || family == kFamilyEffect;
+            return family == Family::Monster || family == Family::Effect;
         default:
-            return family == kFamilyEvent;
+            return family == Family::Event;
     }
 }
 
@@ -516,7 +518,7 @@ struct Plan {
 
 bool AddWrite(Plan &plan, std::size_t offset, const Insn &insn) {
     auto [it, inserted] = plan.target.emplace(offset, insn);
-    if (!inserted && !(it->second == insn)) {
+    if (!inserted && it->second != insn) {
         plan.error = "two recipes write the same instruction";
         return false;
     }
@@ -572,7 +574,7 @@ bool BuildPlan(std::string_view key, const Program &program, const std::vector<s
                 const Insn &insn = code[at + k];
                 bool        ok = Matches(item, insn);
                 for (const AnchorWrite &write : anchor.writes) {
-                    if (converted && static_cast<std::size_t>(write.pos) == k && !write.nop) {
+                    if (converted && std::cmp_equal(write.pos, k) && !write.nop) {
                         ok = item.op == insn.op && item.a1 == insn.a1 && insn.a2 == write.ntsc_a2;
                     }
                 }
@@ -588,7 +590,7 @@ bool BuildPlan(std::string_view key, const Program &program, const std::vector<s
             for (std::size_t f = 0; f < program.functions.size(); ++f) {
                 const std::vector<Insn> &code = canonical[f];
                 for (std::size_t at = 0; at < code.size(); ++at) {
-                    if (anchor.offset >= 0 && code[at].offset != static_cast<std::size_t>(anchor.offset)) {
+                    if (anchor.offset >= 0 && std::cmp_not_equal(code[at].offset, anchor.offset)) {
                         continue;
                     }
                     if (matches(code, at, converted) && hit_offsets.insert(code[at].offset).second) {
@@ -611,7 +613,7 @@ bool BuildPlan(std::string_view key, const Program &program, const std::vector<s
         for (const AnchorWrite &write : anchor.writes) {
             const Insn &original = code[hits[0].second + static_cast<std::size_t>(write.pos)];
             Insn        target = write.nop ? Marker(kMarkAnchorBase + static_cast<int>(a), write.pos, original.a1)
-                                           : Insn{0, original.op, original.a1, write.ntsc_a2};
+                                           : Insn{.offset = 0, .op = original.op, .a1 = original.a1, .a2 = write.ntsc_a2};
             if (!AddWrite(plan, original.offset, target)) {
                 return false;
             }
@@ -711,7 +713,7 @@ Result Apply(std::string_view key, unsigned char *bytes, std::size_t size, const
     }
     result.counts = plan.counts;
     const Counts want = expected ? CountsOf(*expected) : Counts{};
-    if (!(plan.counts == want)) {
+    if (plan.counts != want) {
         result.error = "found " + Describe(plan.counts) + "; expected " + Describe(want);
         return result;
     }
@@ -734,15 +736,15 @@ Result Apply(std::string_view key, unsigned char *bytes, std::size_t size, const
 
 bool Patch(const char *asset_path, unsigned char *bytes, std::size_t size) {
     const std::string key = Key(asset_path ? asset_path : "");
-    Result result = Apply(key, bytes, size);
+    Result            result = Apply(key, bytes, size);
     if (!result.ok) {
         if (logged_assets.insert(key).second) {
-            std::fprintf(stderr, "script timing: %s does not match the PAL script the NTSC timing converts (%s)\n", key.c_str(), result.error.c_str());
+            std::println(stderr, "script timing: {} does not match the PAL script the NTSC timing converts ({})", key, result.error);
         }
         return false;
     }
     if (result.known && logged_assets.insert(key).second) {
-        std::fprintf(stderr, "script timing: %s: %d instructions (%s)\n", key.c_str(), result.writes, Describe(result.counts).c_str());
+        std::println(stderr, "script timing: {}: {} instructions ({})", key, result.writes, Describe(result.counts));
     }
     return true;
 }

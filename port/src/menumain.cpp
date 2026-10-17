@@ -14,32 +14,29 @@
 #include "texture_source.hpp"
 
 namespace {
-constexpr int menu_workspace_quadwords = 260000; /**< Capacity of the native menu's reusable work arena. */
+constexpr int kMenuWorkspaceQuadwords = 260000; /**< Capacity of the native menu's reusable work arena. */
+
+/**
+ * Directory supplying common textures, retained while workspace bytes are reused.
+ */
+std::string common_texture_directory;
 
 /**
  * Owns menu workspace independently of the small serialized directory marker.
  */
 std::vector<u_long128> &MenuWorkspace() {
-    static std::vector<u_long128> workspace(menu_workspace_quadwords);
+    static std::vector<u_long128> workspace(kMenuWorkspaceQuadwords);
     return workspace;
-}
-
-/**
- * Retains the actual directory supplying common textures while workspace bytes are reused.
- */
-std::string &CommonTextureDirectory() {
-    static std::string directory;
-    return directory;
 }
 
 /**
  * Enters common texture documents directly from the retained native directory.
  */
 void EnterCommonTextures(int block) {
-    if (CommonTextureDirectory().empty()) {
+    if (common_texture_directory.empty()) {
         return;
     }
-    const std::filesystem::path directory(CommonTextureDirectory());
+    const std::filesystem::path directory(common_texture_directory);
     for (const auto *name : {"edmenu.json", "allitem.json", "spectre.json"}) {
         const auto path = (directory / name).generic_string();
         if (std::string_view(name) == "spectre.json" && !texture_catalog::Find(path)) {
@@ -50,8 +47,8 @@ void EnterCommonTextures(int block) {
 }
 } // namespace
 
-PORT_OVERRIDE void MenuCommonBaseDataEnter(mgCMemory *pallet_memory, u_int *pack, int, int block) {
-    CommonTextureDirectory() = AssetDirectoryPath(pack).value_or(std::string{});
+PORT_OVERRIDE void MenuCommonBaseDataEnter(mgCMemory *pallet_memory, u_int *pack, int /*unused*/, int block) {
+    common_texture_directory = AssetDirectoryPath(pack).value_or(std::string{});
     auto &workspace = MenuWorkspace();
     DataReadRegisterBuffer(workspace.data(), 0);
     TextureSourceForget(workspace.data());
@@ -67,7 +64,7 @@ PORT_OVERRIDE void MenuCommonBaseDataEnter(mgCMemory *pallet_memory, u_int *pack
 PORT_OVERRIDE void MenuBaseTextureReEnter() {
     if (DataReadBufferSize(MenuMainTextureReadBuf.stack) != 0) {
         if (const auto directory = AssetDirectoryPath(MenuMainTextureReadBuf.stack)) {
-            CommonTextureDirectory() = *directory;
+            common_texture_directory = *directory;
         }
     }
     const int block = MenuCommonInfo->tex_block[1];

@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <limits>
 #include <memory>
 
 #include "gamepad.hpp"
@@ -74,7 +73,8 @@ protected:
         boards[3].parts_num = 6;
         char *part_names[] = {const_cast<char *>("\x90\x94\x94\xC2\x32"), const_cast<char *>("NO"), const_cast<char *>("\x90\x94"),
                               const_cast<char *>("\x96\xEE\x88\xF3\x8F\xE3"), const_cast<char *>("\x96\xEE\x88\xF3\x89\xBA"), const_cast<char *>("0")};
-        int   px[] = {40, 140, 40, 40, 40, 0}, py[] = {100, 100, 100, 80, 130, 100};
+        int   px[] = {40, 140, 40, 40, 40, 0};
+        int   py[] = {100, 100, 100, 80, 130, 100};
         for (int i = 0; i < 6; ++i) {
             parts[i].name = part_names[i];
             parts[i].dtype = MENUFORMPARTS_DTYPE_FUNCINFO;

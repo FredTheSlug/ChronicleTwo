@@ -22,7 +22,7 @@ extern "C" {
 
 namespace video {
 namespace {
-constexpr AVRational kMovieClock = {1, 90000};
+constexpr AVRational kMovieClock = {.num = 1, .den = 90000};
 /** Bytes FFmpeg reads through a custom input at a time. */
 constexpr int kInputBufferBytes = 64 * 1024;
 
@@ -115,7 +115,7 @@ private:
                 return AVERROR(EINVAL);
         }
         const int64_t target = base + offset;
-        if (target < 0 || static_cast<std::uint64_t>(target) > input->length_) {
+        if (target < 0 || std::cmp_greater(target, input->length_)) {
             return AVERROR(EINVAL);
         }
         input->position_ = static_cast<std::uint64_t>(target);
@@ -198,7 +198,7 @@ std::shared_ptr<audio::PcmTrack> EmbeddedAudio(const vfs::Ref &file, bool &faile
     auto track = std::make_shared<audio::PcmTrack>();
     track->loop = false;
     std::optional<int64_t> first_audio;
-    const auto             append = [&]() -> bool {
+    const auto             append = [&] -> bool {
         while (true) {
             const int result = avcodec_receive_frame(reader.codec, reader.frame);
             if (result == AVERROR(EAGAIN) || result == AVERROR_EOF) {
@@ -230,13 +230,14 @@ std::shared_ptr<audio::PcmTrack> EmbeddedAudio(const vfs::Ref &file, bool &faile
                 }
             }
             if (!first_audio && frame->best_effort_timestamp != AV_NOPTS_VALUE) {
-                first_audio = av_rescale_q(frame->best_effort_timestamp, stream->time_base, {1, track->rate});
+                first_audio = av_rescale_q(frame->best_effort_timestamp, stream->time_base, {.num = 1, .den = track->rate});
             }
             const int                    capacity = swr_get_out_samples(reader.resampler, frame->nb_samples);
             std::vector<int16_t>         converted(static_cast<std::size_t>(capacity) * 2);
             uint8_t                     *output[] = {reinterpret_cast<uint8_t *>(converted.data())};
             const int                    planes = av_sample_fmt_is_planar(static_cast<AVSampleFormat>(frame->format)) ? frame->ch_layout.nb_channels : 1;
             std::vector<const uint8_t *> input;
+            input.reserve(planes);
             for (int i = 0; i < planes; i++) {
                 input.push_back(frame->extended_data[i]);
             }
@@ -268,7 +269,7 @@ std::shared_ptr<audio::PcmTrack> EmbeddedAudio(const vfs::Ref &file, bool &faile
     if (video >= 0) {
         const AVStream *v = reader.format->streams[video];
         if (v->start_time != AV_NOPTS_VALUE) {
-            first_video = av_rescale_q(v->start_time, v->time_base, {1, track->rate});
+            first_video = av_rescale_q(v->start_time, v->time_base, {.num = 1, .den = track->rate});
         }
     }
     const int64_t offset = first_audio.value_or(first_video) - first_video;

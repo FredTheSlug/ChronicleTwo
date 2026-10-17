@@ -38,8 +38,8 @@ protected:
                                             {"schema_version", 1}
         });
         Write("bundle/config.json", {
-                                        {"schema_version", 1            },
-                                        {"commands",       Json::array()}
+                                        {"schema_version", 2           },
+                                        {"kind",           "shop_lists"}
         });
         Write("bundle/texture.json", {
                                          {"schema_version", 3            },
@@ -51,8 +51,8 @@ protected:
                                              {"kind",           "sound_bundle"}
         });
         Write("bundle/child/other.json", {
-                                             {"schema_version", 1            },
-                                             {"commands",       Json::array()}
+                                             {"schema_version", 2           },
+                                             {"kind",           "shop_lists"}
         });
         std::ofstream(root / "port_data/bundle/raw.bin", std::ios::binary) << "abc";
         datapacks::Load(root / "port_data");
@@ -109,7 +109,7 @@ TEST_F(AssetDirectory, RejectsTraversalAndNonDirectoryBytes) {
     EXPECT_EQ(AssetDirectoryRead(metadata.data(), "../outside.json", &size), nullptr);
     EXPECT_EQ(size, 0);
     EXPECT_EQ(AssetDirectoryRead(metadata.data(), "/outside.json", nullptr), nullptr);
-    auto invalid = std::string("{\"schema_version\":\"bad\",\"kind\":4}");
+    auto invalid = std::string(R"({"schema_version":"bad","kind":4})");
     std::ofstream(root / "port_data/bundle/pack.json") << invalid;
     DataReadRegisterAsset(invalid.data(), "bundle/pack.json", invalid.size());
     EXPECT_FALSE(AssetDirectoryPath(invalid.data()));
@@ -127,8 +127,8 @@ TEST_F(AssetDirectory, MergesDatapackOnlyFilesAndFallsBackFromMalformedTypedDocu
     })
                                                             .dump(2);
     std::ofstream(root / "datapacks/test/bundle/extra.json") << Json({
-                                                                         {"schema_version", 1            },
-                                                                         {"commands",       Json::array()}
+                                                                         {"schema_version", 2           },
+                                                                         {"kind",           "shop_lists"}
     })
                                                                     .dump(2);
     std::ofstream(root / "datapacks/test/bundle/config.json") << "{broken";
@@ -146,6 +146,6 @@ TEST_F(AssetDirectory, MergesDatapackOnlyFilesAndFallsBackFromMalformedTypedDocu
     ASSERT_EQ(AssetDirectoryReadExtension(metadata.data(), "commands", files, 8, sizes, names), 2);
     EXPECT_STREQ(names[0], "config.json");
     const auto data = Json::parse(reinterpret_cast<const char *>(files[0]), reinterpret_cast<const char *>(files[0]) + sizes[0]);
-    EXPECT_TRUE(data.at("commands").empty());
+    EXPECT_EQ(data.at("kind"), "shop_lists");
     EXPECT_STREQ(names[1], "extra.json");
 }

@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <print>
 
 #include "nd_meswin.hpp"
 #include "platform/subtitle_config.hpp"
@@ -22,7 +23,7 @@ PORT_OVERRIDE void MovieCCAnalyze(char *text, int size, int id) {
     std::string                       error;
     if (!subtitle_config::Decode(std::string_view(text, static_cast<std::size_t>(size)), chapter, cues, error)) {
         if (!error.empty()) {
-            std::fprintf(stderr, "subtitles: %s\n", error.c_str());
+            std::println(stderr, "subtitles: {}", error);
         }
         return;
     }

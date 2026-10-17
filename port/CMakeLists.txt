@@ -24,6 +24,7 @@ endif()
 
 # One version source is shared by the publisher and native runtime.
 file(READ ${KZ_ROOT}/data_version.json KZ_DATA_VERSION_JSON)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${KZ_ROOT}/data_version.json)
 string(JSON KZ_DATA_SCHEMA_VERSION GET "${KZ_DATA_VERSION_JSON}" schema_version)
 string(JSON KZ_DATA_VERSION GET "${KZ_DATA_VERSION_JSON}" data_version)
 if(NOT KZ_DATA_SCHEMA_VERSION EQUAL 1)
@@ -104,6 +105,8 @@ set(UNIT_COPY_SCRIPT ${CMAKE_SOURCE_DIR}/scripts/port/unit_copy.py)
 set(PORT_OVERRIDES ${CMAKE_BINARY_DIR}/port_overrides.txt)
 set(PORT_OVERRIDE_SOURCES ${CMAKE_BINARY_DIR}/port_override_sources.txt)
 file(GLOB_RECURSE PORT_OVERRIDE_STUBS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/include/stubs/*.hpp)
+# A config bridge appearing or vanishing changes which units append one, so it reconfigures.
+file(GLOB PORT_CONFIG_BRIDGES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/src/*_config_bridge.inc)
 string(JOIN "\n" port_override_sources ${PORT_SOURCES} ${PS2_SOURCES} ${PORT_OVERRIDE_STUBS})
 file(CONFIGURE OUTPUT ${PORT_OVERRIDE_SOURCES} CONTENT "${port_override_sources}\n" @ONLY)
 add_custom_command(OUTPUT ${PORT_OVERRIDES}
@@ -127,17 +130,13 @@ foreach(unit IN LISTS PS2_SOURCES)
         set(stubs "")
         set(header "")
     endif()
+    # unit_copy.py appends port/src/<unit>_config_bridge.inc, when it exists, to the unit's copy.
+    string(REGEX REPLACE "\\.cpp$" "_config_bridge.inc" config_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/${unit})
     set(native_bridge "")
     if(unit STREQUAL "character.cpp")
         set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/character_metadata_bridge.inc)
-    elseif(unit STREQUAL "npccfg.cpp")
-        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/npccfg_config_bridge.inc)
-    elseif(unit STREQUAL "vlgr_info.cpp")
-        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/vlgr_info_config_bridge.inc)
-    elseif(unit STREQUAL "movieviewlp.cpp")
-        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/movieviewlp_config_bridge.inc)
-    elseif(unit STREQUAL "editdebug.cpp")
-        set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/editdebug_config_bridge.inc)
+    elseif(EXISTS ${config_bridge})
+        set(native_bridge ${config_bridge})
     elseif(unit STREQUAL "menuchr.cpp")
         set(native_bridge ${CMAKE_CURRENT_SOURCE_DIR}/src/menu_character_assets.hpp)
     endif()
@@ -217,27 +216,46 @@ list(FILTER PORT_LIB_SOURCES EXCLUDE REGEX "/tests/|/main\\.cpp$")
 
 kz_port_sce_sources(CT_SCE_SOURCES LIBS libvu0 libpad libmc sifdev sifrpc eekernel libcdvd libgraph libdma libpkt
     eekernel_threads libdev libmpeg libsdr modmsin sifdma)
-add_library(ct_port OBJECT ${PORT_LIB_SOURCES} ${CT_SCE_SOURCES})
-target_link_libraries(ct_port PRIVATE ct_options SDL3::SDL3 Vulkan::Vulkan nlohmann_json::nlohmann_json kz_port_headers kazarov_bridge fastgltf::fastgltf)
-if(NOT WIN32)
-    find_package(Iconv REQUIRED)
-    target_link_libraries(ct_port PRIVATE Iconv::Iconv)
+# Linking kazarov_bridge orders every compile of a target after the whole Cargo build, which generates the
+# bridge header. Only the sources that include that header go in ct_port_bridge, so the rest of port/src
+# compiles alongside Cargo instead of waiting for it.
+set(PORT_BRIDGE_SOURCES "")
+foreach(source IN LISTS PORT_LIB_SOURCES)
+    file(STRINGS ${source} bridge_include REGEX "^[ \t]*#[ \t]*include[ \t]*[<\"](kazarov_bridge/|rust/cxx\\.h)" LIMIT_COUNT 1)
+    if(bridge_include)
+        list(APPEND PORT_BRIDGE_SOURCES ${source})
+    endif()
+endforeach()
+if(PORT_BRIDGE_SOURCES)
+    list(REMOVE_ITEM PORT_LIB_SOURCES ${PORT_BRIDGE_SOURCES})
 endif()
-add_dependencies(ct_port ps2_include)
-target_include_directories(ct_port PRIVATE ${PORT_DIR})
-# Datapack PNGs use the host's decoder with ordinary PNG colour formats.
+
 find_path(CT_STB_IMAGE_INCLUDE_DIR stb_image.h
     PATHS ${KZ_PORT_VENDOR_DIRS} ${CMAKE_BINARY_DIR}/kz_port/vendor NO_DEFAULT_PATH REQUIRED)
-target_include_directories(ct_port PRIVATE ${CT_STB_IMAGE_INCLUDE_DIR})
-target_compile_options(ct_port PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-label
-    -Wno-overloaded-virtual -Wno-unused-function)
+if(NOT WIN32)
+    find_package(Iconv REQUIRED)
+endif()
+add_library(ct_port OBJECT ${PORT_LIB_SOURCES} ${CT_SCE_SOURCES})
+add_library(ct_port_bridge OBJECT ${PORT_BRIDGE_SOURCES})
+target_link_libraries(ct_port_bridge PRIVATE kazarov_bridge)
+foreach(target IN ITEMS ct_port ct_port_bridge)
+    target_link_libraries(${target} PRIVATE ct_options SDL3::SDL3 Vulkan::Vulkan nlohmann_json::nlohmann_json kz_port_headers fastgltf::fastgltf)
+    if(NOT WIN32)
+        target_link_libraries(${target} PRIVATE Iconv::Iconv)
+    endif()
+    add_dependencies(${target} ps2_include)
+    # Datapack PNGs use the host's decoder with ordinary PNG colour formats.
+    target_include_directories(${target} PRIVATE ${PORT_DIR} ${CT_STB_IMAGE_INCLUDE_DIR})
+    target_compile_options(${target} PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-label
+        -Wno-overloaded-virtual -Wno-unused-function)
+endforeach()
 
 # Opt in for faster replay and test runs while retaining Debug's symbols. Keep the usual
 # unoptimised Debug build available for stepping through every local and statement.
 # PRIVATE options leave the test sources and GoogleTest at their normal Debug settings.
 option(CT_DEBUG_OPT "Optimise game and host code with -Og in Debug builds" OFF)
 if(CT_DEBUG_OPT)
-    foreach(target IN ITEMS ct_ps2 ct_port ct_host)
+    foreach(target IN ITEMS ct_ps2 ct_port ct_port_bridge ct_host)
         target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-Og>)
     endforeach()
 endif()
@@ -256,7 +274,7 @@ else()
 endif()
 
 function(ct_link_game target)
-    target_sources(${target} PRIVATE $<TARGET_OBJECTS:ct_port> $<TARGET_OBJECTS:ct_host> $<TARGET_OBJECTS:ct_ps2>)
+    target_sources(${target} PRIVATE $<TARGET_OBJECTS:ct_port> $<TARGET_OBJECTS:ct_port_bridge> $<TARGET_OBJECTS:ct_host> $<TARGET_OBJECTS:ct_ps2>)
     add_dependencies(${target} ps2_include)
     target_link_libraries(${target} PRIVATE ct_options kz_port_headers SDL3::SDL3 Vulkan::Vulkan kazarov_bridge kazarov_core fastgltf::fastgltf)
     if(NOT WIN32)
@@ -285,9 +303,20 @@ include(GNUInstallDirs)
 install(TARGETS darkchronicle RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # The button symbols (docs/GLYPHS.md): glyphs/ beside the executable, the art of TheMoonPeople/Chronicle's port/glyphs.
-add_custom_target(ct_glyphs
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/glyphs $<TARGET_FILE_DIR:darkchronicle>/glyphs
-    COMMENT "Copying the button symbols")
+# Each copy is a declared output, so an up-to-date build runs nothing and a deleted copy is restored.
+file(GLOB CT_GLYPH_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/glyphs/*)
+set(CT_GLYPH_COPIES "")
+foreach(glyph IN LISTS CT_GLYPH_SOURCES)
+    get_filename_component(glyph_name ${glyph} NAME)
+    set(glyph_copy ${CMAKE_BINARY_DIR}/glyphs/${glyph_name})
+    add_custom_command(OUTPUT ${glyph_copy}
+        COMMAND ${CMAKE_COMMAND} -E copy ${glyph} ${glyph_copy}
+        DEPENDS ${glyph}
+        COMMENT "Copying the button symbol ${glyph_name}"
+        VERBATIM)
+    list(APPEND CT_GLYPH_COPIES ${glyph_copy})
+endforeach()
+add_custom_target(ct_glyphs DEPENDS ${CT_GLYPH_COPIES})
 add_dependencies(darkchronicle ct_glyphs)
 install(DIRECTORY glyphs/ DESTINATION ${CMAKE_INSTALL_BINDIR}/glyphs)
 

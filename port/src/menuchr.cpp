@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <numbers>
+#include <print>
 
 #include "actionchara.hpp"
 #include "dataread_port.hpp"
@@ -57,17 +59,17 @@ constexpr int   kBannerStripPad = 6;
 /**
  * Character-change banner slide phase.
  */
-enum BannerPhase {
-    BANNER_IN,   /**< Sliding in from the left edge. */
-    BANNER_HOLD, /**< Resting at the bottom centre. */
-    BANNER_OUT   /**< Sliding out past the right edge. */
+enum class BannerPhase {
+    In,   /**< Sliding in from the left edge. */
+    Hold, /**< Resting at the bottom centre. */
+    Out   /**< Sliding out past the right edge. */
 };
 
-int   banner_chara = -1;
-int   banner_loop = -1;
-int   banner_phase = BANNER_IN;
-int   banner_hold = 0;
-float banner_x = 0.0f;
+int         banner_chara = -1;
+int         banner_loop = -1;
+BannerPhase banner_phase = BannerPhase::In;
+int         banner_hold = 0;
+float       banner_x = 0.0f;
 
 // Character-change effect timing in game frames, adapted from Dark Cloud's GAME_TASK_CHARA_CHANGED.
 constexpr int   kChangeFadeFrames = 24;
@@ -132,14 +134,14 @@ void PortPrepareMenuCharacterArena(mgCMemory &memory, const void *model, const c
     // Equipped melee weapons reserve the native twelve-point, eight-subdivision sword trail.
     const std::size_t trail = part == 2 ? (sizeof(CSWordAfterEffect) + 15) / 16 + 2 + 2 * (12 + 1) + 2 * (12 * (8 + 2) + 1) : 0;
     if (!path || !menu_character::PrepareArena(memory, *path, profile ? profile : "", error, trail)) {
-        std::fprintf(stderr, "menu character %s: %s\n", path ? path->c_str() : "unknown asset", path ? error.c_str() : "actual glTF filename required");
+        std::println(stderr, "menu character {}: {}", path ? path->c_str() : "unknown asset", path ? error.c_str() : "actual glTF filename required");
         std::exit(1);
     }
 }
 
-void PortRetailInitMainCharaBG(int, mgCMemory *, int) asm("MenuChr_InitMainCharaBG");
-int  PortRetailKeyMainCharaBG() asm("MenuChr_KeyMainCharaBG");
-int  PortRetailChangeSetUnit(int) asm("DngMain_ChangeSetUnit");
+void       PortRetailInitMainCharaBG(int, mgCMemory *, int) asm("MenuChr_InitMainCharaBG");
+int        PortRetailKeyMainCharaBG() asm("MenuChr_KeyMainCharaBG");
+int        PortRetailChangeSetUnit(int) asm("DngMain_ChangeSetUnit");
 extern int PortTownActiveCharaNo asm("EditLoop_ActiveCharaNo");
 
 PORT_OVERRIDE void MenuMemoryAdjust(mgCMemory *pool, mgCMemory *rest, mgCMemory *buffers, int chara) {
@@ -161,7 +163,7 @@ PORT_OVERRIDE void MenuMemoryAdjust(mgCMemory *pool, mgCMemory *rest, mgCMemory 
     }
     const int remaining = pool->stack_size - pool->stack_used;
     if (partitions > remaining) {
-        std::fprintf(stderr, "menu character partitions exceed aligned pool: %d of %d blocks\n",
+        std::println(stderr, "menu character partitions exceed aligned pool: {} of {} blocks",
                      partitions, remaining);
         std::abort();
     }
@@ -195,7 +197,7 @@ PORT_OVERRIDE void InitMainCharaBG(int chara_no, mgCMemory *stack, int mode) {
     quick_change_pending = false;
 
     if (stack != nullptr) {
-        int reason;
+        int reason = 0;
         quick_change_pending = (GetUserDataMan()->CheckQuickChange(chara_no, &reason) & QUICK_CHANGE_STATE_ENABLED) != 0;
         quick_change_chara = chara_no;
     }
@@ -222,7 +224,7 @@ PORT_OVERRIDE int KeyMainCharaBG() {
             if (!PortQuickLoadoutReloading()) {
                 banner_chara = quick_change_chara;
                 banner_loop = PortLoopNo;
-                banner_phase = BANNER_IN;
+                banner_phase = BannerPhase::In;
                 banner_hold = 0;
                 banner_x = static_cast<float>(-kBannerWidth);
             }
@@ -233,7 +235,7 @@ PORT_OVERRIDE int KeyMainCharaBG() {
         }
     }
 
-    std::fprintf(stderr, "quick change: not finished after %d steps, continuing frame by frame\n", kQuickChangeMaxSteps);
+    std::println(stderr, "quick change: not finished after {} steps, continuing frame by frame", kQuickChangeMaxSteps);
     quick_change_pending = false;
     return 0;
 }
@@ -266,7 +268,7 @@ void SpawnChangeSpark(CActionChara *chara) {
     }
 
     ChangeSpark &spark = change_sparks[change_spark_count++];
-    const float  angle = fRand(2.0f * PI);
+    const float  angle = fRand(2.0f * std::numbers::pi_v<float>);
     const float  out = 0.6f + fRand(0.8f);
     const float  start = 0.5f + fRand(1.5f);
     spark.pos[0] = start * cosf(angle);
@@ -278,7 +280,7 @@ void SpawnChangeSpark(CActionChara *chara) {
     spark.vel[2] = out * sinf(angle);
     spark.vel[3] = 0.0f;
     spark.size = 3.0f + fRand(2.5f);
-    spark.phase = fRand(2.0f * PI);
+    spark.phase = fRand(2.0f * std::numbers::pi_v<float>);
     spark.age = 0;
     spark.life = 26 + static_cast<int>(fRand(10.0f));
 }
@@ -360,7 +362,7 @@ void DrawChangeSparks(const sceVu0FVECTOR base) {
         prim.Vertex4(vertex);
 
         for (int k = 0; k <= 8; k++) {
-            const float angle = static_cast<float>(k % 8) * (PI / 4.0f);
+            const float angle = static_cast<float>(k % 8) * (std::numbers::pi_v<float> / 4.0f);
             const float reach = (k % 2) == 0 ? 1.0f : 0.22f;
             vertex[0] = cx + static_cast<int>(static_cast<float>(rx) * reach * sinf(angle));
             vertex[1] = cy - static_cast<int>(static_cast<float>(ry) * reach * cosf(angle));
@@ -374,17 +376,11 @@ void DrawChangeSparks(const sceVu0FVECTOR base) {
 
 } // namespace
 
-/**
- * Clears the character-change banner and effect before a gameplay mode transition.
- */
 void PortCancelQuickChangeBanner() {
     banner_chara = -1;
     StopChangeEffect();
 }
 
-/**
- * Reports whether a new quick change must wait for the last one's effect.
- */
 bool PortQuickChangeCoolingDown() {
     return ChangeEffectRunning();
 }
@@ -400,14 +396,10 @@ PORT_OVERRIDE int ChangeSetUnit(int change) {
     return PortRetailChangeSetUnit(change);
 }
 
-/**
- * Finishes a quick change on the frame that asked for it. Retail gives the menu at least one frame of its own:
- * the frame that opens it, and the next one, where the town and the dungeon run only the menu, so the world
- * neither moves nor draws. The menu opens at the end of a game frame; here, still in that frame, it runs to the
- * end and closes as each loop closes it, so the next frame is already a normal one with the new character.
- */
+// Retail spends at least the next frame running only the menu, so the world neither moves nor draws. The menu
+// opens at the end of a game frame; running it to completion within that frame keeps the next frame normal.
 void PortFinishQuickChange() {
-    if (!quick_change_pending || MenuPosData == NULL) {
+    if (!quick_change_pending || MenuPosData == nullptr) {
         return;
     }
 
@@ -449,7 +441,7 @@ void PortFinishQuickChange() {
         CScene      *scene = GetMainScene();
         CCharacter2 *chara = scene->GetCharacter(scene->player_chara);
 
-        if (chara != NULL) {
+        if (chara != nullptr) {
             chara->UpdatePosition();
             chara->ResetDAPosition();
         }
@@ -458,16 +450,11 @@ void PortFinishQuickChange() {
     }
 
     const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started);
-    std::fprintf(stderr, "quick change: %s, %.1f ms\n", dungeon ? "dungeon" : "town", (double) elapsed.count() / 1000.0);
+    std::println(stderr, "quick change: {}, {:.1f} ms", dungeon ? "dungeon" : "town", static_cast<double>(elapsed.count()) / 1000.0);
 }
 
-// Starts the change effect on the first game frame after the change, once the menu has closed. Dark Cloud's
-// version (gameloop.cpp, GAME_TASK_CHARA_CHANGED) pulses the ambient light toward white and plays its ceffe_s
-// sparkle model; here the character's own palette animation fades from white, with a splash of stars around it.
-// The fade is reapplied every frame from its own count, so a character set up again meanwhile still gets it.
-/**
- * Plays the character-change effect: a fade from white and a splash of stars around the new character.
- */
+// Starts on the first game frame after the menu closes. Instead of Dark Cloud's ambient pulse and ceffe_s model,
+// the character's own palette animation fades from white, with a splash of stars around it.
 void PortStepQuickChangeEffect() {
     if (PortLoopNo != change_fx_loop) {
         StopChangeEffect();
@@ -522,9 +509,6 @@ void PortStepQuickChangeEffect() {
     DrawChangeSparks(base);
 }
 
-/**
- * Slides the active character-change banner across the bottom of the screen while its gameplay mode remains active.
- */
 void PortDrawQuickChangeBanner() {
     if (banner_chara < 0) {
         return;
@@ -536,24 +520,24 @@ void PortDrawQuickChangeBanner() {
     }
 
     const int   ticks = mgFrameRate > 0 ? mgFrameRate : 1;
-    const float rest_x = static_cast<float>((mgScreenWidth - kBannerWidth) / 2);
+    const auto  rest_x = static_cast<float>((mgScreenWidth - kBannerWidth) / 2);
 
     // An open menu hides the banner without pausing its slide.
     switch (banner_phase) {
-        case BANNER_IN:
+        case BannerPhase::In:
             banner_x += kBannerSlideInSpeed * static_cast<float>(ticks);
             if (banner_x >= rest_x) {
                 banner_x = rest_x;
-                banner_phase = BANNER_HOLD;
+                banner_phase = BannerPhase::Hold;
             }
             break;
-        case BANNER_HOLD:
+        case BannerPhase::Hold:
             banner_hold += ticks;
             if (banner_hold >= kBannerHoldTicks) {
-                banner_phase = BANNER_OUT;
+                banner_phase = BannerPhase::Out;
             }
             break;
-        default:
+        case BannerPhase::Out:
             banner_x += kBannerSlideOutSpeed * static_cast<float>(ticks);
             break;
     }
@@ -576,14 +560,14 @@ void PortDrawQuickChangeBanner() {
 
     // The strip fades in with the slide in and out with the slide out.
     float strip = 1.0f;
-    if (banner_phase == BANNER_IN) {
+    if (banner_phase == BannerPhase::In) {
         strip = (banner_x + kBannerWidth) / (rest_x + kBannerWidth);
-    } else if (banner_phase == BANNER_OUT) {
+    } else if (banner_phase == BannerPhase::Out) {
         strip = 1.0f - (banner_x - rest_x) / (static_cast<float>(mgScreenWidth) - rest_x);
     }
     strip = std::clamp(strip, 0.0f, 1.0f);
 
-    const float top = static_cast<float>(mgScreenHeight - kBannerHeight - kBannerBottomMargin);
+    const auto top = static_cast<float>(mgScreenHeight - kBannerHeight - kBannerBottomMargin);
     DrawMenuFillBox(0.0f, top + kBannerStripPad, static_cast<float>(mgScreenWidth),
                     static_cast<float>(kBannerHeight - 2 * kBannerStripPad), static_cast<int>(kBannerStripAlpha * strip), 0, 0, 0);
 

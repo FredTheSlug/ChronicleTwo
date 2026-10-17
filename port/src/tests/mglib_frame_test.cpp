@@ -28,7 +28,7 @@ class OffscreenRenderer {
 public:
     OffscreenRenderer() {
         SetEnv("VK_LAYER_VALIDATE_SYNC", "1", 0);
-        WindowConfig window{640, 480, true};
+        WindowConfig window{.width = 640, .height = 480, .headless = true};
         window.vulkan = false;
         WindowInit(window);
 
@@ -115,8 +115,8 @@ TEST(MglibFrame, ClearAndReadback) {
 TEST(MglibFrame, PickZAfterClearIsFar) {
     OffscreenRenderer renderer;
 
-    mgPickZBuff[0] = {1, 256, 240, 0};
-    mgPickZBuff[1] = {1, 2, 2, 0};
+    mgPickZBuff[0] = {.enable = 1, .x = 256, .y = 240, .z = 0};
+    mgPickZBuff[1] = {.enable = 1, .x = 2, .y = 2, .z = 0};
     // A depth answer becomes available when its submitted frame retires from the ring.
     for (uint32_t attempt = 0; attempt <= gfx::detail::kFramesInFlight; ++attempt) {
         mgBeginFrame(nullptr);

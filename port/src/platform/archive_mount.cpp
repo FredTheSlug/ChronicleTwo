@@ -21,7 +21,7 @@ namespace fs = std::filesystem;
  */
 std::string Utf8(const fs::path &path) {
     const auto text = path.generic_u8string();
-    return std::string(text.begin(), text.end());
+    return {text.begin(), text.end()};
 }
 
 /**
@@ -113,7 +113,7 @@ public:
         // A stored entry's leading bytes are read without copying and checking the whole entry. Texture
         // registration reads thousands of PNG headers per area, so the archive stays open for them:
         // reopening a multi-gigabyte pack each time is slow, above all under on-access virus scanning.
-        std::lock_guard lock(prefix_mutex_);
+        std::scoped_lock lock(prefix_mutex_);
         if (!prefix_file_.is_open()) {
             prefix_file_.open(file_, std::ios::binary);
         }
@@ -130,7 +130,7 @@ public:
         if (!entry.stored) {
             return std::nullopt;
         }
-        return vfs::StoredRange{file_, entry.offset, entry.size};
+        return vfs::StoredRange{.file = file_, .offset = entry.offset, .length = entry.size};
     }
 
     std::vector<vfs::Member> List(std::string_view directory) const override {
@@ -164,10 +164,10 @@ private:
                 const auto name = entry.name.substr(start, slash == std::string::npos ? std::string::npos : slash - start);
                 auto      &children = members[parent];
                 if (slash == std::string::npos) {
-                    children.insert_or_assign(vfs::FoldKey(name), vfs::Member{name, false});
+                    children.insert_or_assign(vfs::FoldKey(name), vfs::Member{.name = name, .directory = false});
                     break;
                 }
-                children.try_emplace(vfs::FoldKey(name), vfs::Member{name, true});
+                children.try_emplace(vfs::FoldKey(name), vfs::Member{.name = name, .directory = true});
                 start = slash + 1;
             }
         }

@@ -12,11 +12,9 @@ constexpr int kMaxOutfits = 6;
 
 } // namespace
 
-// Retail indexes its six "mints" model names by Max's outfit minus the first outfit item, without a
-// range check. While the item menu holds Max's outfit on the cursor, his outfit slot is empty, so the
-// index is -258 and retail formats its filename from whatever pointer lies 258 entries before the
-// table. On the PS2 that reads junk (the PAL "Make menu" crash); natively it faults in sprintf. Give
-// retail Max's first outfit for the call when the slot holds no outfit, then put the slot back.
+// Retail indexes its six "mints" model names by Max's outfit minus the first outfit item, unchecked.
+// While the item menu holds Max's outfit on the cursor his slot is empty and the index is -258 (the PAL
+// "Make menu" crash; natively a fault in sprintf), so retail is given his first outfit for the call.
 PORT_OVERRIDE ROBO_INFO_DATA *GetRoboPartsInfo(CUserDataManager *user_data) {
     CHARA_DATA    *max = user_data->GetCharaDataPtr(USER_CHARA_MAX);
     CGameDataUsed &outfit = max->equip[CHARA_EQUIP_CLOTHES];

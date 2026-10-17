@@ -1,7 +1,6 @@
 #pragma once
 
-// The seam between the mglib replacement (port/src/mglib.cpp) and the Phase-4 units.
-// Frozen: later changes are additive only.
+// The interface between the mglib replacement (port/src/mglib.cpp) and the port units that draw through it.
 //
 // Conventions: matrices are column-major float[16] (the sceVu0FMATRIX memory layout), mapping to Vulkan
 // clip space with y down and reverse-Z (near 1, far 0). GS register values are the raw 64-bit words.

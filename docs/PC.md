@@ -32,7 +32,7 @@ The renderer's cases need a Vulkan device with the features `tools/kazarov/src/c
 
 `build.bat` and `run.bat` pass the configuration through Kazarov's host launcher to `tools/windows/kazarov.ps1`. That script builds into `port/build/<configuration>`. The first run fetches the toolchain into `.kazarov/windows`, through `tools/windows/acquire.ps1`: llvm-mingw 20260922 (clang and lld), Ninja 1.13.2, SDL3 3.4.18 (MinGW), FFmpeg n9.0.2 (the LGPL shared build), glslang 16.6.0, the Vulkan 1.4.363.0 headers, and Rust 1.99.0 for the llvm-mingw UCRT target. `acquire-rust.ps1` verifies the official Rust and rustfmt archives, caches the locked crates, and installs `cxxbridge-cmd` 1.0.205; Corrosion 0.6.1 integrates Rust with CMake. Each downloaded archive is checked against its SHA-256 before extraction. `windows-x64` is a Debug build; `windows-x64-release` (and `windows`) is RelWithDebInfo.
 
-The Windows launcher prints elapsed stages for dependency checks, configuration and the build, and announces any lock wait. Compiler and Cargo output appears live, with the complete latest build output retained in `port/build/<configuration>/build.log`; failures preserve the native exit code. First-run downloads, archive verification and extraction announce their stages and log paths. `JOBS=N` sets the compile job count (12 by default). See [build measurements](port/buildperf.md) for the measured incremental costs. `pwsh -NoProfile -File tools/windows/test-build.ps1` checks live stdout/stderr, full logging and successful/failing exit codes without requiring a toolchain.
+The Windows launcher prints elapsed stages for dependency checks, configuration and the build, and announces any lock wait. Compiler and Cargo output appears live, with the complete latest build output retained in `port/build/<configuration>/build.log`; failures preserve the native exit code. First-run downloads, archive verification and extraction announce their stages and log paths. `JOBS=N` sets the compile job count (the logical processor count by default). See [build measurements](port/buildperf.md) for the measured incremental costs. `pwsh -NoProfile -File tools/windows/test-build.ps1` checks live stdout/stderr, full logging and successful/failing exit codes without requiring a toolchain.
 
 `run.bat` uses the same ignored `port/run/` extraction and version checks before launching, under the `port-data.lock` lock. The game holds the lock shared while it runs.
 
@@ -99,7 +99,7 @@ dc2data current <iso-or-directory> <data-directory>
 `extract` uses up to 32 workers by default; `--jobs N` accepts 1 through 64.
 `current` compares the source's path and file metadata with the versioned marker and verifies both output directories exist; it returns 0 only when extraction can be skipped. `check` performs the full hash and payload audit.
 
-The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and `MOVIE`. Give it `<game-root>/data` as the output. The C++ command-line program calls the Rust extractor through a `cxx` bridge; conversion runs in process. Data version 9 writes every game file, retained and converted, into one Zstandard ZIP archive, `<game-root>/data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), with a version marker at `<game-root>/data.json`. Textures use JSON and PNG; sound uses semantic JSON and PCM WAV; models and complete characters use glTF with embedded images and minimal gameplay JSON sidecars; configurations and textual maps use typed JSON; movies use self-contained MP4 with copied MPEG-2 video and embedded lossless ALAC audio. Ordinary PACK archives become folders with a minimal versioned `pack.json` containing no contents listing. Substituted originals are removed. Native game code references actual asset paths directly, without catalogs or manifests. See the [migration](PORT_ASSET_MIGRATION.md), [texture](PORT_TEXTURE_FORMAT.md), [audio](PORT_AUDIO_FORMAT.md), [model](PORT_MODEL_FORMAT.md), and [configuration](PORT_CONFIG_FORMAT.md) documents. `dc2data check <game-root>/data` validates native payloads and the whole-output SHA-256 digest. Extraction stages both trees before publication and restores the previous output on failure. Exit status: 0 on success, 1 on an error or failed check, 2 on usage error.
+The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and `MOVIE`. Give it `<game-root>/data` as the output. The C++ command-line program calls the Rust extractor through a `cxx` bridge; conversion runs in process. Data version 9 writes every game file, retained and converted, into one Zstandard ZIP archive, `<game-root>/data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), with a version marker at `<game-root>/data.json`. Textures use JSON and PNG; sound uses semantic JSON and PCM WAV; models and complete characters use glTF with embedded images and minimal gameplay JSON sidecars; configurations and textual maps use native semantic JSON documents (data version 12); movies use self-contained MP4 with copied MPEG-2 video and embedded lossless ALAC audio. Ordinary PACK archives become folders with a minimal versioned `pack.json` containing no contents listing. Substituted originals are removed. Native game code references actual asset paths directly, without catalogs or manifests. See the [migration](PORT_ASSET_MIGRATION.md), [texture](PORT_TEXTURE_FORMAT.md), [audio](PORT_AUDIO_FORMAT.md), [model](PORT_MODEL_FORMAT.md), and [configuration](PORT_CONFIG_FORMAT.md) documents. `dc2data check <game-root>/data` validates native payloads and the whole-output SHA-256 digest. Extraction stages both trees before publication and restores the previous output on failure. Exit status: 0 on success, 1 on an error or failed check, 2 on usage error.
 
 Each texture variant is a full-colour RGBA PNG. When retail animation scripts copy colours between textures, extraction bakes the finite source-colour variants into separate destination PNGs and records their selectors in the texture document. Source palettes are used only during extraction; runtime textures and generated render targets use RGBA pixels without palette files or palette uploads. `data.json` carries the current `data_version`, and the game rejects an older extraction so the launcher can rebuild it.
 
@@ -883,6 +883,8 @@ The PAL scripts (`.stb`) hold the NTSC frame counts and convert them while they 
 - `port/src/script_timing_inventory.inc` lists every script that holds a conversion, with the count of each recipe it must show. Before gameplay starts, NTSC timing validates every indexed `.stb` with the same decoder and recipes, including datapack replacements. Matching replacements are converted through the same loader. A listed script that does not match, or an unlisted one that holds a conversion, appears in a startup report naming the asset. Startup logs the complete asset list and exits with status 5; desktop runs also show an error dialog. Saved settings are unchanged. Unlisted, undecodable `.stb` files stay unchanged with a warning once per asset per session, matching the loader. Validation reads and decodes the scripts on up to 16 threads, then reports them in key order; it reads the files once and writes no disk cache. Each converted asset logs once per session.
 - Effect scripts keep PAL's waits for the end of their motion.
 
+[Luau scripts](PORT_LUAU.md) describes the script kinds, the command catalog and the corpus survey for the Luau replacement of the script machine.
+
 ## Rendering
 
 `port/src/mglib.cpp` and `port/src/mglib_time.cpp` replace retail's `mglib`. Their `PORT_OVERRIDE` definitions replace the retail bodies of the same names. The rest of retail's `ps2/src/mglib.cpp` is compiled from the stripped copy, `mgSetLight`, `mgSetFogParam` and `mgGetCameraPos` among them. `port/src/mglib_port.hpp` is the seam between the `mglib` replacement and the units that call it. Its groups:
@@ -1022,6 +1024,23 @@ Draws are recorded into display lists (see "Ticks and display frames").
 - `--window WxH` sets the window size (headless: the offscreen image's).
 - Config keys: `video.interpolation` (`true`), `video.max_fps` (`0`), `video.present_mode` (`fifo`, `mailbox` or `immediate`), `video.aspect` (`auto` or `4:3`), `video.ui_scale` (`1`), `video.show_fps`, `video.fps_detail`.
 
+## Character motion
+
+Characters play their motions as named glTF actions (see [model format](PORT_MODEL_FORMAT.md#named-actions)). The loader gives each action of a character its own interval of game frames and hands the game's `KEY` records those intervals under the original motion names, so `CCharacter2::Step`, `SetMotion`, the `KEY`/`SE`/`SELP` handlers and every caller of them run unchanged. `SetMotionTime` and `ChangeMotion` (`port/src/gameutil.cpp`) pose the action whose interval holds the frame through `character_motion` (`port/src/character_motion.cpp`). `CreateAnimeDataEX` reports retail motion data as unsupported; native profiles never reach it. Event and extension motions take their actions from the bundle of the model the character was built from, where the exporter published them.
+
+A model bundle holds every action its characters play, including event and extension motions, so the main characters' bundles reach tens of megabytes. The game reads a model file into its own buffer only to hand that buffer to a model loader, which finds the glTF by the buffer's registered name and reads it from the data itself; nothing reads the glTF bytes from the game's buffer. `dataread` therefore no longer copies a `.gltf` into that buffer: the file occupies one zeroed sector there, and its reported size is that sector, so game buffers and size-based allocations stay small however large the bundle is.
+
+A character's actions also keep their keys out of the game's arenas: each glTF channel takes one motion-list record in the arena the game sized for its retail motion, and the native evaluator samples the keys from the loaded glTF document. Copying every action's keys there, with each action's own boundary keys, overflowed Max's dungeon budget of 68,500 quadwords.
+
+These differ from retail:
+
+- A blend between actions of different motion sets starts from the action last posed. Retail samples the new motion set at the previous action's frame number, which belongs to another motion.
+- During a blend between two different actions, auxiliary material, visibility, camera and vertex keys of the new action apply unblended. Retail blends a key list with itself.
+- Frame arithmetic runs on the actions' own intervals rather than on the retail motion frames, so float rounding of the frame step can differ in the last bit; with intervals of a few hundred frames it is no coarser than retail's.
+- The retail `KEY` `横飛びL` in `event/e00/e50/e50_monica.chr` ends before it starts; it plays as a still pose at its start, as retail does unless the motion is held.
+
+A game model's frame holds its whole authored transform in its matrix with unit scale, so a scale set by gameplay or a script (`_SET_SCALE`, `_EOH_SET_SCALE`, `_OBJS_SET_SCALE`, `_CHR_SET_SCALE`, a monster's `_SET_SCALE`) keeps the retail order: after the frame's rotation, in the parent's axes. Only a frame whose node an animation scales to a value other than one composes rotation before scale, as glTF does, because its rebaked keys are in that order (see [the model format](PORT_MODEL_FORMAT.md#native-runtime)); while such a clip plays its scale keys overwrite the frame's scale, as retail's did. Replacement and third-party glTFs use glTF's order on every node. `CopyFrame` keeps a frame's convention through a retail bridge.
+
 ## Audio
 
 The sound driver runs on Kazarov's shared audio stack. `CSound` in `port/src/sound.cpp`, with `snd_mngr.cpp`, `ezmidi.cpp` and `ezbgm.cpp`, plays through `audio::DefaultMixer()` (`tools/kazarov/include/audio/mixer.hpp`). The port has no IOP, no SIF RPC and no SPU2 path. The mixer's 48-voice synth stands in for the SPU2.
@@ -1037,7 +1056,7 @@ bundle through `SoundLoadBundlePath` or its bounded-byte equivalent. Its bank,
 sequence and control documents reference their actual native files.
 `audio::Bank::CreateFromJsonCandidates` loads bank JSON and PCM WAV samples
 through datapack priority; `audio::SqFile::CreateFromJson` loads normalized
-musical events. Other game configurations execute typed JSON commands directly.
+musical events. Other game configurations are native semantic documents that their loaders read directly into the game's tables ([native configurations](NATIVE_CONFIGS.md)).
 See [published audio resources](PORT_AUDIO_FORMAT.md) and
 [native configuration assets](PORT_CONFIG_FORMAT.md).
 
@@ -1200,6 +1219,8 @@ PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
 
 `unit_copy.py` also preserves the routines listed in `RETAIL_BRIDGES` under new definition names in the generated unit. It reads each body from the unstripped retail source, changes only the definition name, and appends it before the unit fixups and long64 rewrites. Calls in the original unit keep the public name, so they reach the native `PORT_OVERRIDE`; that override can add native behavior and delegate to the preserved routine. Each appended body has its own `#line` marker naming the original retail source and definition line, keeping diagnostics and debugger locations valid.
 
+`port/src/<unit>_config_bridge.inc`, when it exists, is appended to that unit's copy, so native code can reach the unit's file-local record types and statics (`menuaqua`'s prize groups, `editdebug`'s gyorace counter, `movieviewlp`'s movie table); `character_metadata_bridge.inc` is appended to `character.cpp`. `CONFIG_SEAMS` replaces only the configuration interpreter run inside a retail loader that does other work around it (`LoadSkyPack`, `CEditMap::LoadEditInfo`, `CDynamicAnime::Load`) with a call into `port/src`, keeping every line number.
+
 Use this mechanism when a native seam needs to wrap retail behavior rather than replace it, as with the camera-cut seams around `ResetViewMode` and `ResetEyeView`, and the outfit-index guard around `GetRoboPartsInfo`. Add the unit, exact signature, original name and bridge name to `RETAIL_BRIDGES`, declare the bridge's asm link name in both `port/include/stubs/<unit>.hpp` and the native caller, and call it from the public override. The bridge body is generated from retail rather than transcribed into native source; `ps2/` stays unchanged. `NativeRetailBridges` runs `scripts/port/test_unit_copy.py` through CTest, alongside the other native unit-copy Python tests.
 
 Each name then has one definition. A replacement without the tag leaves `ps2/src`'s definition in, and the link fails on the duplicate symbol. A replacement takes the signature `ps2/src` gives the function: parameter types as spelled; names and default arguments may differ. By convention a replacement goes in the file that mirrors its unit.
@@ -1212,7 +1233,7 @@ The 22 `#ifndef PORT` guards are 21 in the eight `.cpp` files that hold assembly
 
 `port/include/stubs/<unit>.hpp`, when it exists, is included ahead of `ps2/src/<unit>.cpp`, after `port.h` and nothing else. It declares what the port defines in place of code `PORT` leaves out, and it renames or supplies what the unit takes from MWCC or from the PS2 link alone. Only the port's build sees `port/include`.
 
-The 23 native unit headers are `charasetup`, `collision`, `dataread`, `dng_main`, `dngmenu`, `editctrl`, `editmap2`, `event`, `event_func`, `gamepad`, `gameutil`, `inventmn`, `mainloop`, `menudraw`, `menumain`, `menuop`, `menusys`, `mg_frame`, `mg_math`, `mglib`, `nowload`, `photo`, `title`. Their link-name bridges and native caller declarations remain outside retail source.
+The 26 native unit headers are `charasetup`, `collision`, `dataread`, `dng_event`, `dng_main`, `dngfloor`, `dngmenu`, `editctrl`, `editmap2`, `effect`, `event`, `event_func`, `gamepad`, `gameutil`, `inventmn`, `mainloop`, `menudraw`, `menumain`, `menuop`, `menusys`, `mg_frame`, `mg_math`, `mglib`, `nowload`, `photo`, `title`. `mg_dataset` declares the `CopyFrame` bridge. Their link-name bridges and native caller declarations remain outside retail source.
 
 ## Header fixups
 
@@ -1390,6 +1411,18 @@ The ctest case is `Truncations.Check` (Linux; it skips when `clang.cindex` is mi
 The checker sees casts and implicit conversions. It does not see an address copied through an int member of a union; `SPI_STACK` was found at run time.
 
 The tests are `port/src/tests/uptr_test.cpp` (`Uptr.*`). They cover pointer width, an address above 4 GiB through `(u_char *) ((uptr) p + ofs)`, through `MenuCalcBufAlignment`, through a `uptr` field and through a `uptr` return.
+
+## Memory safety
+
+On PC, script strings have no length cap, and datapacks can replace any script. The fixed-size fields and tables that retail fills from script, save and player data are therefore replaced or guarded. [The memory safety audit](port/memory_safety.md) lists every site: replaced, guarded and still open.
+
+- `port/src/bounded_text.hpp` reads and writes the game's terminated text fields bounded by their size, without splitting a Shift-JIS character.
+- `port/src/script_guards.cpp` holds argument rules (index ranges, string lengths, argument caps) keyed by handler function. `CRunScript::ext` refuses an external that breaks one. `CScriptInterpreter::GetNextTAG` skips a tag handler or caps its argument count. A refusal is reported once per handler as `script guard: ...`.
+- The effect-script loader (`port/src/effect.cpp`) owns its open emitter in a `std::unique_ptr`. This is the one manual `new`/`delete` pair in `ps2/src`.
+- The binary script reader (`GetArgBin`, `SearchCommand`) stays inside the script and the 64-slot argument stack.
+- Item names, photo and memo titles, the Sphida score name, the treasure and item tables, `MotionProc2`'s deform buffer, the effect-list names and `GetCurrentDir` are bounded native replacements.
+
+`port/src/tests/memory_safety_test.cpp` covers these.
 
 ## Keeping the PS2 build matching
 

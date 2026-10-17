@@ -4,7 +4,7 @@
 
 std::vector<vfs::Ref> AudioAssetCandidates(std::string_view name) {
     const std::filesystem::path path(name);
-    if (path.empty() || path.is_absolute() || name.find('\\') != std::string_view::npos || name.find(':') != std::string_view::npos) {
+    if (path.empty() || path.is_absolute() || name.contains('\\') || name.contains(':')) {
         return {};
     }
     for (const auto &part : path) {

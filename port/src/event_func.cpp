@@ -3,8 +3,8 @@
 #include <nlohmann/json.hpp>
 
 #include <cstdio>
-#include <cstring>
 #include <map>
+#include <print>
 
 #include "dataread_port.hpp"
 #include "event.hpp"
@@ -26,7 +26,7 @@ PORT_OVERRIDE int _LOAD_CHARA_sub(int stack_no, char **name, int chara_no, u32 *
         std::string error;
         const auto  game = model_assets::ReadGameplay(*path, error);
         if (!game) {
-            std::fprintf(stderr, "character: %s\n", error.c_str());
+            std::println(stderr, "character: {}", error);
             return 0;
         }
         static std::map<std::string, std::string> selected_profiles;

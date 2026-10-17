@@ -1,12 +1,14 @@
 #pragma once
 
+#include "common.h"
+
+class CSaveData;
+class CSubGameData;
+class CScene;
+
 // The retail final-frame outline, drawn at the current target edges.
 void PortDrawFrameBorder();
 int  PortPlayTimeVSyncCallback(int unused);
-
-#include "common.h"
-class CSaveData;
-class CSubGameData;
 
 // Retained retail loop and save state shared with native launch and rendering hooks.
 extern int           PortNextLoopNo asm("MainLoop_NextLoopNo");
@@ -32,7 +34,6 @@ void PortAutosaveResetArrival();
  */
 void PortAutosaveStep(int program_loop_no);
 
-class CScene;
 /**
  * Saves town edits and releases the active town's event, sub-game and audio state.
  */

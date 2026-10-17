@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <print>
 
 #include "character.hpp"
 #include "dataread_port.hpp"
@@ -47,9 +48,9 @@ PORT_OVERRIDE int CScene::LoadChara(int index, u_int *model, char *profile, mgCM
         return -1;
     }
     character->Initialize();
-    model_assets::CharacterLoadOptions options{model_memory, motion_memory, image_memory, &mgTexManager, nullptr, texture_block, no_outline == 0};
+    model_assets::CharacterLoadOptions options{.model_memory = model_memory, .motion_memory = motion_memory, .image_memory = image_memory, .textures = &mgTexManager, .parent = nullptr, .texture_block = texture_block, .outline = no_outline == 0};
     if (!model_assets::LoadCharacter(*character, *path, profile, options, error)) {
-        std::fprintf(stderr, "character: %s: %s\n", path->c_str(), error.c_str());
+        std::println(stderr, "character: {}: {}", *path, error);
         DeleteChara(slot);
         return -1;
     }
@@ -79,7 +80,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
     int        tex_block = info->tex_block;
 
     if (step == SCN_LOADMAP_STEP_CREATE) {
-        CEditMap *edit_map;
+        CEditMap *edit_map = nullptr;
 
         if (info->data_ready == 0) {
             return -1;
@@ -87,23 +88,23 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
 
         u8 *buf = info->load_buf;
 
-        if (stack == NULL || buf == NULL) {
+        if (stack == nullptr || buf == nullptr) {
             return -1;
         }
 
         edit_map = new (stack->Alloc(0x111)) CEditMap;
 
-        if (edit_map == NULL) {
+        if (edit_map == nullptr) {
             return -1;
         }
 
         edit_map->mds_list_set = &mds_list_set;
-        return GetSceneMap(AssignMap(map_no, edit_map, info->name)) != NULL ? 1 : -1;
+        return GetSceneMap(AssignMap(map_no, edit_map, info->name)) != nullptr ? 1 : -1;
     }
 
     if (step == SCN_LOADMAP_STEP_MAP_INFO) {
         SCN_LOADMAP_INFO2::MapFiles *files = &info->files[0];
-        SCN_LOADMAP_INFO2::MapFiles *add_files = NULL;
+        SCN_LOADMAP_INFO2::MapFiles *add_files = nullptr;
         CMap                        *map = GetMap(map_no);
 
         if (info->files[1].enable != 0) {
@@ -112,7 +113,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
 
         map->map_info.LoadMapInfo(files->map_data, files->map_size, stack);
 
-        if (add_files != NULL) {
+        if (add_files != nullptr) {
             map->map_info.AddMapInfo(add_files->map_data, add_files->map_size, stack);
         }
 
@@ -121,10 +122,10 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
 
     if (step == SCN_LOADMAP_STEP_DATA) {
         SCN_LOADMAP_INFO2::MapFiles *files = &info->files[0];
-        SCN_LOADMAP_INFO2::MapFiles *add_files = NULL;
+        SCN_LOADMAP_INFO2::MapFiles *add_files = nullptr;
         CMap                        *map = GetMap(map_no);
         int                          add_block_num = 0;
-        int                          block;
+        int                          block = 0;
 
         if (info->files[1].enable != 0) {
             add_files = &info->files[1];
@@ -132,7 +133,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
 
         block = tex_block;
 
-        if (add_files != NULL) {
+        if (add_files != nullptr) {
             map->LoadData(add_files->mpk_data, add_files->ipk_data, &block, stack);
             add_block_num += block;
             tex_block += block;
@@ -150,21 +151,21 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
         CMap                        *map = GetMap(map_no);
         unsigned int                *efp_data = files->efp_data;
 
-        if (efp_data != NULL) {
+        if (efp_data != nullptr) {
             map->CreateEffect(efp_data, info->efp_tex_block, stack);
         }
 
         strcpy(mgTexManager.name_suffix, "1");
 
-        if (map->map_info.sky_info != 0 && files->sky_data != NULL && info->sky_tex_block > 0) {
+        if (map->map_info.sky_info != 0 && files->sky_data != nullptr && info->sky_tex_block > 0) {
             DeleteSky(0);
 
-            CMapSky *sky = (CMapSky *) operator new(sizeof(CMapSky), stack->Alloc(0x13));
+            auto *sky = static_cast<CMapSky *>(operator new(sizeof(CMapSky), stack->Alloc(0x13)));
 
-            if (sky != NULL) {
+            if (sky != nullptr) {
                 sky->Initialize();
                 sky->LoadPack(files->sky_data, info->sky_tex_block, stack);
-                AssignSky(0, sky, NULL);
+                AssignSky(0, sky, nullptr);
             }
         }
 
@@ -173,7 +174,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
     }
 
     if (step == SCN_LOADMAP_STEP_CREATE_MAP) {
-        CMap *map;
+        CMap *map = nullptr;
         u_int start_count = HostTimer0Count();
 
         map = GetMap(map_no);
@@ -183,7 +184,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
         }
 
         map->CreateMap(&mds_list_set, stack);
-        printf("5:%d\n", HostTimer0Count() - start_count);
+        std::println("5:{}", HostTimer0Count() - start_count);
         return SCN_LOADMAP_STEP_FUNC_POINT;
     }
 
@@ -207,7 +208,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
         slot->stack = stack;
         slot->status |= SCENE_DATA_LOADED;
         map->PlacePartsEnd();
-        printf("remain %dkByte\n", stack->stGetRest() * 16 / 1024);
+        std::println("remain {}kByte", stack->stGetRest() * 16 / 1024);
         return SCN_LOADMAP_STEP_CFG;
     }
 

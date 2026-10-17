@@ -1,6 +1,10 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
+// clang-format off
+#include "platform/native_config.hpp"
+// clang-format on
+
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
@@ -50,55 +54,51 @@ void WriteBytes(const fs::path &path, const std::vector<unsigned char> &bytes) {
 }
 
 /**
- * Publishes typed menu configurations at the direct paths used by the native game.
+ * Publishes native item table documents at the direct paths used by the native game.
  */
 void WriteMenuConfigs(const fs::path &base, const std::vector<std::pair<std::string, nlohmann::json> > &documents) {
-    using Json = nlohmann::json;
     const auto root = base / "port_data";
     fs::create_directories(root / "menu/cfg7");
-    for (const auto &[name, commands] : documents) {
+    for (const auto &[name, document] : documents) {
         const auto relative = fs::path("menu/cfg7") / fs::path(name).replace_extension(".cfg.json");
-        std::ofstream(root / relative) << Json{
-            {"schema_version", 1       },
-            {"commands",       commands}
-        }.dump();
+        std::ofstream(root / relative) << document.dump();
     }
 }
 
 /**
- * Declares the minimal item table used by native item-message tests.
+ * Declares the minimal common item table used by native item-message tests.
  */
 nlohmann::json ItemConfigCommands() {
     using Json = nlohmann::json;
-    Json arguments = Json::array();
-    for (int value : {11, 0, 0, 0, 0, 0, 0, 0, 0}) {
-        arguments.push_back({
-            {"type",  "int"},
-            {"value", value}
-        });
-    }
-    arguments.push_back({
-        {"type",  "string"},
-        {"value", "x"     }
-    });
-    arguments.push_back({
-        {"type",  "int"},
-        {"value", 0    }
-    });
-    return Json::array({
-        {{"command", "COMINIT"}, {"args", Json::array({{{"type", "int"}, {"value", 1}}})}},
-        {{"command", "COM"},     {"args", arguments}                                     }
-    });
+    return Json{
+        {"schema_version", 2              },
+        {"kind",           "item_common"  },
+        {"count",          1              },
+        {"records",
+         Json::array({{{"item_no", 11},
+                       {"type", 0},
+                       {"list_no", 0},
+                       {"active_set", 0},
+                       {"stack_num", 0},
+                       {"max_num", 0},
+                       {"icon_texture_no", 0},
+                       {"icon_no", 0},
+                       {"message_no", 0},
+                       {"file_name", "x"},
+                       {"attribute", 0}}})}
+    };
 }
 
 /**
- * Supplies an item-name callback using directly typed JSON arguments.
+ * Supplies an item_messages document naming item 11 and an item without common data.
  */
-nlohmann::json ItemMessageCommands(const char *command, const char *name) {
+nlohmann::json ItemMessageCommands(const char *name) {
     using Json = nlohmann::json;
-    return Json::array({
-        {{"command", command}, {"args", Json::array({{{"type", "int"}, {"value", 11}}, {{"type", "string"}, {"value", name}}})}}
-    });
+    return Json{
+        {"schema_version", 2                                                                                              },
+        {"kind",           "item_messages"                                                                                },
+        {"messages",       Json::array({{{"item_no", 11}, {"name", name}}, {{"item_no", 12}, {"name", "No common data"}}})}
+    };
 }
 
 int Load(const char *name, void *buffer, int *size) {
@@ -194,7 +194,7 @@ TEST_F(DataRead, RootExclusionsKeepDiscOnlyFilesOutOfTheIndex) {
 TEST_F(DataRead, FindIsCaseInsensitiveAndAcceptsDevicePrefixes) {
     DataReadIndex(root);
     const fs::path expected = root / "DIR" / "Sub" / "File.BIN";
-    for (const char *name : {"cdrom0:\\DIR\\SUB\\FILE.BIN;1", "host0:dir/sub/file.bin", "/DIR/Sub/File.BIN",
+    for (const char *name : {R"(cdrom0:\DIR\SUB\FILE.BIN;1)", "host0:dir/sub/file.bin", "/DIR/Sub/File.BIN",
                              "dir\\sub\\file.bin;1", "cdrom:DIR/SUB/FILE.BIN"}) {
         std::optional<vfs::Ref> found = DataReadFind(name);
         ASSERT_TRUE(found.has_value()) << name;
@@ -228,7 +228,7 @@ TEST_F(DataRead, DatapacksOverrideIndexedFilesWithReplacementSizesAndSparseFallb
     DataReadIndex(root);
 
     int  size = 0;
-    char name[] = "cdrom0:\\DIR\\SUB\\FILE.BIN;1";
+    char name[] = R"(cdrom0:\DIR\SUB\FILE.BIN;1)";
     ASSERT_EQ(LoadFile2(name, nullptr, &size, LOAD_FILE_SIZE), 1);
     EXPECT_EQ(size, 177);
     ASSERT_EQ(Load(name, Buffer(), &size), 1);
@@ -543,30 +543,30 @@ TEST_F(DataRead, RealDataIndexesTheDiscFiles) {
     DataReadIndex(*data);
     std::string log = testing::internal::GetCapturedStderr();
     EXPECT_NE(log.find(" files under " + PathsDisplay(*data)), std::string::npos) << log;
-    EXPECT_TRUE(DataReadFind("edit.cfg.json").has_value());
+    EXPECT_TRUE(DataReadFind("menu/cfg7/atdat.cfg.json").has_value());
 }
 
-TEST_F(DataRead, ExtractedEditConfigLoadsWhenPresent) {
+TEST_F(DataRead, ExtractedItemConfigLoadsWhenPresent) {
     std::optional<fs::path> data = ExtractedDataRoot();
     if (!data) {
         GTEST_SKIP() << "no published native configuration above the test executable";
     }
 
     DataReadIndex(*data);
-    ASSERT_TRUE(config_catalog::Contains("edit.cfg.json"));
-    std::string error;
-    const auto  document = config_catalog::Find("edit.cfg.json", error);
-    ASSERT_NE(document, nullptr) << error;
-    EXPECT_FALSE(document->commands.empty());
+    const std::string relative = "menu/cfg7/atdat.cfg.json";
+    ASSERT_TRUE(config_catalog::Contains(relative));
+    const auto count = native_config::Read<std::size_t>(relative, "attachments", [](const native_config::Json &document) { return native_config::Array(document, "attachments").size(); });
+    ASSERT_TRUE(count.has_value());
+    EXPECT_GT(*count, 0u);
 
     int         size = 0;
-    std::string relative = "edit.cfg.json";
-    ASSERT_EQ(LoadFile2(relative.data(), nullptr, &size, LOAD_FILE_SIZE), 1);
+    std::string game = relative;
+    ASSERT_EQ(LoadFile2(game.data(), nullptr, &size, LOAD_FILE_SIZE), 1);
     EXPECT_GT(size, 0);
     std::vector<u_long128> storage((size + 2047) / 2048 * 2048 / sizeof(u_long128));
-    ASSERT_EQ(Load("edit.cfg.json", storage.data(), &size), 1);
+    ASSERT_EQ(Load(relative.c_str(), storage.data(), &size), 1);
     EXPECT_EQ(DataReadBufferSize(storage.data()), static_cast<std::size_t>(size));
-    EXPECT_EQ(DataReadBufferPath(storage.data()), "edit.cfg.json");
+    EXPECT_EQ(DataReadBufferPath(storage.data()), relative);
 }
 
 TEST_F(DataRead, ShiftJisNameFindsItsPercentEncodedFile) {
@@ -582,9 +582,9 @@ TEST_F(DataRead, ShiftJisNameFindsItsPercentEncodedFile) {
 
 TEST_F(DataRead, ItemMessageReloadClearsTheLiveArenaWithoutClearingReboundRoots) {
     WriteMenuConfigs(base, {
-                               {"common.cfg", ItemConfigCommands()},
-                               {"comdatmes0.cfg", ItemMessageCommands("MES_SYS", "A long previous language name")},
-                               {"comdatmes1.cfg", ItemMessageCommands("MES_SYS", "B")}
+                               {"common.cfg",     ItemConfigCommands()                                },
+                               {"comdatmes0.cfg", ItemMessageCommands("A long previous language name")},
+                               {"comdatmes1.cfg", ItemMessageCommands("B")                            }
     });
     DataReadIndex(root);
     GameItemDataManage.Initialize();
@@ -605,41 +605,20 @@ TEST_F(DataRead, ItemMessageReloadClearsTheLiveArenaWithoutClearingReboundRoots)
     }
 }
 
-TEST_F(DataRead, ItemDataJsonLargerThanRetailScratchExecutesTypedCallbacks) {
+TEST_F(DataRead, ItemDataJsonLargerThanRetailScratchLoadsItsRecords) {
     using Json = nlohmann::json;
-    auto arguments = [](std::initializer_list<int> values) {
-        Json result = Json::array();
-        for (const int value : values) {
-            result.push_back({
-                {"type",  "int"},
-                {"value", value}
-            });
-        }
-        return result;
+    const Json document = {
+        {"schema_version", 2},
+        {"kind", "attachments"},
+        {"count", 1},
+        {"attachments", Json::array({{{"status", {17, 23}}, {"attribute", {1, 2, 3, 4, 5, 6, 7, 8}}, {"special", 0x1234}}})},
+        // The reader ignores members it does not know, so this pads the document past the retail scratch buffer.
+        {"padding", std::string(0x780 * sizeof(u_long128), 'x')}
     };
-    Json commands = Json::array({
-        {{"command", "AT_INIT"},  {"args", arguments({1})}                     },
-        {{"command", "AT_ST"},    {"args", arguments({17, 23})}                },
-        {{"command", "AT_ST2"},   {"args", arguments({1, 2, 3, 4, 5, 6, 7, 8})}},
-        {{"command", "AT_ST_SP"}, {"args", arguments({0x1234})}                }
-    });
-    for (int index = 0; index < 80; ++index) {
-        commands.push_back({
-            {"command", "UNRECOGNIZED_EXTENSION"                                             },
-            {"args",    Json::array({{{"type", "string"}, {"value", std::string(128, 'x')}}})}
-        });
-    }
-    std::string text = Json{
-        {"schema_version", 1       },
-        {"commands",       commands}
-    }
-                           .dump(2);
-    ASSERT_LT(text.size(), 33589u);
-    text.resize(33589, ' ');
     const auto path = base / "port_data/menu/cfg7/large.json";
     fs::create_directories(path.parent_path());
-    std::ofstream(path, std::ios::binary) << text;
-    ASSERT_EQ(fs::file_size(path), 33589u);
+    std::ofstream(path, std::ios::binary) << document.dump(2);
+    ASSERT_GT(fs::file_size(path), 0x780u * sizeof(u_long128));
     DataReadIndex(root);
     GameItemDataManage.Initialize();
     char name[] = "large.json";
@@ -654,7 +633,7 @@ TEST_F(DataRead, ItemDataJsonLargerThanRetailScratchExecutesTypedCallbacks) {
     EXPECT_EQ(attachment.special, 0x1234u);
 }
 
-TEST_F(DataRead, RetailAttachmentJsonExceedsScratchAndPreservesEveryCallbackValue) {
+TEST_F(DataRead, RetailAttachmentJsonPreservesEveryRecordValue) {
     const auto retail = ExtractedDataRoot();
     if (!retail) {
         GTEST_SKIP() << "requires converted retail data";
@@ -663,62 +642,53 @@ TEST_F(DataRead, RetailAttachmentJsonExceedsScratchAndPreservesEveryCallbackValu
     if (!fs::is_regular_file(path)) {
         GTEST_SKIP() << "requires converted attachment data";
     }
-    ASSERT_GT(fs::file_size(path), 0x780u * sizeof(u_long128));
     std::ifstream input(path);
     const auto    document = nlohmann::json::parse(input);
+    if (document.value("kind", "") != "attachments") {
+        GTEST_SKIP() << "requires native attachment data";
+    }
     DataReadIndex(*retail);
     GameItemDataManage.Initialize();
     char name[] = "atdat.cfg.json";
     ASSERT_EQ(LoadGameDataAnalyze(name), 1);
-    int index = 0;
-    for (const auto &command : document.at("commands")) {
-        const auto  tag = command.at("command").get<std::string>();
-        const auto &arguments = command.at("args");
-        if (tag == "AT_INIT") {
-            EXPECT_EQ(GameItemDataManage.attach_num, arguments.at(0).at("value").get<int>());
-            continue;
-        }
-        ASSERT_LT(index, GameItemDataManage.attach_num);
+    EXPECT_EQ(GameItemDataManage.attach_num, document.at("count").get<int>());
+    const auto &attachments = document.at("attachments");
+    ASSERT_LE(attachments.size(), static_cast<std::size_t>(GameItemDataManage.attach_num));
+    for (std::size_t index = 0; index < attachments.size(); ++index) {
+        const auto &expected = attachments[index];
         const auto &attachment = GameItemDataManage.attach_data[index];
-        if (tag == "AT_ST" || tag == "AT_ST2") {
-            for (std::size_t value = 0; value < arguments.size(); ++value) {
-                EXPECT_EQ(tag == "AT_ST" ? attachment.status[value] : attachment.attribute[value], arguments.at(value).at("value").get<int>());
-            }
-        } else if (tag == "AT_ST_SP") {
-            EXPECT_EQ(attachment.special, arguments.at(0).at("value").get<unsigned>());
-            ++index;
+        for (std::size_t value = 0; value < 2; ++value) {
+            EXPECT_EQ(attachment.status[value], expected.at("status")[value].get<int>()) << index;
         }
+        for (std::size_t value = 0; value < 8; ++value) {
+            EXPECT_EQ(attachment.attribute[value], expected.at("attribute")[value].get<int>()) << index;
+        }
+        EXPECT_EQ(attachment.special, expected.at("special").get<unsigned>()) << index;
     }
-    EXPECT_EQ(index, GameItemDataManage.attach_num);
 }
 
-extern SPI_TAG_PARAM PortGameDataTags[25] asm("GameData_Tags");
-
-TEST_F(DataRead, ItemMessagesUseTheSameDispatchTableAsItemData) {
+TEST_F(DataRead, ItemMessagesWithoutTextLeaveNoNameAndSkipUnknownItems) {
+    using Json = nlohmann::json;
     WriteMenuConfigs(base, {
-                               {"common.cfg", ItemConfigCommands()},
-                               {"comdatmes7.cfg", ItemMessageCommands("MES_SHARED", "Shared retail dispatch")}
+                               {"common.cfg",     ItemConfigCommands()                                                                                                                     },
+                               {"comdatmes7.cfg",
+                                Json{{"schema_version", 2}, {"kind", "item_messages"}, {"messages", Json::array({{{"item_no", 11}, {"name", nullptr}}, {{"item_no", 12}, {"name", "x"}}})}}}
     });
     DataReadIndex(root);
     GameItemDataManage.Initialize();
     char common[] = "common.cfg.json";
     ASSERT_TRUE(LoadGameDataAnalyze(common));
 
-    struct RestoreTag {
-        char *name = PortGameDataTags[22].name;
-        int   language = LanguageCode;
+    struct RestoreLanguage {
+        int language = LanguageCode;
 
-        ~RestoreTag() {
-            PortGameDataTags[22].name = name;
-            LanguageCode = language;
-        }
+        ~RestoreLanguage() { LanguageCode = language; }
     } restore;
 
-    ASSERT_STREQ(PortGameDataTags[22].name, "MES_SYS");
-    PortGameDataTags[22].name = const_cast<char *>("MES_SHARED");
     LanguageCode = 0;
     ASSERT_TRUE(GameItemDataManage.LoadItemSystemMes(7));
     auto *record = GameItemDataManage.GetCommonData(11);
     ASSERT_NE(record, nullptr);
-    EXPECT_STREQ(record->name, "Shared retail dispatch");
+    EXPECT_EQ(record->name, nullptr);
+    EXPECT_EQ(GameItemDataManage.GetCommonData(12), nullptr);
 }

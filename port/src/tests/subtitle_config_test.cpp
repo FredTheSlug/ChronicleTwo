@@ -10,9 +10,9 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <print>
 
 #include "nd_meswin.hpp"
-#include "platform/config_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/subtitle_config.hpp"
 #include "texture_source.hpp"
@@ -23,13 +23,12 @@ protected:
     std::filesystem::path root = std::filesystem::temp_directory_path() /
                                  ("ct_subtitles_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
 
-    void Write(const std::filesystem::path &path, const std::string &text) {
+    static void Write(const std::filesystem::path &path, const std::string &text) {
         std::filesystem::create_directories(path.parent_path());
         std::ofstream(path) << text;
     }
 
     void TearDown() override {
-        config_catalog::Clear();
         datapacks::Clear();
         TextureSourceClear();
         std::error_code error;
@@ -73,9 +72,9 @@ std::vector<subtitle_config::Cue> Original(std::vector<char> text, int chapter) 
 } // namespace
 
 TEST_F(NativeSubtitles, UsesTypedTimesAndTextWithInvalidOverlayFallback) {
-    Write(root / "port_data/configs/help.json", R"({"schema_version":1,"kind":"movie_subtitles","chapters":[{"id":901,"entries":[{"start_seconds":1.65,"clear_seconds":9.55,"text":"Line one\nLine two"}]}]})");
+    Write(root / "port_data/configs/help.json", R"({"schema_version":2,"kind":"movie_subtitles","chapters":[{"id":901,"entries":[{"start_seconds":1.65,"clear_seconds":9.55,"text":"Line one\nLine two"}]}]})");
     Write(root / "datapacks/datapacks.json", R"({"schema_version":1,"load_order":["broken"]})");
-    Write(root / "datapacks/broken/configs/help.json", R"({"schema_version":1,"kind":"movie_subtitles","chapters":"invalid"})");
+    Write(root / "datapacks/broken/configs/help.json", R"({"schema_version":2,"kind":"movie_subtitles","chapters":"invalid"})");
     datapacks::Load(root / "port_data");
     std::string                       error;
     std::vector<subtitle_config::Cue> cues;
@@ -110,7 +109,8 @@ TEST_F(NativeSubtitles, MatchesEveryOfflineSubtitleChapter) {
     const std::filesystem::path port = manifest.at("port_data").get<std::string>();
     datapacks::Load(port);
     std::string error;
-    std::size_t documents = 0, chapters = 0;
+    std::size_t documents = 0;
+    std::size_t chapters = 0;
     for (const auto &source : manifest.at("sources")) {
         const auto alias = source.at("alias").get<std::string>();
         if (!source.contains("json")) {
@@ -143,5 +143,5 @@ TEST_F(NativeSubtitles, MatchesEveryOfflineSubtitleChapter) {
     }
     EXPECT_EQ(documents, expected);
     EXPECT_GT(chapters, 0);
-    std::printf("Compared %zu native subtitle chapters across %zu documents.\n", chapters, documents);
+    std::println("Compared {} native subtitle chapters across {} documents.", chapters, documents);
 }

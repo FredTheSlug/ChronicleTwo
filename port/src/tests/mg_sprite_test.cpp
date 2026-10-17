@@ -28,7 +28,10 @@ public:
     SinkRig() {
         mgPortSetPrimSink([this](gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices,
                                  const gfx::TextureBinding &texture, const gfx::DrawState &state) {
-            batches.push_back({primitive, {vertices.begin(), vertices.end()}, texture, state});
+            batches.push_back({
+                .primitive = primitive, .vertices = {vertices.begin(), vertices.end()},
+                     .texture = texture, .state = state
+            });
         });
     }
 
@@ -192,7 +195,10 @@ public:
     BillboardRig() {
         mgPortSet3DSpriteSink([this](gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices,
                                      const gfx::TextureBinding &texture, const gfx::DrawState &state) {
-            batches.push_back({primitive, {vertices.begin(), vertices.end()}, texture, state});
+            batches.push_back({
+                .primitive = primitive, .vertices = {vertices.begin(), vertices.end()},
+                     .texture = texture, .state = state
+            });
         });
     }
 

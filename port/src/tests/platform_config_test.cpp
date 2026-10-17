@@ -35,11 +35,11 @@ protected:
         fs::remove_all(root_, error);
     }
 
-    fs::path Path() const { return root_ / "config.json"; }
+    [[nodiscard]] fs::path Path() const { return root_ / "config.json"; }
 
     void Write(std::string_view text) const { std::ofstream(Path(), std::ios::binary) << text; }
 
-    std::string Read() const {
+    [[nodiscard]] std::string Read() const {
         std::ifstream file(Path(), std::ios::binary);
         return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
     }
@@ -87,7 +87,10 @@ TEST_F(PlatformConfig, FullFileRoundTrips) {
     full.master_volume = 0.5f;
     full.surround = true;
     full.soundtrack = true;
-    full.key_bindings = {ConfigKeyBinding{"cross", {"Space", "Z"}}, ConfigKeyBinding{"start", {"Return"}}};
+    full.key_bindings = {
+        ConfigKeyBinding{.action = "cross", .keys = {"Space", "Z"}},
+        ConfigKeyBinding{.action = "start", .keys = {"Return"}    }
+    };
     full.mouse_sensitivity = 0.25f;
     full.stick_sensitivity = 1.5f;
     full.stick_invert_x = true;
@@ -141,7 +144,7 @@ TEST_F(PlatformConfig, DualSenseSpeakerIsOnByDefaultAndRoundTrips) {
     for (const char *value : {"null", "1", "\"off\""}) {
         EXPECT_TRUE(ConfigParse(std::string("{\"audio\":{\"dualsense_speaker\":") + value + "}}").dualsense_speaker);
     }
-    // The old audio.robot_voice still loads; it was opt-in, and "controller" is now the default.
+    // Either value of the legacy audio.robot_voice key leaves the speaker on.
     for (const char *value : {"\"tv\"", "\"controller\""}) {
         EXPECT_TRUE(ConfigParse(std::string("{\"audio\":{\"robot_voice\":") + value + "}}").dualsense_speaker);
     }

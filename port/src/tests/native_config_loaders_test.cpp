@@ -12,52 +12,81 @@
 #include "mg_memory.hpp"
 #include "npccfg.hpp"
 #include "platform/datapacks.hpp"
+#include "villagermngr.hpp"
 #include "vlgr_info.hpp"
 
 namespace {
 using Json = nlohmann::json;
 
 /**
- * Constructs a typed integer callback argument.
+ * UTF-8 "以後", the condition making a progress entry apply to later progress too.
  */
-Json Integer(int value) { return {
-    {"type",  "int"},
-    {"value", value}
- }; }
+constexpr const char *kAfter = "\xE4\xBB\xA5\xE5\xBE\x8C";
 
 /**
- * Constructs a typed floating-point callback argument.
+ * Builds one party_characters record.
  */
-Json Real(float value) { return {
-    {"type",  "float"},
-    {"value", value  }
- }; }
-
-/**
- * Constructs a typed string callback argument.
- */
-Json Text(const std::string &value) { return {
-    {"type",  "string"},
-    {"value", value   }
- }; }
-
-/**
- * Appends one native command without serializing its typed arguments as script text.
- */
-void Command(Json &commands, const char *name, Json arguments = Json::array()) {
-    commands.push_back({
-        {"command", name                },
-        {"args",    std::move(arguments)}
-    });
+Json Character(int id, const std::string &name, const std::string &model, int unk_31, int ability_num, int max_npc_point, const std::vector<int> &costs, int debug_flag) {
+    return {
+        {"id",            id           },
+        {"name",          name         },
+        {"model",         model        },
+        {"unk_31",        unk_31       },
+        {"ability_num",   ability_num  },
+        {"max_npc_point", max_npc_point},
+        {"ability_cost",  costs        },
+        {"debug_flag",    debug_flag   }
+    };
 }
 
 /**
- * Adds unknown commands with individually bounded arguments to exceed the original file buffers.
+ * Adds party characters that no test looks up, to exceed the original 32 KiB file buffer.
  */
-void Padding(Json &commands) {
-    for (int index = 0; index < 400; ++index) {
-        Command(commands, "IGNORED_PADDING", {Text(std::string(256, 'x')), Integer(index)});
+void CharacterPadding(Json &characters, int count) {
+    for (int index = 0; index < count; ++index) {
+        characters.push_back(Character(1000 + index, "Padding " + std::to_string(index), "pad", 0, 0, 0, {0, 0, 0, 0}, 0));
     }
+}
+
+/**
+ * Builds one place block holding only its map and standing point.
+ */
+Json Place(int index, int map, float x, float y, float z, float angle) {
+    return {
+        {"index",    index        },
+        {"map",      map          },
+        {"position", {x, y, z}    },
+        {"angle",    angle        },
+        {"route",    Json::array()}
+    };
+}
+
+/**
+ * Adds story progress points out of range, which the loader drops, to exceed the original 0x19000-byte buffer.
+ */
+void ProgressPadding(Json &points) {
+    for (int index = 0; index < 600; ++index) {
+        points.push_back({
+            {"progress", -1 - index},
+            {"chapter", 0},
+            {"section", 0},
+            {"order", 0},
+            {"name", std::string(200, 'x')}
+        });
+    }
+}
+
+/**
+ * Builds one progress entry of a villager schedule.
+ */
+Json Progress(int progress, int duplicate_id, const std::string &condition, int noon_place, int night_place) {
+    return {
+        {"progress",     progress    },
+        {"duplicate_id", duplicate_id},
+        {"condition",    condition   },
+        {"noon_place",   noon_place  },
+        {"night_place",  night_place }
+    };
 }
 
 /**
@@ -84,9 +113,9 @@ protected:
     }
 
     void TearDown() override {
-        Json commands = Json::array();
-        Command(commands, "NPC_NUM", {Integer(0)});
-        Write("npc" + std::to_string(LanguageCode) + ".cfg.json", commands);
+        Write("npc" + std::to_string(LanguageCode) + ".cfg.json", "party_characters", {
+                                                                                          {"characters", Json::array()}
+        });
         LoadNPCCfg();
         LanguageCode = previous_language;
         if (previous_root.empty()) {
@@ -98,25 +127,54 @@ protected:
         std::filesystem::remove_all(directory);
     }
 
-    std::uintmax_t Write(const std::string &name, const Json &commands) {
+    /**
+     * Writes a native document of a kind with the given body, returning its size in bytes.
+     */
+    std::uintmax_t Write(const std::string &name, const std::string &kind, const Json &body) {
         const auto path = directory / "port_data" / name;
-        const Json document = {
-            {"schema_version", 1       },
-            {"commands",       commands}
-        };
+        Json       document = body;
+        document["schema_version"] = 2;
+        document["kind"] = kind;
         std::ofstream(path, std::ios::binary) << document.dump(2);
         return std::filesystem::file_size(path);
+    }
+
+    /**
+     * Writes a place table of two places, with padding blocks for the second ahead of its final block.
+     */
+    std::uintmax_t WritePlaces(const Json &padding = Json::array()) {
+        Json first = Place(0, 101, 1.25f, 2.5f, -3, .75f);
+        first["talk_offset"] = {4, 5, 6};
+        first["motion"] = "sit";
+        first["move_motion"] = "run";
+        first["move_speed"] = 1.5f;
+        first["shadow"] = 0;
+        first["route"] = Json::array({
+            {{"type", "move"}, {"position", {7, 8, 9}}, {"angle", 1}},
+            {{"type", "wait"}, {"posture", "mtn"}, {"time", 45}, {"motion", "stand"}}
+        });
+        Json blocks = Json::array({first});
+        for (const auto &block : padding) {
+            blocks.push_back(block);
+        }
+        blocks.push_back(Place(1, 202, -10, 20, 30, -.5f));
+        return Write("place.cfg.json", "villager_places", {
+                                                              {"place_count", 2     },
+                                                              {"places",      blocks}
+        });
     }
 };
 } // namespace
 
 TEST_F(NativeConfigLoaders, NpcRecordsAfterPaddingExceedTheOriginal32KiBBuffer) {
-    Json commands = Json::array();
-    Command(commands, "NPC_NUM", {Integer(2)});
-    Command(commands, "NPC_INFO", {Integer(7), Text("First NPC"), Text("npc_first"), Integer(3), Integer(2), Integer(25), Integer(1), Integer(2), Integer(3), Integer(4), Integer(1)});
-    Padding(commands);
-    Command(commands, "NPC_INFO", {Integer(18), Text("Final NPC"), Text("npc_last"), Integer(5), Integer(4), Integer(37), Integer(6), Integer(7), Integer(8), Integer(9), Integer(0)});
-    ASSERT_GT(Write("npc1.cfg.json", commands), 2048u * 16u);
+    Json characters = Json::array();
+    characters.push_back(Character(7, "First NPC", "npc_first", 3, 2, 25, {1, 2, 3, 4}, 1));
+    CharacterPadding(characters, 170);
+    characters.push_back(Character(18, "Final NPC", "npc_last", 5, 4, 37, {6, 7, 8, 9}, 0));
+    ASSERT_GT(Write("npc1.cfg.json", "party_characters", {
+                                                             {"characters", characters}
+    }),
+              2048u * 16u);
     LoadNPCCfg();
     const auto *first = GetPartyNPCData(7);
     const auto *last = GetPartyNPCData(18);
@@ -137,11 +195,13 @@ TEST_F(NativeConfigLoaders, NpcRecordsAfterPaddingExceedTheOriginal32KiBBuffer) 
     EXPECT_EQ(last->debug_flag, 0);
     EXPECT_EQ(GetPartyNPCData(19), nullptr);
 
-    commands = Json::array();
-    Command(commands, "NPC_NUM", {Integer(1)});
-    Padding(commands);
-    Command(commands, "NPC_INFO", {Integer(9), Text("French NPC"), Text("npc_french"), Integer(0), Integer(1), Integer(12), Integer(2), Integer(0), Integer(0), Integer(0), Integer(1)});
-    ASSERT_GT(Write("npc2.cfg.json", commands), 2048u * 16u);
+    characters = Json::array();
+    CharacterPadding(characters, 170);
+    characters.push_back(Character(9, "French NPC", "npc_french", 0, 1, 12, {2, 0, 0, 0}, 1));
+    ASSERT_GT(Write("npc2.cfg.json", "party_characters", {
+                                                             {"characters", characters}
+    }),
+              2048u * 16u);
     LanguageCode = LANG_FRENCH;
     LoadNPCCfg();
     EXPECT_EQ(GetPartyNPCData(7), nullptr);
@@ -150,48 +210,86 @@ TEST_F(NativeConfigLoaders, NpcRecordsAfterPaddingExceedTheOriginal32KiBBuffer) 
     EXPECT_STREQ(GetNPCName(9), "French NPC");
 }
 
-TEST_F(NativeConfigLoaders, OversizedPlaceAndVillagerFilesAllocateTheirNativeTables) {
-    Json places = Json::array();
-    Command(places, "MOVE_SPEED", {Real(99)});
-    Command(places, "NPC_PLACE_NUM", {Integer(2)});
-    Command(places, "NPC_PLACE", {Integer(0), Integer(101)});
-    Command(places, "PLACE_POS", {Real(1.25f), Real(2.5f), Real(-3), Real(.75f)});
-    Command(places, "TALK_OFFSET", {Real(4), Real(5), Real(6)});
-    Command(places, "MOTION", {Text("sit")});
-    Command(places, "MOVE_MOTION", {Text("run")});
-    Command(places, "MOVE_SPEED", {Real(1.5f)});
-    Command(places, "SHADOW", {Integer(0)});
-    Command(places, "MOVE_TO", {Real(7), Real(8), Real(9), Real(1)});
-    Command(places, "WAIT", {Text("mtn"), Integer(45), Text("stand")});
-    Command(places, "NPC_PLACE_END");
-    Padding(places);
-    Command(places, "NPC_PLACE", {Integer(1), Integer(202)});
-    Command(places, "PLACE_POS", {Real(-10), Real(20), Real(30), Real(-.5f)});
-    Command(places, "NPC_PLACE_END");
-    ASSERT_GT(Write("place.cfg.json", places), 0x19000u);
+TEST_F(NativeConfigLoaders, NpcRecordsKeepTheTableBoundsAndNullTexts) {
+    Json characters = Json::array();
+    characters.push_back(Character(1, "Named", "named", 0, 0, 0, {0, 0, 0, 0}, 0));
+    ASSERT_GT(Write("npc1.cfg.json", "party_characters", {
+                                                             {"characters", characters}
+    }),
+              0u);
+    LoadNPCCfg();
+    // A record without text keeps what its table entry already held.
+    characters = Json::array();
+    characters.push_back(Character(2, "", "", 0, 0, 0, {0, 0, 0, 0}, 0));
+    characters[0]["name"] = nullptr;
+    characters[0]["model"] = nullptr;
+    CharacterPadding(characters, 200);
+    Write("npc1.cfg.json", "party_characters", {
+                                                   {"characters", characters}
+    });
+    LoadNPCCfg();
+    ASSERT_NE(GetPartyNPCData(2), nullptr);
+    EXPECT_STREQ(GetNPCName(2), "Named");
+    EXPECT_STREQ(GetNPCModelName(2), "named");
+    EXPECT_NE(GetPartyNPCData(1000 + 178), nullptr);
+    EXPECT_EQ(GetPartyNPCData(1000 + 179), nullptr);
 
-    Json villagers = Json::array();
-    Command(villagers, "PROG_INFO", {Integer(-1), Integer(0), Integer(0), Integer(0), Text("ignored")});
-    Command(villagers, "PROG_INFO", {Integer(5), Integer(2), Integer(3), Integer(100), Text("First progress")});
-    Command(villagers, "NPC_INFO_NUM", {Integer(2)});
-    Command(villagers, "NPC_INFO", {Integer(7), Text("first_villager"), Integer(VLGR_HOUSE_B), Text("hat;bag"), Text("hidden"), Integer(11), Integer(12)});
-    Command(villagers, "NPC", {Integer(7)});
-    Command(villagers, "PROGRESS", {Integer(5), Integer(0), Text("")});
-    Command(villagers, "PLACE");
-    Command(villagers, "NOON_PLACE", {Integer(0)});
-    Command(villagers, "NIGHT_PLACE", {Integer(1)});
-    Command(villagers, "PROGRESS_END");
-    Command(villagers, "NPC_END");
-    Padding(villagers);
-    Command(villagers, "PROG_INFO", {Integer(9), Integer(4), Integer(6), Integer(200), Text("Final progress")});
-    Command(villagers, "NPC_INFO", {Integer(18), Text("last_villager"), Integer(VLGR_HOUSE_D)});
-    Command(villagers, "NPC", {Integer(18)});
-    Command(villagers, "PROGRESS", {Integer(9), Integer(1), Text("")});
-    Command(villagers, "NOON_PLACE", {Integer(1)});
-    Command(villagers, "NIGHT_PLACE", {Integer(0)});
-    Command(villagers, "PROGRESS_END");
-    Command(villagers, "NPC_END");
-    ASSERT_GT(Write("npc_place4.cfg.json", villagers), 0x19000u);
+    // A name too long for its field rejects the document.
+    characters = Json::array();
+    characters.push_back(Character(3, std::string(0x1C, 'n'), "m", 0, 0, 0, {0, 0, 0, 0}, 0));
+    Write("npc1.cfg.json", "party_characters", {
+                                                   {"characters", characters}
+    });
+    LoadNPCCfg();
+    EXPECT_EQ(GetPartyNPCData(2), nullptr);
+    EXPECT_EQ(GetPartyNPCData(3), nullptr);
+
+    // Command-list documents are no longer read.
+    std::ofstream(directory / "port_data" / "npc1.cfg.json", std::ios::binary) << R"({"schema_version":1,"commands":[]})";
+    LoadNPCCfg();
+    EXPECT_EQ(GetPartyNPCData(3), nullptr);
+}
+
+TEST_F(NativeConfigLoaders, OversizedPlaceAndVillagerFilesAllocateTheirNativeTables) {
+    Json padding = Json::array();
+    for (int index = 0; index < 600; ++index) {
+        // Repeated blocks of one place keep applying to it; the last sets its final map and position.
+        Json block = Place(1, 900 + index, 0, 0, 0, 0);
+        block["talk_offset"] = {static_cast<float>(index), 0, 0};
+        padding.push_back(block);
+    }
+    ASSERT_GT(WritePlaces(padding), 0x19000u);
+
+    Json points = Json::array();
+    points.push_back({
+        {"progress", 5               },
+        {"chapter",  2               },
+        {"section",  3               },
+        {"order",    100             },
+        {"name",     "First progress"}
+    });
+    ProgressPadding(points);
+    points.push_back({
+        {"progress", 9               },
+        {"chapter",  4               },
+        {"section",  6               },
+        {"order",    200             },
+        {"name",     "Final progress"}
+    });
+    const Json villagers = {
+        {{"id", 7},  {"progress", Json::array({Progress(5, 0, "", 0, 1)})}    },
+        {{"id", 18}, {"progress", Json::array({Progress(9, 1, kAfter, 1, 0)})}}
+    };
+    const Json models = {
+        {{"id", 7}, {"model", "first_villager"}, {"house_type", VLGR_HOUSE_B}, {"show_frames", "hat;bag"}, {"hide_frames", "hidden"}, {"unk_14", 11}, {"unk_18", 12}},
+        {{"id", 18}, {"model", "last_villager"}, {"house_type", VLGR_HOUSE_D}}
+    };
+    ASSERT_GT(Write("npc_place4.cfg.json", "villager_schedule", {
+                                                                    {"progress_info", points                               },
+                                                                    {"villagers",     villagers                            },
+                                                                    {"villager_info", {{"count", 2}, {"villagers", models}}}
+    }),
+              0x19000u);
     LoadGameInfo(&memory);
 
     auto *first = GetVlgrPlaceInfo(0);
@@ -210,13 +308,19 @@ TEST_F(NativeConfigLoaders, OversizedPlaceAndVillagerFilesAllocateTheirNativeTab
     ASSERT_NE(first->route, nullptr);
     EXPECT_EQ(first->route->type, VLGR_ROUTE_MOVE);
     EXPECT_FLOAT_EQ(first->route->pos[2], 9);
+    EXPECT_FLOAT_EQ(first->route->pos[3], 1);
     ASSERT_NE(first->route->next, nullptr);
     EXPECT_EQ(first->route->next->type, VLGR_ROUTE_WAIT);
     EXPECT_EQ(first->route->next->wait.motion_end, 1);
     EXPECT_EQ(first->route->next->wait.time, 45);
     EXPECT_EQ(first->route->next->wait.motion, VLGR_MOTION_STAND);
+    EXPECT_EQ(first->route->next->next, nullptr);
     EXPECT_EQ(last->map_no, 202);
     EXPECT_FLOAT_EQ(last->pos[0], -10);
+    EXPECT_FLOAT_EQ(last->talk_offset[0], 599);
+    EXPECT_EQ(last->move_motion, VLGR_MOTION_WALK);
+    EXPECT_EQ(last->motion, VLGR_MOTION_STAND);
+    EXPECT_EQ(last->no_shadow, 0);
     EXPECT_EQ(GetGameProgressNum(), GAME_PROGRESS_MAX);
     const auto *progress = GetGameProgressInfo(9);
     ASSERT_NE(progress, nullptr);
@@ -224,6 +328,7 @@ TEST_F(NativeConfigLoaders, OversizedPlaceAndVillagerFilesAllocateTheirNativeTab
     EXPECT_EQ(progress->section, 6);
     EXPECT_EQ(progress->order, 200);
     EXPECT_STREQ(progress->name, "Final progress");
+    EXPECT_STREQ(GetGameProgressInfo(5)->name, "First progress");
     EXPECT_EQ(GetGameProgressInfo(0)->name, nullptr);
     const auto *info = GetVillagerInfo(7);
     ASSERT_NE(info, nullptr);
@@ -235,16 +340,105 @@ TEST_F(NativeConfigLoaders, OversizedPlaceAndVillagerFilesAllocateTheirNativeTab
     EXPECT_EQ(info->unk_18, 12);
     ASSERT_NE(GetVillagerInfo(18), nullptr);
     EXPECT_EQ(GetVillagerInfo(18)->house_type, VLGR_HOUSE_D);
+    EXPECT_EQ(GetVillagerInfo(18)->show_frames, nullptr);
+    EXPECT_EQ(GetVillagerInfo(18)->unk_14, -1);
     int         count = 0;
     const auto *schedule = GetVlgrPlaceTable(&count);
     ASSERT_EQ(count, VLGR_PLACE_MAX);
     ASSERT_EQ(schedule[7].prog_num, 1);
     EXPECT_EQ(schedule[7].prog_info[0].progress, 5);
+    EXPECT_EQ(schedule[7].prog_info[0].after, 0);
     EXPECT_EQ(schedule[7].prog_info[0].place[0][VLGR_TIME_NOON], first);
     EXPECT_EQ(schedule[7].prog_info[0].place[0][VLGR_TIME_NIGHT], last);
     ASSERT_EQ(schedule[18].prog_num, 1);
     EXPECT_EQ(schedule[18].prog_info[0].progress, 9);
+    EXPECT_EQ(schedule[18].prog_info[0].after, 1);
     EXPECT_EQ(schedule[18].prog_info[0].place[1][VLGR_TIME_NOON], last);
     EXPECT_EQ(schedule[18].prog_info[0].place[1][VLGR_TIME_NIGHT], first);
     EXPECT_LT(memory.stack_used * 16, 0x19000);
+}
+
+TEST_F(NativeConfigLoaders, VillagerSchedulesFollowTheRetailCallbacks) {
+    WritePlaces();
+    const Json villagers = {
+        // Each entry end stores every entry collected so far; a repeated progress number reuses its entry.
+        {{"id", 3},              {"progress", Json::array({Progress(1, 0, "", 0, 0), Progress(2, 0, kAfter, 1, 1), Progress(1, 2, kAfter, 1, 0)})}},
+        // An alternative or place number out of range is ignored.
+        {{"id", 4},              {"progress", Json::array({Progress(6, 4, "", 0, 0), Progress(7, 0, "", 2, -1)})}                                 },
+        // An out-of-range villager stores nothing.
+        {{"id", VLGR_PLACE_MAX}, {"progress", Json::array({Progress(8, 0, "", 0, 0)})}                                                            },
+        {{"id", 5},              {"progress", Json::array({{{"progress", 9}, {"duplicate_id", 3}}})}                                              }
+    };
+    const Json models = {
+        {{"id", 1}, {"model", "kept"}   },
+        {{"id", 2}, {"model", "dropped"}}
+    };
+    Write("npc_place4.cfg.json", "villager_schedule", {
+                                                          {"progress_info", Json::array()                        },
+                                                          {"villagers",     villagers                            },
+                                                          {"villager_info", {{"count", 1}, {"villagers", models}}}
+    });
+    LoadGameInfo(&memory);
+    const auto *first = GetVlgrPlaceInfo(0);
+    const auto *last = GetVlgrPlaceInfo(1);
+    int         count = 0;
+    const auto *schedule = GetVlgrPlaceTable(&count);
+    ASSERT_EQ(schedule[3].prog_num, 2);
+    EXPECT_EQ(schedule[3].prog_info[0].progress, 1);
+    EXPECT_EQ(schedule[3].prog_info[0].after, 1);
+    EXPECT_EQ(schedule[3].prog_info[0].place[0][VLGR_TIME_NOON], first);
+    EXPECT_EQ(schedule[3].prog_info[0].place[2][VLGR_TIME_NOON], last);
+    EXPECT_EQ(schedule[3].prog_info[0].place[2][VLGR_TIME_NIGHT], first);
+    EXPECT_EQ(schedule[3].prog_info[1].progress, 2);
+    EXPECT_EQ(schedule[3].prog_info[1].place[0][VLGR_TIME_NIGHT], last);
+    ASSERT_EQ(schedule[4].prog_num, 2);
+    for (const auto &alternatives : schedule[4].prog_info[0].place) {
+        EXPECT_EQ(alternatives[VLGR_TIME_NOON], nullptr);
+    }
+    EXPECT_EQ(schedule[4].prog_info[1].place[0][VLGR_TIME_NOON], nullptr);
+    EXPECT_EQ(schedule[4].prog_info[1].place[0][VLGR_TIME_NIGHT], nullptr);
+    ASSERT_EQ(schedule[5].prog_num, 1);
+    EXPECT_EQ(schedule[5].prog_info[0].progress, 9);
+    EXPECT_EQ(schedule[5].prog_info[0].after, 0);
+    ASSERT_NE(GetVillagerInfo(1), nullptr);
+    EXPECT_STREQ(GetVillagerInfo(1)->model_name, "kept");
+    EXPECT_EQ(GetVillagerInfo(1)->house_type, 0);
+    EXPECT_EQ(GetVillagerInfo(2), nullptr);
+}
+
+TEST_F(NativeConfigLoaders, PlaceBlocksOutsideTheTableAreIgnored) {
+    Json route_block = Place(0, 5, 1, 2, 3, 4);
+    route_block["route"] = Json::array({
+        {{"type", "move"}, {"position", {1, 1, 1}}, {"angle", 0}}
+    });
+    Json second_block = Place(0, 6, 1, 2, 3, 4);
+    second_block["shadow"] = 1;
+    second_block["motion"] = "stand";
+    second_block["move_motion"] = nullptr;
+    second_block["route"] = Json::array({
+        {{"type", "wait"}, {"posture", nullptr}, {"time", 3}}
+    });
+    Write("place.cfg.json", "villager_places", {
+                                                   {"place_count", 1                                                                             },
+                                                   {"places",      {route_block, second_block, Place(1, 7, 0, 0, 0, 0), Place(-1, 8, 0, 0, 0, 0)}}
+    });
+    Write("npc_place4.cfg.json", "villager_schedule", {
+                                                          {"progress_info", Json::array()},
+                                                          {"villagers",     Json::array()}
+    });
+    LoadGameInfo(&memory);
+    const auto *place = GetVlgrPlaceInfo(0);
+    ASSERT_NE(place, nullptr);
+    EXPECT_EQ(GetVlgrPlaceInfo(1), nullptr);
+    EXPECT_EQ(place->map_no, 6);
+    EXPECT_EQ(place->no_shadow, 0);
+    EXPECT_EQ(place->motion, VLGR_MOTION_STAND);
+    EXPECT_EQ(place->move_motion, VLGR_MOTION_WALK);
+    ASSERT_NE(place->route, nullptr);
+    EXPECT_EQ(place->route->type, VLGR_ROUTE_MOVE);
+    ASSERT_NE(place->route->next, nullptr);
+    EXPECT_EQ(place->route->next->type, VLGR_ROUTE_WAIT);
+    EXPECT_EQ(place->route->next->wait.motion_end, 0);
+    EXPECT_EQ(place->route->next->wait.time, 3);
+    EXPECT_EQ(place->route->next->wait.motion, VLGR_MOTION_NONE);
 }

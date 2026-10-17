@@ -28,7 +28,7 @@ protected:
         fs::remove_all(base_, error);
     }
 
-    fs::path Root() const { return base_ / "data"; }
+    [[nodiscard]] fs::path Root() const { return base_ / "data"; }
 
     fs::path base_;
 };
@@ -58,27 +58,27 @@ TEST_F(PlatformFirstRun, NativeAssetDirectoryAndMarkerNeedNoManifest) {
     fs::create_directories(Root());
     fs::create_directories(base_ / "port_data");
     std::ofstream(base_ / "data.json", std::ios::binary)
-        << "{\"schema_version\":1,\"data_version\":" << KAZAROV_DATA_VERSION << "}";
+        << R"({"schema_version":1,"data_version":)" << KAZAROV_DATA_VERSION << "}";
     EXPECT_FALSE(FirstRunDataMissing(Root()));
 }
 
 TEST_F(PlatformFirstRun, MissingConvertedAssetDirectoryRequiresExtraction) {
     fs::create_directories(Root());
-    std::ofstream(Root() / "manifest.json", std::ios::binary) << "{\"schema_version\":1,\"files\":{}}";
+    std::ofstream(Root() / "manifest.json", std::ios::binary) << R"({"schema_version":1,"files":{}})";
     std::ofstream(base_ / "data.json", std::ios::binary)
-        << "{\"schema_version\":1,\"data_version\":" << KAZAROV_DATA_VERSION << "}";
+        << R"({"schema_version":1,"data_version":)" << KAZAROV_DATA_VERSION << "}";
     EXPECT_TRUE(FirstRunDataMissing(Root()));
 }
 
 TEST_F(PlatformFirstRun, MissingOrOldRootMarkerRequiresExtraction) {
     fs::create_directories(Root());
     fs::create_directories(base_ / "port_data");
-    std::ofstream(Root() / "manifest.json", std::ios::binary) << "{\"schema_version\":1,\"files\":{}}";
+    std::ofstream(Root() / "manifest.json", std::ios::binary) << R"({"schema_version":1,"files":{}})";
     std::ofstream(base_ / "port_data" / "manifest.json", std::ios::binary)
-        << "{\"schema_version\":1,\"files\":{}}";
+        << R"({"schema_version":1,"files":{}})";
     EXPECT_TRUE(FirstRunDataMissing(Root()));
     std::ofstream(base_ / "data.json", std::ios::binary)
-        << "{\"schema_version\":1,\"data_version\":" << KAZAROV_DATA_VERSION + 1 << "}";
+        << R"({"schema_version":1,"data_version":)" << KAZAROV_DATA_VERSION + 1 << "}";
     EXPECT_TRUE(FirstRunDataMissing(Root()));
     std::ofstream(base_ / "data.json", std::ios::binary) << "not json";
     EXPECT_TRUE(FirstRunDataMissing(Root()));
@@ -111,10 +111,10 @@ TEST_F(PlatformFirstRun, MissingDataExitsWithNoDataAndNamesTheCommand) {
 TEST_F(PlatformFirstRun, PresentDataReturns) {
     fs::create_directories(Root());
     fs::create_directories(base_ / "port_data");
-    std::ofstream(Root() / "manifest.json", std::ios::binary) << "{\"schema_version\":1,\"files\":{}}";
+    std::ofstream(Root() / "manifest.json", std::ios::binary) << R"({"schema_version":1,"files":{}})";
     std::ofstream(base_ / "port_data" / "manifest.json", std::ios::binary)
-        << "{\"schema_version\":1,\"files\":{}}";
+        << R"({"schema_version":1,"files":{}})";
     std::ofstream(base_ / "data.json", std::ios::binary)
-        << "{\"schema_version\":1,\"data_version\":" << KAZAROV_DATA_VERSION << "}";
+        << R"({"schema_version":1,"data_version":)" << KAZAROV_DATA_VERSION << "}";
     FirstRunRequireData(Root(), /*headless=*/true);
 }

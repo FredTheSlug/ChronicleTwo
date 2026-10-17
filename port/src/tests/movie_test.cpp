@@ -14,6 +14,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <print>
 #include <span>
 #include <vector>
 
@@ -57,10 +58,6 @@ std::optional<fs::path> MovieFile(const char *name) {
     }
     return std::nullopt;
 }
-
-} // namespace
-
-namespace {
 
 double MeanRgb(const std::vector<uint8_t> &rgba) {
     double sum = 0;
@@ -150,9 +147,9 @@ TEST(MoviePlayer, L5LogoPlaysEveryPictureAtTwentyFiveFramesASecond) {
     EXPECT_EQ(player.Rgba().size(), static_cast<size_t>(512 * 416 * 4));
     EXPECT_GT(mean_at_three_seconds, 0.0);
 
-    std::printf("L5 logo: %lld pictures shown, ended at %.2f s, mean RGB at 3 s %.2f\n",
-                static_cast<long long>(player.PicturesShown()), static_cast<double>(elapsed) / k_clock,
-                mean_at_three_seconds);
+    std::println("L5 logo: {} pictures shown, ended at {:.2f} s, mean RGB at 3 s {:.2f}",
+                 static_cast<long long>(player.PicturesShown()), static_cast<double>(elapsed) / k_clock,
+                 mean_at_three_seconds);
 }
 
 TEST(MoviePlayer, CatchUpSkipsIntermediatePictures) {
@@ -241,7 +238,7 @@ TEST(MovieGlue, MissingMovieStartsAndEndsAtOnce) {
 }
 
 TEST(MovieGlue, L5LogoPlaysOnTheClockWithItsSoundtrack) {
-    RestoreDataRoot restore_data{PathsDataRoot()};
+    RestoreDataRoot restore_data{.root = PathsDataRoot()};
     if (!fs::is_regular_file(datapacks::Root() / MoviePortPath("L5LOGO.MP4"))) {
         const std::optional<fs::path> found = MovieFile("l5logo.mp4");
         if (!found) {
@@ -252,7 +249,7 @@ TEST(MovieGlue, L5LogoPlaysOnTheClockWithItsSoundtrack) {
     }
 
     // Two ticks a game frame at 50 Hz is 25 game frames a second, the movie's rate.
-    RestoreClock restore_clock{ClockTickRate(), ClockUnbounded()};
+    RestoreClock restore_clock{.rate = ClockTickRate(), .unbounded = ClockUnbounded()};
     ClockSetUnbounded(true);
     ClockSetTickRate(50.0);
     ClockReset();
@@ -282,7 +279,7 @@ TEST(MovieGlue, L5LogoPlaysOnTheClockWithItsSoundtrack) {
     movie->Term();
     EXPECT_FALSE(audio::DefaultMixer().IsPlaying(kMoviePortAudioPort));
     EXPECT_FALSE(movie->is_playing);
-    std::printf("L5 logo through MovieGlue: %d game frames\n", frames);
+    std::println("L5 logo through MovieGlue: {} game frames", frames);
 }
 
 namespace {
@@ -291,7 +288,7 @@ class OffscreenRenderer {
 public:
     OffscreenRenderer() {
         dc::test::SetEnv("VK_LAYER_VALIDATE_SYNC", "1", 0);
-        WindowConfig window{640, 480, true};
+        WindowConfig window{.width = 640, .height = 480, .headless = true};
         window.vulkan = false;
         WindowInit(window);
 
@@ -319,7 +316,7 @@ constexpr int    kTextureTableCount = 0x140;
 constexpr int    kTextureTableBlocks = 0xAF;
 constexpr size_t kTextureTableQuads = size_t{1} << 16;
 
-// Static: the global manager keeps pointers into this storage, and MovieUpload reads them on any later movie.
+// Global storage: the manager keeps pointers into it, and MovieUpload reads them on any later movie.
 std::vector<u_long128> g_texture_table_storage(kTextureTableQuads);
 mgCMemory              g_texture_table_memory;
 
@@ -343,7 +340,7 @@ struct MovieTermOnExit {
 } // namespace
 
 TEST(MovieGlue, ThirtyFramesOfL5LogoThroughTheMovieTexture) {
-    RestoreDataRoot restore_data{PathsDataRoot()};
+    RestoreDataRoot restore_data{.root = PathsDataRoot()};
     if (!fs::is_regular_file(datapacks::Root() / MoviePortPath("L5LOGO.MP4"))) {
         const std::optional<fs::path> found = MovieFile("l5logo.mp4");
         if (!found) {
@@ -354,7 +351,7 @@ TEST(MovieGlue, ThirtyFramesOfL5LogoThroughTheMovieTexture) {
     }
     const fs::path movie_file = datapacks::Root() / MoviePortPath("L5LOGO.MP4");
 
-    RestoreClock       restore_clock{ClockTickRate(), ClockUnbounded()};
+    RestoreClock       restore_clock{.rate = ClockTickRate(), .unbounded = ClockUnbounded()};
     OffscreenRenderer  renderer;
     GlobalTextureTable texture_table;
 
@@ -405,19 +402,19 @@ TEST(MovieGlue, ThirtyFramesOfL5LogoThroughTheMovieTexture) {
     uint32_t             width = 0;
     uint32_t             height = 0;
     ASSERT_TRUE(mgPortReadColor(gfx::kMainTarget, rgba, width, height));
-    EXPECT_TRUE(std::adjacent_find(rgba.begin(), rgba.end(), std::not_equal_to<>()) != rgba.end());
+    EXPECT_TRUE(std::ranges::adjacent_find(rgba, std::not_equal_to<>()) != rgba.end());
 
     const fs::path png = fs::temp_directory_path() / "movie_l5logo_30.png";
     ASSERT_TRUE(gfx::WritePng(png, rgba.data(), width, height));
-    std::printf("frame %d written to %s\n", k_frames, png.string().c_str());
+    std::println("frame {} written to {}", k_frames, png.string());
 
     // The logical frame sits letterboxed inside the window, so the picture's rect comes from the mapping, not from
     // scaling 512x480 to the readback size.
     const gfx::LogicalMapping mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
     EXPECT_EQ(mapping.pixel_width, width);
     EXPECT_EQ(mapping.pixel_height, height);
-    const uint32_t x0 = static_cast<uint32_t>(std::floor(mapping.offset_x));
-    const uint32_t y0 = static_cast<uint32_t>(std::floor(mapping.offset_y));
+    const auto     x0 = static_cast<uint32_t>(std::floor(mapping.offset_x));
+    const auto     y0 = static_cast<uint32_t>(std::floor(mapping.offset_y));
     const uint32_t x1 = std::min(width, static_cast<uint32_t>(std::ceil(mapping.offset_x + 512.0f * mapping.scale_x)));
     const uint32_t y1 = std::min(height, static_cast<uint32_t>(std::ceil(mapping.offset_y + 416.0f * mapping.scale_y)));
     double         readback_sum = 0.0;
@@ -442,7 +439,7 @@ TEST(MovieGlue, ThirtyFramesOfL5LogoThroughTheMovieTexture) {
     ASSERT_EQ(picture.Rgba().size(), static_cast<size_t>(512 * 416 * 4));
     const double picture_mean = MeanRgb(picture.Rgba());
 
-    std::printf("L5 logo frame %d: readback mean RGB %.2f, picture mean RGB %.2f at %lld ticks\n", k_frames,
-                readback_mean, picture_mean, static_cast<long long>(picture_elapsed));
+    std::println("L5 logo frame {}: readback mean RGB {:.2f}, picture mean RGB {:.2f} at {} ticks", k_frames,
+                 readback_mean, picture_mean, static_cast<long long>(picture_elapsed));
     EXPECT_NEAR(readback_mean, picture_mean, 3.0);
 }

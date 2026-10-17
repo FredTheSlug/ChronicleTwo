@@ -5,7 +5,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 
 #include "editmenu.hpp"
 #include "editmode.hpp"
@@ -15,7 +14,7 @@
 int MenuGeoramaPaintSelect(CMenuGeorama *menu, int keys, int pushed);
 
 TEST(MenuNativeCleanup, FusionColorsSupportFloatAlignedDestinationsWithoutOverwritingCanaries) {
-    alignas(16) std::array<std::byte, 32> storage;
+    alignas(16) std::array<std::byte, 32> storage{};
     storage.fill(std::byte{0xa5});
     auto *color = reinterpret_cast<float *>(storage.data() + sizeof(float));
     ASSERT_NE(reinterpret_cast<std::uintptr_t>(color) % 16, 0u);

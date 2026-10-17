@@ -6,13 +6,13 @@
 #include <string_view>
 #include <vector>
 
+#include "loaded_buffer_copy.hpp"
 #include "platform/vfs.hpp"
 
-// Rebuilds the index of the converted data beside root, the files that replace DATA.HD4: <root>/../data.zip, or
-// else the root and sibling port_data directories. Each entry is a file keyed by its lower-cased relative path; lookups percent-encode
-// bytes >= 0x80 and '%' the way dc2data's DiskName does before they reach the index. Root-level
-// manifest.txt, dot entries, *.dc2tmp files and the movie/ and sound/ trees are left out. Logs its
-// count to stderr.
+// Rebuilds the index of the converted data that replaces DATA.HD4: <root>/../data.zip, or else root and
+// its sibling port_data. Keys are lower-cased relative paths with bytes >= 0x80 and '%' percent-encoded as
+// dc2data's DiskName does; root-level manifests, dot entries, *.dc2tmp and the movie/ and sound/ trees
+// are left out.
 void DataReadIndex(const std::filesystem::path &root);
 
 /**
@@ -23,7 +23,6 @@ std::size_t DataReadBufferSize(const void *buffer);
  * Returns the actual root-relative filename whose bytes fill a loaded buffer.
  */
 std::optional<std::string> DataReadBufferPath(const void *buffer);
-#include "loaded_buffer_copy.hpp"
 /**
  * Records the byte extent of a directly loaded native file or unchanged archive member.
  */

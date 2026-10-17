@@ -15,7 +15,7 @@
 TEST(MenuChapter, MissingNarrationTimesOutAndReopeningRestartsFade) {
     const auto root = std::filesystem::temp_directory_path() / "dc2_chapter_test";
     std::filesystem::create_directories(root);
-    std::ofstream(root / "manifest.json") << "{\"schema_version\":1,\"files\":{}}";
+    std::ofstream(root / "manifest.json") << R"({"schema_version":1,"files":{}})";
     PathsConfigure({.app_dir = "dc2-chapter-test", .env_data = "DC2_CHAPTER_TEST_DATA", .env_save = "DC2_CHAPTER_TEST_SAVE"});
     PathsSetDataRoot(root);
     InitCDFile();
@@ -47,7 +47,7 @@ TEST(MenuChapter, MissingNarrationTimesOutAndReopeningRestartsFade) {
 TEST(GameplayTimingChapter, NarrationFallbackAndHoldUseNtscFrames) {
     const auto root = std::filesystem::temp_directory_path() / "dc2_chapter_timing_test";
     std::filesystem::create_directories(root);
-    std::ofstream(root / "manifest.json") << "{\"schema_version\":1,\"files\":{}}";
+    std::ofstream(root / "manifest.json") << R"({"schema_version":1,"files":{}})";
     PathsConfigure({.app_dir = "dc2-chapter-timing-test", .env_data = "DC2_CHAPTER_TEST_DATA", .env_save = "DC2_CHAPTER_TEST_SAVE"});
     PathsSetDataRoot(root);
     InitCDFile();

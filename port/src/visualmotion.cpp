@@ -1,7 +1,9 @@
 #include "common.h"
 
 #include <cstdio>
+#include <print>
 #include <stdexcept>
+#include <utility>
 
 #include "dataread_port.hpp"
 #include "gameutil.hpp"
@@ -13,16 +15,16 @@
 #include "visualmotion.hpp"
 
 PORT_OVERRIDE int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mgCVMotionData *motion,
-                                                          mgCMemory *memory, mgCMemory *work,
+                                                          mgCMemory         *memory, mgCMemory         */*work*/,
                                                           mgCTextureManager *textures) {
     if (!header || !memory) {
-        std::fprintf(stderr, "animation: native glTF source required for skinned visual assignment\n");
+        std::println(stderr, "animation: native glTF source required for skinned visual assignment");
         return 0;
     }
     char               empty[] = "";
     mgCreateVisualType types[] = {
-        {MG_VISUAL_CREATE_MOTION_MDT, empty  },
-        {MG_VISUAL_CREATE_END,        nullptr}
+        {.type = MG_VISUAL_CREATE_MOTION_MDT, .name = empty  },
+        {.type = MG_VISUAL_CREATE_END,        .name = nullptr}
     };
     mgLoadData load{};
     load.memory = memory;
@@ -31,13 +33,13 @@ PORT_OVERRIDE int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mg
     std::string error;
     const auto  path = DataReadBufferPath(header);
     if (!path) {
-        std::fprintf(stderr, "animation: direct glTF visual path required\n");
+        std::println(stderr, "animation: direct glTF visual path required");
         return 0;
     }
     auto *root = model_assets::LoadModel(std::filesystem::path(*path), load, error);
     auto *selected = root && motion && motion->frame_id >= 0 && motion->frame_id < root->frame_num ? root->GetFrame(motion->frame_id) : root;
     if (!selected || !selected->visual || selected->visual->Iam() != MG_VISUAL_KIND_MOTION_MDT) {
-        std::fprintf(stderr, "animation: %s\n", error.empty() ? "native skinned visual absent" : error.c_str());
+        std::println(stderr, "animation: {}", error.empty() ? "native skinned visual absent" : error.c_str());
         return 0;
     }
     *this = *static_cast<mgCVisualMotionMDT *>(selected->visual);
@@ -60,7 +62,7 @@ PORT_OVERRIDE void mgCVisualMotionMDT::CreateVertexWeight(u_int *data, int selec
         slot = -1;
     }
     if (!data || !memory) {
-        std::fprintf(stderr, "animation: native weight source identity required\n");
+        std::println(stderr, "animation: native weight source identity required");
         return;
     }
     try {
@@ -71,15 +73,14 @@ PORT_OVERRIDE void mgCVisualMotionMDT::CreateVertexWeight(u_int *data, int selec
         std::string    error;
         const auto     path = DataReadBufferPath(data);
         if (!path) {
-            std::fprintf(stderr, "animation: direct glTF weight path required\n");
+            std::println(stderr, "animation: direct glTF weight path required");
             return;
         }
         const bool loaded = model_assets::LoadAnimation(std::filesystem::path(*path), resource, *memory, std::nullopt, std::nullopt, 0, std::nullopt, error);
         if (!loaded) {
             throw std::runtime_error(error);
         }
-        auto *channels = resource.skin_list;
-        for (auto *channel = channels; channel; channel = channel->next) {
+        for (auto *channel = resource.skin_list; channel; channel = channel->next) {
             if (channel->frame != selected_frame || !channel->key_count) {
                 continue;
             }
@@ -94,7 +95,7 @@ PORT_OVERRIDE void mgCVisualMotionMDT::CreateVertexWeight(u_int *data, int selec
                 bone[slots++] = channel->target;
             }
             for (u32 key = 0; key < channel->key_count; ++key) {
-                if (channel->key_frames[key] >= static_cast<u32>(weight_num)) {
+                if (std::cmp_greater_equal(channel->key_frames[key], weight_num)) {
                     throw std::runtime_error("native vertex weight index out of range");
                 }
                 auto &value = weight[channel->key_frames[key]];
@@ -123,29 +124,29 @@ PORT_OVERRIDE void mgCVisualMotionMDT::CreateVertexWeight(u_int *data, int selec
     } catch (const std::exception &error) {
         weight = nullptr;
         weight_num = 0;
-        std::fprintf(stderr, "animation: %s\n", error.what());
+        std::println(stderr, "animation: {}", error.what());
     }
 }
 
-PORT_OVERRIDE int mgCVisualMotionMDT::CreateFaceMotionPacket(u_int *packet, mgCFace *face, mgCVMotionData *motion) {
-    if (face != NULL) {
+PORT_OVERRIDE int mgCVisualMotionMDT::CreateFaceMotionPacket(u_int * /*packet*/, mgCFace *face, mgCVMotionData * /*motion*/) {
+    if (face != nullptr) {
         mgVisualPortRefreshFace(this, face);
     }
     return 0;
 }
 
-PORT_OVERRIDE int mgCVisualMotionMDT::CreateExtRenderInfoPacket(u_int         *packet, float (*matrix)[4],
-                                                                mgRENDER_INFO *info) {
+PORT_OVERRIDE int mgCVisualMotionMDT::CreateExtRenderInfoPacket(u_int * /*packet*/, float (*matrix)[4],
+                                                                mgRENDER_INFO * /*info*/) {
     if (model_assets::ApplySkin(*this, matrix)) {
         return 0;
     }
-    if (frame == NULL || base_matrix == NULL) {
+    if (frame == nullptr || base_matrix == nullptr) {
         return 0;
     }
 
     int slot_count = 0;
-    while (slot_count < 0x20 && bone[slot_count] >= 0) {
-        slot_count += 1;
+    while (slot_count < 32 && bone[slot_count] >= 0) {
+        ++slot_count;
     }
 
     if (slot_count == 0) {
@@ -170,7 +171,7 @@ PORT_OVERRIDE int mgCVisualMotionMDT::CreateExtRenderInfoPacket(u_int         *p
 
     for (int i = 0; i < slot_count; i++) {
         const int slot = bone[i];
-        if (frame[slot] == NULL) {
+        if (frame[slot] == nullptr) {
             continue;
         }
 

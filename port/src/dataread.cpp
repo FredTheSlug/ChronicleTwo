@@ -15,6 +15,8 @@
 #include <cstring>
 #include <filesystem>
 #include <optional>
+#include <print>
+#include <span>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -22,6 +24,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "bounded_text.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "platform/archive_mount.hpp"
@@ -31,6 +34,7 @@
 #include "platform/texture_catalog.hpp"
 #include "platform/vfs.hpp"
 #include "script_timing.hpp"
+#include "texture_copy.hpp"
 #include "texture_source.hpp"
 
 namespace fs = std::filesystem;
@@ -49,7 +53,7 @@ constexpr std::array<std::string_view, 5> kExcludedRootNames = {"manifest.txt", 
 
 struct IndexedFile {
     vfs::Ref    file;             /**< Data file supplying the bytes. */
-    bool        replaced = false; // a datapack file stands in for the extracted one
+    bool        replaced = false; /**< A datapack file stands in for the extracted one. */
     std::string relative;         /**< Actual root-relative filename, including directory metadata files. */
 };
 
@@ -93,14 +97,13 @@ bool IsExcludedRootName(std::string_view name) {
     if (name.starts_with('.') || name.ends_with(".dc2tmp")) {
         return true;
     }
-    return std::any_of(kExcludedRootNames.begin(), kExcludedRootNames.end(), [name](std::string_view excluded) {
-        return std::equal(excluded.begin(), excluded.end(), name.begin(), name.end(),
-                          [](char a, char b) { return FoldChar(a) == FoldChar(b); });
+    return std::ranges::any_of(kExcludedRootNames, [name](std::string_view excluded) {
+        return std::ranges::equal(excluded, name, [](char a, char b) { return FoldChar(a) == FoldChar(b); });
     });
 }
 
-// Root-anchored names skip the current directory; retail joined it in ahead of the name and the disc
-// never matched the resulting "dir//name". Slash runs are collapsed when the key is built, so names
+// Root-anchored names skip the current directory; retail joins it in ahead of the name and the disc
+// never matches the resulting "dir//name". Slash runs are collapsed when the key is built, so names
 // that differ only in doubled slashes still match.
 std::string IndexKey(std::string_view name) {
     std::string text;
@@ -117,11 +120,11 @@ std::string IndexKey(std::string_view name) {
         text = current_dir + std::string(name);
     }
 
-    std::replace(text.begin(), text.end(), '\\', '/');
+    std::ranges::replace(text, '\\', '/');
 
     if (std::size_t semicolon = text.rfind(';'); semicolon != std::string::npos) {
         std::string_view version = std::string_view(text).substr(semicolon + 1);
-        if (!version.empty() && std::all_of(version.begin(), version.end(), [](char c) { return c >= '0' && c <= '9'; })) {
+        if (!version.empty() && std::ranges::all_of(version, [](char c) { return c >= '0' && c <= '9'; })) {
             text.erase(semicolon);
         }
     }
@@ -167,7 +170,7 @@ const IndexedFile *Lookup(const std::string &key) {
     if (found == file_index.end()) {
         for (const auto &relative : {key, key + "/pack.json"}) {
             if (const auto replacement = datapacks::Resolve(relative)) {
-                return &file_index.emplace(relative, IndexedFile{std::move(*replacement), true, relative}).first->second;
+                return &file_index.emplace(relative, IndexedFile{.file = *replacement, .replaced = true, .relative = relative}).first->second;
             }
         }
     }
@@ -175,23 +178,39 @@ const IndexedFile *Lookup(const std::string &key) {
 }
 
 // Sized on demand: stat-ing every file while indexing costs about a millisecond per file on the 9p
-// mounts the host data lives on, and only the files a game opens need a size.
-std::optional<std::uintmax_t> FileSize(const IndexedFile &file) {
-    return vfs::Size(file.file);
+// mounts the host data lives on, and only the files a game opens need a size. Empty when the size is
+// unknown or does not fit the game's int.
+// The game reads a model file into its own buffer only to hand that buffer to a model loader, which
+// finds the glTF by the buffer's registered name and reads it itself. A glTF bundle holds every action
+// its characters play and can be tens of megabytes, so it occupies one zeroed sector of the buffer.
+bool NameOnly(const IndexedFile &file) {
+    return file.relative.ends_with(".gltf");
+}
+
+std::optional<int> FileSize(const IndexedFile &file) {
+    std::optional<std::uintmax_t> size = vfs::Size(file.file);
+    if (size && NameOnly(file)) {
+        size = std::min<std::uintmax_t>(*size, kSector);
+    }
+    if (!size || *size > static_cast<std::uintmax_t>(INT32_MAX)) {
+        return std::nullopt;
+    }
+    return static_cast<int>(*size);
 }
 
 // Reads a whole file into a sector-padded buffer without recording the buffer, so it is safe off the main thread.
 int ReadUnregistered(const IndexedFile &file, void *buffer) {
-    std::optional<std::uintmax_t> sized = FileSize(file);
-    if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
+    const std::optional<int> size = FileSize(file);
+    if (!size) {
         return -1;
     }
-    std::size_t size = static_cast<std::size_t>(*sized);
-    if (!vfs::ReadInto(file.file, buffer, size)) {
+    if (NameOnly(file)) {
+        std::memset(buffer, 0, static_cast<std::size_t>(*size));
+    } else if (!vfs::ReadInto(file.file, buffer, static_cast<std::size_t>(*size))) {
         return -1;
     }
-    ZeroSectorTail(buffer, size);
-    return static_cast<int>(size);
+    ZeroSectorTail(buffer, static_cast<std::size_t>(*size));
+    return *size;
 }
 
 int ReadWhole(const IndexedFile &file, void *buffer) {
@@ -265,11 +284,7 @@ int ResolveFile(const char *name, const std::string &key, void *buffer, bool siz
         }
         return size;
     }
-    std::optional<std::uintmax_t> sized = FileSize(*file);
-    if (!sized || *sized > static_cast<std::uintmax_t>(INT32_MAX)) {
-        return -1;
-    }
-    return static_cast<int>(*sized);
+    return FileSize(*file).value_or(-1);
 }
 
 CacheSlot *CacheFind(const std::string &key) {
@@ -298,8 +313,8 @@ int CacheRecord(const std::string &key, u_long128 *address, int size) {
 }
 
 // Retail rounds the cache base to a 64-byte boundary; the address is kept as a pointer, not truncated.
-u_long128 *AlignCacheAddress(u_long128 *address) {
-    std::uintptr_t value = reinterpret_cast<std::uintptr_t>(address);
+u_long128 *AlignCacheAddress(const u_long128 *address) {
+    auto value = reinterpret_cast<std::uintptr_t>(address);
     value = (value + 63) & ~static_cast<std::uintptr_t>(63);
     return reinterpret_cast<u_long128 *>(value);
 }
@@ -318,7 +333,7 @@ void BuildIndex(const std::shared_ptr<const vfs::Mount> &base, const fs::path &r
     file_index.clear();
     index_built = true;
     if (!base) {
-        std::fprintf(stderr, "dataread: indexed 0 files under %s (no data)\n", PathsDisplay(root).c_str());
+        std::println(stderr, "dataread: indexed 0 files under {} (no data)", PathsDisplay(root));
         return;
     }
 
@@ -333,9 +348,9 @@ void BuildIndex(const std::shared_ptr<const vfs::Mount> &base, const fs::path &r
         std::string key = vfs::FoldKey(relative);
         auto        replacement = datapacks::Resolve(fs::path(std::u8string(relative.begin(), relative.end())));
         const bool  replaced = replacement.has_value();
-        file_index.insert_or_assign(std::move(key), IndexedFile{replaced ? std::move(*replacement) : vfs::Ref(base, index), replaced, std::move(relative)});
+        file_index.insert_or_assign(std::move(key), IndexedFile{.file = replaced ? std::move(*replacement) : vfs::Ref(base, index), .replaced = replaced, .relative = std::move(relative)});
     }
-    std::fprintf(stderr, "dataread: indexed %zu files under %s\n", file_index.size(), PathsDisplay(root).c_str());
+    std::println(stderr, "dataread: indexed {} files under {}", file_index.size(), PathsDisplay(root));
 }
 
 } // namespace
@@ -358,7 +373,7 @@ void DataReadIndex(const fs::path &root) {
         try {
             base = ArchiveMountOpen(archive);
         } catch (const std::exception &exception) {
-            std::fprintf(stderr, "dataread: %s: %s\n", PathsDisplay(archive).c_str(), exception.what());
+            std::println(stderr, "dataread: {}: {}", PathsDisplay(archive), exception.what());
         }
     } else {
         base = vfs::OpenDirectories({data_root, native_root});
@@ -371,7 +386,7 @@ void DataReadIndex(const fs::path &root) {
     datapacks::Load(base, native_root);
     texture_catalog::SetCandidateResolver(datapacks::Candidates);
     BuildIndex(base, location);
-    std::fprintf(stderr, "dataread: index ready in %.3f seconds\n",
+    std::println(stderr, "dataread: index ready in {:.3f} seconds",
                  std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
 }
 
@@ -438,7 +453,7 @@ std::vector<std::string> DataReadScriptKeys() {
             keys.push_back(key);
         }
     }
-    std::sort(keys.begin(), keys.end());
+    std::ranges::sort(keys);
     return keys;
 }
 
@@ -460,7 +475,7 @@ std::vector<std::string> DataReadNativeKeys(std::string_view directory) {
         }
     }
     std::vector<std::string> keys(found.begin(), found.end());
-    std::sort(keys.begin(), keys.end());
+    std::ranges::sort(keys);
     return keys;
 }
 
@@ -470,9 +485,7 @@ namespace {
 constexpr std::size_t kScriptTimingThreads = 16;
 
 /**
- *
  * One script's validation outcome.
- *
  */
 struct ScriptTimingOutcome {
     std::string error;             /**< Mismatch or read failure; empty when the script is usable. */
@@ -483,7 +496,7 @@ struct ScriptTimingOutcome {
 ScriptTimingOutcome CheckScriptTiming(const std::string &key, const IndexedFile &file, std::vector<unsigned char> &bytes) {
     ScriptTimingOutcome outcome{};
     const auto          size = FileSize(file);
-    if (!size || *size > static_cast<std::uintmax_t>(INT32_MAX)) {
+    if (!size) {
         outcome.error = "cannot read script size";
         return outcome;
     }
@@ -542,8 +555,8 @@ ScriptTimingValidation DataReadValidateScriptTiming() {
         const ScriptTimingOutcome &outcome = outcomes[i];
         report.files++;
         if (outcome.undecoded && undecoded_script_warnings.insert(key).second) {
-            std::fprintf(stderr, "script timing startup: warning: %s is an unlisted, undecodable script; leaving it unchanged (%s)\n",
-                         key.c_str(), outcome.reason.c_str());
+            std::println(stderr, "script timing startup: warning: {} is an unlisted, undecodable script; leaving it unchanged ({})",
+                         key, outcome.reason);
         }
         if (!outcome.error.empty()) {
             report.errors.push_back(key + (files[i]->replaced ? " [datapack]: " : ": ") + outcome.error);
@@ -555,14 +568,14 @@ ScriptTimingValidation DataReadValidateScriptTiming() {
 
 bool DataReadPrepareScriptTiming(bool headless) {
     const auto report = DataReadValidateScriptTiming();
-    std::fprintf(stderr, "script timing startup: %zu scripts, %zu mismatches, %.3f seconds\n",
+    std::println(stderr, "script timing startup: {} scripts, {} mismatches, {:.3f} seconds",
                  report.files, report.errors.size(), report.seconds);
     if (report.errors.empty()) {
         return true;
     }
     std::string message = "These scripts cannot use NTSC gameplay timing:\n\n";
     for (std::size_t i = 0; i < report.errors.size(); ++i) {
-        std::fprintf(stderr, "script timing startup: %s\n", report.errors[i].c_str());
+        std::println(stderr, "script timing startup: {}", report.errors[i]);
         if (i < 8) {
             message += report.errors[i] + "\n";
         }
@@ -570,7 +583,7 @@ bool DataReadPrepareScriptTiming(bool headless) {
     if (report.errors.size() > 8) {
         message += "\nAdditional mismatches are listed in the log.\n";
     }
-    std::fprintf(stderr, "script timing startup: NTSC timing unavailable; refusing startup\n");
+    std::println(stderr, "script timing startup: NTSC timing unavailable; refusing startup");
     if (!headless) {
         message += "\nThe game cannot start with this script data. See the log for details.";
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Dark Chronicle - Script timing", message.c_str(), nullptr);
@@ -587,7 +600,11 @@ PORT_OVERRIDE int ChangeHddFile() {
     return 0;
 }
 
+// Callers copy the directory into buffers of 108 bytes (FishIMGReplace) and append file names to it
+// in 128-byte paths (MenuMonsterLoadBGCheck appends "dungeon/act_script/" and a script name), so a
+// directory is held to 63 bytes.
 PORT_OVERRIDE void SetCurrentDir(char *dir) {
+    constexpr std::size_t directory_limit = 0x3F;
     if (!dir) {
         current_dir.clear();
         return;
@@ -595,21 +612,21 @@ PORT_OVERRIDE void SetCurrentDir(char *dir) {
     if (*dir == '/') {
         dir++;
     }
-    current_dir = dir;
+    const std::string_view directory(dir);
+    if (directory.size() > directory_limit) {
+        std::fprintf(stderr, "dataread: current directory longer than %zu bytes ignored: %s\n", directory_limit, dir);
+        return;
+    }
+    current_dir = directory;
 }
 
 PORT_OVERRIDE void GetCurrentDir(char *out_dir) {
-    std::memcpy(out_dir, current_dir.c_str(), current_dir.size() + 1);
+    constexpr std::size_t smallest_caller_buffer = 0x6C;
+    bounded_text::Copy(std::span(out_dir, smallest_caller_buffer), current_dir);
 }
 
 PORT_OVERRIDE void ChangeDir(char *dir) {
-    current_dir.clear();
-    if (dir) {
-        if (*dir == '/') {
-            dir++;
-        }
-        current_dir += dir;
-    }
+    SetCurrentDir(dir);
 }
 
 PORT_OVERRIDE void InitReadBG() {
@@ -638,9 +655,7 @@ PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
     int size = 0;
 
     if (CacheSlot *cached = CacheFind(CacheKey(name))) {
-        std::memcpy(buffer, cached->address, static_cast<std::size_t>(cached->size));
-        TextureSourceCopy(cached->address, buffer, static_cast<std::size_t>(cached->size));
-        DataReadCopyBuffer(cached->address, buffer, static_cast<std::size_t>(cached->size));
+        PortTextureSourceCopy(buffer, cached->address, static_cast<std::size_t>(cached->size));
         cached->ref_count--;
         size = cached->size;
     } else {
@@ -710,7 +725,7 @@ PORT_OVERRIDE int ReadBGSync() {
 }
 
 // Retail returns without emptying the queue when no read is outstanding, so finished slots stay
-// visible until StartReadBG; kept as it is.
+// visible until StartReadBG.
 PORT_OVERRIDE void BreakReadBG() {
     if (!ReadBGSync()) {
         return;
@@ -742,9 +757,7 @@ PORT_OVERRIDE int LoadFile2(char *path, void *buffer, int *out_size, int mode) {
 
     if (CacheSlot *cached = CacheFind(CacheKey(path))) {
         if (mode != LOAD_FILE_SIZE) {
-            std::memcpy(buffer, cached->address, static_cast<std::size_t>(cached->size));
-            TextureSourceCopy(cached->address, buffer, static_cast<std::size_t>(cached->size));
-            DataReadCopyBuffer(cached->address, buffer, static_cast<std::size_t>(cached->size));
+            PortTextureSourceCopy(buffer, cached->address, static_cast<std::size_t>(cached->size));
         }
         if (mode == LOAD_FILE_READ) {
             cached->ref_count--;

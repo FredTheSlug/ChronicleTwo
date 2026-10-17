@@ -2,7 +2,6 @@
 #include <nlohmann/json.hpp>
 
 #include <cstring>
-#include <vector>
 
 #include "character.hpp"
 #include "dataread.hpp"
@@ -38,7 +37,7 @@ TEST(CharacterEffectMemory, ManagerOffsetDoesNotOverlapParticleStorage) {
     CCharacter2 character;
     character.Initialize();
     character.effect_image_load = 0;
-    model_assets::CharacterLoadOptions options{&memory, &memory, &memory};
+    model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory};
     std::string                        error;
     ASSERT_TRUE(model_assets::LoadCharacter(character, {reinterpret_cast<const std::byte *>(bytes.data()), bytes.size()}, game, "info", options, error)) << error;
     ASSERT_NE(character.effect_list, nullptr);

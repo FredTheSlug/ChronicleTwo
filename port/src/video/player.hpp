@@ -20,15 +20,15 @@ public:
     MoviePlayer                           &operator=(const MoviePlayer &) = delete;
     bool                                   Open(const std::filesystem::path &path, bool with_audio);
     void                                   Close();
-    bool                                   IsOpen() const;
+    [[nodiscard]] bool                                   IsOpen() const;
     bool                                   Advance(int64_t elapsed);
-    bool                                   HasPicture() const;
-    int                                    Width() const;
-    int                                    Height() const;
-    const std::vector<uint8_t>            &Rgba() const;
-    bool                                   Ended() const;
-    std::shared_ptr<const audio::PcmTrack> Audio() const;
-    int64_t                                PicturesShown() const;
+    [[nodiscard]] bool                                   HasPicture() const;
+    [[nodiscard]] int                                    Width() const;
+    [[nodiscard]] int                                    Height() const;
+    [[nodiscard]] const std::vector<uint8_t>            &Rgba() const;
+    [[nodiscard]] bool                                   Ended() const;
+    [[nodiscard]] std::shared_ptr<const audio::PcmTrack> Audio() const;
+    [[nodiscard]] int64_t                                PicturesShown() const;
 
 private:
     struct Frame {

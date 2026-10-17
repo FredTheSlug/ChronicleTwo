@@ -56,8 +56,10 @@ TEST(MenuWorkspace, DirectoryMarkerDoesNotLimitAquariumStorageOrTextureReentry) 
     ASSERT_TRUE(LoadFile2(path, marker.data(), &marker_size, LOAD_FILE_READ));
     ASSERT_LT(marker_size, 128);
     const auto             original_marker = marker;
-    std::vector<u_long128> texture_storage(4096), palette_storage(1024);
-    mgCMemory              textures, palettes;
+    std::vector<u_long128> texture_storage(4096);
+    std::vector<u_long128> palette_storage(1024);
+    mgCMemory              textures;
+    mgCMemory              palettes;
     textures.stSetBuffer(texture_storage.data(), static_cast<int>(texture_storage.size()));
     palettes.stSetBuffer(palette_storage.data(), static_cast<int>(palette_storage.size()));
     mgTexManager.SetTableBuffer(64, 8, &textures);

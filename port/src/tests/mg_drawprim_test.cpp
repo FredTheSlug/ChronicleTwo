@@ -31,7 +31,10 @@ public:
         prim.write = nullptr;
         mgPortSetPrimSink([this](gfx::Primitive primitive, std::span<const gfx::Vertex2D> vertices,
                                  const gfx::TextureBinding &texture, const gfx::DrawState &state) {
-            batches.push_back({primitive, {vertices.begin(), vertices.end()}, texture, state});
+            batches.push_back({
+                .primitive = primitive, .vertices = {vertices.begin(), vertices.end()},
+                     .texture = texture, .state = state
+            });
         });
     }
 
@@ -53,9 +56,11 @@ public:
 class GsReset {
 public:
     GsReset() = default;
+
     ~GsReset() {
         mgPortResetGs();
     }
+
     GsReset(const GsReset &) = delete;
     GsReset &operator=(const GsReset &) = delete;
 };
@@ -63,10 +68,12 @@ public:
 class PacketRegistryReset {
 public:
     PacketRegistryReset(const void *a, const void *b) : a_(a), b_(b) {}
+
     ~PacketRegistryReset() {
         mgPortClearPacketDraw(a_);
         mgPortClearPacketDraw(b_);
     }
+
     PacketRegistryReset(const PacketRegistryReset &) = delete;
     PacketRegistryReset &operator=(const PacketRegistryReset &) = delete;
 
@@ -81,7 +88,9 @@ struct Corner {
 };
 
 // Four corners of a 10-pixel square; the expected batches below name them by index.
-constexpr std::array<Corner, 4> kCorners = {{{0.0f, 0.0f}, {10.0f, 0.0f}, {0.0f, 10.0f}, {10.0f, 10.0f}}};
+constexpr std::array<Corner, 4> kCorners = {
+    {{.x = 0.0f, .y = 0.0f}, {.x = 10.0f, .y = 0.0f}, {.x = 0.0f, .y = 10.0f}, {.x = 10.0f, .y = 10.0f}}
+};
 
 int Gs(float pixels) {
     return static_cast<int>(pixels * 16.0f);
@@ -279,8 +288,8 @@ TEST(MgDrawPrim, PackedDataIsIgnored) {
 }
 
 TEST(MgDrawPrim, DirectScissorUpdatesGsState) {
-    GsReset reset;
-    mgCDrawPrim prim;
+    GsReset        reset;
+    mgCDrawPrim    prim;
     const uint64_t scax0 = 10;
     const uint64_t scax1 = 100;
     const uint64_t scay0 = 20;
@@ -406,7 +415,7 @@ TEST(MgDrawPrim, PrimVertexAtRawCoordinateMatchesLogicalMapping) {
 }
 
 TEST(MgDrawPrim, PrimVertexScreenOffsetCancelsInLogicalSpace) {
-    PrimRig rig;
+    PrimRig       rig;
     const uint8_t rgba[4] = {0, 0, 0, 0};
 
     const gfx::Vertex2D v = mgPortPrimVertex(rig.prim, 10.0f, 20.0f, 0.0f, 0.0f, 0.0f, rgba);
@@ -415,7 +424,7 @@ TEST(MgDrawPrim, PrimVertexScreenOffsetCancelsInLogicalSpace) {
 }
 
 TEST(MgDrawPrim, PrimVertexMapsZLikeDepthAndClamps) {
-    PrimRig rig;
+    PrimRig       rig;
     const uint8_t rgba[4] = {0, 0, 0, 0};
 
     EXPECT_FLOAT_EQ(mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 1000.0f, 0.0f, 0.0f, rgba).z, mgPortDepth(1000));
@@ -521,7 +530,7 @@ TEST(MgDrawPrim, PrimSubmitFlushesPendingBatchFirst) {
     rig.prim.Begin(MG_PRIM_POINT);
     rig.prim.Vertex(10.0f, 10.0f, 0.0f);
 
-    const uint8_t white[4] = {255, 255, 255, 255};
+    const uint8_t                    white[4] = {255, 255, 255, 255};
     const std::vector<gfx::Vertex2D> tri = {
         mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
         mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
@@ -543,8 +552,8 @@ TEST(MgDrawPrim, PrimSubmitUsesLastColourForFlatTriangles) {
     rig.prim.Begin2();
     rig.prim.Shading(0);
 
-    const uint8_t red[4] = {255, 0, 0, 255};
-    const uint8_t blue[4] = {0, 0, 255, 255};
+    const uint8_t                    red[4] = {255, 0, 0, 255};
+    const uint8_t                    blue[4] = {0, 0, 255, 255};
     const std::vector<gfx::Vertex2D> tri = {
         mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
         mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
@@ -565,8 +574,8 @@ TEST(MgDrawPrim, PrimSubmitKeepsVertexColoursWhenShaded) {
     rig.prim.Begin2();
     rig.prim.Shading(1);
 
-    const uint8_t red[4] = {255, 0, 0, 255};
-    const uint8_t blue[4] = {0, 0, 255, 255};
+    const uint8_t                    red[4] = {255, 0, 0, 255};
+    const uint8_t                    blue[4] = {0, 0, 255, 255};
     const std::vector<gfx::Vertex2D> tri = {
         mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
         mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, red),
@@ -581,8 +590,8 @@ TEST(MgDrawPrim, PrimSubmitKeepsVertexColoursWhenShaded) {
 }
 
 TEST(MgDrawPrim, PrimSubmitDrawsNothingWhileDisabled) {
-    PrimRig rig;
-    const uint8_t white[4] = {255, 255, 255, 255};
+    PrimRig                          rig;
+    const uint8_t                    white[4] = {255, 255, 255, 255};
     const std::vector<gfx::Vertex2D> tri = {
         mgPortPrimVertex(rig.prim, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
         mgPortPrimVertex(rig.prim, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, white),
@@ -610,7 +619,7 @@ TEST(MgDrawPrim, StripTrianglesFollowAssemblyOrder) {
 }
 
 TEST(MgDrawPrim, FontCellUvOneTexelWiderMapsToCell) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 0, {136.0f, 248.0f, 144.0f, 268.0f}, {0, 0, 9, 21});
 
     ExpectQuadUv(q, kMgPortNearestTexelBias, 8.0f + kMgPortNearestTexelBias, kMgPortNearestTexelBias,
@@ -618,7 +627,7 @@ TEST(MgDrawPrim, FontCellUvOneTexelWiderMapsToCell) {
 }
 
 TEST(MgDrawPrim, FullWidthFontCellUvOneTexelWiderMapsToCell) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 0, {136.0f, 248.0f, 152.0f, 268.0f}, {0, 0, 17, 21});
 
     ExpectQuadUv(q, kMgPortNearestTexelBias, 16.0f + kMgPortNearestTexelBias, kMgPortNearestTexelBias,
@@ -626,7 +635,7 @@ TEST(MgDrawPrim, FullWidthFontCellUvOneTexelWiderMapsToCell) {
 }
 
 TEST(MgDrawPrim, NearestTileSeamSamplesTheTileTexel) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 0, {47.0f, 0.0f, 303.0f, 8.0f}, {256, 0, 512, 8});
 
     ExpectQuadUv(q, 256.0f + kMgPortNearestTexelBias, 512.0f + kMgPortNearestTexelBias, kMgPortNearestTexelBias,
@@ -634,7 +643,7 @@ TEST(MgDrawPrim, NearestTileSeamSamplesTheTileTexel) {
 }
 
 TEST(MgDrawPrim, OneToOneSpriteUvIsUnchanged) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 0, {100.0f, 50.0f, 123.0f, 75.0f}, {0, 0, 23, 25});
 
     ExpectQuadUv(q, kMgPortNearestTexelBias, 23.0f + kMgPortNearestTexelBias, kMgPortNearestTexelBias,
@@ -642,7 +651,7 @@ TEST(MgDrawPrim, OneToOneSpriteUvIsUnchanged) {
 }
 
 TEST(MgDrawPrim, StretchedTwoTexelStripUvIsUnchanged) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 0, {0.0f, 0.0f, 175.0f, 8.0f}, {231, 0, 233, 8});
 
     ExpectQuadUv(q, 231.0f + kMgPortNearestTexelBias, 233.0f + kMgPortNearestTexelBias, kMgPortNearestTexelBias,
@@ -650,7 +659,7 @@ TEST(MgDrawPrim, StretchedTwoTexelStripUvIsUnchanged) {
 }
 
 TEST(MgDrawPrim, FlippedSpriteUvMapsToTexelEdges) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 0, {0.0f, 0.0f, 16.0f, 10.0f}, {16, 0, 0, 10});
 
     ExpectQuadUv(q, 17.0f + kMgPortNearestTexelBias, 1.0f + kMgPortNearestTexelBias, kMgPortNearestTexelBias,
@@ -658,7 +667,7 @@ TEST(MgDrawPrim, FlippedSpriteUvMapsToTexelEdges) {
 }
 
 TEST(MgDrawPrim, EqualUvSpriteCoversOneTexel) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 0, {0.0f, 0.0f, 10.0f, 10.0f}, {5, 5, 5, 5});
 
     ExpectQuadUv(q, 5.0f + kMgPortNearestTexelBias, 6.0f + kMgPortNearestTexelBias, 5.0f + kMgPortNearestTexelBias,
@@ -668,14 +677,14 @@ TEST(MgDrawPrim, EqualUvSpriteCoversOneTexel) {
 }
 
 TEST(MgDrawPrim, LinearFontSpriteSamplesAtGsIntegerPixelLocations) {
-    PrimRig rig;
+    PrimRig                          rig;
     const std::vector<gfx::Vertex2D> q = DrawTexturedSprite(rig, 1, {136.0f, 248.0f, 144.0f, 268.0f}, {0, 0, 9, 21});
 
     ExpectQuadUv(q, -0.5625f, 8.4375f, -0.525f, 20.475f);
 }
 
 TEST(MgDrawPrim, LinearSpriteOffsetFollowsScaledAndFlippedUvSlopes) {
-    PrimRig rig;
+    PrimRig    rig;
     const auto q = DrawTexturedSprite(rig, 1, {10, 20, 42, 28}, {24, 40, 8, 72});
     // Half a destination pixel corresponds to -0.25 U and +2 V here.
     ExpectQuadUv(q, 24.25f, 8.25f, 38, 70);
@@ -699,7 +708,7 @@ TEST(MgDrawPrim, NullTextureDropsInheritedTexture) {
     rig.prim.End();
 }
 
-// Outside the status board an Initialized builder draws without the retained texture, as before.
+// Outside the status board an Initialized builder draws without the retained texture.
 TEST(MgDrawPrim, TextureNotInheritedOutsideStatusBoard) {
     GsReset    reset;
     PrimRig    rig;

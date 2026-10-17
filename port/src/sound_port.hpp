@@ -20,7 +20,7 @@ int SoundLoadBankJson(int port, std::string_view document, bool add = false);
 /**
  * Binds a fully loaded PCM sample bank to the game driver and its linked ports.
  */
-int SoundBindBank(int port, std::shared_ptr<audio::Bank> bank, bool add = false);
+int SoundBindBank(int port, const std::shared_ptr<audio::Bank> &bank, bool add = false);
 /**
  * Loads a sequence of normalized MIDI events from its published JSON document.
  */

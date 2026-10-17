@@ -35,3 +35,6 @@ struct SPI_TAG_PARAM;
 
 /** Native game configuration loading shares the original callback table. */
 extern SPI_TAG_PARAM tag__3[] asm("MainLoop_ConfigTags");
+
+/** Native game configuration loading sets the debug menu rows the retail tags set. */
+extern int SelectArg[32] asm("MainLoop_SelectArg");

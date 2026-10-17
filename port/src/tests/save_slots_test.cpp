@@ -81,15 +81,15 @@ protected:
         ASSERT_EQ(FilesWrite(path, image.get(), size, false), FilesResult::kWritten);
     }
 
-    std::vector<char> Bytes(const fs::path &path) {
+    static std::vector<char> Bytes(const fs::path &path) {
         std::ifstream input(path, std::ios::binary);
         return {std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
     }
 
-    std::size_t FlatCount() {
+    static std::size_t FlatCount() {
         std::size_t count = 0;
         for (const auto &entry : fs::directory_iterator(SaveSlotsRoot())) {
-            bool second;
+            bool second = false;
             count += entry.is_regular_file() && SaveSlotNumber(entry.path().filename().string(), second) >= 0;
         }
         return count;
@@ -153,14 +153,14 @@ std::vector<u_long128> SaveMessages(int language) {
 
 struct MenuRig {
     CSaveMenuClass      menu;
-    CMenuKeyFunc        common = {};
+    CMenuKeyFunc        common;
     CMenuPosDataManage  layout = {};
     CMenuPosDataForm    form = {};
     CDC2Mes             message;
     CMenuKeyFunc       *old_common = MenuCommonInfo;
     CMenuPosDataManage *old_layout = MenuPosData;
-    CDC2Mes            *old_messages[9];
-    CMenuPosDataForm   *old_forms[9];
+    CDC2Mes            *old_messages[9]{};
+    CMenuPosDataForm   *old_forms[9]{};
     int                 old_language = LanguageCode;
 
     MenuRig() {
@@ -221,8 +221,8 @@ TEST_F(SaveSlotTest, NamesAreCanonicalAndIgnoreTemporaryFiles) {
     EXPECT_FALSE(second);
     EXPECT_EQ(SaveSlotNumber("BESCES-51190dkcl999999999.card2", second), 999999999);
     EXPECT_TRUE(second);
-    for (auto *name : {"BESCES-51190dkcl01", "BESCES-51190dkcl-1", "BESCES-51190dkcl1000000000",
-                       "BESCES-51190dkcl0.123.tmp", "BESCES-51190dkcl", "icon.sys", "../BESCES-51190dkcl0"}) {
+    for (const auto *name : {"BESCES-51190dkcl01", "BESCES-51190dkcl-1", "BESCES-51190dkcl1000000000",
+                             "BESCES-51190dkcl0.123.tmp", "BESCES-51190dkcl", "icon.sys", "../BESCES-51190dkcl0"}) {
         EXPECT_EQ(SaveSlotNumber(name, second), -1) << name;
     }
 }
@@ -827,7 +827,7 @@ TEST_F(SaveSlotTest, VersionTwoLoadsAndUsesRetailInventionConversion) {
     static_assert(sizeof(OldCard) == 12);
     auto *source = image->save_data.GetUserDataManager()->GetInventUserData();
     for (int i = 0; i < 128; ++i) {
-        const OldCard card{static_cast<short>(i + 1), static_cast<unsigned short>(i + 100), {}};
+        const OldCard card{.item_id = static_cast<short>(i + 1), .flags = static_cast<unsigned short>(i + 100), .unused = {}};
         auto         *bytes = reinterpret_cast<char *>(source) + offsetof(CInventUserData, created_item);
         std::memcpy(bytes + i * sizeof(OldCard), &card, sizeof(card));
     }
@@ -1014,7 +1014,7 @@ TEST_F(SaveSlotTest, LocalizedSavePromptsContainRetailText) {
             rig.Press(PAD_CROSS);
             rig.message.StepMsg();
             const auto  text = MessageText(rig.message);
-            const char *expected;
+            const char *expected = nullptr;
             if (language == LANG_ENGLISH) {
                 expected = finny ? "File 8 has data for 5 fish.\nLoad fish data from file 8?"
                                  : "At least 415KB is necessary\nfor a new file.\nOK to save?";
@@ -1291,7 +1291,7 @@ TEST_F(SaveSlotTest, UnavailableSourceAfterFailedMoveCannotTriggerAnotherCopy) {
 
 TEST_F(SaveSlotTest, RecoveryUsesOnlyPublishedFilesInFreshProcess) {
     constexpr auto variable = "DC2_IMPORT_RECOVERY_ROOT";
-    const auto     inherited = std::getenv(variable);
+    auto *const    inherited = std::getenv(variable);
     const auto     recovery = inherited ? fs::path(inherited) : root;
     if (!inherited) {
         Write(Legacy(1, 0));
@@ -1347,7 +1347,8 @@ TEST_P(SaveSlotImportTest, ComparisonReadFailuresDeferCopyOnBothCardsAndRelocati
     ASSERT_EQ(SaveSlotScan().saves.size(), collision ? 3 : 2);
     const auto flat = SaveSlotPath(collision ? 1 : 0, card != 0);
     const auto flat_count = FlatCount();
-    int        comparisons = 0, publications = 0;
+    int        comparisons = 0;
+    int        publications = 0;
     SaveSlotSetImportHook([&](auto stage, const auto &, const auto &to) {
         publications += stage == SaveSlotImportStage::Published;
         if (stage == SaveSlotImportStage::Comparing && (!collision || to != SaveSlotPath(0, card != 0))) {
@@ -1396,7 +1397,8 @@ TEST_F(SaveSlotTest, OneUnavailableComparisonAmongDifferentTargetsDefersPublicat
         previous.push_back(Bytes(SaveSlotPath(number)));
     }
     std::ofstream(root / "imported") << "blocked";
-    int comparisons = 0, publications = 0;
+    int comparisons = 0;
+    int publications = 0;
     SaveSlotSetImportHook([&](auto stage, const auto &, const auto &to) {
         publications += stage == SaveSlotImportStage::Published;
         if (stage == SaveSlotImportStage::Comparing) {
@@ -1493,7 +1495,7 @@ TEST_P(SaveSlotImportTest, OverwriteBetweenUnavailableSourceRescansPreservesNewP
 
 TEST_F(SaveSlotTest, UnavailableComparisonDefersPublicationInFreshProcess) {
     constexpr auto variable = "DC2_COMPARE_RECOVERY_ROOT";
-    const auto     inherited = std::getenv(variable);
+    auto *const    inherited = std::getenv(variable);
     const auto     recovery = inherited ? fs::path(inherited) : root;
     if (!inherited) {
         image->unique_counter = 1;

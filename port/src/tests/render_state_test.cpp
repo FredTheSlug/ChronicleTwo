@@ -52,8 +52,7 @@ TEST_F(NativeRenderState, DestinationAlphaTestsResetWithoutErasingIndependentSte
         mgPortApplyTest(state, SCE_GS_SET_TEST(1, 6, 12, 0, 0, 0, 1, 2));
         EXPECT_FALSE(state.stencil_test);
     }
-    const gfx::StencilFace shadow{gfx::CompareOp::NotEqual, gfx::StencilOp::Keep, gfx::StencilOp::Zero,
-                                  gfx::StencilOp::Keep, 0, 0xff, 0xff};
+    const gfx::StencilFace shadow{.compare = gfx::CompareOp::NotEqual, .fail = gfx::StencilOp::Keep, .pass = gfx::StencilOp::Zero, .depth_fail = gfx::StencilOp::Keep, .reference = 0, .compare_mask = 0xff, .write_mask = 0xff};
     state.stencil_test = true;
     state.stencil_front = state.stencil_back = shadow;
     mgPortApplyTest(state, SCE_GS_SET_TEST(1, 6, 12, 0, 0, 0, 1, 2));

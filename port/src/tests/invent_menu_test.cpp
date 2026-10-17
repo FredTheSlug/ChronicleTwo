@@ -34,27 +34,21 @@ struct MenuDirectory {
     std::string           metadata;    /**< Actual pack.json bytes supplied to the game. */
     std::size_t           script_size; /**< Actual native inventory script byte count. */
 
-    MenuDirectory() {
+    MenuDirectory() : previous(datapacks::Root()) {
         using Json = nlohmann::json;
-        previous = datapacks::Root();
+
         root = std::filesystem::temp_directory_path() / ("chronicle_menu_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         const auto directory = root / "port_data/menu/fixture.pak";
         std::filesystem::create_directories(directory);
-        auto       integer = [](int value) { return Json{
-                                                 {"type",  "int"},
-                                                 {"value", value}
- }; };
-        auto       text = [](const char *value) { return Json{
-                                                      {"type",  "string"},
-                                                      {"value", value   }
- }; };
         const Json forms = {
-            {"schema_version", 1                                                                                                                                                                                                                                              },
-            {"commands",       Json::array({{{"command", "FORM_MALLOC"}, {"args", {integer(1)}}}, {{"command", "FORM_OFFSET_NO"}, {"args", {integer(0)}}}, {{"command", "FORM_SET"}, {"args", {text("poly_chr0")}}}, {{"command", "INIT_DRAWLIST"}, {"args", Json::array()}}})}
+            {"schema_version", 2},
+            {"kind", "menu_layout"},
+            {"operations", Json::array({{{"op", "allocate_forms"}, {"count", 1}}, {{"op", "form_offset"}, {"index", 0}}, {{"op", "form"}, {"name", "poly_chr0"}, {"settings", Json::array()}, {"parts", Json::array()}}, {{"op", "init_drawlist"}}})}
         };
         const Json script = {
-            {"schema_version", 1                                                                },
-            {"commands",       Json::array({{{"command", "INIT_END"}, {"args", Json::array()}}})}
+            {"schema_version", 2},
+            {"kind", "menu_commands"},
+            {"blocks", Json::array()}
         };
         metadata = Json({
                             {"schema_version", 1                },
@@ -112,7 +106,8 @@ TEST(InventMenu, PendingPhotoPageDoesNotFinishCharacterLoadingBeforeItsFormsExis
 } // namespace
 
 TEST(InventMenu, LoadsNativeFolderFormsAndRecipesBeforeAttachingThePhotoCharacter) {
-    std::vector<u_long128> storage(4096), texture_storage(4096);
+    std::vector<u_long128> storage(4096);
+    std::vector<u_long128> texture_storage(4096);
     mgCMemory              textures;
     textures.stSetBuffer(texture_storage.data(), texture_storage.size());
     mgTexManager.SetTableBuffer(64, 8, &textures);

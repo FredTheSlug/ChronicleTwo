@@ -12,6 +12,7 @@
 #include <fstream>
 #include <map>
 #include <optional>
+#include <print>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -19,7 +20,7 @@
 #include <type_traits>
 #include <vector>
 
-#include "platform/config_catalog.hpp"
+#include "command_replay.hpp"
 #include "platform/datapacks.hpp"
 #include "scriptinterpreter.hpp"
 #include "texture_source.hpp"
@@ -48,7 +49,7 @@ int CaptureParity(SPI_STACK *stack, int count) {
         if (argument.type == SPI_STACK_TYPE_STRING) {
             Json bytes = Json::array();
             if (argument.value.string) {
-                for (auto *text = reinterpret_cast<const unsigned char *>(argument.value.string); *text; ++text) {
+                for (const auto *text = reinterpret_cast<const unsigned char *>(argument.value.string); *text; ++text) {
                     bytes.push_back(*text);
                 }
             }
@@ -71,7 +72,7 @@ bool TagName(const std::string &name) {
     if (name.empty() || (name.front() != '_' && (name.front() < 'A' || name.front() > 'Z'))) {
         return false;
     }
-    return std::all_of(name.begin(), name.end(), [](unsigned char value) {
+    return std::ranges::all_of(name, [](unsigned char value) {
         return (value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') ||
                (value >= '0' && value <= '9') || value == '_';
     });
@@ -101,7 +102,7 @@ Json Execute(char *script, int size, std::vector<SPI_TAG_PARAM> &tags) {
 /**
  * Identifies the character resource slots interpreted by the native profile dispatcher.
  */
-std::string ResourceKind(const std::string &command, std::size_t argument) {
+std::string_view ResourceKind(const std::string &command, std::size_t argument) {
     if ((command == "MODEL" || command == "SHADOW_MODEL") && argument == 0) {
         return "model";
     }
@@ -190,8 +191,8 @@ std::string CapturedString(const Json &argument) {
  * Normalizes an ASCII resource identity for the extraction inventory comparison.
  */
 std::string Lower(std::string value) {
-    std::replace(value.begin(), value.end(), '\\', '/');
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
+    std::ranges::replace(value, '\\', '/');
+    std::ranges::transform(value, value.begin(), [](unsigned char character) { return static_cast<char>(std::tolower(character)); });
     return value;
 }
 
@@ -199,7 +200,7 @@ std::string Lower(std::string value) {
  * Computes the permitted direct native filename for one documented resource operand.
  */
 std::string NativeFilename(std::string original, bool profile) {
-    std::replace(original.begin(), original.end(), '\\', '/');
+    std::ranges::replace(original, '\\', '/');
     const auto dot = original.rfind('.');
     if (dot == std::string::npos) {
         return original;
@@ -347,13 +348,17 @@ TEST(NativeConfigParity, MatchesEveryOfflineOriginalInManifest) {
     std::ifstream(manifest_name) >> manifest;
     const std::filesystem::path root = manifest.at("port_data").get<std::string>();
     datapacks::Load(root);
-    std::set<std::string> identities, leaf_names;
+    std::set<std::string> identities;
+    std::set<std::string> leaf_names;
     for (const auto &identity : manifest.at("identities")) {
         const auto normalized = Lower(identity.get<std::string>());
         identities.insert(normalized);
         leaf_names.insert(std::filesystem::path(normalized).filename().generic_string());
     }
-    std::size_t                         count = 0, subtitles = 0, bindings = 0, renamed = 0;
+    std::size_t                         count = 0;
+    std::size_t                         subtitles = 0;
+    std::size_t                         bindings = 0;
+    std::size_t                         renamed = 0;
     std::string                         cached_character;
     Json                                game;
     std::optional<fastgltf::Asset>      gltf;
@@ -395,6 +400,15 @@ TEST(NativeConfigParity, MatchesEveryOfflineOriginalInManifest) {
             ++subtitles;
             continue;
         }
+        if (!character) {
+            // A configuration is a native semantic document; the converter proves at extraction that
+            // it gives back every value the original script's callbacks read.
+            EXPECT_EQ(document.at("schema_version"), 2);
+            EXPECT_TRUE(document.at("kind").is_string());
+            EXPECT_FALSE(document.contains("commands"));
+            ++count;
+            continue;
+        }
         std::set<std::string>     names;
         int                       max_index = -1;
         std::vector<const Json *> executed;
@@ -417,10 +431,11 @@ TEST(NativeConfigParity, MatchesEveryOfflineOriginalInManifest) {
             }
         }
         std::vector<SPI_TAG_PARAM> tags;
+        tags.reserve(strings.size());
         for (auto &name : strings) {
-            tags.push_back({name.data(), CaptureParity});
+            tags.push_back({.name = name.data(), .function = CaptureParity});
         }
-        tags.push_back({nullptr, nullptr});
+        tags.push_back({.name = nullptr, .function = nullptr});
         std::ifstream input(source.at("original").get<std::string>(), std::ios::binary);
         ASSERT_TRUE(input.good());
         std::vector<char> bytes((std::istreambuf_iterator<char>(input)), {});
@@ -438,8 +453,14 @@ TEST(NativeConfigParity, MatchesEveryOfflineOriginalInManifest) {
                 }
             }
         }
-        auto       text = sanitized.dump();
-        const auto native = Execute(text.data(), static_cast<int>(text.size()), tags);
+        auto text = sanitized.dump();
+        observations = Json::array();
+        ASSERT_TRUE(command_replay::RunBuffer(text.data(), static_cast<int>(text.size()), tags.data()));
+        auto native = observations;
+        for (std::size_t row = 0; row < native.size() && row < executed.size(); ++row) {
+            const auto name = executed.at(row)->value("command", std::string{});
+            native.at(row)["tag"] = static_cast<int>(std::find(strings.begin(), strings.end(), name) - strings.begin());
+        }
         ASSERT_EQ(native.size(), original.size());
         ASSERT_EQ(native.size(), executed.size());
         const auto container = alias.substr(0, alias.rfind('/'));
@@ -468,14 +489,14 @@ TEST(NativeConfigParity, MatchesEveryOfflineOriginalInManifest) {
                     if (converted.at("index").is_null()) {
                         EXPECT_FALSE(identities.contains(Lower(resource_alias))) << "present resource dropped: " << resource_alias;
                     } else {
-                        const auto  key = kind == "animation" ? "animations" : kind == "bind_pose" ? "bind_poses"
-                                                                           : kind == "weights"     ? "weights"
-                                                                           : kind == "texture_set" ? "texture_sets"
-                                                                           : kind == "cloth"       ? "cloths"
-                                                                           : kind == "character"   ? "children"
-                                                                                                   : "scripts";
-                        const auto &resources = kind == "model" ? game.at("models") : game.at("resources").at(key);
-                        const auto  index = converted.at("index").get<std::size_t>();
+                        const auto *const key = kind == "animation" ? "animations" : kind == "bind_pose" ? "bind_poses"
+                                                                                 : kind == "weights"     ? "weights"
+                                                                                 : kind == "texture_set" ? "texture_sets"
+                                                                                 : kind == "cloth"       ? "cloths"
+                                                                                 : kind == "character"   ? "children"
+                                                                                                         : "scripts";
+                        const auto       &resources = kind == "model" ? game.at("models") : game.at("resources").at(key);
+                        const auto        index = converted.at("index").get<std::size_t>();
                         ASSERT_LT(index, resources.size());
                         if (kind == "model") {
                             EXPECT_EQ(std::string(gltf->scenes.at(resources.at(index).at("scene").get<std::size_t>()).name), std::filesystem::path(operand).stem().string());
@@ -510,7 +531,8 @@ TEST(NativeConfigParity, MatchesEveryOfflineOriginalInManifest) {
                 ASSERT_EQ(baseline.at("type"), SPI_STACK_TYPE_STRING);
                 ASSERT_EQ(actual.at("type"), SPI_STACK_TYPE_STRING);
                 ASSERT_EQ(baseline.at("null"), actual.at("null"));
-                const auto old_name = CapturedString(baseline), new_name = CapturedString(actual);
+                const auto old_name = CapturedString(baseline);
+                const auto new_name = CapturedString(actual);
                 const auto expected = NativeFilename(old_name, name == "CHARA" && arg == 1);
                 ASSERT_NE(expected, old_name);
                 EXPECT_EQ(new_name, expected);
@@ -525,6 +547,6 @@ TEST(NativeConfigParity, MatchesEveryOfflineOriginalInManifest) {
         }
         ++count;
     }
-    std::printf("CFG parity: %zu scripts; %zu resource bindings; %zu native filename changes; %zu subtitle documents\n", count, bindings, renamed, subtitles);
+    std::println("CFG parity: {} scripts; {} resource bindings; {} native filename changes; {} subtitle documents", count, bindings, renamed, subtitles);
     datapacks::Clear();
 }

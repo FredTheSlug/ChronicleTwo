@@ -16,7 +16,7 @@ protected:
     std::filesystem::path root = std::filesystem::temp_directory_path() /
                                  ("ct_native_assets_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
 
-    void Write(const std::filesystem::path &path, const char *text) {
+    static void Write(const std::filesystem::path &path, const char *text) {
         std::filesystem::create_directories(path.parent_path());
         std::ofstream(path) << text;
     }
@@ -52,7 +52,8 @@ TEST_F(NativeAssetsTest, LoadsActualJsonAndPreservesItsByteBoundsAcrossCopies) {
     constexpr char json[] = R"({"schema_version":1,"commands":[]})";
     Write(root / "port_data/menu/positions.json", json);
     DataReadIndex(root / "data");
-    alignas(16) std::array<unsigned char, 2048> source{}, copy{};
+    alignas(16) std::array<unsigned char, 2048> source{};
+    alignas(16) std::array<unsigned char, 2048> copy{};
     char                                        path[] = "menu/positions.json";
     int                                         size = 0;
     ASSERT_TRUE(LoadFile(path, source.data(), &size));

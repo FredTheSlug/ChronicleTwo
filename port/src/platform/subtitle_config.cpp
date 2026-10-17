@@ -60,7 +60,7 @@ bool Decode(std::string_view json, int chapter, std::vector<Cue> &cues, std::str
     error.clear();
     try {
         const auto document = nlohmann::json::parse(json);
-        if (document.at("schema_version") != 1 || document.at("kind") != "movie_subtitles" || !document.at("chapters").is_array()) {
+        if (document.at("schema_version") != 2 || document.at("kind") != "movie_subtitles" || !document.at("chapters").is_array()) {
             throw std::runtime_error("invalid subtitle document");
         }
         for (const auto &track : document.at("chapters")) {
@@ -73,17 +73,15 @@ bool Decode(std::string_view json, int chapter, std::vector<Cue> &cues, std::str
             }
             std::vector<Cue> decoded;
             for (const auto &entry : entries) {
-                Cue cue{Frame(entry.at("start_seconds")), Frame(entry.at("clear_seconds")), Text(entry)};
-                if (cue.text.size() >= MOVIE_CC_LEN || cue.text.find('\0') != std::string::npos) {
+                Cue cue{.start_frame = Frame(entry.at("start_seconds")), .clear_frame = Frame(entry.at("clear_seconds")), .text = Text(entry)};
+                if (cue.text.size() >= MOVIE_CC_LEN || cue.text.contains('\0')) {
                     throw std::runtime_error("subtitle exceeds native text capacity");
                 }
                 decoded.push_back(std::move(cue));
             }
             cues = std::move(decoded);
-            error.clear();
             return true;
         }
-        error.clear();
         return false;
     } catch (const std::exception &exception) {
         error = exception.what();

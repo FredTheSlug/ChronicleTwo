@@ -6,7 +6,6 @@
 
 class CMenuKeyFunc;
 class CMenuPosDataForm;
-struct InputMenuMouse;
 
 namespace menumouse {
 
@@ -16,7 +15,7 @@ struct Point {
 
 struct Rect {
     float x = 0, y = 0, w = 0, h = 0;
-    bool  Contains(Point p) const;
+    [[nodiscard]] bool Contains(Point p) const;
 };
 
 struct Target {

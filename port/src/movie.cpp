@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <optional>
+#include <print>
 #include <string>
 
 #include "audio/mixer.hpp"
@@ -142,7 +143,7 @@ std::filesystem::path MoviePortPath(const char *name) {
 
 // The retail pools are replaced by the host's allocator. init_sound would reset the PS2 sound driver, which the
 // shared mixer does not need.
-PORT_OVERRIDE void CMovie::Load(char *name, mgCMemory **, int, int, bool with_audio, bool loop, bool) {
+PORT_OVERRIDE void CMovie::Load(char *name, mgCMemory ** /*unused*/, int /*unused*/, int /*unused*/, bool with_audio, bool loop, bool /*unused*/) {
     Term();
     g_movie.loaded = true;
     g_movie.path = MoviePortPath(name);
@@ -150,8 +151,8 @@ PORT_OVERRIDE void CMovie::Load(char *name, mgCMemory **, int, int, bool with_au
     g_movie.loop = loop;
     g_movie.opened = g_movie.player.Open(g_movie.path, with_audio);
     if (!g_movie.opened) {
-        std::fprintf(stderr, "movie: %s not found or not a playable MP4 (%s)\n", name,
-                     PathsDisplay(g_movie.path).c_str());
+        std::println(stderr, "movie: {} not found or not a playable MP4 ({})", name,
+                     PathsDisplay(g_movie.path));
     }
 }
 

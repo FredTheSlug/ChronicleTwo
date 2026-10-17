@@ -102,10 +102,10 @@ TEST(PcOptions, BooleanAndEnumChoicesWrapInBothDirections) {
 
 TEST(PcOptions, ResolutionsKeepDesktopAndCustomSizeAndDeduplicateDisplayModes) {
     const DisplayModeSize modes[]{
-        {1920, 1080},
-        {1920, 1080},
-        {2560, 1440},
-        {320,  200 }
+        {.width = 1920, .height = 1080},
+        {.width = 1920, .height = 1080},
+        {.width = 2560, .height = 1440},
+        {.width = 320,  .height = 200 }
     };
     const auto sizes = options::ResolutionList(modes, 1234, 789);
     EXPECT_EQ(sizes.front().width, 0);
@@ -171,7 +171,7 @@ TEST(PcOptions, HitTestingUsesVisibleRowsAndHasNoDeadRowsOrOutOfBoundsHits) {
 
 TEST(PcOptions, PointerUsesUiScaleLetterboxingAndHighDpiMapping) {
     // 2560x1440 pixels in a 1280x720 window, UI 0.75, 4:3 logical image centered.
-    gfx::LogicalMapping mapping{2.8125f, 2.25f, 560, 180, 2560, 1440};
+    gfx::LogicalMapping mapping{.scale_x = 2.8125f, .scale_y = 2.25f, .offset_x = 560, .offset_y = 180, .pixel_width = 2560, .pixel_height = 1440};
     const float         x = (300 * mapping.scale_x + mapping.offset_x) / 2;
     const float         y = (160 * mapping.scale_y + mapping.offset_y) / 2;
     auto                point = options::PointerToUi(x, y, 1280, 720, mapping);
@@ -185,7 +185,7 @@ TEST(PcOptions, StationaryPointerDoesNotUndoWheelOrPadNavigation) {
     options::State state;
     state.open = true;
     options::SelectPage(state, options::kBindingsPage);
-    const options::Point point{200, options::kRowY + 3 * options::kRowStep + 4};
+    const options::Point point{.x = 200, .y = options::kRowY + 3 * options::kRowStep + 4};
     options::NavigatePointer(state, point, true, 0);
     EXPECT_EQ(state.row[options::kBindingsPage], 3);
     for (int n = 0; n < 15; ++n) {
@@ -220,7 +220,7 @@ TEST(PcOptions, HeldConfirmNeverRepeatsButNavigationDoes) {
 TEST(PcOptions, EscapeAndWholeAxesCannotBeBoundAndResetOnlyTouchesOneAction) {
     Config config;
     config.key_bindings = {
-        {"circle", {"Q"}}
+        {.action = "circle", .keys = {"Q"}}
     };
     EXPECT_FALSE(options::SetBinding(config, "cross", "Escape"));
     EXPECT_FALSE(options::SetBinding(config, "cross", "ESCAPE"));
@@ -266,7 +266,7 @@ TEST(PcOptions, PromptsFollowBindingsAndControllerFamilyWithoutChangingPadAction
     EXPECT_EQ(options::ButtonName("cross", config), "B");
     config.glyph_device = ConfigGlyphDevice::Keyboard;
     config.key_bindings = {
-        {"cross", {"K"}}
+        {.action = "cross", .keys = {"K"}}
     };
     InputApplyConfig(config);
     EXPECT_EQ(options::ButtonName("cross", config), "K");

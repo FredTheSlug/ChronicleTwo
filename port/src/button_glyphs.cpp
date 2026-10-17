@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <map>
+#include <utility>
 #include <vector>
 
 #include "platform/glyphs.hpp"
@@ -32,27 +33,27 @@ const std::map<std::string, Cells, std::less<> > &BuiltinTargets() {
     static const std::map<std::string, Cells, std::less<> > targets = {
         {"gaiji",
          {
-             {"select_label", {2, 2, 52, 17}},
-             {"start_label", {62, 2, 44, 17}},
-             {"circle", {1, 23, 20, 20}},
-             {"triangle", {23, 23, 20, 20}},
-             {"square", {45, 23, 20, 20}},
-             {"cross", {67, 23, 20, 20}},
-             {"dpad", {2, 68, 18, 18}},
-             {"dpad_ud", {24, 68, 18, 18}},
-             {"dpad_lr", {46, 68, 18, 18}},
-             {"l2", {5, 134, 22, 17}},
-             {"l1", {37, 134, 22, 17}},
-             {"r1", {69, 134, 22, 17}},
-             {"r2", {101, 134, 22, 17}},
-             {"start", {14, 157, 24, 15}},
-             {"start_label@pill", {44, 156, 45, 19}},
-             {"select", {14, 179, 24, 16}},
-             {"select_label@pill", {44, 177, 52, 19}},
-             {"lstick", {137, 202, 26, 27}},
-             {"rstick", {165, 201, 26, 28}},
-         }                                       },
-        {"skip",  {{"triangle", {8, 26, 20, 19}}}},
+             {"select_label", {.x = 2, .y = 2, .w = 52, .h = 17}},
+             {"start_label", {.x = 62, .y = 2, .w = 44, .h = 17}},
+             {"circle", {.x = 1, .y = 23, .w = 20, .h = 20}},
+             {"triangle", {.x = 23, .y = 23, .w = 20, .h = 20}},
+             {"square", {.x = 45, .y = 23, .w = 20, .h = 20}},
+             {"cross", {.x = 67, .y = 23, .w = 20, .h = 20}},
+             {"dpad", {.x = 2, .y = 68, .w = 18, .h = 18}},
+             {"dpad_ud", {.x = 24, .y = 68, .w = 18, .h = 18}},
+             {"dpad_lr", {.x = 46, .y = 68, .w = 18, .h = 18}},
+             {"l2", {.x = 5, .y = 134, .w = 22, .h = 17}},
+             {"l1", {.x = 37, .y = 134, .w = 22, .h = 17}},
+             {"r1", {.x = 69, .y = 134, .w = 22, .h = 17}},
+             {"r2", {.x = 101, .y = 134, .w = 22, .h = 17}},
+             {"start", {.x = 14, .y = 157, .w = 24, .h = 15}},
+             {"start_label@pill", {.x = 44, .y = 156, .w = 45, .h = 19}},
+             {"select", {.x = 14, .y = 179, .w = 24, .h = 16}},
+             {"select_label@pill", {.x = 44, .y = 177, .w = 52, .h = 19}},
+             {"lstick", {.x = 137, .y = 202, .w = 26, .h = 27}},
+             {"rstick", {.x = 165, .y = 201, .w = 26, .h = 28}},
+         }                                                           },
+        {"skip",  {{"triangle", {.x = 8, .y = 26, .w = 20, .h = 19}}}},
     };
     return targets;
 }
@@ -76,7 +77,7 @@ bool ReadRect(const nlohmann::json &value, Rect &rect) {
             return false;
         }
     }
-    rect = {value[0].get<int>(), value[1].get<int>(), value[2].get<int>(), value[3].get<int>()};
+    rect = {.x = value[0].get<int>(), .y = value[1].get<int>(), .w = value[2].get<int>(), .h = value[3].get<int>()};
     return rect.x >= 0 && rect.y >= 0 && rect.w > 0 && rect.h > 0;
 }
 
@@ -103,10 +104,12 @@ void Index() {
     }
 }
 
+// Pad buttons whose keyboard bindings can name keycaps of the keyboard style.
+constexpr std::array<const char *, 12> kActions = {"cross", "circle", "square", "triangle", "l1", "r1",
+                                                   "l2", "r2", "start", "select", "l3", "r3"};
+
 // The pad button whose binding names a keycap of the keyboard style.
 const char *Action(std::string_view glyph) {
-    static constexpr std::array<const char *, 12> kActions = {"cross", "circle", "square", "triangle", "l1",
-                                                              "r1", "l2", "r2", "start", "select", "l3", "r3"};
     for (const char *action : kActions) {
         if (glyph == action) {
             return action;
@@ -121,7 +124,7 @@ const char *Action(std::string_view glyph) {
     return nullptr;
 }
 
-// The style's symbol for a target cell, or nullptr. A target named glyph@place is a second cell of
+// Finds the style's symbol for a target cell. A target named glyph@place is a second cell of
 // the same glyph. A label cell standing alone falls back to its button's symbol; one beside its
 // button (@pill) does not, so the symbol is not drawn twice.
 bool Symbol(const std::string &style, std::string_view target, glyphs::CpuImage &image) {
@@ -248,7 +251,7 @@ void Clear(const Rect &cell, uint32_t scale, datapacks::DecodedTexture &decoded,
 std::string ButtonGlyphsStyle() {
     auto style = glyphs::CurrentStyle();
     if (style == "keyboard") {
-        for (const char *action : {"cross", "circle", "square", "triangle", "l1", "r1", "l2", "r2", "start", "select", "l3", "r3"}) {
+        for (const char *action : kActions) {
             style += "|" + InputPrimaryBindingName(action);
         }
     }
@@ -277,7 +280,7 @@ void ButtonGlyphsApply(std::string_view texture_name, int logical_width, int log
         return;
     }
     uint32_t retail_width = 1;
-    while (retail_width < static_cast<uint32_t>(logical_width)) {
+    while (std::cmp_less(retail_width, logical_width)) {
         retail_width <<= 1;
     }
     const uint32_t scale = std::max(1u, decoded.width / retail_width);
@@ -303,7 +306,7 @@ void ButtonGlyphsApply(std::string_view texture_name, int logical_width, int log
         }
         if (!found) {
             // A word beside its button (START by the pill) the style has no art for: the symbol alone.
-            if (glyph.find('@') != std::string::npos) {
+            if (glyph.contains('@')) {
                 for (std::size_t mip = 0; mip < decoded.levels.size(); ++mip) {
                     Clear(cell, scale, decoded, mip);
                 }

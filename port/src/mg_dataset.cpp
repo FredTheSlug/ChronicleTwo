@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include <cstdio>
+#include <print>
 
 #include "dataread_port.hpp"
 #include "mg_dataset.hpp"
@@ -23,12 +24,19 @@ PORT_OVERRIDE mgCFrame *mgLoadMDSFile(mgLoadData *load) {
     std::string error;
     const auto  path = DataReadBufferPath(load->mds);
     if (!path) {
-        std::fprintf(stderr, "model: direct glTF path required; in-memory loaders must supply gameplay JSON\n");
+        std::println(stderr, "model: direct glTF path required; in-memory loaders must supply gameplay JSON");
         return nullptr;
     }
     auto *frame = model_assets::LoadModel(std::filesystem::path(*path), *load, error);
     if (!frame) {
-        std::fprintf(stderr, "model: %s\n", error.c_str());
+        std::println(stderr, "model: {}", error);
     }
     return frame;
+}
+
+void PortRetailCopyFrame(mgCFrame *, mgCFrame *, mgCMemory *, int, mgCFrame **) asm("MgDataset_CopyFrame");
+
+PORT_OVERRIDE void CopyFrame(mgCFrame *dst, mgCFrame *src, mgCMemory *memory, int copy_visual, mgCFrame **frame_table) {
+    PortRetailCopyFrame(dst, src, memory, copy_visual, frame_table);
+    model_assets::CopyFrameConvention(*dst, *src);
 }

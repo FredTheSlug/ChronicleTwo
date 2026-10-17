@@ -12,8 +12,14 @@
 #endif
 
 namespace legacy_encoding {
+#ifdef _WIN32
+namespace {
+constexpr UINT kCodePageCp932 = 932;
+} // namespace
+#endif
+
 std::string GameText(std::string_view utf8) {
-    if (utf8.find('\0') != std::string_view::npos) {
+    if (utf8.contains('\0')) {
         throw std::runtime_error("config string contains a null byte");
     }
     if (utf8.empty()) {
@@ -27,12 +33,12 @@ std::string GameText(std::string_view utf8) {
     std::vector<wchar_t> wide(length);
     MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, utf8.data(), static_cast<int>(utf8.size()), wide.data(), length);
     BOOL       substituted = FALSE;
-    const auto count = WideCharToMultiByte(932, WC_NO_BEST_FIT_CHARS, wide.data(), length, nullptr, 0, nullptr, &substituted);
+    const auto count = WideCharToMultiByte(kCodePageCp932, WC_NO_BEST_FIT_CHARS, wide.data(), length, nullptr, 0, nullptr, &substituted);
     if (!count || substituted) {
         throw std::runtime_error("config string cannot be represented in CP932");
     }
     std::string encoded(count, '\0');
-    WideCharToMultiByte(932, WC_NO_BEST_FIT_CHARS, wide.data(), length, encoded.data(), count, nullptr, &substituted);
+    WideCharToMultiByte(kCodePageCp932, WC_NO_BEST_FIT_CHARS, wide.data(), length, encoded.data(), count, nullptr, &substituted);
     return encoded;
 #else
     auto converter = iconv_open("CP932", "UTF-8");

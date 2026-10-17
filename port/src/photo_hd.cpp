@@ -3,13 +3,15 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <print>
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "gfx/gfx.hpp"
-#include "platform/paths.hpp"
 #include "platform/imagefile.hpp"
+#include "platform/paths.hpp"
 
 namespace {
 
@@ -45,7 +47,7 @@ void PhotoHdRemember(const uint8_t *image16, size_t bytes, std::vector<uint8_t> 
     std::error_code error;
     std::filesystem::create_directories(path.parent_path(), error);
     if (!gfx::WritePng(path, rgba.data(), kPhotoHdSize, kPhotoHdSize)) {
-        std::fprintf(stderr, "photo: could not write %s\n", path.string().c_str());
+        std::println(stderr, "photo: could not write {}", path.string());
     }
     missing.erase(hash);
     photos[hash] = std::move(rgba);
@@ -62,10 +64,11 @@ const std::vector<uint8_t> *PhotoHdFind(const uint8_t *image16, size_t bytes) {
     if (missing.contains(hash)) {
         return nullptr;
     }
-    int                  width = 0, height = 0;
+    int                  width = 0;
+    int                  height = 0;
     std::vector<uint8_t> rgba;
-    if (!imagefile::LoadPng(PhotoPath(hash), width, height, rgba) || width != static_cast<int>(kPhotoHdSize) ||
-        height != static_cast<int>(kPhotoHdSize)) {
+    if (!imagefile::LoadPng(PhotoPath(hash), width, height, rgba) || std::cmp_not_equal(width, kPhotoHdSize) ||
+        std::cmp_not_equal(height, kPhotoHdSize)) {
         missing.insert(hash);
         return nullptr;
     }

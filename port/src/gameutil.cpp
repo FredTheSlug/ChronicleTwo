@@ -2,7 +2,9 @@
 
 #include <cstdio>
 #include <cstring>
+#include <print>
 
+#include "character_motion.hpp"
 #include "collision.hpp"
 #include "dataread_port.hpp"
 #include "gameutil.hpp"
@@ -10,48 +12,17 @@
 #include "platform/model_assets.hpp"
 
 PORT_OVERRIDE void SetMotionTime(mgCFrame *root, tagMOTION_TYPE *motion, float time, mgCCamera *camera) {
-    for (auto *channel = motion->motion_list; channel;) {
-        if (!channel->key_count) {channel=channel->next;continue;}
-        if (model_assets::ApplyChannel(*root, time, time, 0, *channel)) {
-            channel = channel->next;
-        } else {
-            channel = MotionProc(root, time, channel, camera);
-        }
-    }
+    character_motion::Pose(*root, *motion, time, camera);
 }
 
 PORT_OVERRIDE void ChangeMotion(mgCFrame *root, tagMOTION_TYPE *motion, unsigned int from_frame,
                                 unsigned int to_frame, float blend, mgCCamera *camera) {
-    for (auto *channel = motion->motion_list; channel;) {
-        if (!channel->key_count) {channel=channel->next;continue;}
-        if (model_assets::ApplyChannel(*root, static_cast<float>(from_frame), static_cast<float>(to_frame), blend, *channel)) {
-            channel = channel->next;
-        } else {
-            channel = MotionProc(root, from_frame, to_frame, blend, channel, camera);
-        }
-    }
+    character_motion::Blend(*root, *motion, static_cast<float>(from_frame), static_cast<float>(to_frame), blend, camera);
 }
 
-PORT_OVERRIDE int CreateAnimeDataEX(tagMOTION_TYPE *motion, mgCMemory *memory, MOTION_FILE_INFO *info) {
-    if (!motion || !memory || !info) {
-        return false;
-    }
-    std::string error;
-    const void *bytes = info[1].data ? info[1].data : info[0].data ? info[0].data
-                                                                   : info[2].data;
-    const auto  path = DataReadBufferPath(bytes);
-    const auto  animation = info[1].data ? std::optional<std::size_t>{0} : std::nullopt;
-    const auto  bind = info[0].data ? std::optional<std::size_t>{0} : std::nullopt;
-    const auto  weights = info[2].data ? std::optional<std::size_t>{0} : std::nullopt;
-    if (!path) {
-        std::fprintf(stderr, "animation: direct glTF path required\n");
-        return false;
-    }
-    const bool loaded = model_assets::LoadAnimation(std::filesystem::path(*path), *motion, *memory, animation, bind, weights, std::nullopt, error);
-    if (loaded) {
-        return true;
-    }
-    std::fprintf(stderr, "animation: %s\n", error.c_str());
+// Retail motion files never reach native profiles, which load named glTF actions instead.
+PORT_OVERRIDE int CreateAnimeDataEX(tagMOTION_TYPE * /*unused*/, mgCMemory * /*unused*/, MOTION_FILE_INFO * /*unused*/) {
+    std::println(stderr, "animation: retail motion data is not supported; profiles load named glTF actions");
     return false;
 }
 
@@ -76,11 +47,10 @@ PORT_OVERRIDE void ChangeWeight(Mot_List *list, mgCMemory *memory, u8 *data, int
         std::string    error;
         const auto     path = DataReadBufferPath(data);
         if (!path) {
-            std::fprintf(stderr, "animation: direct glTF weight path required\n");
+            std::println(stderr, "animation: direct glTF weight path required");
             return;
         }
-        const bool loaded = model_assets::LoadAnimation(std::filesystem::path(*path), replacement, *memory, std::nullopt, std::nullopt, 0, std::nullopt, error);
-        if (!loaded) {
+        if (!model_assets::LoadAnimation(std::filesystem::path(*path), replacement, *memory, std::nullopt, std::nullopt, 0, std::nullopt, error)) {
             throw std::runtime_error(error);
         }
         auto *head = replacement.skin_list;
@@ -117,7 +87,7 @@ PORT_OVERRIDE void ChangeWeight(Mot_List *list, mgCMemory *memory, u8 *data, int
             }
         }
     } catch (const std::exception &error) {
-        std::fprintf(stderr, "animation: %s\n", error.what());
+        std::println(stderr, "animation: {}", error.what());
     }
 }
 

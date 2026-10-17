@@ -1,7 +1,5 @@
 #include "common.h"
 
-#include "quick_loadout.hpp"
-
 #include "gamedata.hpp"
 #include "mainloop.hpp"
 #include "menuaqua.hpp"
@@ -9,6 +7,7 @@
 #include "menumain.hpp"
 #include "menusys.hpp"
 #include "nd_meswin.hpp"
+#include "quick_loadout.hpp"
 #include "snd_mngr.hpp"
 
 // The item menu's "Equip Slot" command: on a weapon of Max or Monica or a Ridepod arm or leg part, it lists the quick
@@ -42,7 +41,7 @@ bool Decide(int push_button) {
 
 void CloseList(CBaseMenuClass *menu, int se) {
     picking = nullptr;
-    if (MenuCommonInfo->cursor_form != NULL) {
+    if (MenuCommonInfo->cursor_form != nullptr) {
         MenuCommonInfo->cursor_form->draw_flag = true;
     }
     menu->ask_para.form->draw_flag = false;
@@ -54,7 +53,8 @@ void CloseList(CBaseMenuClass *menu, int se) {
 
 void ShowSlots(CBaseMenuClass *menu) {
     MENU_ASKMODE_PARA &ask = menu->ask_para;
-    int                chara = 0, row = 0;
+    int                chara = 0;
+    int                row = 0;
     PortQuickLoadoutTarget(ask.item, &chara, &row);
     int first = -1;
     for (int slot = 0; slot < 4; slot++) {
@@ -118,7 +118,8 @@ bool SlotCommand(CBaseMenuClass *menu, int push_button) {
 
 PORT_OVERRIDE int GetItemCommandMsg(CGameDataUsed *item, MENU_ASKMODE_PARA *param, int place, int chara) {
     int num = GetItemCommandMsg(item, param->cmd_msg, param->cmd_color, param->cmd_shade, param->cmd_mark, place, chara);
-    int owner, row;
+    int owner;
+    int row;
     if (num <= 0 || num >= kCommandMax - 1 || !PortQuickLoadoutTarget(item, &owner, &row) ||
         (place != MENU_SWAP_TYPE_ITEM_BOARD && place != MENU_SWAP_TYPE_EQUIP && place != MENU_SWAP_TYPE_ROBO_PART)) {
         return num;

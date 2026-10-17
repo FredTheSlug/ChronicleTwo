@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 #include <vector>
 
 #include "gamepad.hpp"
@@ -45,9 +46,6 @@ struct ListClick {
     int         seen = -100, ready = 0, target = -1;
     bool        pending = false;
 } list_click;
-
-void SetCapture(bool on);
-
 } // namespace
 
 bool MenuMouseRect::Contains(float px, float py) const {
@@ -59,7 +57,7 @@ float MenuMouseUnits(float scale, float pixels, float window) {
 }
 
 int MenuMouseHit(std::span<const MenuMouseRect> rows, float x, float y) {
-    for (int i = 0; i < static_cast<int>(rows.size()); ++i) {
+    for (int i = 0; std::cmp_less(i, rows.size()); ++i) {
         if (rows[i].Contains(x, y)) {
             return i;
         }
@@ -90,17 +88,22 @@ bool PadOrFocusOwnsPointer() {
     const bool inactive = WindowCurrentMode(mode) &&
                           (!MouseInputLive() || !(SDL_GetWindowFlags(WindowHandle()) & SDL_WINDOW_INPUT_FOCUS));
     return inactive || pad.buttons || GamePad__2.pad[0].button ||
-           std::abs(int(pad.left_x) - 128) > 30 || std::abs(int(pad.left_y) - 128) > 30;
+           std::abs(static_cast<int>(pad.left_x) - 128) > 30 || std::abs(static_cast<int>(pad.left_y) - 128) > 30;
 }
 
 void MovePointer(MenuMouseSample &point, float dx, float dy) {
     const auto extent = mgPortVisibleExtent(gfx::kMainTarget);
-    float      left = extent.left, top = extent.top, right = extent.right, bottom = extent.bottom;
-    float      units_x = 1, units_y = 1;
+    float      left = extent.left;
+    float      top = extent.top;
+    float      right = extent.right;
+    float      bottom = extent.bottom;
+    float      units_x = 1;
+    float      units_y = 1;
     if (mgPortRendererReady()) {
         const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
         const auto scene = gfx::GetLogicalMapping(gfx::kMainTarget);
-        int        width = static_cast<int>(mapping.pixel_width), height = static_cast<int>(mapping.pixel_height);
+        int        width = static_cast<int>(mapping.pixel_width);
+        int        height = static_cast<int>(mapping.pixel_height);
         WindowSize(width, height);
         units_x = MenuMouseUnits(mapping.scale_x, mapping.pixel_width, width);
         units_y = MenuMouseUnits(mapping.scale_y, mapping.pixel_height, height);
@@ -233,7 +236,7 @@ const MenuMouseSample &MenuMouseTake() {
             }
             if (sample.wheel != 0 && std::isfinite(sample.wheel)) {
                 int target = choices.selected + -static_cast<int>(sample.wheel);
-                if (target >= 0 && target < static_cast<int>(choices.rows.size()) && choices.rows[target].w > 0) {
+                if (target >= 0 && std::cmp_less(target, choices.rows.size()) && choices.rows[target].w > 0) {
                     choices.target = target;
                 }
             }
@@ -283,7 +286,7 @@ int MenuMouseRows(std::span<const MenuMouseRect> rows, int selected, int wheel_s
 
 void MenuMouseDelayConfirm(const void *owner, int selected, int target, int ticks) {
     if (list_click.owner != owner || list_click.seen < frame - 1) {
-        list_click = {owner, frame, frame, selected, false};
+        list_click = {.owner = owner, .seen = frame, .ready = frame, .target = selected, .pending = false};
     }
     list_click.seen = frame;
     if (target != list_click.target) {
@@ -313,7 +316,8 @@ MenuMouseSample MenuMouseDisplaySample() {
         point.pointing = false;
         return point;
     }
-    float dx = 0, dy = 0;
+    float dx = 0;
+    float dy = 0;
     InputPeekMenuMouseMotion(dx, dy);
     if (dx != 0 || dy != 0) {
         if (!point.pointing) {
@@ -343,7 +347,7 @@ gfx::InterpKey MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::Logica
     const auto key = MenuMouseNextHandKey();
     ++hand_index;
     if (enabled) {
-        hand = {key, texture, uv, rotation, scale, reverse, alpha, mgPortFrameCount()};
+        hand = {.key = key, .texture = texture, .uv = uv, .rotation = rotation, .scale = scale, .reverse = reverse, .alpha = alpha, .seen = mgPortFrameCount()};
     }
     return key;
 }
@@ -364,12 +368,13 @@ void MenuMouseDraw() {
     state.blend = true;
     state.alpha_test = true;
     state.alpha_func = gfx::AlphaFunc::Greater;
-    const float c = std::cos(hand.rotation), s = std::sin(hand.rotation);
+    const float c = std::cos(hand.rotation);
+    const float s = std::sin(hand.rotation);
     const float sign = hand.reverse ? -1 : 1;
     // The pointing fingertip is at the far edge, halfway down the hand's atlas cell.
     const float   tip_x = sign * hand.uv.w * hand.scale;
     const float   tip_y = hand.uv.h * hand.scale * 0.5f;
-    const float texture_scale = mgPortTextureScale(hand.texture.texture);
+    const float   texture_scale = mgPortTextureScale(hand.texture.texture);
     gfx::Vertex2D vertices[4]{};
     for (int i = 0; i < 4; ++i) {
         const float x = (i & 1 ? tip_x : 0) - tip_x;
@@ -386,5 +391,3 @@ void MenuMouseDraw() {
 }
 
 void MenuMouseSetButtons(int mask) { buttons = mask; }
-
-bool MenuMouseActive() { return enabled; }

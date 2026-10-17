@@ -4,6 +4,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <utility>
 
 #include "inventmn.hpp"
 #include "mainloop.hpp"
@@ -37,7 +38,7 @@ unsigned long long MaxUniqueCounter(const SaveSlotList &list) {
     return newest;
 }
 
-// The port's existing save image, unchanged: no PC metadata is embedded in the payload.
+// Builds the retail save image; no PC metadata is embedded in the payload.
 void BuildImage(SAVEDATA_FORMAT &image, int program_loop_no, unsigned long long newest) {
     auto &save = *GetSaveData();
     std::memset(&image, 0, sizeof(image));
@@ -121,8 +122,8 @@ int SaveSlotRefresh(CMemoryCardManager &manager, bool include_autosave) {
     SaveSlots = SaveSlotScan(include_autosave);
     manager.InitError();
     std::memset(manager.file_info, 0, sizeof(manager.file_info));
-    // Retain the small compatibility view for non-menu retail callers. All save
-    // selection, title unlocks and newest-save queries use the complete catalog.
+    // A compatibility view for non-menu retail callers; save selection, title unlocks and newest-save
+    // queries use the complete catalog.
     for (std::size_t i = 0; i < SaveSlots.saves.size() && i < MC_SAVE_FILE_NUM; ++i) {
         manager.file_info[i] = SaveSlots.saves[i].info;
     }
@@ -183,7 +184,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
     InitError();
     total_transferred = transferred = 0;
     if (!save_buffer || SaveSlots.read_failed || row < 0 ||
-        (!SaveSlotNew && row >= static_cast<int>(SaveSlots.saves.size()))) {
+        (!SaveSlotNew && std::cmp_greater_equal(row, SaveSlots.saves.size()))) {
         error.code = MC_ERROR_FILE;
         return MC_STEP_DONE;
     }
@@ -194,8 +195,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
     }
 
     auto &image = *save_buffer;
-    // Publish it only after the complete header and digits exist.
-    // A confirmed overwrite remains valid when an unrelated legacy-card root becomes unreadable.
+    // A confirmed overwrite stays valid even when an unrelated legacy-card root is unreadable.
     const auto newest = std::max(CheckMaxUniqueCounter(), NewestCounter());
     if (newest == std::numeric_limits<u64>::max()) {
         error.code = MC_ERROR_FILE;
@@ -206,8 +206,8 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
     std::filesystem::path path;
     FilesResult           result = FilesResult::kFailed;
     if (SaveSlotNew) {
-        // Rescan at publication, and still use no-replace: a competing process
-        // cannot turn New Save into an unconfirmed overwrite.
+        // Rescan and write without replacing, so a competing process cannot turn New Save into an
+        // unconfirmed overwrite.
         for (int attempt = 0; attempt < 100; ++attempt) {
             auto current = SaveSlotScan();
             if (current.read_failed) {
@@ -226,8 +226,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
     } else {
         const auto &slot = SaveSlots.saves[row];
         path = SaveSlotPath(slot.number, slot.second_card);
-        // Failed imports can still be loaded and explicitly replaced, but the
-        // original card payload is never modified.
+        // A failed import can still be replaced, but the original card payload is never modified.
         result = SaveSlotWrite(slot, image);
     }
     SaveSlotNew = false;
@@ -236,8 +235,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
         return MC_STEP_DONE;
     }
     SaveSlotRefresh(*this, false);
-    // Publication has succeeded durably. A catalog refresh error describes the
-    // listing, not the write that just completed.
+    // A refresh error describes the listing, not the write that succeeded.
     InitError();
     for (std::size_t i = 0; i < SaveSlots.saves.size(); ++i) {
         if (SaveSlots.saves[i].path == path) {
@@ -253,13 +251,12 @@ PORT_OVERRIDE int CMemoryCardManager::LoadFromMc(int row) {
     total_transferred = transferred = 0;
     SaveSlotSetPendingSpawn(std::nullopt);
     auto image = std::make_unique<SAVEDATA_FORMAT>();
-    if (row < 0 || row >= static_cast<int>(SaveSlots.saves.size()) ||
+    if (row < 0 || std::cmp_greater_equal(row, SaveSlots.saves.size()) ||
         SaveSlotRead(SaveSlots.saves[row].path, *image) != SaveSlotState::Ready) {
         error.code = MC_ERROR_LOAD;
         return MC_STEP_DONE;
     }
-    // Validate every byte before touching live game state. The retail photo
-    // address rebinding still runs when its menu opens.
+    // SaveSlotRead has validated the image; the retail photo address rebinding runs when its menu opens.
     auto *save = GetSaveData();
     std::memcpy(save, &image->save_data, sizeof(*save));
     if (std::memcmp(image->version, "dc2Ver2", 8) == 0) {

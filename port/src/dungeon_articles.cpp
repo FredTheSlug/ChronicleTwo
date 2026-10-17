@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdio>
 #include <format>
+#include <print>
 #include <string>
 
 #include "dng_event.hpp"
@@ -27,7 +28,7 @@ bool PortLoadDungeonArticleModels() {
     auto        model = [&](const char *name) {
         auto *frame = model_assets::LoadModelScene(bundle, name, load, error);
         if (!frame) {
-            std::fprintf(stderr, "dungeon article %s: %s\n", name, error.c_str());
+            std::println(stderr, "dungeon article {}: {}", name, error);
         }
         return frame;
     };
@@ -56,16 +57,16 @@ bool PortLoadDungeonArticleModels() {
     attr.color[3] = 128;
     RedMarkModel->frame->SetAttrParam(attr, 1, 0);
     RedMarkModel->draw_request = false;
-    model_assets::CharacterLoadOptions options{memory, memory, memory};
+    model_assets::CharacterLoadOptions options{.model_memory = memory, .motion_memory = memory, .image_memory = memory};
     options.texture_block = 0xad;
     GeoStone.Initialize();
     if (!model_assets::LoadCharacter(GeoStone, children + "giostone.gltf", "info", options, error)) {
-        std::fprintf(stderr, "dungeon geostone: %s\n", error.c_str());
+        std::println(stderr, "dungeon geostone: {}", error);
         return false;
     }
     RandomCircle.Initialize();
     if (!model_assets::LoadCharacter(RandomCircle.model, children + "ring_loop.gltf", "info", options, error)) {
-        std::fprintf(stderr, "dungeon circle: %s\n", error.c_str());
+        std::println(stderr, "dungeon circle: {}", error);
         return false;
     }
     constexpr std::array<const char *, 3> sparks{"bteffe_att_a", "bteffe_att_b", "bteffe_att_c"};
@@ -88,7 +89,7 @@ bool PortLoadDungeonArticleModels() {
     for (std::size_t index = 0; index < items.size(); ++index) {
         ItemBaseData[index].Initialize();
         if (!model_assets::LoadCharacter(ItemBaseData[index], std::format("dungeon/articles/item01b.assets/{}.gltf", items[index]), "info", options, error)) {
-            std::fprintf(stderr, "dungeon item %s: %s\n", items[index], error.c_str());
+            std::println(stderr, "dungeon item {}: {}", items[index], error);
             return false;
         }
     }

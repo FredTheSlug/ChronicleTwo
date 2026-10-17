@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <limits>
 #include <optional>
+#include <print>
 #include <span>
 #include <string>
 #include <vector>
@@ -38,19 +39,18 @@ PORT_OVERRIDE int CEffectScriptMan::AssignCharacter(_EFF_SCRIPT *script, int cou
         return 0;
     }
     const int object_size = Quadwords(sizeof(CCharacter2));
-    // The allocator selects a gap before placement new can grow an allocation.
-    // Budget native objects up front, with room for final 64-byte alignment and
-    // the allocator's strict end-of-stack capacity check.
+    // The allocator picks its gap before placement new runs, so native objects are budgeted up front,
+    // with room for the final 64-byte alignment and the strict end-of-stack check.
     const long long required = count * (static_cast<long long>(object_size) +
                                         std::max(0, script->chara->GetCopySize())) +
                                4;
     if (required > std::numeric_limits<int>::max()) {
-        std::printf("------- es work max!! (assign character[%lld]) ---------\n", required);
+        std::println("------- es work max!! (assign character[{}]) ---------", required);
         return 0;
     }
     u_long128 *token = work_memory->StartStackMode(MG_STACK_MODE_FIT, static_cast<int>(required));
     if (token == nullptr) {
-        std::printf("------- es work max!! (assign character[%lld]) ---------\n", required);
+        std::println("------- es work max!! (assign character[{}]) ---------", required);
         return 0;
     }
     for (int i = 0; i < count; ++i) {
@@ -65,7 +65,7 @@ PORT_OVERRIDE int CEffectScriptMan::AssignCharacter(_EFF_SCRIPT *script, int cou
 
 PORT_OVERRIDE _EFF_SCRIPT *CEffectScriptMan::CreateEffSpt(int base_no, int group, int register_in_group) {
     if (base_num <= 0) {
-        std::printf("--- effect script (non base)!!! ---\n");
+        std::println("--- effect script (non base)!!! ---");
         return nullptr;
     }
     EFF_SPT_BASE *definition = nullptr;
@@ -77,7 +77,7 @@ PORT_OVERRIDE _EFF_SCRIPT *CEffectScriptMan::CreateEffSpt(int base_no, int group
     }
     if (definition == nullptr || work_memory == nullptr) {
         now = nullptr;
-        std::printf("--- effect script (missing base or work stack)!!! ---\n");
+        std::println("--- effect script (missing base or work stack)!!! ---");
         return nullptr;
     }
 
@@ -94,13 +94,13 @@ PORT_OVERRIDE _EFF_SCRIPT *CEffectScriptMan::CreateEffSpt(int base_no, int group
         }
         if (owner_slot < 0) {
             now = nullptr;
-            std::printf("--- effect script (ent_tbl max)!!! ---\n");
+            std::println("--- effect script (ent_tbl max)!!! ---");
             return nullptr;
         }
     }
 
-    // Copy size already measures native frame/model allocations. Add the native
-    // effect and character objects, interpreter arrays, and final 64-byte alignment.
+    // The copy size covers native frame and model allocations; add the effect and character objects,
+    // interpreter arrays and final 64-byte alignment.
     int required = Quadwords(sizeof(_EFF_SCRIPT)) + 2 + Quadwords(64 * sizeof(RS_STACKDATA)) +
                    Quadwords(2 * sizeof(RS_CALLDATA)) + 4;
     if (definition->chara != nullptr) {
@@ -110,7 +110,7 @@ PORT_OVERRIDE _EFF_SCRIPT *CEffectScriptMan::CreateEffSpt(int base_no, int group
     u_long128 *token = work_memory->StartStackMode(MG_STACK_MODE_FIT, required);
     if (token == nullptr) {
         now = nullptr;
-        std::printf("--- effect script work max[%d]!!! ---\n", work_memory->stack_size - work_memory->stack_used);
+        std::println("--- effect script work max[{}]!!! ---", work_memory->stack_size - work_memory->stack_used);
         return nullptr;
     }
 
@@ -171,9 +171,9 @@ const EFF_SPT_BASE_DEF *EffectDefinition(int base_no) {
  * Describes the direct model or texture resource used by one effect base.
  */
 struct EffectResource {
-    std::string                model;       /**< Actual character glTF path, or empty for an unmodeled effect. */
-    std::string                texture;     /**< Actual standalone texture JSON path. */
-    std::string                bundle;      /**< Actual glTF path containing an embedded texture set. */
+    std::string                model;       /**< Character glTF path, or empty for an unmodeled effect. */
+    std::string                texture;     /**< Standalone texture JSON path. */
+    std::string                bundle;      /**< glTF path containing an embedded texture set. */
     std::optional<std::size_t> texture_set; /**< Embedded set selected by its retained texture name. */
 };
 
@@ -237,10 +237,10 @@ int BuildNativeEffect(CEffectScriptMan &manager, int base_no, const EffectResour
             if (requested_block < 0) {
                 mgTexManager.DeleteBlock(block);
             }
-            model_assets::CharacterLoadOptions options{memory, memory, memory, &mgTexManager, nullptr, block, false};
+            model_assets::CharacterLoadOptions options{.model_memory = memory, .motion_memory = memory, .image_memory = memory, .textures = &mgTexManager, .parent = nullptr, .texture_block = block, .outline = false};
             std::string                        error;
             if (!model_assets::LoadCharacter(*base->chara, resource.model, "info", options, error)) {
-                std::fprintf(stderr, "effect model: %s\n", error.c_str());
+                std::println(stderr, "effect model: {}", error);
                 return -1;
             }
             owns_block = requested_block < 0;
@@ -259,7 +259,7 @@ int BuildNativeEffect(CEffectScriptMan &manager, int base_no, const EffectResour
                 std::string error;
                 loaded = model_assets::LoadTextureSet(resource.bundle, *resource.texture_set, mgTexManager, block, *memory, error);
                 if (!loaded) {
-                    std::fprintf(stderr, "effect texture: %s\n", error.c_str());
+                    std::println(stderr, "effect texture: {}", error);
                 }
             } else if (!resource.texture.empty()) {
                 MgTextureEnterDocument(&mgTexManager, resource.texture, block, memory, nullptr);
@@ -351,8 +351,7 @@ PORT_OVERRIDE int CEffectScriptMan::BuildPack(int base_no, u_int *pack, mgCMemor
             resource.model = model;
         }
     }
-    const auto script_path = (directory / (std::string(definition->script) + ".stb")).generic_string();
-    const auto script = EffectScript(script_path);
+    const auto script = EffectScript((directory / (std::string(definition->script) + ".stb")).generic_string());
     return BuildNativeEffect(*this, base_no, resource, script, memory, texture_block);
 }
 
@@ -379,7 +378,7 @@ PORT_OVERRIDE int CEffectScriptMan::LoadBaseEffSpt(int base_no, mgCMemory *memor
     return BuildNativeEffect(*this, base_no, resource, script, memory, texture_block);
 }
 
-PORT_OVERRIDE int CEffectScriptMan::BuildBase(int base_no, u_long128 *data, int, u_long128 *script, int script_size, mgCMemory *memory, int texture_block) {
+PORT_OVERRIDE int CEffectScriptMan::BuildBase(int base_no, u_long128 *data, int /*unused*/, u_long128 *script, int script_size, mgCMemory *memory, int texture_block) {
     const auto *definition = EffectDefinition(base_no);
     if (!definition || !script || script_size <= 0) {
         return -1;

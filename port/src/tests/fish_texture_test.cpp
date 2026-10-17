@@ -125,7 +125,7 @@ protected:
         mgTexManager.Initialize(0x1000, -1);
         memory.stSetBuffer(storage.data(), static_cast<int>(storage.size()));
         character.Initialize();
-        model_assets::CharacterLoadOptions options{&memory, &memory, &memory, &mgTexManager, nullptr, 20, false};
+        model_assets::CharacterLoadOptions options{.model_memory = &memory, .motion_memory = &memory, .image_memory = &memory, .textures = &mgTexManager, .parent = nullptr, .texture_block = 20, .outline = false};
         std::string                        error;
         ASSERT_TRUE(model_assets::LoadCharacter(character, "models/fish.gltf", "info", options, error)) << error;
         ASSERT_EQ(character.images[0], nullptr);

@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cstdio>
 #include <mutex>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -44,10 +45,10 @@ std::string Lower(const char *text) {
     return out;
 }
 
-void SDLCALL Feed(void *, SDL_AudioStream *stream, int additional_amount, int) {
+void SDLCALL Feed(void * /*unused*/, SDL_AudioStream *stream, int additional_amount, int /*unused*/) {
     const int       stride = g_channels_out;
     int             frames = additional_amount / static_cast<int>(sizeof(float) * stride);
-    std::lock_guard lock(g_mutex);
+    std::scoped_lock lock(g_mutex);
     const float     gain = SettingsGet().master_volume * ConfigGet().controller_volume;
     while (frames > 0) {
         const int count = std::min(frames, kChunkFrames);
@@ -87,11 +88,11 @@ SDL_AudioDeviceID FindDevice(int &channels) {
         }
         const std::string lower = Lower(name);
         for (const char *match : kDeviceNames) {
-            if (lower.find(match) != std::string::npos) {
+            if (lower.contains(match)) {
                 SDL_AudioSpec native{};
                 int           frames = 0;
                 SDL_GetAudioDeviceFormat(devices[i], &native, &frames);
-                std::fprintf(stderr, "controller speaker: using \"%s\" (%d channels, %d Hz)%s\n", name, native.channels,
+                std::println(stderr, "controller speaker: using \"{}\" ({} channels, {} Hz){}", name, native.channels,
                              native.freq, native.channels >= 4 ? ", haptics on channels 3-4" : "");
                 channels = native.channels;
                 found = devices[i];
@@ -121,7 +122,7 @@ bool EnsureOpen() {
     const SDL_AudioDeviceID device = FindDevice(channels);
     if (device == 0) {
         if (!g_tried) {
-            std::fprintf(stderr, "controller speaker: no DualSense audio device; sounds stay on the main output\n");
+            std::println(stderr, "controller speaker: no DualSense audio device; sounds stay on the main output");
         }
         g_tried = true;
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
@@ -133,10 +134,10 @@ bool EnsureOpen() {
     g_haptics.assign(kChunkFrames * 2, 0.0f);
     g_mix.assign(kChunkFrames * 2, 0.0f);
     g_effects.assign(kChunkFrames * 2, 0.0f);
-    const SDL_AudioSpec spec{SDL_AUDIO_F32, g_channels_out, audio::kSpuRate};
+    const SDL_AudioSpec spec{.format = SDL_AUDIO_F32, .channels = g_channels_out, .freq = audio::kSpuRate};
     g_stream = SDL_OpenAudioDeviceStream(device, &spec, Feed, nullptr);
     if (g_stream == nullptr) {
-        std::fprintf(stderr, "controller speaker: cannot open the device: %s\n", SDL_GetError());
+        std::println(stderr, "controller speaker: cannot open the device: {}", SDL_GetError());
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         return false;
     }
@@ -156,9 +157,8 @@ bool ControllerHapticsChannels() {
 
 audio::Mixer &ControllerSpeakerMixer() {
     // The pad's speaker is small and dry: the effects play without the default mixer's reverb.
-    static audio::Mixer mixer(audio::kSpuRate);
-    static const bool dry = (mixer.SetReverbEnabled(false), true);
-    (void) dry;
+    static audio::Mixer                mixer(audio::kSpuRate);
+    [[maybe_unused]] static const bool dry = (mixer.SetReverbEnabled(false), true);
     return mixer;
 }
 
@@ -167,8 +167,8 @@ bool ControllerSpeakerRoute(audio::StreamChannel *channel) {
         return false;
     }
     audio::DefaultMixer().RemoveStreamChannel(channel);
-    std::lock_guard lock(g_mutex);
-    if (std::find(g_channels.begin(), g_channels.end(), channel) == g_channels.end()) {
+    std::scoped_lock lock(g_mutex);
+    if (std::ranges::find(g_channels, channel) == g_channels.end()) {
         g_channels.push_back(channel);
     }
     return true;
@@ -176,11 +176,10 @@ bool ControllerSpeakerRoute(audio::StreamChannel *channel) {
 
 void ControllerSpeakerRelease(audio::StreamChannel *channel) {
     {
-        std::lock_guard lock(g_mutex);
-        if (std::find(g_channels.begin(), g_channels.end(), channel) == g_channels.end()) {
+        std::scoped_lock lock(g_mutex);
+        if (std::erase(g_channels, channel) == 0) {
             return;
         }
-        std::erase(g_channels, channel);
     }
     audio::DefaultMixer().AddStreamChannel(channel);
 }

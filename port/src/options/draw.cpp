@@ -18,7 +18,8 @@ void Text(std::string text, int x, int y, int width, bool gold = false, int size
     font.SetClearance(size, size + 5);
     font.SetFuchi(FUCHI_SHADOW_BLACK);
     font.SetColor(gold ? 128 : 118, gold ? 108 : 118, gold ? 64 : 118, 128);
-    int w = 0, h = 0;
+    int w = 0;
+    int h = 0;
     font.CalcDrawWH(text.data(), &w, &h);
     // Keep both custom values and lists of key bindings inside their own column.
     if (w > width) {
@@ -119,8 +120,8 @@ void Draw() {
         } else {
             Help(page.rows[g_screen.row[g_screen.page]].help);
         }
-        const auto        confirm = LanguageCode > 0 ? "cross" : "circle";
-        const auto        cancel = LanguageCode > 0 ? "circle" : "cross";
+        const auto *const confirm = LanguageCode > 0 ? "cross" : "circle";
+        const auto *const cancel = LanguageCode > 0 ? "circle" : "cross";
         const std::string shortcuts = g_screen.binding >= 0 ? "Escape: Cancel capture" : ButtonName("l1", config) + "/" + ButtonName("r1", config) + ": Page   " + ButtonName(confirm, config) + ": Change   " + ButtonName(cancel, config) + ": Back";
         Text(shortcuts, 53, 432, 404, true, 12);
     }

@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <print>
 #include <vector>
 
 #include "dataread_port.hpp"
@@ -46,12 +47,12 @@ PORT_OVERRIDE void sndCSeSeqData::LoadSMF(char *source, int size, mgCMemory *mem
                 Initialize();
                 return;
             }
-            std::copy(converted.begin(), converted.end(), event);
+            std::ranges::copy(converted, event);
             tick_rate = rate;
             return;
         } catch (const nlohmann::json::exception &) {
             Initialize();
         }
     }
-    std::fprintf(stderr, "sound: missing or invalid effect sequence JSON\n");
+    std::println(stderr, "sound: missing or invalid effect sequence JSON");
 }

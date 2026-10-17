@@ -1,5 +1,4 @@
 #include "config_bridges.hpp"
-#include "native_config.hpp"
 
 void PortInitializeMovieViewer(INIT_LOOP_ARG arg) {
     mgCMemory         *main_stack;
@@ -52,7 +51,16 @@ void PortInitializeMovieViewer(INIT_LOOP_ARG arg) {
     MovieMode = MOVIE_VIEW_MODE_SELECT;
     spi_MovieStack = main_stack;
 
-    RunNativeConfig("mv.cfg.json", tag_movie);
+    const PortMovieEntry *movies = nullptr;
+    const int             movie_count = PortReadMovieList(&movies);
+    // Retail writes past the 64-entry list for a longer one; the port keeps the first 64.
+    for (int index = 0; index < movie_count && MovieListNum < 64; index++) {
+        MOVIE_LIST_ENTRY *entry = MovieList + MovieListNum;
+        entry->name = mgCopyString(const_cast<char *>(movies[index].title), spi_MovieStack);
+        entry->file_name = mgCopyString(const_cast<char *>(movies[index].file), spi_MovieStack);
+        entry->bgm_no = movies[index].bgm_no;
+        MovieListNum++;
+    }
 
     main_stack->Align64();
     read_size = main_stack->stGetRest();

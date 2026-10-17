@@ -109,6 +109,12 @@ UNIT_FIXUPS = [
     printf("data memory size = %d kbyte", (data_size - 270128) * 16 / 1024);"""),
     # Geostone announcement updates and draws reserve eight nullable message slots.
     ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
+    # Geostone conditions are copied bounded into their 128-byte text, and word-wrapped into 128 bytes
+    # rather than 64: wrapping replaces a space with a newline, so the result is never longer.
+    ("editmenu.cpp", "            strcpy(text, condition_name);",
+     "            snprintf(text, sizeof(text), \"%s\", condition_name);"),
+    ("editmenu.cpp", "            char        *wrapped = (char *) stack->Alloc(4);",
+     "            char        *wrapped = (char *) stack->Alloc(8);"),
     ("editloop.cpp", """    main_stack->Alloc(data_size - 210128);
     MenuBuffer__2.stSetBuffer(read_buffer = main_stack->stAlloc64(200000), 200000);
     read_buffer_end = read_buffer + 200000;""",

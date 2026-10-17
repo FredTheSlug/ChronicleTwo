@@ -25,10 +25,8 @@ std::string VoiceClipPath(std::string_view clip) {
 }
 } // namespace
 
-PORT_OVERRIDE int CommandStreamOpenFromFPL(int stream, char *, char *clip) {
-    auto path = VoiceClipPath(clip);
-    CSnd.StreamOpenFast(stream, path.data());
-    return true;
+PORT_OVERRIDE int CommandStreamOpenFromFPL(int stream, char * /*unused*/, char *clip) {
+    return CommandStreamOpen(stream, clip);
 }
 
 PORT_OVERRIDE int CommandStreamOpen(int stream, char *clip) {
@@ -37,7 +35,7 @@ PORT_OVERRIDE int CommandStreamOpen(int stream, char *clip) {
     return true;
 }
 
-PORT_OVERRIDE int CommandStreamOpen2(int, char *) {
+PORT_OVERRIDE int CommandStreamOpen2(int /*unused*/, char * /*unused*/) {
     return true;
 }
 

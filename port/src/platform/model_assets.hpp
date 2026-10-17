@@ -142,4 +142,16 @@ bool ApplySkin(mgCVisualMotionMDT &visual, float (*matrix)[4]);
  * Applies a glTF channel at its exact time, including STEP and CUBICSPLINE interpolation.
  */
 bool ApplyChannel(mgCFrame &root, float from, float to, float blend, Mot_List &channel);
+/**
+ * Reports whether a motion channel is evaluated from a glTF sampler.
+ */
+bool IsNativeChannel(const Mot_List &channel);
+/**
+ * Blends the glTF channels of two different actions, from one's pose toward the other's.
+ */
+void BlendActions(mgCFrame &root, const Mot_List *from, float from_time, const Mot_List *to, float to_time, float blend);
+/**
+ * Gives a copied frame the transform convention of the frame it copies.
+ */
+void CopyFrameConvention(const mgCFrame &destination, const mgCFrame &source);
 } // namespace model_assets

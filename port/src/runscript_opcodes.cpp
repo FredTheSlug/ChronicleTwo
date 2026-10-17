@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include <cstdio>
+#include <print>
 #include <string>
 
 #include "character.hpp"
@@ -10,19 +11,23 @@
 #include "runscript.hpp"
 #include "runscript_opcodes.hpp"
 
-static int GetStackInt(RS_STACKDATA *stack) {
+namespace {
+
+int GetStackInt(RS_STACKDATA *stack) {
     if (stack->type == RS_FLOAT) {
-        return (int) stack->val.f;
+        return static_cast<int>(stack->val.f);
     }
 
     return stack->val.i;
 }
 
-static void SetStack(RS_STACKDATA *stack, float value) {
+void SetStack(RS_STACKDATA *stack, float value) {
     if (stack->type == RS_PTR) {
         stack->val.p->val.f = value;
     }
 }
+
+} // namespace
 
 // Retail sums the entry address into an int; the uptr form of that sum in ps2/src does not compile identically under MWCC.
 PORT_OVERRIDE int _GET_INDEXOBJ_SIZE(RS_STACKDATA *stack, int argument_count) {
@@ -55,7 +60,7 @@ PORT_OVERRIDE int _LOAD_RESERV_IMG(RS_STACKDATA *stack, int argc) {
     }
     std::string error;
     if (!model_assets::ReserveMonsterTextureDocument(*nowMonster, slot, *path, error)) {
-        std::fprintf(stderr, "reserved monster texture: %s\n", error.c_str());
+        std::println(stderr, "reserved monster texture: {}", error);
         return 0;
     }
     return 1;

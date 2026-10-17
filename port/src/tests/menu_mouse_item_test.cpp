@@ -16,8 +16,8 @@
 using namespace menumouse;
 
 TEST(MenuMouse, GridUsesSixColumnsAndHalfOpenCellEdges) {
-    const Point origin{240, 50};
-    const Rect  clip{240, 44, 240, 250};
+    const Point origin{.x = 240, .y = 50};
+    const Rect  clip{.x = 240, .y = 44, .w = 240, .h = 250};
     EXPECT_EQ(GridHit({240, 50}, origin, clip, 144), (Target{ITEM_MENU_PANEL_BAG, 0}));
     EXPECT_EQ(GridHit({279.99f, 99.99f}, origin, clip, 144).cursor, 0);
     EXPECT_EQ(GridHit({280, 50}, origin, clip, 144).cursor, 1);
@@ -28,7 +28,7 @@ TEST(MenuMouse, GridUsesSixColumnsAndHalfOpenCellEdges) {
 }
 
 TEST(MenuMouse, GridFollowsAnimatedScrollAndRejectsCapacityOverflow) {
-    const Rect clip{240, 44, 240, 250};
+    const Rect clip{.x = 240, .y = 44, .w = 240, .h = 250};
     EXPECT_EQ(GridHit({250, 55}, {240, -50}, clip, 144).cursor, 12);
     EXPECT_EQ(GridHit({250, 49}, {240, 0}, clip, 144).cursor, 0);
     EXPECT_EQ(GridHit({250, 51}, {240, 0}, clip, 144).cursor, 6);
@@ -44,8 +44,8 @@ TEST(MenuMouse, WheelUsesWholeNotchesFromSharedAccumulator) {
 }
 
 namespace {
-const Target source{ITEM_MENU_PANEL_BAG, 1}, dest{ITEM_MENU_PANEL_BAG, 8};
-const Take   press{true, true, 1, 0, 1}, hold{true, true, 0, 0, 1}, release{true, false, 0, 1, 0};
+const Target source{.panel = ITEM_MENU_PANEL_BAG, .cursor = 1}, dest{.panel = ITEM_MENU_PANEL_BAG, .cursor = 8};
+const Take   press{.pointing = true, .moved = true, .pressed = 1, .released = 0, .held = 1}, hold{.pointing = true, .moved = true, .pressed = 0, .released = 0, .held = 1}, release{.pointing = true, .moved = false, .pressed = 0, .released = 1, .held = 0};
 } // namespace
 
 TEST(MenuMouse, ShortClickOpensCommandOnRelease) {
@@ -58,7 +58,7 @@ TEST(MenuMouse, ShortClickOpensCommandOnRelease) {
 
 TEST(MenuMouse, DragPicksUpSourceThenDropsOnRelease) {
     Gesture g;
-    g.Update(press, {100, 100}, source, true, false);
+    g.Update(press, {.x = 100, .y = 100}, source, true, false);
     EXPECT_EQ(g.Update(hold, {120, 150}, dest, true, false), Action::PickUp);
     EXPECT_EQ(g.source, source);
     EXPECT_EQ(g.Update(hold, {120, 150}, dest, true, true), Action::None);
@@ -67,15 +67,15 @@ TEST(MenuMouse, DragPicksUpSourceThenDropsOnRelease) {
 
 TEST(MenuMouse, FastDragWaitsForRetailPickupBeforeRelease) {
     Gesture g;
-    g.Update(press, {100, 100}, source, true, false);
+    g.Update(press, {.x = 100, .y = 100}, source, true, false);
     EXPECT_EQ(g.Update(release, {120, 150}, dest, true, false), Action::PickUp);
     EXPECT_EQ(g.Update({true}, {120, 150}, dest, true, true), Action::Drop);
 }
 
 TEST(MenuMouse, DropOutsideReturnsItemWithoutDiscard) {
     Gesture g;
-    g.Update(press, {100, 100}, source, true, false);
-    g.Update(hold, {120, 150}, {}, false, false);
+    g.Update(press, {.x = 100, .y = 100}, source, true, false);
+    g.Update(hold, {.x = 120, .y = 150}, {}, false, false);
     EXPECT_EQ(g.Update(release, {120, 150}, {}, false, true), Action::Cancel);
 }
 
@@ -167,13 +167,13 @@ protected:
                          const_cast<char *>("wep0"), const_cast<char *>("wep1"),
                          const_cast<char *>("c_i0"), const_cast<char *>("c_w0")};
         Point positions[] = {
-            {50,  58 },
-            {91,  58 },
-            {133, 58 },
-            {30,  400},
-            {196, 400},
-            {29,  50 },
-            {3,   379}
+            {.x = 50,  .y = 58 },
+            {.x = 91,  .y = 58 },
+            {.x = 133, .y = 58 },
+            {.x = 30,  .y = 400},
+            {.x = 196, .y = 400},
+            {.x = 29,  .y = 50 },
+            {.x = 3,   .y = 379}
         };
         for (int i = 0; i < 7; ++i) {
             parts[i].name = names[i];
@@ -516,8 +516,8 @@ TEST_F(ItemMouse, FollowupYesNoUsesVisibleMessageInsteadOfStaleAskId) {
     class_menu_item_info.mode = MENU_ASK_MODE_EXTEND;
     class_menu_item_info.ask_para.mes_no = -1;
     CDC2Mes    followup;
-    const auto saved = MenuDCMsg[7];
-    const auto saved_form = MenuMesForm[7];
+    auto *const saved = MenuDCMsg[7];
+    auto *const saved_form = MenuMesForm[7];
     MenuDCMsg[7] = &followup;
     MenuMesForm[7] = &command;
     command.draw_flag = true;
@@ -602,8 +602,8 @@ TEST_F(ItemMouse, UnselectableFollowupAcceptsClickEvenWhenOriginalCommandIsHidde
     command.draw_flag = false;
     CDC2Mes          followup;
     CMenuPosDataForm followup_form{};
-    const auto       saved = MenuDCMsg[7];
-    const auto       saved_form = MenuMesForm[7];
+    auto *const      saved = MenuDCMsg[7];
+    auto *const      saved_form = MenuMesForm[7];
     MenuDCMsg[7] = &followup;
     MenuMesForm[7] = &followup_form;
     followup_form.draw_flag = true;

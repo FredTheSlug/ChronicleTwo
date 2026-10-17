@@ -7,7 +7,7 @@
 #include "platform/model_assets.hpp"
 #include "scenevillager.hpp"
 
-PORT_OVERRIDE int GetChrFileSize(u32 *model, int) {
+PORT_OVERRIDE int GetChrFileSize(u32 *model, int /*unused*/) {
     const auto path = DataReadBufferPath(model);
     if (!path) {
         return std::numeric_limits<int>::max();

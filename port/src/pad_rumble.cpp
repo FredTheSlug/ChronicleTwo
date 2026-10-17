@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <print>
 #include <vector>
 
 #include "platform/settings.hpp"
@@ -43,12 +44,12 @@ Sent &Known(SDL_JoystickID id, SDL_Gamepad *gamepad) {
     }
     const SDL_PropertiesID props = SDL_GetGamepadProperties(gamepad);
     const char            *name = SDL_GetGamepadName(gamepad);
-    std::fprintf(stderr, "rumble: pad \"%s\" (%04x:%04x, %s, %s), rumble %s\n", name ? name : "?",
+    std::println(stderr, "rumble: pad \"{}\" ({:04x}:{:04x}, {}, {}), rumble {}", name ? name : "?",
                  SDL_GetGamepadVendor(gamepad), SDL_GetGamepadProduct(gamepad),
                  SDL_GetGamepadStringForType(SDL_GetGamepadType(gamepad)),
                  ConnectionName(SDL_GetGamepadConnectionState(gamepad)),
                  SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no");
-    g_known.push_back({id});
+    g_known.push_back({.id = id});
     return g_known.back();
 }
 
@@ -64,7 +65,7 @@ void Send(Uint16 low, Uint16 high) {
         Sent &sent = Known(ids[i], gamepad);
         if (!SDL_RumbleGamepad(gamepad, low, high, kRumbleMs) && !sent.failed) {
             sent.failed = true;
-            std::fprintf(stderr, "rumble: \"%s\" refused rumble: %s\n", SDL_GetGamepadName(gamepad), SDL_GetError());
+            std::println(stderr, "rumble: \"{}\" refused rumble: {}", SDL_GetGamepadName(gamepad), SDL_GetError());
         }
     }
     SDL_free(ids);
@@ -78,7 +79,7 @@ void PortPadRumble(bool small_motor, std::uint8_t large_motor) {
     const bool active = small_motor || large_motor != 0;
     g_small = small_motor;
     g_large = large_motor;
-    if (!changed && !(active && SDL_GetTicks() - g_last_send >= kRumbleMs / 2)) {
+    if (!changed && (!active || SDL_GetTicks() - g_last_send < kRumbleMs / 2)) {
         return;
     }
     const float strength = std::clamp(SettingsGet().rumble_strength, 0.0f, 1.0f);

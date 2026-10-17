@@ -52,7 +52,7 @@ TEST(MgDrawPrimRender, TileSeamHasNoForeignTexel) {
     ASSERT_FLOAT_EQ(mapping.scale_x, 2.5f);
     ASSERT_FLOAT_EQ(mapping.offset_x, 0.0f);
 
-    const gfx::TextureHandle texture = gfx::CreateTexture({kTextureWidth, kTextureHeight, gfx::TextureFormat::Rgba8});
+    const gfx::TextureHandle texture = gfx::CreateTexture({.width = kTextureWidth, .height = kTextureHeight, .format = gfx::TextureFormat::Rgba8});
     ASSERT_NE(texture, gfx::kNullTexture);
     std::vector<uint8_t> texels(static_cast<size_t>(kTextureWidth) * kTextureHeight * 4);
     for (uint32_t y = 0; y < kTextureHeight; ++y) {
@@ -123,7 +123,8 @@ TEST(MgDrawPrimRender, LinearAtlasCellsKeepTopOutlinesWithoutSamplingTheNextCell
     ASSERT_FLOAT_EQ(mapping.scale_x, 2.5f);
     ASSERT_FLOAT_EQ(mapping.scale_y, 2.5f);
 
-    constexpr uint32_t width = 16, height = 64;
+    constexpr uint32_t            width = 16;
+    constexpr uint32_t            height = 64;
     const std::array<uint32_t, 4> palette = {
         dc::test::Rgba(0, 0, 0, 0), dc::test::Rgba(0, 0, 0),
         dc::test::Rgba(255, 0, 0), dc::test::Rgba(0, 255, 0),
@@ -142,8 +143,8 @@ TEST(MgDrawPrimRender, LinearAtlasCellsKeepTopOutlinesWithoutSamplingTheNextCell
     for (size_t i = 0; i < indices.size(); ++i) {
         rgba[i] = palette[indices[i]];
     }
-    const auto color = gfx::CreateTexture({width, height, gfx::TextureFormat::Rgba8});
-    const auto index = gfx::CreateTexture({width, height, gfx::TextureFormat::Index8});
+    const auto color = gfx::CreateTexture({.width = width, .height = height, .format = gfx::TextureFormat::Rgba8});
+    const auto index = gfx::CreateTexture({.width = width, .height = height, .format = gfx::TextureFormat::Index8});
     const auto clut = gfx::CreatePalette();
     ASSERT_NE(color, gfx::kNullTexture);
     ASSERT_NE(index, gfx::kNullTexture);

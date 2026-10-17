@@ -14,7 +14,7 @@ originals. The PS2 source and include trees remain unchanged.
 | Movies | Self-contained MP4 with copied MPEG-2 video and embedded ALAC audio |
 | Models, characters and compatible animation | glTF 2.0 with embedded buffers and textures |
 | Additional model gameplay semantics | Adjacent, minimal `.game.json` |
-| Configuration and textual map commands | Versioned typed `.cfg.json` and `.map.json` |
+| Configuration and textual map scripts | Native semantic `.cfg.json` and `.map.json` documents (schema 2, one `kind` per family) |
 | Standalone textures | Versioned texture JSON and PNG images |
 | Ordinary PACK archives | Folders containing a versioned `pack.json` |
 
@@ -63,10 +63,13 @@ Source coverage also verifies every gameplay script, including character-bundle
 scripts, against its deterministically migrated output before publication or
 reuse of a completed stage.
 
-Configuration loaders execute decoded JSON commands directly through their
-gameplay callbacks. They do not copy serialized JSON into the original fixed
-script buffers, so pretty printing and larger datapack documents cannot overflow
-those buffers.
+Configuration loaders parse each native semantic document into typed
+structures and fill the game's tables directly, with the effects of the retail
+tag callbacks; no configuration command list is replayed. They read documents by
+path through datapack priority rather than from the original fixed script
+buffers, so pretty printing and larger datapack documents cannot overflow those
+buffers. The extractor proves each document gives back every value the original
+script's callbacks read ([native configurations](NATIVE_CONFIGS.md)).
 
 Validation covers deterministic extraction, sample and movie-frame parity,
 configuration callback parity, glTF geometry and animation validity, native

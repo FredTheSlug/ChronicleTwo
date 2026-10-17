@@ -17,12 +17,11 @@
 #include "save_slots.hpp"
 #include "title.hpp"
 
-extern CItemSelect    *MouseItemSelect asm("MenuMouse_ItemSelect");
-extern CMenuInter     *MouseInter asm("MenuMouse_Inter");
-extern CSaveMenuClass *MouseSave asm("MenuMouse_Save");
-extern TITLE_INFO     *MouseTitle asm("MenuMouse_Title");
-extern short           MouseTitlePhase asm("MenuMouse_TitlePhase");
-extern unsigned char   MouseTitleHDD asm("MenuMouse_TitleHDD");
+extern CItemSelect  *MouseItemSelect asm("MenuMouse_ItemSelect");
+extern CMenuInter   *MouseInter asm("MenuMouse_Inter");
+extern TITLE_INFO   *MouseTitle asm("MenuMouse_Title");
+extern short         MouseTitlePhase asm("MenuMouse_TitlePhase");
+extern unsigned char MouseTitleHDD asm("MenuMouse_TitleHDD");
 
 bool MenuMouseFloor();
 
@@ -34,7 +33,7 @@ void RootMouse() {
     std::vector<MenuMouseRect> rows;
     for (int i = 0; i < MouseInter->select_num; ++i) {
         auto *form = MenuPosData->GetFormInfo(GetMenuMainIconChar(MouseInter->mode_list[i]));
-        rows.push_back(form ? MenuMouseRect{form->x - 20, form->y - 4, 190, 30} : MenuMouseRect{});
+        rows.push_back(form ? MenuMouseRect{.x = form->x - 20, .y = form->y - 4, .w = 190, .h = 30} : MenuMouseRect{});
     }
     const int selected = MenuMouseRows(rows, MouseInter->select_no);
     if (selected != MouseInter->select_no) {
@@ -51,7 +50,7 @@ void ItemPopupMouse() {
     for (int i = 0; i < items.item_num; ++i) {
         int row = i / ITEM_SELECT_COLUMNS;
         if (row >= items.top_line && row < items.top_line + 2) {
-            cells[i] = {items.item_rect.left + 44 * (i % ITEM_SELECT_COLUMNS), items.item_rect.top + 55 * row, 44, 55};
+            cells[i] = {.x = items.item_rect.left + 44 * (i % ITEM_SELECT_COLUMNS), .y = items.item_rect.top + 55 * row, .w = 44, .h = 55};
         }
     }
     int selected = MenuMouseRows(cells, items.cursor, ITEM_SELECT_COLUMNS);
@@ -70,7 +69,7 @@ void TitleMouse() {
         const int     count = MouseTitleHDD ? 5 : 4;
         MenuMouseRect rows[5]{};
         for (int i = 0; i < count; ++i) {
-            rows[i] = {(mgScreenWidth - 210) * 0.5f, float((MouseTitleHDD ? 76 : 100) + 58 * i), 210, 54};
+            rows[i] = {.x = (mgScreenWidth - 210) * 0.5f, .y = static_cast<float>((MouseTitleHDD ? 76 : 100) + 58 * i), .w = 210, .h = 54};
         }
         const int selected = MenuMouseRows({rows, static_cast<std::size_t>(count)}, MouseTitle->select);
         if (selected != MouseTitle->select) {
@@ -78,10 +77,8 @@ void TitleMouse() {
             MouseTitle->idle_count = 0;
             MenuSePlay(SYSTEM_SE_CURSOR);
         }
-    } else if (MouseTitlePhase <= TITLE_PHASE_PUSH_START) {
-        if (MenuMouseTake().clicked & 1) {
-            MenuMousePress(PAD_START);
-        }
+    } else if ((MouseTitlePhase <= TITLE_PHASE_PUSH_START) && (MenuMouseTake().clicked & 1)) {
+        MenuMousePress(PAD_START);
     }
 }
 } // namespace
@@ -148,9 +145,10 @@ void MenuMouseSave(CSaveMenuClass &save) {
     std::vector<MenuMouseRect> rows(count);
     for (int i = std::max(0, save.top - 1); i < std::min(save.top + 4, count); ++i) {
         const float y = save.list_form->y + 80 * i;
-        const float top = std::max(162.0f, y), bottom = std::min(402.0f, y + 76);
+        const float top = std::max(162.0f, y);
+        const float bottom = std::min(402.0f, y + 76);
         if (bottom > top) {
-            rows[i] = {save.list_form->x, top, 458, bottom - top};
+            rows[i] = {.x = save.list_form->x, .y = top, .w = 458, .h = bottom - top};
         }
     }
     const int selected = MenuMouseRows(rows, save.select);
@@ -171,7 +169,7 @@ bool MenuMouseOption(CMenuOption &menu, CMenuPosDataForm *form) {
             if (!part || !part->draw_flag) {
                 continue;
             }
-            const MenuMouseRect rect{form->x + part->x, form->y + part->y, part->w, part->h};
+            const MenuMouseRect rect{.x = form->x + part->x, .y = form->y + part->y, .w = part->w, .h = part->h};
             if (rect.Contains(mouse.x, mouse.y)) {
                 if (mouse.moved || (mouse.clicked & 1)) {
                     menu.select = row;

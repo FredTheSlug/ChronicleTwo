@@ -24,9 +24,9 @@ extern CSaveMenuClass *MouseSave asm("MenuMouse_Save");
 
 namespace {
 constexpr MenuMouseRect rows[] = {
-    {20, 40,  100, 30},
-    {20, 80,  100, 30},
-    {20, 120, 100, 30}
+    {.x = 20, .y = 40,  .w = 100, .h = 30},
+    {.x = 20, .y = 80,  .w = 100, .h = 30},
+    {.x = 20, .y = 120, .w = 100, .h = 30}
 };
 
 TEST(MenuMouse, HitBoxesExcludeGapsAndTheirFarEdges) {
@@ -68,7 +68,8 @@ TEST(MenuMouse, WindowPixelsFollowUiScalingAndHighDpiMapping) {
 }
 
 TEST(MenuMouse, HoverUsesTheRetailMoveResultAndScrollUpdate) {
-    int cursor = 0, scroll = 0;
+    int cursor = 0;
+    int scroll = 0;
     MenuMouseMove(&cursor, 8);
     EXPECT_EQ(cursor, 0);
     EXPECT_EQ(MenuKeySelectCheck(0, &cursor, &scroll, 0, 13, 3, MENU_CURSOR_LIMIT_CLAMP), MENU_CURSOR_MOVED);
@@ -151,8 +152,8 @@ TEST_F(MenuMouseInput, OutsideClickIsRejectedButRightClickCancels) {
 
 TEST_F(MenuMouseInput, MessageClickMovesTheRetailDirectionBeforeItConfirms) {
     const MenuMouseRect choices[] = {
-        {20,  200, 70,  50},
-        {200, 200, 100, 60}
+        {.x = 20,  .y = 200, .w = 70,  .h = 50},
+        {.x = 200, .y = 200, .w = 100, .h = 60}
     };
     MenuMouseEnable(true);
     MenuMouseNoteChoices(this, 42, choices, 0, true);
@@ -175,8 +176,8 @@ TEST_F(MenuMouseInput, MessageClickMovesTheRetailDirectionBeforeItConfirms) {
 
 TEST_F(MenuMouseInput, NewMessageDiscardsThePreviousPendingClick) {
     const MenuMouseRect choices[] = {
-        {20,  200, 70,  50},
-        {200, 200, 100, 60}
+        {.x = 20,  .y = 200, .w = 70,  .h = 50},
+        {.x = 200, .y = 200, .w = 100, .h = 60}
     };
     MenuMouseEnable(true);
     MenuMouseNoteChoices(this, 42, choices, 0, true);
@@ -205,8 +206,8 @@ TEST_F(MenuMouseInput, MenuCloseKeepsHeldClickAwayFromGameplayUntilRelease) {
 
 TEST_F(MenuMouseInput, ControllerHandoffDiscardsThePreviousMouseChoiceTarget) {
     const MenuMouseRect choices[] = {
-        {200, 200, 100, 60},
-        {20,  200, 70,  50}
+        {.x = 200, .y = 200, .w = 100, .h = 60},
+        {.x = 20,  .y = 200, .w = 70,  .h = 50}
     };
     MenuMouseEnable(true);
     MenuMouseNoteChoices(this, 42, choices, 1, true);
@@ -228,8 +229,8 @@ TEST_F(MenuMouseInput, ControllerHandoffDiscardsThePreviousMouseChoiceTarget) {
 
 TEST_F(MenuMouseInput, ListClickWaitsForTheRetailCursorThenConfirmsOnce) {
     const MenuMouseRect list[] = {
-        {200, 200, 100, 60},
-        {300, 200, 100, 60}
+        {.x = 200, .y = 200, .w = 100, .h = 60},
+        {.x = 300, .y = 200, .w = 100, .h = 60}
     };
     MenuMouseEnable(true);
     InputSetScriptedDevices({.mouse_buttons = 1});
@@ -247,8 +248,8 @@ TEST_F(MenuMouseInput, ListClickWaitsForTheRetailCursorThenConfirmsOnce) {
 
 TEST_F(MenuMouseInput, ListClickCannotCarryIntoAnotherPageOrSurviveCancel) {
     const MenuMouseRect list[] = {
-        {200, 200, 100, 60},
-        {300, 200, 100, 60}
+        {.x = 200, .y = 200, .w = 100, .h = 60},
+        {.x = 300, .y = 200, .w = 100, .h = 60}
     };
     MenuMouseEnable(true);
     InputSetScriptedDevices({.mouse_buttons = 1});
@@ -313,7 +314,7 @@ TEST_F(MenuMouseInput, LoadListUsesScrolledFormGeometryAndRetailCursorTransition
     const auto catalog = SaveSlots;
     SaveSlots.saves.resize(20);
     CSaveMenuClass   save;
-    CMenuPosDataForm form;
+    CMenuPosDataForm form{};
     form.x = 30;
     form.y = 190 - 80 * 10;
     save.list_form = &form;
@@ -367,7 +368,7 @@ TEST_F(MenuMouseInput, FlatSaveWheelReachesOnlyTheSingleNewRowBeyondRetailCapaci
     const auto catalog = SaveSlots;
     SaveSlots.saves.resize(20);
     CSaveMenuClass   save;
-    CMenuPosDataForm form;
+    CMenuPosDataForm form{};
     form.x = 30;
     form.y = 164 - 80 * 18;
     save.list_form = &form;
@@ -575,8 +576,8 @@ TEST_F(MenuMouseInput, MultipleHandsKeepDistinctReplacementKeys) {
     InputSetScriptedDevices({.mouse_dx = 1});
     MenuMouseTake();
     gfx::TextureBinding texture{.texture = 123};
-    const auto          first = MenuMouseNoteHand(texture, {0, 0, 40, 24});
-    const auto          second = MenuMouseNoteHand(texture, {0, 0, 40, 24});
+    const auto          first = MenuMouseNoteHand(texture, {.x = 0, .y = 0, .w = 40, .h = 24});
+    const auto          second = MenuMouseNoteHand(texture, {.x = 0, .y = 0, .w = 40, .h = 24});
     EXPECT_NE(first, second);
     EXPECT_EQ(MenuMouseReplacedHandKey(), second);
 }

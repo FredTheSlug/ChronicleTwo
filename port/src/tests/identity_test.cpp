@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
 #include <nlohmann/json.hpp>
 
-#include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <vector>
 
 #include "identity.hpp"
 #include "platform/datapacks.hpp"
@@ -49,7 +50,7 @@ TEST(NativeIcon, ActualTitleModelUsesValidDatapackThenRetailFallback) {
             std::error_code error;
             fs::remove_all(root, error);
         }
-    } cleanup{root, datapacks::Root()};
+    } cleanup{.root = root, .previous = datapacks::Root()};
 
     WriteIcon(root / "port_data/title/dc2_ic.gltf", 1, 0);
     WriteIcon(root / "datapacks/icon/title/dc2_ic.gltf", 0, 1);

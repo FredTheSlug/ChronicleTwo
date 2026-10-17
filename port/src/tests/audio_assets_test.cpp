@@ -192,7 +192,8 @@ TEST_F(AudioAssetsTest, SelfContainedH264AacMp4OverrideAndInvalidFallback) {
     fs::create_directories(replacement.parent_path());
     fs::copy_file(fixtures / "movie_h264_aac.mp4", replacement);
     EnablePack("custom");
-    video::MoviePlayer reference, player;
+    video::MoviePlayer reference;
+    video::MoviePlayer player;
     ASSERT_TRUE(reference.Open(fixtures / "movie_h264_aac.mp4", true));
     ASSERT_TRUE(player.Open("movie/test.mp4", true));
     ASSERT_NE(player.Audio(), nullptr);

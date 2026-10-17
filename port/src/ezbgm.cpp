@@ -2,17 +2,12 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cstdint>
 #include <cstdio>
-#include <cstring>
 #include <filesystem>
-#include <fstream>
-#include <memory>
 #include <mutex>
-#include <optional>
+#include <print>
 #include <string>
-#include <string_view>
 
 #include "audio/mixer.hpp"
 #include "audio/stream.hpp"
@@ -28,13 +23,12 @@
 #include "sound.hpp"
 #include "sound_port.hpp"
 
-namespace fs = std::filesystem;
-
 namespace {
 
 constexpr int kChannelCount = 16;
 
-// The IOP holds the end bit while its buffers drain; the game's waits poll it for several frames, so one second of output stands in for that drain.
+// The IOP holds the end bit while its buffers drain and the game's waits poll it for several frames;
+// one second of output stands in for that drain.
 constexpr std::int64_t kEndHoldFrames = audio::kSpuRate;
 
 enum Command : int {
@@ -48,7 +42,6 @@ enum Command : int {
     kState = 0x80B0,
     kInfo = 0x80D0,
     kLevel = 0x80E0,
-    kInit = 0x8000,
 };
 
 struct StreamSlot {
@@ -110,7 +103,7 @@ PORT_OVERRIDE int ezBgm(int command, int argument) {
         case EZBGM_OPEN:
         case EZBGM_OPEN_FROM_PACK:
         case EZBGM_UNK_8A00:
-            std::fprintf(stderr, "ezbgm: open command 0x%04x carries an address, use EzBgmOpen\n", command & EZBGM_COMMAND_MASK);
+            std::println(stderr, "ezbgm: open command 0x{:04x} carries an address, use EzBgmOpen", command & EZBGM_COMMAND_MASK);
             return 0;
         case EZBGM_PRELOAD:
             return 0;
@@ -159,8 +152,6 @@ PORT_OVERRIDE int ezBgm(int command, int argument) {
             return slot.stereo;
         case kLevel:
             return static_cast<int>(stream.Level());
-        case kInit:
-            return 0;
         default:
             return 0;
     }
@@ -177,11 +168,10 @@ int EzBgmOpen(int channel, const char *name) {
     std::string error;
     auto        track = LoadAudioTrack(name, error);
     if (!track) {
-        std::fprintf(stderr, "ezbgm: %s: %s\n", name, error.c_str());
+        std::println(stderr, "ezbgm: {}: {}", name, error);
         return 0;
     }
-    const auto channels = track->source_channels;
-    const bool stereo = channels == 2;
+    const bool stereo = track->source_channels == 2;
     slot.stream.SetSourceChannels(stereo ? 2 : 1);
     slot.stream.Open(track);
     slot.stream.SetLoop(false);
@@ -192,7 +182,7 @@ int EzBgmOpen(int channel, const char *name) {
 
 int EzBgmOpenFromPack(int channel, const char *name, const char *pack_name) {
     CloseSlot(Slot(channel));
-    std::fprintf(stderr, "ezbgm: %s (pack %s): voice packs are not on the disc\n", name, pack_name);
+    std::println(stderr, "ezbgm: {} (pack {}): voice packs are not on the disc", name, pack_name);
     return 0;
 }
 
@@ -201,14 +191,14 @@ void EzBgmStep() {
         return;
     }
 
-    // The clock keeps the active session rate even when config changes await restart.
-    // It is also available when retail global constructors step sound before startup.
+    // The clock keeps the session's rate while a config change awaits restart, and is available
+    // even when retail global constructors step sound before startup.
     const double tick_rate = ClockTickRate();
     if (!(tick_rate > 0.0)) {
         return;
     }
 
-    const std::int64_t frames = static_cast<std::int64_t>(audio::kSpuRate / tick_rate);
+    const auto frames = static_cast<std::int64_t>(audio::kSpuRate / tick_rate);
     for (int channel = 0; channel < kChannelCount; channel++) {
         Slot(channel).stream.Advance(frames, audio::kSpuRate);
     }

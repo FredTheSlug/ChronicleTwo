@@ -11,10 +11,7 @@
 #include "menumain.hpp"
 #include "menusys.hpp"
 #include "mglib_port.hpp"
-
-extern CDngFreeMap  *MouseDngMap asm("MenuMouse_DngMap");
-extern CMenuTreeMap *MouseTree asm("MenuMouse_Tree");
-extern short         MouseTreeMode asm("MenuMouse_TreeMode");
+#include "stubs/dngmenu.hpp"
 
 namespace {
 CDngFloorManager *pending_manager = nullptr;
@@ -23,36 +20,36 @@ int               pending_frame = -1;
 } // namespace
 
 bool MenuMouseFloor() {
-    if (MouseTreeMode == DNG_TREE_MODE_SAVE) {
+    if (DngTreeMode == DNG_TREE_MODE_SAVE) {
         return false;
     }
-    if (!MouseTree || !MouseDngMap || !MouseDngMap->floor_manager ||
-        MouseTree->mode != MENU_ASK_MODE_NONE || MouseTree->key_arg_no != DNG_TREE_MAP_SCREEN_MAP) {
+    if (!CMenuTreePt || !MenuDngMap || !MenuDngMap->floor_manager ||
+        CMenuTreePt->mode != MENU_ASK_MODE_NONE || CMenuTreePt->key_arg_no != DNG_TREE_MAP_SCREEN_MAP) {
         return true;
     }
     std::vector<MenuMouseRect> rows;
     std::vector<GLID_INFO *>   rooms;
-    auto                      *manager = MouseDngMap->floor_manager;
+    auto                      *manager = MenuDngMap->floor_manager;
     int                        selected = 0;
     for (int i = 0; i < manager->glid_num; ++i) {
         auto *room = &manager->glid_info[i];
         if (room->type != GLID_TYPE_ROOM || room->room.selectable != 1) {
             continue;
         }
-        float x = 0, y = 0;
-        MouseDngMap->CalcGlidPutPos(room, x, y, 0);
-        if (room == MouseTree->select_glid) {
+        float x = 0;
+        float y = 0;
+        MenuDngMap->CalcGlidPutPos(room, x, y, 0);
+        if (room == CMenuTreePt->select_glid) {
             selected = static_cast<int>(rooms.size());
         }
         rooms.push_back(room);
-        rows.push_back({x - 30 + room->room.offset_x, y - 42 + room->room.offset_y, 96, 66});
+        rows.push_back({.x = x - 30 + room->room.offset_x, .y = y - 42 + room->room.offset_y, .w = 96, .h = 66});
     }
     const auto &mouse = MenuMouseTake();
     // The save command is the retail Triangle action at the bottom of the map.
     if (TreeMapSaveFlag && MenuDCMsg[6]) {
         const auto   &help = *MenuDCMsg[6];
-        MenuMouseRect save{float(help.line_pos[1][0]), float(help.line_pos[1][1] - 8),
-                           float(help.line_w[1]), 32};
+        MenuMouseRect save{.x = static_cast<float>(help.line_pos[1][0]), .y = static_cast<float>(help.line_pos[1][1] - 8), .w = static_cast<float>(help.line_w[1]), .h = 32};
         if (mouse.pointing && save.Contains(mouse.x, mouse.y) && (mouse.clicked & 1)) {
             MenuMouseRows({}, selected);
             MenuMousePress(PAD_TRIANGLE);
@@ -71,7 +68,7 @@ bool MenuMouseFloor() {
     return true;
 }
 
-PORT_OVERRIDE GLID_INFO *CDngFloorManager::GetKeyNextRoom(int floor_id, int dir, GLID_INFO *previous) {
+PORT_OVERRIDE GLID_INFO *CDngFloorManager::GetKeyNextRoom(int floor_id, int dir, GLID_INFO * /*previous*/) {
     if (pending_manager == this && pending_frame == mgPortFrameCount()) {
         auto *room = pending_room;
         pending_manager = nullptr;

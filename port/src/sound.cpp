@@ -7,7 +7,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <print>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include "audio/hdbank.hpp"
@@ -66,19 +68,19 @@ constexpr int kDependentsOf10[] = {8, 1, 15, 2, 14};
 constexpr int kDependentsOf15[] = {2, 14};
 
 constexpr PortLayout kLayout[] = {
-    {0,  -1, 0x3040, {}             },
-    {1,  -1, 0x3032, kDependentsOf1 },
-    {2,  14, 0x3039, {}             },
-    {3,  -1, 0x3040, {}             },
-    {7,  -1, 0x3010, {}             },
-    {8,  -1, 0x3035, kDependentsOf8 },
-    {9,  -1, 0x3038, {}             },
-    {10, -1, 0x3037, kDependentsOf10},
-    {11, -1, 0x3033, {}             },
-    {12, -1, 0x3034, {}             },
-    {13, -1, 0x3036, {}             },
-    {14, 2,  0x3039, {}             },
-    {15, -1, 0x3031, kDependentsOf15},
+    {.port = 0,  .linked_port = -1, .ezmidi_param = 0x3040, .dependents = {}             },
+    {.port = 1,  .linked_port = -1, .ezmidi_param = 0x3032, .dependents = kDependentsOf1 },
+    {.port = 2,  .linked_port = 14, .ezmidi_param = 0x3039, .dependents = {}             },
+    {.port = 3,  .linked_port = -1, .ezmidi_param = 0x3040, .dependents = {}             },
+    {.port = 7,  .linked_port = -1, .ezmidi_param = 0x3010, .dependents = {}             },
+    {.port = 8,  .linked_port = -1, .ezmidi_param = 0x3035, .dependents = kDependentsOf8 },
+    {.port = 9,  .linked_port = -1, .ezmidi_param = 0x3038, .dependents = {}             },
+    {.port = 10, .linked_port = -1, .ezmidi_param = 0x3037, .dependents = kDependentsOf10},
+    {.port = 11, .linked_port = -1, .ezmidi_param = 0x3033, .dependents = {}             },
+    {.port = 12, .linked_port = -1, .ezmidi_param = 0x3034, .dependents = {}             },
+    {.port = 13, .linked_port = -1, .ezmidi_param = 0x3036, .dependents = {}             },
+    {.port = 14, .linked_port = 2,  .ezmidi_param = 0x3039, .dependents = {}             },
+    {.port = 15, .linked_port = -1, .ezmidi_param = 0x3031, .dependents = kDependentsOf15},
 };
 
 std::array<PortState, MIDI_PORT_COUNT> ports;
@@ -109,11 +111,11 @@ void DropQueued(int port) {
 }
 
 void QueueShort(int port, std::uint32_t word) {
-    queued.push_back({port, false, word, {}});
+    queued.push_back({.port = port, .hs = false, .word = word, .bytes = {}});
 }
 
 void QueueHs(int port, const std::array<std::uint8_t, 7> &bytes) {
-    queued.push_back({port, true, 0, bytes});
+    queued.push_back({.port = port, .hs = true, .word = 0, .bytes = bytes});
 }
 
 void QueueBankProgram(int port, int bank, int program) {
@@ -170,8 +172,16 @@ void ReleaseSequences(audio::Mixer &mixer, int port) {
     state.sequence_name.clear();
 }
 
+// Silences a port everywhere it plays and drops its queued messages and sequences.
+void DeletePort(audio::Mixer &mixer, int port) {
+    DropQueued(port);
+    mixer.Stop(port);
+    HapticsMixer().Stop(port);
+    ReleaseSequences(mixer, port);
+}
+
 void RejectIntAddress(const char *function) {
-    std::fprintf(stderr, "%s takes its bank or sequence address as int; the host loads through SoundLoad*\n", function);
+    std::println(stderr, "{} takes its bank or sequence address as int; the host loads through SoundLoad*", function);
 }
 
 // The treasure chests' opening (wood, iron and stone) is a sound-effect sequence of every base bank.
@@ -194,10 +204,10 @@ struct SpeakerRoutes {
     // Ports whose other effects (key-ons, and ids of no sequence) also play on the speaker.
     std::bitset<MIDI_PORT_COUNT> whole;
 
-    bool Any(int port) const { return whole.test(port) || speaker[port].any(); }
+    [[nodiscard]] bool Any(int port) const { return whole.test(port) || speaker[port].any(); }
 };
 
-SpeakerRoutes                                                                         previous_routes;
+SpeakerRoutes                                                                                   previous_routes;
 std::array<std::array<std::shared_ptr<const audio::Bank>, MIDI_PORT_BANK_MAX>, MIDI_PORT_COUNT> speaker_banks;
 
 int DriverPort(int game_port) {
@@ -288,9 +298,9 @@ struct HapticPort {
 };
 
 constexpr HapticPort kHapticPorts[] = {
-    {SND_PORT_CHARA,  100},
-    {SND_PORT_BATTLE, 100},
-    {SND_PORT_ENEMY,  50 },
+    {.game_port = SND_PORT_CHARA,  .volume = 100},
+    {.game_port = SND_PORT_BATTLE, .volume = 100},
+    {.game_port = SND_PORT_ENEMY,  .volume = 50 },
 };
 
 std::array<int, MIDI_PORT_COUNT>                                                                haptic_volume{};
@@ -445,7 +455,7 @@ PORT_OVERRIDE void CSound::StopVoice(int core) {
     HapticsMixer().KeyOffCore(core);
 }
 
-PORT_OVERRIDE void CSound::SndInReverb(bool) {
+PORT_OVERRIDE void CSound::SndInReverb(bool /*unused*/) {
     // Stream channels never enter the mixer's effect units, so the SPU input route has nothing to switch.
 }
 
@@ -488,23 +498,14 @@ PORT_OVERRIDE void CSound::DEL_PORT(int port) {
     const int     linked = ports[port].linked_port;
 
     // Retail clears queued messages only for MSIn-range ports; ports below that have no MSIn buffer to clear.
-    DropQueued(port);
-    mixer.Stop(port);
-    HapticsMixer().Stop(port);
-    ReleaseSequences(mixer, port);
+    DeletePort(mixer, port);
 
     if (linked >= 0) {
-        DropQueued(linked);
-        mixer.Stop(linked);
-        HapticsMixer().Stop(linked);
-        ReleaseSequences(mixer, linked);
+        DeletePort(mixer, linked);
     }
 
     for (int dependent : ports[port].dependent_port) {
-        DropQueued(dependent);
-        mixer.Stop(dependent);
-        HapticsMixer().Stop(dependent);
-        ReleaseSequences(mixer, dependent);
+        DeletePort(mixer, dependent);
     }
 }
 
@@ -512,7 +513,7 @@ PORT_OVERRIDE void CSound::SQ_Play(int port, int seq_no, int volume) {
     PortState &state = ports[port];
 
     // Retail returns before stopping on a bad index, so the port keeps playing.
-    if (seq_no < 0 || seq_no >= static_cast<int>(state.sequence.size())) {
+    if (seq_no < 0 || std::cmp_greater_equal(seq_no, state.sequence.size())) {
         audio::Trace("SQ_Play PORT=%d SEQ_NO=%d not loaded", port, seq_no);
         return;
     }
@@ -522,7 +523,7 @@ PORT_OVERRIDE void CSound::SQ_Play(int port, int seq_no, int volume) {
     mixer.SetSequence(port, state.sequence[seq_no]);
     // Resolve at playback, so choosing another soundtrack in Options applies to the next song,
     // including songs whose sequence data was already loaded. Missing recordings keep the PS2 song.
-    if (seq_no < static_cast<int>(state.sequence_name.size()) && !state.sequence_name[seq_no].empty()) {
+    if (std::cmp_less(seq_no, state.sequence_name.size()) && !state.sequence_name[seq_no].empty()) {
         mixer.SetPendingStream(port, audio::SoundtrackRequestFor(state.sequence_name[seq_no]));
     }
 
@@ -541,7 +542,7 @@ PORT_OVERRIDE void CSound::SQ_RePlay(int port) {
     }
 }
 
-PORT_OVERRIDE void CSound::SE_Play(int port, int bank, int program, int key, int pan, int velocity, int volume, int, int id) {
+PORT_OVERRIDE void CSound::SE_Play(int port, int bank, int program, int key, int pan, int velocity, int volume, int /*unused*/, int id) {
     if (!ValidSeId(port, id) || ports[port].bank_count <= 0) {
         return;
     }
@@ -599,21 +600,17 @@ PORT_OVERRIDE void CSound::Step() {
 
         fade.volume += fade.step;
 
-        if (!(fade.step <= 0.0f)) {
-            if (!(fade.volume <= static_cast<float>(fade.target_volume))) {
-                fade.volume = static_cast<float>(fade.target_volume);
-                fade.active = 0;
-            }
+        if ((!(fade.step <= 0.0f)) && (!(fade.volume <= static_cast<float>(fade.target_volume)))) {
+            fade.volume = static_cast<float>(fade.target_volume);
+            fade.active = 0;
         }
 
-        if (fade.step < 0.0f) {
-            if (fade.volume < static_cast<float>(fade.target_volume)) {
-                fade.volume = static_cast<float>(fade.target_volume);
-                fade.active = 0;
-            }
+        if ((fade.step < 0.0f) && (fade.volume < static_cast<float>(fade.target_volume))) {
+            fade.volume = static_cast<float>(fade.target_volume);
+            fade.active = 0;
         }
 
-        // Retail drives port 0's volume from every port's fade; kept as-is.
+        // Retail drives port 0's volume from every port's fade.
         SetVol(0, static_cast<int>(fade.volume));
     }
 
@@ -625,25 +622,25 @@ PORT_OVERRIDE void CSound::SetMasterVol(int core, int volume) {
     audio::DefaultMixer().SetCoreVolume(core, static_cast<float>(std::clamp(volume, 0, kMasterVolFull)) / kMasterVolFull);
 }
 
-PORT_OVERRIDE void CSound::LoadHdBd(int, int, int, int, int) {
+PORT_OVERRIDE void CSound::LoadHdBd(int /*unused*/, int /*unused*/, int /*unused*/, int /*unused*/, int /*unused*/) {
     RejectIntAddress("CSound::LoadHdBd");
 }
 
-PORT_OVERRIDE void CSound::LoadHdBd2(int, int, int, int, int) {
+PORT_OVERRIDE void CSound::LoadHdBd2(int /*unused*/, int /*unused*/, int /*unused*/, int /*unused*/, int /*unused*/) {
     RejectIntAddress("CSound::LoadHdBd2");
 }
 
-PORT_OVERRIDE int CSound::LoadHdBdAdd(int, int, int, int, int) {
+PORT_OVERRIDE int CSound::LoadHdBdAdd(int /*unused*/, int /*unused*/, int /*unused*/, int /*unused*/, int /*unused*/) {
     RejectIntAddress("CSound::LoadHdBdAdd");
     return -1;
 }
 
-PORT_OVERRIDE int CSound::LoadSeq(int, int, int) {
+PORT_OVERRIDE int CSound::LoadSeq(int /*unused*/, int /*unused*/, int /*unused*/) {
     RejectIntAddress("CSound::LoadSeq");
     return -1;
 }
 
-PORT_OVERRIDE int TransHdBd(int, int, int, int) {
+PORT_OVERRIDE int TransHdBd(int /*unused*/, int /*unused*/, int /*unused*/, int /*unused*/) {
     RejectIntAddress("TransHdBd");
     return -1;
 }
@@ -653,8 +650,8 @@ int SoundLoadBankJson(int port, std::string_view document, bool add) {
     return SoundBindBank(port, std::move(bank), add);
 }
 
-int SoundBindBank(int port, std::shared_ptr<audio::Bank> bank, bool add) {
-    if (!bank || port < 0 || port >= static_cast<int>(ports.size())) {
+int SoundBindBank(int port, const std::shared_ptr<audio::Bank> &bank, bool add) {
+    if (!bank || port < 0 || std::cmp_greater_equal(port, ports.size())) {
         return -1;
     }
     auto &state = ports[port];
@@ -695,18 +692,18 @@ int SoundBindBank(int port, std::shared_ptr<audio::Bank> bank, bool add) {
     return 0;
 }
 
-void SoundLoadHdBd(int port, const void *document, int size, const void *, int) {
+void SoundLoadHdBd(int port, const void *document, int size, const void * /*unused*/, int /*unused*/) {
     if (document && size > 0) {
         SoundLoadBankJson(port, std::string_view(static_cast<const char *>(document), size));
     }
 }
 
-int SoundLoadHdBdAdd(int port, const void *document, int size, const void *, int) {
+int SoundLoadHdBdAdd(int port, const void *document, int size, const void * /*unused*/, int /*unused*/) {
     return document && size > 0 ? SoundLoadBankJson(port, std::string_view(static_cast<const char *>(document), size), true) : -1;
 }
 
 int SoundLoadSequenceJson(int port, std::string_view document, const char *name) {
-    if (port < 0 || port >= static_cast<int>(ports.size())) {
+    if (port < 0 || std::cmp_greater_equal(port, ports.size())) {
         return -1;
     }
     auto &mixer = audio::DefaultMixer();
@@ -739,7 +736,7 @@ PORT_OVERRIDE void CSound::StreamOpenFromFPLFast(int channel, char *name, char *
     EzBgmOpenFromPack(channel, name, pack_name);
 }
 
-PORT_OVERRIDE int CSound::TransBdState(int) {
+PORT_OVERRIDE int CSound::TransBdState(int /*unused*/) {
     // Bank registration is synchronous on the host, so the transfer is always complete.
     return 1;
 }

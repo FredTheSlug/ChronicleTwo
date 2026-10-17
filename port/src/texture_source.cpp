@@ -17,7 +17,7 @@ std::unordered_map<const void *, SourceRange> sources;
 
 void TextureSourceRegister(const void *buffer, std::string source, std::size_t size) {
     if (buffer != nullptr) {
-        sources.insert_or_assign(buffer, SourceRange{std::move(source), size});
+        sources.insert_or_assign(buffer, SourceRange{.source = std::move(source), .size = size});
     }
 }
 

@@ -2,6 +2,7 @@
 
 #include <eekernel.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 
@@ -70,9 +71,7 @@ float mgTimeFrameFields() {
     if (ClockUnbounded()) {
         const auto tick = ClockTickCount();
         // Resetting the clock starts a new span, even if a frame was already open.
-        if (tick < g_frame_begin_tick) {
-            g_frame_begin_tick = tick;
-        }
+        g_frame_begin_tick = std::min(tick, g_frame_begin_tick);
         return static_cast<float>(tick - g_frame_begin_tick);
     }
     const std::chrono::duration<double> elapsed = std::chrono::steady_clock::now() - g_frame_begin;

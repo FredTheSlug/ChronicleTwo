@@ -151,9 +151,8 @@ void HapticsPollGame() {
 }
 
 audio::Mixer &HapticsMixer() {
-    static audio::Mixer mixer(audio::kSpuRate);
-    static const bool   dry = (mixer.SetReverbEnabled(false), true);
-    (void) dry;
+    static audio::Mixer                mixer(audio::kSpuRate);
+    [[maybe_unused]] static const bool dry = (mixer.SetReverbEnabled(false), true);
     return mixer;
 }
 

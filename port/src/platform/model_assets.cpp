@@ -967,17 +967,13 @@ std::string SourceIdentity(const ImageSource &source) {
  * Decodes PNG bytes into a single RGBA level; safe on worker threads.
  */
 bool DecodePng(std::span<const std::byte> png, datapacks::DecodedTexture &image) {
-    int   width = 0;
-    int   height = 0;
-    int   components = 0;
-    auto *decoded = stbi_load_from_memory(reinterpret_cast<const stbi_uc *>(png.data()), static_cast<int>(png.size()), &width, &height, &components, 4);
-    if (!decoded) {
+    std::vector<uint8_t> rgba;
+    std::string          error;
+    if (!datapacks::DecodePng(std::span(reinterpret_cast<const uint8_t *>(png.data()), png.size()), image.width, image.height, rgba, error)) {
         return false;
     }
-    image.width = static_cast<uint32_t>(width);
-    image.height = static_cast<uint32_t>(height);
-    image.levels.assign(1, std::vector<uint8_t>(decoded, decoded + static_cast<std::size_t>(width) * height * 4));
-    stbi_image_free(decoded);
+    image.levels.clear();
+    image.levels.push_back(std::move(rgba));
     return true;
 }
 

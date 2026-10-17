@@ -22,6 +22,7 @@
 
 #define STBI_ONLY_PNG
 #define STBI_NO_STDIO
+#include "kazarov_bridge/rust/lib.h"
 #include "stb_image.h"
 
 #include "platform/archive_mount.hpp"
@@ -129,7 +130,7 @@ void ClearMemos() {
  */
 std::shared_ptr<const DecodedTexture> CacheFind(const std::string &key) {
     const std::scoped_lock lock(decode_mutex);
-    const auto            found = decode_cache.find(key);
+    const auto             found = decode_cache.find(key);
     if (found == decode_cache.end()) {
         return nullptr;
     }
@@ -164,7 +165,7 @@ void CacheInsert(const std::string &key, std::shared_ptr<const DecodedTexture> t
     if (bytes == 0) {
         return;
     }
-    std::uint64_t         evictions = 0;
+    std::uint64_t          evictions = 0;
     const std::scoped_lock lock(decode_mutex);
     if (const auto found = decode_cache.find(key); found != decode_cache.end()) {
         decode_uses.splice(decode_uses.begin(), decode_uses, found->second.use);
@@ -202,7 +203,7 @@ std::string FileStamp(const vfs::Ref &file, const std::string &name) {
             }
         }
     }
-    auto                  stamp = vfs::Stamp(file);
+    auto                   stamp = vfs::Stamp(file);
     const std::scoped_lock lock(memo_mutex);
     if (stamp_scopes) {
         Trace("stamp memo misses");
@@ -290,19 +291,15 @@ bool ChainFits(uint32_t width, uint32_t height, std::size_t count) {
     return total <= kMaxDecodedBytes && total <= std::numeric_limits<std::size_t>::max();
 }
 
-/**
- * Preflights PNG dimensions and file size before decoding any PNG format to RGBA.
- */
-bool ReadPng(const vfs::Ref &path, uint32_t &width, uint32_t &height,
-             std::vector<uint8_t> &rgba, std::string &error) {
-    std::vector<uint8_t> bytes;
-    if (!ReadFileBytes(path, bytes, kMaxFileBytes) || bytes.size() < 33) {
-        error = "PNG is unreadable or exceeds the file-size limit";
+} // namespace
+
+bool DecodePng(std::span<const uint8_t> bytes, uint32_t &width, uint32_t &height, std::vector<uint8_t> &rgba,
+               std::string &error) {
+    if (bytes.size() < 33) {
+        error = "expected a PNG image";
         return false;
     }
-    Trace("png files read");
-    Trace("png bytes read", bytes.size());
-    const std::span<const uint8_t, 33> header(bytes.data(), 33);
+    const auto header = bytes.first<33>();
     constexpr std::array<unsigned char, 8> signature{137, 80, 78, 71, 13, 10, 26, 10};
     if (!std::equal(signature.begin(), signature.end(), header.begin()) ||
         header[8] || header[9] || header[10] || header[11] != 13 ||
@@ -321,6 +318,17 @@ bool ReadPng(const vfs::Ref &path, uint32_t &width, uint32_t &height,
         error = "PNG dimensions exceed the texture or memory limit";
         return false;
     }
+    // The bridge's decoder inflates several times faster than stb_image; stb_image still reads what it rejects.
+    rgba.resize(static_cast<std::size_t>(width) * height * 4);
+    try {
+        kazarov::png_decode_rgba(rust::Slice<const uint8_t>(bytes.data(), bytes.size()), width, height,
+                                 rust::Slice<uint8_t>(rgba.data(), rgba.size()));
+        Trace("png decodes");
+        Trace("png decoded bytes", rgba.size());
+        return true;
+    } catch (const std::exception &) {
+        Trace("png bridge rejections");
+    }
     int            decoded_width = 0;
     int            decoded_height = 0;
     int            channels = 0;
@@ -328,14 +336,30 @@ bool ReadPng(const vfs::Ref &path, uint32_t &width, uint32_t &height,
                                                   &decoded_width, &decoded_height, &channels, 4);
     if (!pixels || std::cmp_not_equal(decoded_width, width) || std::cmp_not_equal(decoded_height, height)) {
         stbi_image_free(pixels);
+        rgba.clear();
         error = "cannot decode PNG";
         return false;
     }
-    rgba.assign(pixels, pixels + static_cast<std::size_t>(width) * height * 4);
+    std::copy_n(pixels, rgba.size(), rgba.begin());
     stbi_image_free(pixels);
     Trace("stbi decodes");
     Trace("stbi decoded bytes", rgba.size());
     return true;
+}
+
+namespace {
+/**
+ * Reads a PNG file within the file-size limit and decodes it to RGBA.
+ */
+bool ReadPng(const vfs::Ref &path, uint32_t &width, uint32_t &height, std::vector<uint8_t> &rgba, std::string &error) {
+    std::vector<uint8_t> bytes;
+    if (!ReadFileBytes(path, bytes, kMaxFileBytes)) {
+        error = "PNG is unreadable or exceeds the file-size limit";
+        return false;
+    }
+    Trace("png files read");
+    Trace("png bytes read", bytes.size());
+    return DecodePng(bytes, width, height, rgba, error);
 }
 
 /**
@@ -879,7 +903,7 @@ void Trace(std::string_view counter, std::uint64_t value) {
     if (!Tracing()) {
         return;
     }
-    auto                 &counters = Counters();
+    auto                  &counters = Counters();
     const std::scoped_lock lock(counters.mutex);
     if (const auto found = counters.totals.find(counter); found != counters.totals.end()) {
         found->second += value;

@@ -3,10 +3,12 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <set>
+#include <span>
 #include <string>
 #include <thread>
 #include <vector>
@@ -313,9 +315,9 @@ TEST_F(DatapacksTest, SharedImageCacheRetainsIndependentPixelsAndClearsWithRoots
 }
 
 TEST_F(DatapacksTest, ImageCacheKeysTrackMissingAndEditedHigherPriorityInputs) {
-    const auto                         replacement = retail / "replacement.png";
-    std::vector<vfs::Ref>              paths{vfs::HostFile(replacement), vfs::HostFile(retail / "textures/base.png")};
-    const auto                         original = datapacks::ImageDecodeKey("model:image:0:overlay", paths);
+    const auto            replacement = retail / "replacement.png";
+    std::vector<vfs::Ref> paths{vfs::HostFile(replacement), vfs::HostFile(retail / "textures/base.png")};
+    const auto            original = datapacks::ImageDecodeKey("model:image:0:overlay", paths);
     std::ofstream(replacement) << "candidate";
     const auto created = datapacks::ImageDecodeKey("model:image:0:overlay", paths);
     EXPECT_NE(original, created);
@@ -440,8 +442,8 @@ TEST_F(DatapacksTest, PrefetchDecodesCatalogTexturesConcurrently) {
 }
 
 TEST_F(DatapacksTest, StampScopeHoldsSourceStampsUntilItEnds) {
-    const auto                         source = retail / "stamped.png";
-    std::vector<vfs::Ref>              paths{vfs::HostFile(source)};
+    const auto            source = retail / "stamped.png";
+    std::vector<vfs::Ref> paths{vfs::HostFile(source)};
     std::ofstream(source) << "first";
     std::string scoped;
     {
@@ -488,3 +490,22 @@ TEST_F(DatapacksTest, MissingGlyphAtlasPreservesEveryOriginalMipPixel) {
 }
 
 } // namespace
+
+TEST(DatapacksPng, DecodesRgbaAndRejectsTruncatedData) {
+    // A 2x1 RGBA PNG holding (10, 20, 30, 40) and (50, 60, 70, 80).
+    const std::vector<uint8_t> png{
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00,
+        0x02, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0xF4, 0x22, 0x7F, 0x8A, 0x00, 0x00, 0x00, 0x11, 0x49,
+        0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xE0, 0x12, 0x91, 0xD3, 0x30, 0xB2, 0x71, 0x0B, 0x00, 0x00, 0x04, 0xB9, 0x01,
+        0x69, 0x03, 0x9D, 0x56, 0x37, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82};
+    uint32_t             width = 0;
+    uint32_t             height = 0;
+    std::vector<uint8_t> rgba;
+    std::string          error;
+    ASSERT_TRUE(datapacks::DecodePng(png, width, height, rgba, error)) << error;
+    EXPECT_EQ(width, 2u);
+    EXPECT_EQ(height, 1u);
+    EXPECT_EQ(rgba, (std::vector<uint8_t>{10, 20, 30, 40, 50, 60, 70, 80}));
+    EXPECT_FALSE(datapacks::DecodePng(std::span(png).first(40), width, height, rgba, error));
+    EXPECT_FALSE(datapacks::DecodePng(std::span(png).first(20), width, height, rgba, error));
+}

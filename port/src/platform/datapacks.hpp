@@ -81,6 +81,12 @@ bool IsReplacement(const vfs::Ref &file);
 bool Decode(const texture_catalog::Entry &entry, std::size_t variant, DecodedTexture &decoded, std::string &error);
 
 /**
+ * Decodes a PNG within the texture size and memory limits to 8-bit RGBA; safe on worker threads.
+ */
+bool DecodePng(std::span<const uint8_t> bytes, uint32_t &width, uint32_t &height, std::vector<uint8_t> &rgba,
+               std::string &error);
+
+/**
  * Names the pixels Decode produces for a variant, or returns an empty string when they cannot be named.
  */
 std::string DecodeIdentity(const texture_catalog::Entry &entry, std::size_t variant);
@@ -167,8 +173,8 @@ struct TraceTimer {
     void Stop();
 
     bool                                  stopped = false; /**< Whether the time was already recorded. */
-    std::string_view                      counter; /**< Static counter name receiving the elapsed time. */
-    std::chrono::steady_clock::time_point start;   /**< Construction time. */
+    std::string_view                      counter;         /**< Static counter name receiving the elapsed time. */
+    std::chrono::steady_clock::time_point start;           /**< Construction time. */
 };
 
 } // namespace datapacks

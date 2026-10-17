@@ -360,6 +360,15 @@ can be removed while the game is closed. A load reads and validates the complete
 image before changing the live game state. The retail checksum format is retained;
 it is not a cryptographic integrity check.
 
+### Retail data fixes
+
+Retail gives two of Starlight Temple's (`f02`) chests the same opened flag 7: the
+Fruit of Eden by the weapon platform (`item19`) and the one by Starlight Items
+(`item11`), so opening either hid the other for good. The `UpdateTrBoxFlag`
+override (`port/src/editloop.cpp`) records `item11` under flag 9, which no other
+chest of the town uses; the save layout is unchanged. A save whose flag 7 is
+already set offers `item11` again, which restores it to saves that lost it.
+
 ### darkchronicle
 
 ```
@@ -1223,7 +1232,7 @@ PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
 
 `port/src/<unit>_config_bridge.inc`, when it exists, is appended to that unit's copy, so native code can reach the unit's file-local record types and statics (`menuaqua`'s prize groups, `editdebug`'s gyorace counter, `movieviewlp`'s movie table); `character_metadata_bridge.inc` is appended to `character.cpp`. `CONFIG_SEAMS` replaces only the configuration interpreter run inside a retail loader that does other work around it (`LoadSkyPack`, `CEditMap::LoadEditInfo`, `CDynamicAnime::Load`) with a call into `port/src`, keeping every line number.
 
-Use this mechanism when a native seam needs to wrap retail behavior rather than replace it, as with the camera-cut seams around `ResetViewMode` and `ResetEyeView`, and the outfit-index guard around `GetRoboPartsInfo`. Add the unit, exact signature, original name and bridge name to `RETAIL_BRIDGES`, declare the bridge's asm link name in both `port/include/stubs/<unit>.hpp` and the native caller, and call it from the public override. The bridge body is generated from retail rather than transcribed into native source; `ps2/` stays unchanged. `NativeRetailBridges` runs `scripts/port/test_unit_copy.py` through CTest, alongside the other native unit-copy Python tests.
+Use this mechanism when a native seam needs to wrap retail behavior rather than replace it, as with the camera-cut seams around `ResetViewMode` and `ResetEyeView`, the outfit-index guard around `GetRoboPartsInfo`, and the chest-flag split before `UpdateTrBoxFlag`. Add the unit, exact signature, original name and bridge name to `RETAIL_BRIDGES`, declare the bridge's asm link name in both `port/include/stubs/<unit>.hpp` and the native caller, and call it from the public override. The bridge body is generated from retail rather than transcribed into native source; `ps2/` stays unchanged. `NativeRetailBridges` runs `scripts/port/test_unit_copy.py` through CTest, alongside the other native unit-copy Python tests.
 
 Each name then has one definition. A replacement without the tag leaves `ps2/src`'s definition in, and the link fails on the duplicate symbol. A replacement takes the signature `ps2/src` gives the function: parameter types as spelled; names and default arguments may differ. By convention a replacement goes in the file that mirrors its unit.
 

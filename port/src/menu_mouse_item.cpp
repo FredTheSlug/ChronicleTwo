@@ -17,6 +17,7 @@
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "snd_mngr.hpp"
+#include "userdata.hpp"
 
 namespace menumouse {
 bool Rect::Contains(Point p) const {
@@ -147,6 +148,43 @@ bool PadActive() {
 
 Rect BoardClip(CMenuItemInfo &menu) { return ItemBoardClip(menu.item_board_form); }
 
+// The 3D models are placed in world space rather than by a form part. A model
+// target spans from its page's retail cursor part down to the page's lower parts.
+// 180 units is the character model's width (see Hit). From the left panel's
+// parts it ends at x 188 to 208 in every layout, short of the bag at x 242.
+Rect ModelArea(float left, float top, float bottom) { return {.x = left, .y = top, .w = 180, .h = bottom - top}; }
+
+// The ridepod and monster pages: the model stands right of chr_cur, above the name.
+Target PartnerHit(CMenuItemInfo &menu, Point p) {
+    const bool robo = menu.view_mode == MENU_ITEM_VIEW_ROBO;
+    auto      *form = menu.view_form[robo ? 3 : 4];
+    if (!form || !form->draw_flag || !form->GetPartInfo(const_cast<char *>("chr_cur"))) {
+        return {};
+    }
+    // The left edge is the Ridepod's first part slot (c_w0, 16 left of the form).
+    // The top is 64 above chr_cur, where the rider's head reaches. The bottom is
+    // the name row's top (name, 14 to 16 above the form), above the part slots.
+    const Point cursor = FormPoint(form, "chr_cur");
+    const Point origin = FormPoint(form);
+    if (ModelArea(origin.x - 16, cursor.y - 64, origin.y - 16).Contains(p)) {
+        return {.panel = robo ? ITEM_MENU_PANEL_RIDEPOD : ITEM_MENU_PANEL_MONSTER, .cursor = 0};
+    }
+    return {};
+}
+
+// Max's bait slot is drawn, and reachable by the retail cursor, only with a rod equipped.
+Target BaitHit(CMenuItemInfo &menu, CMenuPosDataForm *form, Point p) {
+    auto *bait = form->GetPartInfo(const_cast<char *>("esa0"));
+    auto *user = GetUserDataMan();
+    if (menu.view_mode != MENU_ITEM_VIEW_MAX || menu.sub_view != 0 || !bait || !bait->draw_flag || !user || !user->GetActiveEsa()) {
+        return {};
+    }
+    // The bait icon is drawn at its part's size (24x30), smaller than the 28x35
+    // item icons. Include the same 4-unit margin around it.
+    const Point q = FormPoint(form, "esa0");
+    return Rect{.x = q.x - 4, .y = q.y - 4, .w = bait->w + 8, .h = bait->h + 8}.Contains(p) ? Target{.panel = ITEM_MENU_PANEL_FISHING_BAIT, .cursor = 0} : Target{};
+}
+
 Target Hit(CMenuItemInfo &menu, Point p, int count) {
     Target target = GridHit(p, {.x = MenuItemBrdUnderBrdPosXY[0], .y = MenuItemBrdUnderBrdPosXY[1]}, BoardClip(menu), count);
     if (target) {
@@ -177,7 +215,22 @@ Target Hit(CMenuItemInfo &menu, Point p, int count) {
                 return {.panel = panel, .cursor = i};
             }
         }
+        // The model turns above the parameter board, right of the retail hand at
+        // chrpos. The top is 112 above chrpos: the bag's first row on the weapon
+        // page. The bottom stops 20 above the board, at the durability bar (hpbar).
+        if (form->GetPartInfo(const_cast<char *>("chrpos"))) {
+            const Point cursor = FormPoint(form, "chrpos");
+            const Point board = FormPoint(form);
+            if (ModelArea(cursor.x - 8, cursor.y - 112, board.y - 20).Contains(p)) {
+                return {.panel = menu.view_mode == MENU_ITEM_VIEW_WEAPON ? ITEM_MENU_PANEL_WEAPON : ITEM_MENU_PANEL_FISHING_ROD, .cursor = 0};
+            }
+        }
         return {};
+    }
+    if (menu.view_mode == MENU_ITEM_VIEW_ROBO || menu.view_mode == MENU_ITEM_VIEW_MONSTER) {
+        if (const Target target = PartnerHit(menu, p)) {
+            return target;
+        }
     }
     if (menu.view_mode == MENU_ITEM_VIEW_ROBO) {
         auto *form = menu.view_form[3];
@@ -221,6 +274,9 @@ Target Hit(CMenuItemInfo &menu, Point p, int count) {
         if (Rect{.x = q.x - 4, .y = q.y - 4, .w = 40, .h = 40}.Contains(p)) {
             return {.panel = ITEM_MENU_PANEL_EQUIPMENT, .cursor = i};
         }
+    }
+    if (const Target bait = BaitHit(menu, form, p)) {
+        return bait;
     }
     // The model occupies the space between the active items and the weapons.
     Point active = FormPoint(form, "c_i0");
@@ -432,10 +488,15 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
         bag_top = keys.top_line;
         return;
     }
-    Take take = TakePointer();
-    if (view != menu.view_mode || PadActive()) {
+    Take       take = TakePointer();
+    const bool pad = PadActive();
+    if (view != menu.view_mode || pad) {
         gesture.Reset();
         view = menu.view_mode;
+    }
+    // After a pad takeover, a carried item stays where retail input leaves it.
+    if (pad) {
+        finish_drop = false;
     }
     if (!take.pointing || !keys.key_enable || GamePad__2.key_lock || menu_debug_flag ||
         menu.mode == MENU_ASK_MODE_OPEN || menu.mode == MENU_ASK_MODE_CLOSE ||
@@ -443,11 +504,15 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
         gesture.Reset();
         return;
     }
-    if (finish_drop) {
+    // A drop can open a retail question, such as attaching a synth sphere. Once
+    // it closes, an item still carried returns as after a refused drop.
+    if (finish_drop && menu.mode == MENU_ASK_MODE_NONE) {
         finish_drop = false;
-        if (menu.mode == MENU_ASK_MODE_NONE && keys.have_item.item_no > 0) {
+        if (keys.have_item.item_no > 0) {
             // A swap leaves the destination item on the cursor. Retail's return
             // operation puts it in the original slot, or retains it if refused.
+            // Like retail's leave-page key, a refused return (no room) also goes
+            // back to the active character's page.
             menu.IsCancelNoneLoadItem();
         }
     }

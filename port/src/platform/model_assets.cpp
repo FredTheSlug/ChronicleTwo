@@ -1115,6 +1115,45 @@ mgCTexture *Image(Document &document, std::size_t texture_index, mgCMemory &memo
 }
 
 /**
+ * Rewrites a shadow model's faces into the layout mgCShadowMDT::CreateFace builds and its draw reads.
+ *
+ * Mesh() builds the visual layout, vertex_num corners each holding a position index followed by its normal, uv and
+ * colour indices. The shadow layout is vertex_num triangles of three position indices; only triangle lists keep
+ * their triangles, as retail's shadow draw takes no other primitive. The indices are compacted in place, and the
+ * groups take retail's shadow microprogram, which marks the layout.
+ */
+void ShadowFaces(mgCVisualMDT &visual) {
+    for (auto *group = visual.face_group; group; group = group->next) {
+        group->vu_program = MG_VU_PROG_SHADOW;
+        for (auto *face = group->face; face; face = face->next) {
+            const auto      stride = static_cast<std::size_t>(std::max<short>(face->index_stride, 0));
+            const int       triangles = (face->type & MG_FACE_PRIM_MASK) == MG_PRIM_TRIANGLE && stride > 0 ? face->vertex_num / 3 : 0;
+            const std::span indices(face->index, static_cast<std::size_t>(face->index_num));
+            for (std::size_t corner = 0; corner < static_cast<std::size_t>(triangles) * 3; ++corner) {
+                indices[corner] = indices[corner * stride];
+            }
+            face->vertex_num = static_cast<short>(triangles);
+            face->index_stride = 3;
+            face->index_num = static_cast<short>(triangles * 3);
+        }
+    }
+}
+
+/**
+ * Rebuilds the GPU face meshes of a visual, except a shadow model's, which is drawn from its faces in the shadow pass.
+ */
+void RefreshFaces(mgCVisualMDT &visual) {
+    if (visual.face_group != nullptr && visual.face_group->vu_program == MG_VU_PROG_SHADOW) {
+        return;
+    }
+    for (auto *group = visual.face_group; group; group = group->next) {
+        for (auto *face = group->face; face; face = face->next) {
+            mgVisualPortRefreshFace(&visual, face);
+        }
+    }
+}
+
+/**
  * Builds native vertices, materials and face groups directly from glTF mesh accessors.
  */
 void Mesh(Document &document, const fastgltf::Node &node, const Json &detail, mgCVisualMDT &visual,
@@ -1959,11 +1998,10 @@ mgCFrame *Instantiate(const std::shared_ptr<Document> &document, mgLoadData &loa
             if (type == MG_VISUAL_CREATE_MOTION_MDT) {
                 static_cast<mgCVisualMotionMDT *>(visual)->SetBaseBox(maximum, minimum);
             }
-            for (auto *group = visual->face_group; group; group = group->next) {
-                for (auto *face = group->face; face; face = face->next) {
-                    mgVisualPortRefreshFace(visual, face);
-                }
+            if (type == MG_VISUAL_CREATE_SHADOW_MDT || type == MG_VISUAL_CREATE_SHADOW_FIX_MDT) {
+                ShadowFaces(*visual);
             }
+            RefreshFaces(*visual);
         }
         std::vector<int> parents(frames.size(), -1);
         for (std::size_t index = 0; index < frames.size(); ++index) {
@@ -3452,11 +3490,7 @@ void ApplyWeights(mgCFrame &frame, std::span<const float> weights) {
             }
         }
     }
-    for (auto *group = visual->face_group; group; group = group->next) {
-        for (auto *face = group->face; face; face = face->next) {
-            mgVisualPortRefreshFace(visual, face);
-        }
-    }
+    RefreshFaces(*visual);
 }
 
 /**

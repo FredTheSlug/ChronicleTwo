@@ -135,7 +135,7 @@ bool LoadTextureSet(const std::filesystem::path &gltf, std::size_t index, mgCTex
  */
 bool LoadTextureSet(const std::filesystem::path &gltf, std::size_t index, mgCTextureManager &textures, int block, mgCMemory *memory, std::string &error);
 /**
- * Writes standard glTF skin matrices into the current native draw constants.
+ * Writes standard glTF skin matrices into the current native draw constants, for a visual in its loaded hierarchy.
  */
 bool ApplySkin(mgCVisualMotionMDT &visual, float (*matrix)[4]);
 /**

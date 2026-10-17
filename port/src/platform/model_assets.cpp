@@ -173,10 +173,20 @@ void EnterModelTextures(const std::shared_ptr<Document> &source, std::optional<s
  * Parsed documents shared by the model and its associated motion resources.
  */
 std::unordered_map<std::string, std::shared_ptr<Document> > documents;
+
 /**
  * Standard inverse-bind matrices shared by copied visuals through their weight arrays.
  */
-std::unordered_map<const mgVertexWeight *, std::vector<Matrix> > inverse_binds;
+/**
+ * Standard glTF inverse binds of a skin and the hierarchy they were loaded with.
+ */
+struct InverseBinds {
+    mgCFrame          **frames = nullptr; /**< Frame table the skin's joints index. */
+    int                 frame_id = 0;     /**< Frame holding the skinned mesh. */
+    std::vector<Matrix> matrices;         /**< Inverse bind of each joint. */
+};
+
+std::unordered_map<const mgVertexWeight *, InverseBinds> inverse_binds;
 
 /**
  * An animation sampler retained alongside a native channel for exact glTF interpolation.
@@ -1363,7 +1373,7 @@ void Skin(Document &document, const fastgltf::Node &node, const Json &detail, mg
             inverse[index][0] = inverse[index][5] = inverse[index][10] = inverse[index][15] = 1;
         }
     }
-    inverse_binds.insert_or_assign(visual.weight, std::move(inverse));
+    inverse_binds.insert_or_assign(visual.weight, InverseBinds{.frames = visual.frame, .frame_id = visual.frame_id, .matrices = std::move(inverse)});
     const auto &mesh = document.asset.meshes.at(*node.meshIndex);
     for (std::size_t primitive_index = 0; primitive_index < mesh.primitives.size(); ++primitive_index) {
         const auto                                       &primitive = mesh.primitives[primitive_index];
@@ -3281,18 +3291,21 @@ bool LoadSkin(CCharacter2 &character, std::span<const std::byte> gltf, const Jso
 
 bool ApplySkin(mgCVisualMotionMDT &visual, float (*matrix)[4]) {
     const auto found = inverse_binds.find(visual.weight);
-    if (found == inverse_binds.end()) {
+    // The binds hold only in the hierarchy the skin was loaded with. A visual attached to another character's frames,
+    // such as a costume piece, skins from that character's base matrices instead.
+    if (found == inverse_binds.end() || found->second.frames != visual.frame || found->second.frame_id != visual.frame_id) {
         return false;
     }
     float inverse_mesh[4][4];
     mgInversMatrix(inverse_mesh, matrix);
-    auto &constants = mgVisualPortCurrentProg0();
-    for (std::size_t slot = 0; slot < found->second.size(); ++slot) {
+    auto       &constants = mgVisualPortCurrentProg0();
+    const auto &matrices = found->second.matrices;
+    for (std::size_t slot = 0; slot < matrices.size(); ++slot) {
         float joint[4][4];
         float bind[4][4];
         float skin[4][4];
         visual.frame[visual.bone[slot]]->GetLWMatrix(joint);
-        std::memcpy(bind, found->second[slot].data(), sizeof(bind));
+        std::memcpy(bind, matrices[slot].data(), sizeof(bind));
         mgMulMatrix(skin, joint, bind);
         mgMulMatrix(skin, inverse_mesh, skin);
         for (int row = 0; row < 3; ++row) {

@@ -1908,6 +1908,88 @@ TEST_F(NativeModel, ShadowModelMorphKeepsShadowFaces) {
     EXPECT_FLOAT_EQ(visual->vertex[1][0], 3);
 }
 
+// A skin's glTF inverse binds hold only in the hierarchy it was loaded with; a visual attached to another character's
+// frames, as a costume piece is, skins from that character's base matrices as retail does.
+TEST_F(NativeModel, SkinUsesGltfBindsOnlyInItsLoadedHierarchy) {
+    std::vector<float> values{0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 30, 0, 0};
+    for (int vertex = 0; vertex < 3; ++vertex) {
+        values.insert(values.end(), {1, 0, 0, 0});
+    }
+    const std::vector<std::uint16_t> joints(12, 0);
+    std::vector<unsigned char>       bytes((values.size() * sizeof(float)) + (joints.size() * sizeof(std::uint16_t)));
+    std::memcpy(bytes.data(), values.data(), values.size() * sizeof(float));
+    std::memcpy(&bytes.at(values.size() * sizeof(float)), joints.data(), joints.size() * sizeof(std::uint16_t));
+    gltf["buffers"][0]["byteLength"] = bytes.size();
+    gltf["buffers"][0]["uri"] = "data:application/octet-stream;base64," + Base64(bytes);
+    for (const auto &[offset, length] : std::array<std::pair<int, int>, 2>{
+             {{68, 48}, {116, 24}}
+    }) {
+        gltf["bufferViews"].push_back({
+            {"buffer",     0     },
+            {"byteOffset", offset},
+            {"byteLength", length}
+        });
+    }
+    for (int index = 0; index < 2; ++index) {
+        gltf["accessors"].push_back({
+            {"bufferView",    3 + index               },
+            {"componentType", index == 0 ? 5126 : 5123},
+            {"count",         3                       },
+            {"type",          "VEC4"                  }
+        });
+    }
+    auto &attributes = gltf["meshes"][0]["primitives"][0]["attributes"];
+    attributes["WEIGHTS_0"] = 3;
+    attributes["JOINTS_0"] = 4;
+    gltf["nodes"][0]["skin"] = 0;
+    gltf["nodes"][0]["children"] = {1};
+    gltf["nodes"].push_back({
+        {"name", "bone"}
+    });
+    gltf["skins"] = Json::array({{{"joints", {1}}}});
+    game["frames"].push_back({
+        {"id",  1      },
+        {"mdt", nullptr}
+    });
+    Write(directory / "port_data/models/model.gltf", gltf);
+    char               empty[] = "";
+    mgCreateVisualType types[] = {
+        {.type = MG_VISUAL_CREATE_MOTION_MDT, .name = empty  },
+        {.type = MG_VISUAL_CREATE_END,        .name = nullptr}
+    };
+    mgLoadData load{};
+    load.memory = &memory;
+    load.visual_type = types;
+    std::string error;
+    auto       *root = model_assets::LoadModel(std::filesystem::path("models/model.gltf"), load, error);
+    ASSERT_NE(root, nullptr) << error;
+    auto *visual = static_cast<mgCVisualMotionMDT *>(root->visual);
+    ASSERT_NE(visual, nullptr);
+    ASSERT_EQ(visual->bone[0], 1);
+
+    // Base matrices that place the bone 5 units along x; the glTF binds ignore them.
+    sceVu0FMATRIX base[2]{};
+    for (auto &matrix : base) {
+        for (int axis = 0; axis < 4; ++axis) {
+            matrix[axis][axis] = 1;
+        }
+    }
+    base[1][3][0] = 5;
+    visual->base_matrix = base;
+    float object[4][4]{};
+    for (int axis = 0; axis < 4; ++axis) {
+        object[axis][axis] = 1;
+    }
+    auto &palette = mgVisualPortCurrentProg0().bones[0];
+    visual->CreateExtRenderInfoPacket(nullptr, object, &mgRenderInfo);
+    EXPECT_NEAR(palette[0][3], 0.0f, .0001f);
+
+    std::array<mgCFrame *, 2> attached{visual->frame[0], visual->frame[1]};
+    visual->frame = attached.data();
+    visual->CreateExtRenderInfoPacket(nullptr, object, &mgRenderInfo);
+    EXPECT_NEAR(palette[0][3], -5.0f, .0001f);
+}
+
 TEST_F(NativeModel, ReadsAllStandardJointGroupsAndPreservesNativeGpuInfluenceLimit) {
     std::vector<float> values{0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 30, 0, 0};
     for (int vertex = 0; vertex < 3; ++vertex) {

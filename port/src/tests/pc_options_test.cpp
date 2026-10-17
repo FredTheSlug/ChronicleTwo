@@ -118,6 +118,20 @@ TEST(PcOptions, ResolutionsKeepDesktopAndCustomSizeAndDeduplicateDisplayModes) {
     EXPECT_FALSE(std::ranges::any_of(sizes, [](auto s) { return s.width == 320; }));
 }
 
+TEST(PcOptions, OnlyATabChangeCountsAsATurn) {
+    const int      pages = static_cast<int>(options::Pages().size());
+    options::State state;
+    state.open = true;
+    EXPECT_TRUE(options::SelectPage(state, 1));
+    EXPECT_TRUE(options::SelectPage(state, 0));
+    EXPECT_TRUE(options::SelectPage(state, -1));
+    EXPECT_EQ(state.page, pages - 1);
+    EXPECT_TRUE(options::SelectPage(state, pages));
+    EXPECT_EQ(state.page, 0);
+    // Selecting the tab already shown is not a turn and stays silent.
+    EXPECT_FALSE(options::SelectPage(state, 0));
+}
+
 TEST(PcOptions, LongBindingPageScrollsAndEachTabKeepsItsCursor) {
     options::State state;
     state.open = true;

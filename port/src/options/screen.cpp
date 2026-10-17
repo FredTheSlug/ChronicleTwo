@@ -290,9 +290,15 @@ Hit HitTest(const State &state, float x, float y) {
     return {};
 }
 
-void SelectPage(State &state, int page) {
+bool SelectPage(State &state, int page) {
+    const int previous = state.page;
     state.page = (page + kPages) % kPages;
     state.binding = -1;
+    if (state.page == previous) {
+        return false;
+    }
+    MenuSePlay(SYSTEM_SE_CURSOR);
+    return true;
 }
 
 void MoveRow(State &state, int direction) {

@@ -18,12 +18,12 @@ constexpr int kBindingsPage = kPages - 1;
 constexpr int kTabStep = (kRight - kLeft) / kPages;
 
 struct State {
-    bool               open = false;
-    int                page = 0;
+    bool                    open = false;
+    int                     page = 0;
     std::array<int, kPages> row{};
     std::array<int, kPages> first{};
-    int                binding = -1;
-    bool               save_failed = false;
+    int                     binding = -1;
+    bool                    save_failed = false;
 };
 
 enum class HitKind {
@@ -54,7 +54,8 @@ bool  Pointing();
 // Handles PC options input and forwards retail Options cancel to the pad edge.
 bool Run();
 Hit  HitTest(const State &state, float x, float y);
-void SelectPage(State &state, int page);
+// Shows a tab, wrapping at either end; a change of tab plays the retail cursor sound and returns true.
+bool SelectPage(State &state, int page);
 void MoveRow(State &state, int direction);
 void NavigatePointer(State &state, Point point, bool moved, float wheel);
 

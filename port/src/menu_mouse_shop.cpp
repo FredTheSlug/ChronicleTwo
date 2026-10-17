@@ -15,20 +15,6 @@ CShopMenu          *shop_menu = nullptr;
 CShop              *shop_stock = nullptr;
 CMenuPosDataManage *shop_forms = nullptr;
 
-MenuMouseRect Part(CMenuPosDataForm *form, const char *name) {
-    if (!form || !form->draw_flag) {
-        return {};
-    }
-    auto *part = form->GetPartInfo(const_cast<char *>(name));
-    if (!part || !part->draw_flag) {
-        return {};
-    }
-    float x;
-    float y;
-    form->GetPutPosXY(part->name, x, y);
-    return {.x = x, .y = y, .w = part->w, .h = part->h};
-}
-
 void MenuMouseShopUpdate(CShopMenu &menu, CMenuKeyFunc &keys, int goods) {
     const auto &mouse = MenuMouseTake();
     const int   shared_buttons = MenuMouseButtons();
@@ -84,18 +70,18 @@ void MenuMouseShopUpdate(CShopMenu &menu, CMenuKeyFunc &keys, int goods) {
             buttons |= PAD_CROSS;
         }
     } else if (menu.key_arg_no == SHOP_MENU_MODE_BUY_NUM || menu.key_arg_no == SHOP_MENU_MODE_SELL_NUM) {
-        const auto number = Part(menu.trade_brd, "\x90\x94");
-        const auto up = Part(menu.trade_brd, "\x96\xEE\x88\xF3\x8F\xE3");
-        const auto down = Part(menu.trade_brd, "\x96\xEE\x88\xF3\x89\xBA");
+        const auto number = MenuMousePart(menu.trade_brd, "\x90\x94");
+        const auto up = MenuMousePart(menu.trade_brd, "\x96\xEE\x88\xF3\x8F\xE3");
+        const auto down = MenuMousePart(menu.trade_brd, "\x96\xEE\x88\xF3\x89\xBA");
         if (menu.trade_brd && menu.trade_brd->draw_flag) {
             // The number itself is a zero-sized digit anchor. Hit its three
             // drawn frame pieces and the localized Quit button instead.
             const bool on_number = number.Contains(mouse.x, mouse.y) || up.Contains(mouse.x, mouse.y) ||
                                    down.Contains(mouse.x, mouse.y) ||
-                                   Part(menu.trade_brd, "\x90\x94\x94\xC2\x31").Contains(mouse.x, mouse.y) ||
-                                   Part(menu.trade_brd, "\x90\x94\x94\xC2\x32").Contains(mouse.x, mouse.y) ||
-                                   Part(menu.trade_brd, "\x90\x94\x94\xC2\x33").Contains(mouse.x, mouse.y);
-            const bool on_quit = Part(menu.trade_brd, "NO").Contains(mouse.x, mouse.y);
+                                   MenuMousePart(menu.trade_brd, "\x90\x94\x94\xC2\x31").Contains(mouse.x, mouse.y) ||
+                                   MenuMousePart(menu.trade_brd, "\x90\x94\x94\xC2\x32").Contains(mouse.x, mouse.y) ||
+                                   MenuMousePart(menu.trade_brd, "\x90\x94\x94\xC2\x33").Contains(mouse.x, mouse.y);
+            const bool on_quit = MenuMousePart(menu.trade_brd, "NO").Contains(mouse.x, mouse.y);
             if (choose && on_number) {
                 menu.num_cursor = 0;
             } else if (choose && on_quit) {

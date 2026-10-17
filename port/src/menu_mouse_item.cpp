@@ -41,14 +41,37 @@ int ScrollTop(int top, int count, int visible_rows, float wheel) {
     return std::clamp(top + (wheel > 0 ? -step : step), 0, std::max(0, (count + 5) / 6 - visible_rows));
 }
 
+bool VisibleRow(int cursor, int top, int visible_rows) {
+    return cursor >= 0 && cursor / 6 >= top && cursor / 6 < top + visible_rows;
+}
+
+Point FormPoint(CMenuPosDataForm *form, const char *part) {
+    Point p;
+    form->GetPutPosXY(const_cast<char *>(part), p.x, p.y);
+    return p;
+}
+
+Rect ItemBoardClip(CMenuPosDataForm *board) {
+    const Point p = FormPoint(board);
+    return {.x = p.x + 16, .y = p.y + 20, .w = 240, .h = 250};
+}
+
+Point ItemBoardRest(CMenuPosDataForm *board) { return {.x = MenuItemBrdUnderBrdPosXY[0], .y = FormPoint(board).y + 26}; }
+
+Target WheelTarget(Point p, Point rest, Rect clip, int top, int count, int cursor) {
+    // The aperture reaches above the first resting row; only a cell of the new visible rows may be chosen.
+    const Target target = GridHit(p, {.x = rest.x, .y = rest.y - top * 50.0f}, clip, count);
+    if (target && VisibleRow(target.cursor, top, 5)) {
+        return target;
+    }
+    return {.panel = ITEM_MENU_PANEL_BAG, .cursor = std::clamp(cursor, top * 6, std::min(count - 1, (top + 5) * 6 - 1))};
+}
+
 int BagHit(Point p, CMenuPosDataForm *board, int count) {
     if (!board || !board->draw_flag) {
         return -1;
     }
-    Point origin;
-    board->GetPutPosXY(nullptr, origin.x, origin.y);
-    const auto hit = GridHit(p, {.x = MenuItemBrdUnderBrdPosXY[0], .y = MenuItemBrdUnderBrdPosXY[1]},
-                             {.x = origin.x + 16, .y = origin.y + 20, .w = 240, .h = 250}, count);
+    const auto hit = GridHit(p, {.x = MenuItemBrdUnderBrdPosXY[0], .y = MenuItemBrdUnderBrdPosXY[1]}, ItemBoardClip(board), count);
     return hit ? hit.cursor : -1;
 }
 
@@ -107,8 +130,6 @@ using namespace menumouse;
 Pointer       pointer;
 Gesture       gesture;
 bool          menu_open = false, finish_drop = false;
-bool          wheel_jump = false;
-int           saved_scroll_manner = MENU_ITEM_BRD_CALC_EASE;
 int           synthetic = 0, bag_top = 0;
 CMenuKeyFunc *owner = nullptr;
 int           view = -1;
@@ -124,16 +145,7 @@ bool PadActive() {
     return GamePad__2.pad[0].button != 0;
 }
 
-Point FormPoint(CMenuPosDataForm *form, const char *part = nullptr) {
-    Point p;
-    form->GetPutPosXY(const_cast<char *>(part), p.x, p.y);
-    return p;
-}
-
-Rect BoardClip(CMenuItemInfo &menu) {
-    Point p = FormPoint(menu.item_board_form);
-    return {.x = p.x + 16, .y = p.y + 20, .w = 240, .h = 250};
-}
+Rect BoardClip(CMenuItemInfo &menu) { return ItemBoardClip(menu.item_board_form); }
 
 Target Hit(CMenuItemInfo &menu, Point p, int count) {
     Target target = GridHit(p, {.x = MenuItemBrdUnderBrdPosXY[0], .y = MenuItemBrdUnderBrdPosXY[1]}, BoardClip(menu), count);
@@ -382,10 +394,6 @@ void MenuMouseClose() {
 
 void MenuMousePadTick() {
     synthetic = 0;
-    if (wheel_jump) {
-        MenuItemBrdCalcManner = saved_scroll_manner;
-        wheel_jump = false;
-    }
     if (menu_open && !ItemPage()) {
         MenuMouseClose();
     }
@@ -479,23 +487,23 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
     if (menu.key_arg_no == ITEM_MENU_PANEL_BAG) {
         bag_top = keys.top_line;
     }
+    bool scrolled = false;
     if (take.wheel && BoardClip(menu).Contains(pointer.pos)) {
         int top = ScrollTop(bag_top, count, layouts[ITEM_MENU_PANEL_BAG].disp_lines, take.wheel);
         if (top != bag_top) {
             bag_top = top;
-            Select(menu, keys, {.panel = ITEM_MENU_PANEL_BAG, .cursor = std::clamp(keys.cursor, top * 6, std::min(count - 1, (top + 5) * 6 - 1))}, layouts);
+            // The retail board eases to the new top line, as it does for a D-pad scroll.
+            Select(menu, keys, WheelTarget(pointer.pos, ItemBoardRest(menu.item_board_form), BoardClip(menu), top, count, keys.cursor), layouts);
             keys.top_line = top;
             keys.key_input = true;
-            // Wheel steps are discrete; match hit-testing and drawing this tick.
-            saved_scroll_manner = MenuItemBrdCalcManner;
-            wheel_jump = true;
-            MenuItemBrdCalcManner = MENU_ITEM_BRD_CALC_JUMP;
-            Point p = FormPoint(menu.item_board_form);
-            MenuItemBrdUnderBrdPosXY[1] = p.y + 26 - top * 50;
+            scrolled = true;
         }
     }
     Target hit = Hit(menu, pointer.pos, count);
-    if (hit && (take.moved || gesture.dragging)) {
+    if (hit.panel == ITEM_MENU_PANEL_BAG && !VisibleRow(hit.cursor, bag_top, layouts[ITEM_MENU_PANEL_BAG].disp_lines)) {
+        hit = {}; // A row still sliding out of the eased board is no longer selectable.
+    }
+    if (hit && !scrolled && (take.moved || gesture.dragging)) {
         Select(menu, keys, hit, layouts);
     }
     bool can_pick_up = false;
@@ -515,6 +523,8 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
             finish_drop = true;
             break;
         case Action::Click:
+            // Confirm the clicked cell even if a wheel scroll moved the cursor meanwhile.
+            Select(menu, keys, hit, layouts);
             synthetic = PAD_CROSS;
             break;
         case Action::Cancel:

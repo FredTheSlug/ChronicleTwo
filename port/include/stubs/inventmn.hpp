@@ -3,6 +3,7 @@
 class mgCMemory;
 class CInventDataManage;
 class CInventUserData;
+class CMenuInvent;
 struct SPI_TAG_PARAM;
 
 extern mgCMemory          InventTeigiStack asm("Inventmn_RecipeStack");

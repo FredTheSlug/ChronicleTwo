@@ -205,7 +205,8 @@ references it; each external PNG is decoded once and shared. Invalid
 model or metadata overlays can fall back to lower-priority candidates. See the
 [audio](PORT_AUDIO_FORMAT.md), [model](PORT_MODEL_FORMAT.md), and
 [configuration](PORT_CONFIG_FORMAT.md) formats for the physical paths and
-replacement constraints.
+replacement constraints. A replacement movie is best 1, 2 or 4 times the retail
+512x416 picture; see [Movies](#movies).
 
 Packs can also replace ordinary, unconverted files read by the game's file
 loader. Put each file at its entry name in `data.zip`, directly inside the
@@ -1171,7 +1172,7 @@ existing caption slots. A datapack can replace the actual JSON file;
 an invalid replacement falls back to a valid lower-priority document. See
 [native configuration assets](PORT_CONFIG_FORMAT.md).
 
-There are no threads. The game calls `SwitchThread` once per game frame and `EndCheck` beside it; both advance the player to the movie time elapsed since `Play`, `(ClockTickCount() - tick at Play) * 90000 / ClockTickRate()`. The newest picture whose PTS is due is shown; pictures overtaken after a stall are decoded but not converted. At the fixed 60 Hz tick with `mgFrameRate` 2, a 25 fps movie keeps its cadence across 30 game frames per second; headless runs on the unbounded clock are deterministic.
+The retail movie threads are not used. The game calls `SwitchThread` once per game frame and `EndCheck` beside it; both advance the player to the movie time elapsed since `Play`, `(ClockTickCount() - tick at Play) * 90000 / ClockTickRate()`. The newest picture whose PTS is due is shown; pictures overtaken after a stall are decoded but not converted. At the fixed 60 Hz tick with `mgFrameRate` 2, a 25 fps movie keeps its cadence across 30 game frames per second; headless runs on the unbounded clock are deterministic.
 
 The picture is uploaded into the texture the game names in `Play` (`"moviework"`), found with `mgTexManager.GetTexture(name, -1)` and `mgPortFindTexture`, with `gfx::UpdateTexture` (recorded into the tick's display list when one is open). That is what the PS2 did: `setImageTag` uploaded into the same texture and the game draws it itself as a 2D quad (the copyright screen's `L5LOGO.PSS`, `RUSH.PSS`, the movie viewer, the event script's `_LOAD_MOVIE`, the manual), so its fades, stretch and letterbox stay the game's, tick-exact.
 
@@ -1187,13 +1188,29 @@ See [published audio resources](PORT_AUDIO_FORMAT.md). `Load` opens the actual
 MP4 path through datapack priority. If requested, `Play` hands its decoded audio to the shared
 mixer as an `audio::PcmTrack` with `Mixer::SetStream` on port 5 at full port
 volume (`kMoviePortAudioPort`: `GetCSndPortNo` never maps a game port there).
-`Term` stops and clears it. `init_sound` (which reset the PS2 sound driver),
-the memory pools and the width and height arguments are ignored: the host
-allocates and the picture size comes from the video stream.
+`Term` stops and clears it. `init_sound` (which reset the PS2 sound driver)
+and the memory pools are ignored: the host allocates.
+
+`Load`'s width and height are the retail picture size, 512x416 for every
+caller. A picture of exactly 1, 2 or 4 times that size is shown as decoded; any
+other size is converted to RGBA and resampled with libswscale (area averaging
+when either side shrinks, bicubic when both grow) to the largest of those it
+covers, or to 512x416 when it covers none, and `Load` logs one `movie:` line
+naming both sizes. A 2x or 4x picture is uploaded whole:
+`MgTextureSetPhysicalScale` gives the movie texture 2 or 4 host texels per
+retail texel, so the game's quad, which keeps its retail texel coordinates,
+shows the whole picture over the original screen area. Changing a texture's
+physical scale rebuilds its image, blank, at the new size on its next lookup.
+A stream larger than the retail size decodes on FFmpeg's threads (one per core,
+up to 8); conversion and upload stay on the main thread. A 4x picture is 13 MB
+of RGBA and a 16 MB texture, so 2x is the size to prefer. On Linux and macOS
+the minimal kz-ffmpeg build decodes only MPEG-2 and H.264 video (and ALAC, AAC
+and PCM audio), so a replacement must use one of those to play everywhere.
 
 The game links FFmpeg's libavformat, libavcodec, libavutil, libswscale and
 libswresample (`port/cmake/movies.cmake`). `movie_test` covers MP4 path
-mapping, the embedded-audio fixture, clocked playback and the `CMovie` glue;
+mapping, the embedded-audio fixture, clocked playback, picture fitting, threaded
+decoding, 2x and 4x replacements drawn through the movie texture, and the `CMovie` glue;
 retail `L5LOGO` cases use the converted MP4 when available.
 
 ## Layout

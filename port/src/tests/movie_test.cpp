@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -11,11 +12,13 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <initializer_list>
 #include <iterator>
 #include <memory>
 #include <optional>
 #include <print>
 #include <span>
+#include <string>
 #include <vector>
 
 #include "audio/mixer.hpp"
@@ -23,6 +26,7 @@
 #include "gfx_fixture.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
+#include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "movie.hpp"
@@ -442,4 +446,301 @@ TEST(MovieGlue, ThirtyFramesOfL5LogoThroughTheMovieTexture) {
     std::println("L5 logo frame {}: readback mean RGB {:.2f}, picture mean RGB {:.2f} at {} ticks", k_frames,
                  readback_mean, picture_mean, static_cast<long long>(picture_elapsed));
     EXPECT_NEAR(readback_mean, picture_mean, 3.0);
+}
+
+TEST(MoviePlayer, FitKeepsRetailMultiplesAndResamplesOtherSizes) {
+    const auto fit = [](int width, int height) {
+        const video::PictureFit picture = video::FitPicture(512, 416, width, height);
+        return std::array{picture.width, picture.height, picture.scale};
+    };
+    EXPECT_EQ(fit(512, 416), (std::array{512, 416, 1}));
+    EXPECT_EQ(fit(1024, 832), (std::array{1024, 832, 2}));
+    EXPECT_EQ(fit(2048, 1664), (std::array{2048, 1664, 4}));
+    // Other sizes shrink to the largest multiple they cover, past 4x too; smaller ones grow to the retail size.
+    EXPECT_EQ(fit(1920, 1560), (std::array{1024, 832, 2}));
+    EXPECT_EQ(fit(768, 624), (std::array{512, 416, 1}));
+    EXPECT_EQ(fit(4096, 3328), (std::array{2048, 1664, 4}));
+    EXPECT_EQ(fit(1024, 416), (std::array{512, 416, 1}));
+    EXPECT_EQ(fit(256, 208), (std::array{512, 416, 1}));
+    const video::PictureFit unsized = video::FitPicture(0, 0, 640, 480);
+    EXPECT_EQ((std::array{unsized.width, unsized.height, unsized.scale}), (std::array{640, 480, 1}));
+}
+
+TEST(MoviePlayer, RetailSizeResamplesEveryPictureAndKeepsTheSourceSize) {
+    const fs::path     fixture = fs::path(__FILE__).parent_path() / "fixtures/movie.mp4";
+    video::MoviePlayer plain;
+    ASSERT_TRUE(plain.Open(fixture, false));
+    EXPECT_EQ(plain.SourceWidth(), 16);
+    EXPECT_EQ(plain.Scale(), 1);
+
+    video::MoviePlayer kept;
+    kept.SetRetailSize(16, 16);
+    ASSERT_TRUE(kept.Open(fixture, false));
+    EXPECT_EQ(kept.Rgba(), plain.Rgba());
+
+    // 16x16 is twice 8x4 wide, but only four times as tall, so it shows at 2x: 16x8.
+    video::MoviePlayer fitted;
+    fitted.SetRetailSize(8, 4);
+    ASSERT_TRUE(fitted.Open(fixture, false));
+    for (int picture = 0; picture < 3; picture++) {
+        EXPECT_EQ(fitted.Width(), 16);
+        EXPECT_EQ(fitted.Height(), 8);
+        EXPECT_EQ(fitted.Scale(), 2);
+        EXPECT_EQ(fitted.SourceWidth(), 16);
+        EXPECT_EQ(fitted.SourceHeight(), 16);
+        EXPECT_EQ(fitted.Rgba().size(), static_cast<size_t>(16 * 8 * 4));
+        fitted.Advance(int64_t{3600} * (picture + 1));
+    }
+    EXPECT_EQ(fitted.PicturesShown(), 3);
+}
+
+TEST(MoviePlayer, ResamplingShrinksOneSideWithAreaAveraging) {
+    const fs::path     fixture = fs::path(__FILE__).parent_path() / "fixtures/movie.mp4";
+    video::MoviePlayer plain;
+    ASSERT_TRUE(plain.Open(fixture, false));
+    video::MoviePlayer halved;
+    halved.SetRetailSize(16, 8);
+    ASSERT_TRUE(halved.Open(fixture, false));
+    ASSERT_EQ(halved.Width(), 16);
+    ASSERT_EQ(halved.Height(), 8);
+    // Each row is the mean of the two it replaces, as area averaging gives; bicubic would ring at the bars' edges.
+    const auto pixel = [](const video::MoviePlayer &player, int x, int y, int c) {
+        return static_cast<int>(player.Rgba().at((static_cast<size_t>(y) * player.Width() + x) * 4 + c));
+    };
+    int worst = 0;
+    for (int y = 0; y < 8; y++) {
+        for (int x = 0; x < 16; x++) {
+            for (int c = 0; c < 3; c++) {
+                const int mean = (pixel(plain, x, y * 2, c) + pixel(plain, x, (y * 2) + 1, c) + 1) / 2;
+                worst = std::max(worst, std::abs(pixel(halved, x, y, c) - mean));
+            }
+        }
+    }
+    EXPECT_LE(worst, 2);
+}
+
+TEST(MoviePlayer, ThreadedDecodingShowsTheSamePicturesInOrder) {
+    // 24 pictures with B-frames, more than the decoder thread cap; picture N's top-left pixel is grey 9.31 * N.
+    const fs::path    fixture = fs::path(__FILE__).parent_path() / "fixtures/movie_h264_bframes.mp4";
+    constexpr int64_t picture_ticks = 3600;
+    constexpr int     picture_count = 24;
+    // Every picture boundary, a jump over five pictures, the rest, then past the end to drain the decoder.
+    std::vector<int> shown;
+    for (int n = 1; n < picture_count; n++) {
+        if (n < 10 || n > 14) {
+            shown.push_back(n);
+        }
+    }
+    // The stream is the retail size of one player and twice that of the other, which decodes on FFmpeg's threads;
+    // the third is resampled from its threads to 120x72.
+    video::MoviePlayer single;
+    video::MoviePlayer threaded;
+    video::MoviePlayer resampled;
+    single.SetRetailSize(160, 96);
+    threaded.SetRetailSize(80, 48);
+    resampled.SetRetailSize(60, 36);
+    // The second pass reopens the same players.
+    for (int pass = 0; pass < 2; pass++) {
+        ASSERT_TRUE(single.Open(fixture, false));
+        ASSERT_TRUE(threaded.Open(fixture, false));
+        ASSERT_TRUE(resampled.Open(fixture, false));
+        const auto expect_picture = [&](int n) {
+            ASSERT_EQ(threaded.Width(), 160);
+            ASSERT_EQ(resampled.Width(), 120);
+            EXPECT_EQ(single.Rgba(), threaded.Rgba()) << "picture " << n;
+            EXPECT_NEAR(threaded.Rgba()[0], 9.31 * n, 4.0) << "picture " << n;
+            EXPECT_NEAR(resampled.Rgba()[0], 9.31 * n, 4.0) << "picture " << n;
+        };
+        expect_picture(0);
+        for (const int n : shown) {
+            EXPECT_TRUE(single.Advance(n * picture_ticks));
+            EXPECT_TRUE(threaded.Advance(n * picture_ticks));
+            EXPECT_TRUE(resampled.Advance(n * picture_ticks));
+            expect_picture(n);
+        }
+        EXPECT_FALSE(single.Advance(30 * picture_ticks));
+        EXPECT_FALSE(threaded.Advance(30 * picture_ticks));
+        EXPECT_FALSE(resampled.Advance(30 * picture_ticks));
+        expect_picture(picture_count - 1);
+        EXPECT_TRUE(single.Ended());
+        EXPECT_TRUE(threaded.Ended());
+        EXPECT_EQ(threaded.PicturesShown(), static_cast<int64_t>(shown.size()) + 1);
+    }
+}
+
+namespace {
+
+// A data root holding the 16x16 fixture as movie/hd.mp4, so a CMovie can load it by its game name.
+struct FixtureMovieRoot {
+    fs::path root = fs::temp_directory_path() / ("dc2_movie_hd_" + std::to_string(dc::test::ProcessId()));
+
+    FixtureMovieRoot() {
+        fs::create_directories(root / "movie");
+        fs::copy_file(fs::path(__FILE__).parent_path() / "fixtures/movie.mp4", root / "movie/hd.mp4",
+                      fs::copy_options::overwrite_existing);
+        datapacks::Load(root);
+    }
+
+    FixtureMovieRoot(const FixtureMovieRoot &) = delete;
+    FixtureMovieRoot &operator=(const FixtureMovieRoot &) = delete;
+
+    ~FixtureMovieRoot() {
+        std::error_code error;
+        fs::remove_all(root, error);
+    }
+};
+
+struct HdMovieResult {
+    MgTextureExtent      physical;
+    uint32_t             image_width = 0;
+    uint32_t             image_height = 0;
+    std::vector<uint8_t> drawn; // RGB on screen at each picture pixel's cell, row by row.
+    std::vector<uint8_t> picture;
+    int                  picture_width = 0;
+    int                  picture_height = 0;
+    std::string          log;
+};
+
+// Plays hd.mp4 once for each retail size, as a movie of that size, through one texture_size x texture_size
+// "moviework", and draws the texture's retail texels over a 256x256 square, as the game draws the movie.
+void PlayHdMovies(int texture_size, std::initializer_list<int> retails, std::vector<HdMovieResult> &results) {
+    RestoreDataRoot    restore_data{.root = PathsDataRoot()};
+    FixtureMovieRoot   movie_root;
+    RestoreClock       restore_clock{.rate = ClockTickRate(), .unbounded = ClockUnbounded()};
+    OffscreenRenderer  renderer;
+    GlobalTextureTable texture_table;
+    ClockSetUnbounded(true);
+    ClockReset();
+
+    char texture_name[] = "moviework";
+    mgTexManager.DeleteBlock(0x43);
+    ASSERT_NE(mgTexManager.EnterTexture(0x43, texture_name, nullptr, texture_size, texture_size, 32, nullptr, 0, 0),
+              nullptr);
+    mgCTexture *texture = mgTexManager.GetTexture(texture_name, -1);
+    ASSERT_NE(texture, nullptr);
+    ASSERT_NE(mgPortFindTexture(texture).texture, gfx::kNullTexture);
+
+    for (const int retail : retails) {
+        HdMovieResult  &result = results.emplace_back();
+        auto            movie = std::make_unique<CMovie>();
+        MovieTermOnExit term_on_exit{movie.get()};
+        char            name[] = "HD.MP4";
+        testing::internal::CaptureStderr();
+        movie->Load(name, static_cast<mgCMemory **>(nullptr), retail, retail, false, false, true);
+        movie->Play(texture_name);
+        movie->SwitchThread();
+        result.log = testing::internal::GetCapturedStderr();
+
+        mgBeginFrame(nullptr);
+        movie->SwitchThread();
+        gfx::TextureBinding binding = mgPortBinding(texture);
+        ASSERT_NE(binding.texture, gfx::kNullTexture);
+        binding.filter = gfx::Filter::Nearest;
+        const auto quad = dc::test::Quad(0.0f, 0.0f, 256.0f, 256.0f, {0x80, 0x80, 0x80, 0x80}, 0.0f, 0.0f,
+                                         static_cast<float>(retail), static_cast<float>(retail));
+        mgPortDraw2D(gfx::Primitive::Quads, quad, binding, mgPortDrawState());
+        mgEndFrame(nullptr);
+
+        result.physical = MgTexturePhysicalExtent(texture);
+        const gfx::TextureInfo info = gfx::GetTextureInfo(mgPortFindTexture(texture).texture).value_or(gfx::TextureInfo{});
+        ASSERT_NE(info.pixel_width, 0u);
+        result.image_width = info.pixel_width;
+        result.image_height = info.pixel_height;
+
+        std::vector<uint8_t> rgba;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
+        ASSERT_TRUE(mgPortReadColor(gfx::kMainTarget, rgba, width, height));
+        const gfx::LogicalMapping mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+
+        video::MoviePlayer picture;
+        picture.SetRetailSize(retail, retail);
+        ASSERT_TRUE(picture.Open(movie_root.root / "movie/hd.mp4", false));
+        result.picture = picture.Rgba();
+        result.picture_width = picture.Width();
+        result.picture_height = picture.Height();
+        // The quad spans retail texels, which hold physical / (1 << TW) picture pixels each.
+        const float cell = 256.0f * static_cast<float>(1u << texture->tex0.TW) /
+                           (static_cast<float>(retail) * static_cast<float>(result.physical.width));
+        for (int y = 0; y < picture.Height(); y++) {
+            for (int x = 0; x < picture.Width(); x++) {
+                const float lx = (static_cast<float>(x) + 0.5f) * cell;
+                const float ly = (static_cast<float>(y) + 0.5f) * cell;
+                const auto  px = static_cast<uint32_t>(mapping.offset_x + (lx * mapping.scale_x));
+                const auto  py = static_cast<uint32_t>(mapping.offset_y + (ly * mapping.scale_y));
+                ASSERT_LT(px, width);
+                ASSERT_LT(py, height);
+                const size_t at = ((static_cast<size_t>(py) * width) + px) * 4;
+                result.drawn.insert(result.drawn.end(), rgba.begin() + static_cast<std::ptrdiff_t>(at),
+                                    rgba.begin() + static_cast<std::ptrdiff_t>(at + 3));
+            }
+        }
+    }
+}
+
+// Largest RGB difference between a picture pixel and its cell on screen.
+int MaxPictureDifference(const HdMovieResult &result) {
+    int worst = 0;
+    for (size_t i = 0; i < static_cast<size_t>(result.picture_width) * result.picture_height; i++) {
+        for (size_t c = 0; c < 3; c++) {
+            worst = std::max(worst, std::abs(result.drawn.at((i * 3) + c) - result.picture.at((i * 4) + c)));
+        }
+    }
+    return worst;
+}
+
+} // namespace
+
+TEST(MovieTextureGpu, DoubleSizeReplacementFillsTheMovieTextureAtTwoTexelsPerTexel) {
+    std::vector<HdMovieResult> results;
+    PlayHdMovies(8, {8}, results);
+    if (HasFatalFailure()) {
+        return;
+    }
+    const HdMovieResult &result = results.at(0);
+    EXPECT_EQ(result.physical.width, 16u);
+    EXPECT_EQ(result.physical.height, 16u);
+    EXPECT_EQ(result.image_width, 16u);
+    EXPECT_EQ(result.image_height, 16u);
+    EXPECT_EQ(result.picture_width, 16);
+    EXPECT_EQ(result.log.find("movie:"), std::string::npos) << result.log;
+    // Every picture pixel reaches the screen, not only the top-left 8x8.
+    EXPECT_LE(MaxPictureDifference(result), 2);
+}
+
+TEST(MovieTextureGpu, OneTextureTakesFourTimesTwiceAndRetailMoviesInTurn) {
+    std::vector<HdMovieResult> results;
+    // On a 16x16 texture the 16x16 fixture is 4x a 4x4 movie, 2x an 8x8 one and the retail size of a 16x16 one.
+    PlayHdMovies(16, {4, 8, 16}, results);
+    if (HasFatalFailure()) {
+        return;
+    }
+    ASSERT_EQ(results.size(), 3u);
+    const std::array<uint32_t, 3> canvases{64, 32, 16};
+    for (size_t i = 0; i < results.size(); i++) {
+        EXPECT_EQ(results[i].physical.width, canvases.at(i)) << i;
+        EXPECT_EQ(results[i].image_width, canvases.at(i)) << i;
+        EXPECT_EQ(results[i].image_height, canvases.at(i)) << i;
+        EXPECT_EQ(results[i].picture_width, 16) << i;
+        EXPECT_EQ(results[i].log.find("movie:"), std::string::npos) << results[i].log;
+        EXPECT_LE(MaxPictureDifference(results[i]), 2) << i;
+    }
+}
+
+TEST(MovieTextureGpu, OtherSizesAreResampledToAMultipleWithOneDiagnostic) {
+    std::vector<HdMovieResult> results;
+    // 16x16 over a 6x6 retail size: 2x is 12x12, which the 6x6 texture's 8x8 canvas holds at 16x16.
+    PlayHdMovies(6, {6}, results);
+    if (HasFatalFailure()) {
+        return;
+    }
+    const HdMovieResult &result = results.at(0);
+    EXPECT_EQ(result.picture_width, 12);
+    EXPECT_EQ(result.picture_height, 12);
+    EXPECT_EQ(result.physical.width, 16u);
+    EXPECT_EQ(result.image_width, 16u);
+    const size_t first = result.log.find("resampled to 12x12");
+    ASSERT_NE(first, std::string::npos) << result.log;
+    EXPECT_EQ(result.log.find("movie:", first), std::string::npos) << result.log;
+    EXPECT_LE(MaxPictureDifference(result), 2);
 }

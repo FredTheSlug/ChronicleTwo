@@ -16,3 +16,13 @@ ffmpeg -f lavfi -i 'testsrc2=size=16x16:rate=25:duration=0.12' \
   -c:v libopenh264 -c:a aac -fflags +bitexact \
   -map_metadata -1 -movflags +faststart movie_h264_aac.mp4
 ```
+
+`movie_h264_bframes.mp4` has 24 160×96 H.264 pictures at 25 fps with B-frames and no audio, for the
+threaded-decoding test. Its luma rises by 8 a picture, so picture N's top-left pixel is grey 9.31 × N and a
+reordered or repeated picture shows. 160×96 is NVENC's minimum size; any H.264 encoder that emits B-frames will do:
+
+```sh
+ffmpeg -f lavfi -i "nullsrc=size=160x96:rate=25:duration=0.96,format=yuv420p,geq=lum='16+8*N+mod(X\,16)':cb='128+mod(Y\,32)':cr='128-mod(X\,32)'" \
+  -c:v h264_nvenc -preset p7 -bf 2 -g 24 -profile:v main -rc constqp -qp 18 -fflags +bitexact \
+  -map_metadata -1 -movflags +faststart movie_h264_bframes.mp4
+```

@@ -1183,8 +1183,11 @@ MgTextureExtent MgTexturePhysicalExtent(const mgCTexture *texture) {
 
 void MgTextureSetPhysicalScale(const mgCTexture *texture, uint32_t scale) {
     const auto found = Registry().entries.find(texture);
-    if (found != Registry().entries.end() && !found->second.catalog) {
-        found->second.physical_scale = std::max(1u, scale);
+    scale = std::max(1u, scale);
+    if (found != Registry().entries.end() && !found->second.catalog && found->second.physical_scale != scale) {
+        found->second.physical_scale = scale;
+        // The next lookup rebuilds the image at the new canvas size.
+        found->second.uploaded = false;
     }
 }
 

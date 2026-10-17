@@ -15,6 +15,7 @@ extern "C" {
 #include <limits>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 
 #include "audio_assets.hpp"
@@ -25,6 +26,16 @@ namespace {
 constexpr AVRational kMovieClock = {.num = 1, .den = 90000};
 /** Bytes FFmpeg reads through a custom input at a time. */
 constexpr int kInputBufferBytes = 64 * 1024;
+/** Most decoder threads a movie gets; a 4x picture gains little past this. */
+constexpr unsigned kMaxDecoderThreads = 8;
+/** Largest picture side, in pixels, the player converts. */
+constexpr int kMaxPictureSide = 16384;
+/** Most host texels per retail texel a replacement movie is shown at. */
+constexpr int kMaxPictureScale = 4;
+
+bool ValidSize(int width, int height) {
+    return width > 0 && height > 0 && width <= kMaxPictureSide && height <= kMaxPictureSide;
+}
 
 /**
  * Feeds FFmpeg one data entry that is not a host file: a stored archive entry read from its own file handle, or a
@@ -289,6 +300,8 @@ struct MoviePlayer::Impl {
     AVPacket                   *packet = av_packet_alloc();
     AVFrame                    *frame = av_frame_alloc();
     SwsContext                 *scaler = nullptr;
+    SwsContext                 *resampler = nullptr;
+    std::vector<uint8_t>        source_rgba;
     int                         video = -1;
     int64_t                     duration = 3600;
     int64_t                     next_pts = 0;
@@ -296,6 +309,7 @@ struct MoviePlayer::Impl {
     bool                        failed = false;
 
     ~Impl() {
+        sws_freeContext(resampler);
         sws_freeContext(scaler);
         av_frame_free(&frame);
         av_packet_free(&packet);
@@ -303,7 +317,7 @@ struct MoviePlayer::Impl {
         avformat_close_input(&format);
     }
 
-    bool Open(const vfs::Ref &file) {
+    bool Open(const vfs::Ref &file, int retail_width, int retail_height) {
         if (!packet || !frame || !OpenMovie(file, format, input) || avformat_find_stream_info(format, nullptr) < 0) {
             return false;
         }
@@ -317,7 +331,15 @@ struct MoviePlayer::Impl {
             return false;
         }
         codec = avcodec_alloc_context3(decoder);
-        if (!codec || avcodec_parameters_to_context(codec, stream->codecpar) < 0 || avcodec_open2(codec, decoder, nullptr) < 0) {
+        if (!codec || avcodec_parameters_to_context(codec, stream->codecpar) < 0) {
+            return false;
+        }
+        // A retail-size picture decodes in about a millisecond; a larger replacement decodes on FFmpeg's threads.
+        const int64_t retail_pixels = static_cast<int64_t>(retail_width) * retail_height;
+        if (retail_pixels > 0 && static_cast<int64_t>(codec->width) * codec->height > retail_pixels) {
+            codec->thread_count = static_cast<int>(std::clamp(std::thread::hardware_concurrency(), 1u, kMaxDecoderThreads));
+        }
+        if (avcodec_open2(codec, decoder, nullptr) < 0) {
             return false;
         }
         codec->pkt_timebase = stream->time_base;
@@ -328,36 +350,57 @@ struct MoviePlayer::Impl {
         return true;
     }
 
+    /**
+     * Converts a decoded picture to RGBA at its fitted size. A fitted picture is converted at its own size first, so
+     * it has the same colours as an unfitted one, then resampled: area averaging when either side shrinks, bicubic
+     * when both grow.
+     */
+    bool Convert(const AVFrame &picture, const PictureFit &fit, std::vector<uint8_t> &rgba) {
+        const int  width = picture.width;
+        const int  height = picture.height;
+        const bool fitted = fit.width != width || fit.height != height;
+        auto      &converted = fitted ? source_rgba : rgba;
+        converted.resize(static_cast<std::size_t>(width) * height * 4);
+        if (picture.format == AV_PIX_FMT_YUV420P && picture.linesize[1] == picture.linesize[2]) {
+            Yuv420ToRgba(picture.data[0], picture.linesize[0], picture.data[1], picture.data[2], picture.linesize[1], width, height, converted.data());
+        } else {
+            scaler = sws_getCachedContext(scaler, width, height, static_cast<AVPixelFormat>(picture.format), width, height, AV_PIX_FMT_RGBA, SWS_BILINEAR, nullptr, nullptr, nullptr);
+            uint8_t  *planes[] = {converted.data()};
+            const int strides[] = {width * 4};
+            if (!scaler || sws_scale(scaler, picture.data, picture.linesize, 0, height, planes, strides) <= 0) {
+                return false;
+            }
+        }
+        if (!fitted) {
+            return true;
+        }
+        const int flags = (fit.width < width || fit.height < height ? SWS_AREA : SWS_BICUBIC) | SWS_FULL_CHR_H_INP | SWS_FULL_CHR_H_INT | SWS_ACCURATE_RND;
+        resampler = sws_getCachedContext(resampler, width, height, AV_PIX_FMT_RGBA, fit.width, fit.height, AV_PIX_FMT_RGBA, flags, nullptr, nullptr, nullptr);
+        rgba.resize(static_cast<std::size_t>(fit.width) * fit.height * 4);
+        const uint8_t *from[] = {source_rgba.data()};
+        const int      from_strides[] = {width * 4};
+        uint8_t       *to[] = {rgba.data()};
+        const int      to_strides[] = {fit.width * 4};
+        return resampler && sws_scale(resampler, from, from_strides, 0, height, to, to_strides) > 0;
+    }
+
     std::optional<Frame> Next() {
         while (!failed) {
             const int result = avcodec_receive_frame(codec, frame);
             if (result == 0) {
-                Frame out;
-                out.width = frame->width;
-                out.height = frame->height;
-                if (out.width <= 0 || out.height <= 0 || out.width > 16384 || out.height > 16384) {
+                if (!ValidSize(frame->width, frame->height)) {
                     failed = true;
                     return std::nullopt;
                 }
+                Frame out;
                 out.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? next_pts : av_rescale_q(frame->best_effort_timestamp, format->streams[video]->time_base, kMovieClock);
                 next_pts = out.pts + duration;
-                out.rgba.resize(static_cast<std::size_t>(out.width) * out.height * 4);
-                if (frame->format == AV_PIX_FMT_YUV420P && frame->linesize[1] == frame->linesize[2]) {
-                    Yuv420ToRgba(frame->data[0], frame->linesize[0], frame->data[1], frame->data[2], frame->linesize[1], out.width, out.height, out.rgba.data());
-                } else {
-                    scaler = sws_getCachedContext(scaler, out.width, out.height, static_cast<AVPixelFormat>(frame->format), out.width, out.height, AV_PIX_FMT_RGBA, SWS_BILINEAR, nullptr, nullptr, nullptr);
-                    if (!scaler) {
-                        failed = true;
-                        return std::nullopt;
-                    }
-                    uint8_t  *planes[] = {out.rgba.data()};
-                    const int strides[] = {out.width * 4};
-                    if (sws_scale(scaler, frame->data, frame->linesize, 0, out.height, planes, strides) <= 0) {
-                        failed = true;
-                        return std::nullopt;
-                    }
+                out.decoded.reset(av_frame_alloc());
+                if (!out.decoded) {
+                    failed = true;
+                    return std::nullopt;
                 }
-                av_frame_unref(frame);
+                av_frame_move_ref(out.decoded.get(), frame);
                 return out;
             }
             if (result == AVERROR_EOF) {
@@ -393,6 +436,19 @@ struct MoviePlayer::Impl {
     }
 };
 
+PictureFit FitPicture(int retail_width, int retail_height, int width, int height) {
+    if (retail_width <= 0 || retail_height <= 0) {
+        return {.width = width, .height = height, .scale = 1};
+    }
+    int scale = kMaxPictureScale;
+    while (scale > 1 && (width < retail_width * scale || height < retail_height * scale)) {
+        scale /= 2;
+    }
+    return {.width = retail_width * scale, .height = retail_height * scale, .scale = scale};
+}
+
+void MoviePlayer::FrameDeleter::operator()(AVFrame *frame) const { av_frame_free(&frame); }
+
 MoviePlayer::MoviePlayer() = default;
 MoviePlayer::~MoviePlayer() = default;
 
@@ -403,21 +459,21 @@ bool MoviePlayer::Open(const std::filesystem::path &path, bool with_audio) {
     }
     auto candidates = path.is_absolute() ? std::vector<vfs::Ref>{vfs::HostFile(path)} : AudioAssetCandidates(path.generic_string());
     for (const auto &candidate : candidates) {
-        impl_ = std::make_unique<Impl>();
-        if (!impl_->Open(candidate)) {
+        impl = std::make_unique<Impl>();
+        if (!impl->Open(candidate, retail_width, retail_height)) {
             Close();
             continue;
         }
         if (with_audio) {
             bool failed = false;
-            audio_ = EmbeddedAudio(candidate, failed);
+            audio_track = EmbeddedAudio(candidate, failed);
             if (failed) {
                 Close();
                 continue;
             }
         }
         Pump();
-        if (queue_.empty() || !Advance(0)) {
+        if (queue.empty() || !Advance(0)) {
             Close();
             continue;
         }
@@ -427,78 +483,99 @@ bool MoviePlayer::Open(const std::filesystem::path &path, bool with_audio) {
 }
 
 void MoviePlayer::Close() {
-    impl_.reset();
-    queue_.clear();
-    input_exhausted_ = false;
-    first_pts_.reset();
-    shown_pts_ = 0;
-    elapsed_last_ = 0;
-    width_ = 0;
-    height_ = 0;
-    rgba_.clear();
-    pictures_shown_ = 0;
-    audio_.reset();
+    impl.reset();
+    queue.clear();
+    input_exhausted = false;
+    first_pts.reset();
+    shown_pts = 0;
+    elapsed_last = 0;
+    source_width = 0;
+    source_height = 0;
+    picture_fit = {};
+    rgba.clear();
+    pictures_shown = 0;
+    audio_track.reset();
 }
 
-bool MoviePlayer::IsOpen() const { return impl_ != nullptr; }
+bool MoviePlayer::IsOpen() const { return impl != nullptr; }
 
 bool MoviePlayer::Advance(int64_t elapsed) {
     if (!IsOpen()) {
         return false;
     }
-    elapsed_last_ = elapsed;
+    elapsed_last = elapsed;
     std::optional<Frame> candidate;
     while (true) {
-        if (queue_.empty()) {
-            if (input_exhausted_) {
+        if (queue.empty()) {
+            if (input_exhausted) {
                 break;
             }
             Pump();
             continue;
         }
-        if (queue_.front().pts - *first_pts_ > elapsed) {
+        if (queue.front().pts - first_pts.value_or(0) > elapsed) {
             break;
         }
-        candidate = std::move(queue_.front());
-        queue_.pop_front();
+        candidate = std::move(queue.front());
+        queue.pop_front();
     }
     if (!candidate) {
         return false;
     }
-    width_ = candidate->width;
-    height_ = candidate->height;
-    rgba_ = std::move(candidate->rgba);
-    shown_pts_ = candidate->pts;
-    pictures_shown_++;
+    const AVFrame &picture = *candidate->decoded;
+    const auto     fit = FitPicture(retail_width, retail_height, picture.width, picture.height);
+    if (!ValidSize(fit.width, fit.height) || !impl->Convert(picture, fit, rgba)) {
+        // As a picture that fails to decode: the movie ends at the last one shown.
+        impl->failed = true;
+        input_exhausted = true;
+        queue.clear();
+        return false;
+    }
+    source_width = picture.width;
+    source_height = picture.height;
+    picture_fit = fit;
+    shown_pts = candidate->pts;
+    pictures_shown++;
     return true;
 }
 
-bool MoviePlayer::HasPicture() const { return !rgba_.empty(); }
+bool MoviePlayer::HasPicture() const { return !rgba.empty(); }
 
-int MoviePlayer::Width() const { return width_; }
+int MoviePlayer::Width() const { return picture_fit.width; }
 
-int MoviePlayer::Height() const { return height_; }
+int MoviePlayer::Height() const { return picture_fit.height; }
 
-const std::vector<uint8_t> &MoviePlayer::Rgba() const { return rgba_; }
+const std::vector<uint8_t> &MoviePlayer::Rgba() const { return rgba; }
 
-bool MoviePlayer::Ended() const { return input_exhausted_ && queue_.empty() && HasPicture() && elapsed_last_ >= shown_pts_ - *first_pts_ + impl_->duration; }
+bool MoviePlayer::Ended() const { return input_exhausted && queue.empty() && HasPicture() && elapsed_last >= shown_pts - first_pts.value_or(0) + impl->duration; }
 
-std::shared_ptr<const audio::PcmTrack> MoviePlayer::Audio() const { return audio_; }
+std::shared_ptr<const audio::PcmTrack> MoviePlayer::Audio() const { return audio_track; }
 
-int64_t MoviePlayer::PicturesShown() const { return pictures_shown_; }
+int64_t MoviePlayer::PicturesShown() const { return pictures_shown; }
+
+int MoviePlayer::SourceWidth() const { return source_width; }
+
+int MoviePlayer::SourceHeight() const { return source_height; }
+
+int MoviePlayer::Scale() const { return picture_fit.scale; }
+
+void MoviePlayer::SetRetailSize(int width, int height) {
+    retail_width = width;
+    retail_height = height;
+}
 
 void MoviePlayer::Pump() {
-    if (input_exhausted_) {
+    if (input_exhausted) {
         return;
     }
-    auto frame = impl_->Next();
+    auto frame = impl->Next();
     if (!frame) {
-        input_exhausted_ = true;
+        input_exhausted = true;
         return;
     }
-    if (!first_pts_) {
-        first_pts_ = frame->pts;
+    if (!first_pts) {
+        first_pts = frame->pts;
     }
-    queue_.push_back(std::move(*frame));
+    queue.push_back(std::move(*frame));
 }
 } // namespace video

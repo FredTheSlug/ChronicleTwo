@@ -14,6 +14,7 @@
 #include "audio_assets.hpp"
 #include "gfx/gfx.hpp"
 #include "mg_texture.hpp"
+#include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "movie.hpp"
@@ -71,6 +72,9 @@ void MovieUpload() {
     if (texture == nullptr) {
         return;
     }
+    // A 2x or 4x replacement fills the texture at that many host texels per retail texel, so the game's quad, which
+    // keeps its retail texel coordinates, shows the whole picture over the same area.
+    MgTextureSetPhysicalScale(texture, static_cast<uint32_t>(g_movie.player.Scale()));
     const gfx::TextureHandle target = mgPortFindTexture(texture).texture;
     if (target == gfx::kNullTexture || (!g_movie.dirty && target == g_movie.uploaded_to)) {
         return;
@@ -80,8 +84,8 @@ void MovieUpload() {
         return;
     }
 
-    const uint32_t width = std::min(info->width, static_cast<uint32_t>(g_movie.player.Width()));
-    const uint32_t height = std::min(info->height, static_cast<uint32_t>(g_movie.player.Height()));
+    const uint32_t width = std::min(info->pixel_width, static_cast<uint32_t>(g_movie.player.Width()));
+    const uint32_t height = std::min(info->pixel_height, static_cast<uint32_t>(g_movie.player.Height()));
     // Alpha is 0xFF, the renderer's opaque; the IPU's opaque is GS 0x80, which would draw half-transparent here.
     gfx::UpdateTexture(target, 0, 0, 0, width, height, g_movie.player.Rgba().data(),
                        static_cast<uint32_t>(g_movie.player.Width()));
@@ -142,17 +146,23 @@ std::filesystem::path MoviePortPath(const char *name) {
 }
 
 // The retail pools are replaced by the host's allocator. init_sound would reset the PS2 sound driver, which the
-// shared mixer does not need.
-PORT_OVERRIDE void CMovie::Load(char *name, mgCMemory ** /*unused*/, int /*unused*/, int /*unused*/, bool with_audio, bool loop, bool /*unused*/) {
+// shared mixer does not need. The width and height are the retail picture size, which a replacement can multiply.
+PORT_OVERRIDE void CMovie::Load(char *name, mgCMemory ** /*unused*/, int width, int height, bool with_audio, bool loop, bool /*unused*/) {
     Term();
     g_movie.loaded = true;
     g_movie.path = MoviePortPath(name);
     g_movie.with_audio = with_audio;
     g_movie.loop = loop;
+    g_movie.player.SetRetailSize(width, height);
     g_movie.opened = g_movie.player.Open(g_movie.path, with_audio);
     if (!g_movie.opened) {
         std::println(stderr, "movie: {} not found or not a playable MP4 ({})", name,
                      PathsDisplay(g_movie.path));
+    } else if (g_movie.player.SourceWidth() != g_movie.player.Width() ||
+               g_movie.player.SourceHeight() != g_movie.player.Height()) {
+        std::println(stderr, "movie: {} is {}x{}; a replacement should be 1, 2 or 4 times {}x{}, so it is resampled to {}x{}",
+                     name, g_movie.player.SourceWidth(), g_movie.player.SourceHeight(), width, height,
+                     g_movie.player.Width(), g_movie.player.Height());
     }
 }
 

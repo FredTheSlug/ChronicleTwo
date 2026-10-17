@@ -115,6 +115,9 @@ UNIT_FIXUPS = [
     printf("data memory size = %d kbyte", (data_size - (260128 + {WORK_STACK_QUADWORDS})) * 16 / 1024);"""),
     # Geostone announcement updates and draws reserve eight nullable message slots.
     ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
+    # A Georama list that fits on one page has no scroll range: the EE FPU's 0/0 is finite, IEEE's is NaN.
+    ("editmenu.cpp", "            float rate = space / (num - GEORAMA_LIST_LINE_NUM);",
+     "            float rate = num > GEORAMA_LIST_LINE_NUM ? space / (num - GEORAMA_LIST_LINE_NUM) : 0.0f;"),
     # Geostone conditions are copied bounded into their 128-byte text, and word-wrapped into 128 bytes
     # rather than 64: wrapping replaces a space with a newline, so the result is never longer.
     ("editmenu.cpp", "            strcpy(text, condition_name);",

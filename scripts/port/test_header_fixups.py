@@ -25,6 +25,12 @@ class UnitFixups(unittest.TestCase):
         self.assertIn("char        *wrapped = (char *) stack->Alloc(8);", mirrored)
         self.assertEqual(mirrored.count("\n"), source.count("\n"))
 
+    def test_georama_scroll_rate_is_zero_when_the_list_fits_one_page(self):
+        source = (Path(__file__).resolve().parents[2] / "ps2/src/editmenu.cpp").read_text()
+        mirrored = header_fixups.fixup_unit_text("editmenu.cpp", source)
+        self.assertIn("num > GEORAMA_LIST_LINE_NUM ? space / (num - GEORAMA_LIST_LINE_NUM) : 0.0f;", mirrored)
+        self.assertEqual(mirrored.count("\n"), source.count("\n"))
+
     def test_password_generator_avoids_host_random_without_changing_its_body(self):
         source = (Path(__file__).resolve().parents[2] / "ps2/src/password.cpp").read_text()
         result = header_fixups.fixup_unit_text("password.cpp", source)

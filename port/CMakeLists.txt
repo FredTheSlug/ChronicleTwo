@@ -34,9 +34,9 @@ file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/generated/include/kazarov)
 configure_file(${KZ_ROOT}/include/kazarov/data_version.hpp.in
     ${CMAKE_BINARY_DIR}/generated/include/kazarov/data_version.hpp @ONLY)
 
-# port/icon/chronicletwo-128.rgba, the two moons' raw 128x128 RGBA pixels: the window icon until the game data
+# port/assets/icon/chronicletwo-128.rgba, the two moons' raw 128x128 RGBA pixels: the window icon until the game data
 # is there to draw Max's wrench from (main.cpp).
-set(ICON_RGBA ${CMAKE_SOURCE_DIR}/port/icon/chronicletwo-128.rgba)
+set(ICON_RGBA ${CMAKE_SOURCE_DIR}/port/assets/icon/chronicletwo-128.rgba)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ICON_RGBA})
 file(READ ${ICON_RGBA} icon_hex HEX)
 string(REGEX REPLACE "(..)" "0x\\1," icon_bytes "${icon_hex}")
@@ -296,15 +296,16 @@ ct_link_game(darkchronicle)
 if(WIN32)
     target_link_options(darkchronicle PRIVATE -municode)
     enable_language(RC)
-    target_sources(darkchronicle PRIVATE ${CMAKE_SOURCE_DIR}/port/icon/chronicletwo.rc)
+    target_sources(darkchronicle PRIVATE ${CMAKE_SOURCE_DIR}/port/assets/icon/chronicletwo.rc)
 endif()
 
 include(GNUInstallDirs)
 install(TARGETS darkchronicle RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-# The button symbols (docs/GLYPHS.md): glyphs/ beside the executable, the art of TheMoonPeople/Chronicle's port/glyphs.
+# The button symbols (docs/GLYPHS.md): port/assets/glyphs, copied to glyphs/ beside the executable, the art of
+# TheMoonPeople/Chronicle's port/glyphs.
 # Each copy is a declared output, so an up-to-date build runs nothing and a deleted copy is restored.
-file(GLOB CT_GLYPH_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/glyphs/*)
+file(GLOB CT_GLYPH_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/assets/glyphs/*)
 set(CT_GLYPH_COPIES "")
 foreach(glyph IN LISTS CT_GLYPH_SOURCES)
     get_filename_component(glyph_name ${glyph} NAME)
@@ -318,7 +319,7 @@ foreach(glyph IN LISTS CT_GLYPH_SOURCES)
 endforeach()
 add_custom_target(ct_glyphs DEPENDS ${CT_GLYPH_COPIES})
 add_dependencies(darkchronicle ct_glyphs)
-install(DIRECTORY glyphs/ DESTINATION ${CMAKE_INSTALL_BINDIR}/glyphs)
+install(DIRECTORY assets/glyphs/ DESTINATION ${CMAKE_INSTALL_BINDIR}/glyphs)
 
 option(CT_BUILD_TESTS "Build darkchronicle_tests" ON)
 if(CT_BUILD_TESTS)

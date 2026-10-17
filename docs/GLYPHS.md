@@ -14,7 +14,7 @@ is the original look.
 ## The glyphs folder
 
 `glyphs/` is read beside the executable, then in the save folder. Save-folder styles override
-same-named installed styles and can add new ones. The build copies `port/glyphs/` beside the executable: the art of
+same-named installed styles and can add new ones. The build copies `port/assets/glyphs/` to `glyphs/` beside the executable: the art of
 TheMoonPeople/Chronicle's `port/glyphs` (PS3, PS4, PS5, PS5 Color, Xbox, Switch, Steam Deck, Steam
 Controller and keyboard). Replace any atlas with your own art and keep the rectangles in step.
 

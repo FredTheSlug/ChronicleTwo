@@ -1187,6 +1187,12 @@ texture_catalog::AnimationMode MgTextureAnimationMode(const mgCTexture *texture)
                : texture_catalog::AnimationMode::Draw;
 }
 
+bool MgTextureEnteredFrom(const mgCTexture *texture, const texture_catalog::Source &source) {
+    const auto found = catalog_pixels.find(texture);
+    return found != catalog_pixels.end() &&
+           std::ranges::any_of(source.entries, [&](const auto &entry) { return &entry == found->second.record; });
+}
+
 MgTextureExtent MgTexturePhysicalExtent(const mgCTexture *texture) {
     if (!texture) {
         return {};

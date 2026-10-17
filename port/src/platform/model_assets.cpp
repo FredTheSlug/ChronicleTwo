@@ -2987,7 +2987,12 @@ void DeleteCharacterTextures(CCharacter2 &character, int first_slot, int last_sl
                 auto              name = PictureName(texture, entry->suffix);
                 const std::string previous = entry->manager->name_suffix;
                 entry->manager->name_suffix[0] = 0;
-                entry->manager->DeleteTexture(name.data(), entry->block + texture.block);
+                // The record can outlive a DeleteBlock and Initialize, after which another model can enter a
+                // picture under the same name; only pictures this set entered last are deleted.
+                auto *registered = entry->manager->GetTexture(name.data(), entry->block + texture.block);
+                if (registered != nullptr && MgTextureEnteredFrom(registered, *entry->source)) {
+                    entry->manager->DeleteTexture(registered);
+                }
                 std::strcpy(entry->manager->name_suffix, previous.c_str());
             }
         }

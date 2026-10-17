@@ -38,6 +38,7 @@
 #include "mglib_port.hpp"
 #include "monster.hpp"
 #include "nowload.hpp"
+#include "nowload_port.hpp"
 #include "npccfg.hpp"
 #include "padcontrol.hpp"
 #include "platform/arena.hpp"
@@ -63,7 +64,7 @@ bool PortAutosave = false;
 
 namespace {
 
-std::optional<std::pair<int, int>> autosaved_floor;
+std::optional<std::pair<int, int> > autosaved_floor;
 std::optional<int>                  autosaved_map;
 
 bool AutosaveEnabled() {
@@ -311,7 +312,7 @@ PORT_OVERRIDE void MainLoop() {
     CreateGamePadThread(&GamePad__2);
     LoadGameConfig(nullptr);
     SetIoErrCallBack(EmergencyMessage);
-    if (!GameHasJump()) {
+    if (!GameHasJump() && !PortSkipIntro()) {
         SCElogoFade(1, memory);
     }
     GamePrepareJump(PortLoopNo, InitArg);

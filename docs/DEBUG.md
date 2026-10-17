@@ -4,7 +4,7 @@ Retail cites are `ps2/src` file:line. PC cites are `port/src` or `tools/kazarov`
 
 ## Config
 
-`game.debug_mode` in `config.json`, default `false`. It is read once at boot, so a change takes effect on the next start.
+`game.debug_mode` in `config.json`, default `false`, also set by **PC SETTINGS** > **Game** > **Debug mode**. The boot unlock reads it once at boot, so a change takes effect on the next start.
 
 - `true`: at boot, `MasterDebugCode` is set to `MASTER_DEBUG_CODE` and `MasterDebugModeOn` is set to 1. Retail `title.cpp:2377` then unlocks pad 2 without a developer save. Retail `title.cpp:2281` would otherwise read the save's debug code. Also enables the pad-1 chord below.
 - `false`: nothing changes at boot. Retail behaviour: pad 2 unlocks only if the four shoulders are held on pad 2 at boot and a memory card save carries a debug code. The pad-1 chord is off.

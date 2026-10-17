@@ -92,6 +92,9 @@ UNIT_FIXUPS = [
 """),
     # Emit the constructor from the native unit without changing its retail inline spelling.
     ("inventmn.cpp", "\ninline CMenuInvent::CMenuInvent() {", "\nCMenuInvent::CMenuInvent() {"),
+    # game.skip_intro: the boot's language select and title image load stay; the logo's fade frames are skipped.
+    ("nowload.cpp", "    for (; frame <= 22; ++frame, opacity_value += 128) {",
+     "    for (; frame <= 22 && !PortSkipIntro(); ++frame, opacity_value += 128) {"),
     ("editeff.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     ("editmap.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     # Fusion colours can target a float-aligned ambient field rather than a quadword boundary.

@@ -51,6 +51,12 @@ class UnitFixups(unittest.TestCase):
         with self.assertRaises(SystemExit):
             header_fixups.fixup_unit_text("menuchr.cpp", result)
 
+    def test_skip_intro_drops_only_the_boot_logo_fade_frames(self):
+        source = (Path(__file__).resolve().parents[2] / "ps2/src/nowload.cpp").read_text()
+        result = header_fixups.fixup_unit_text("nowload.cpp", source)
+        self.assertIn("frame <= 22 && !PortSkipIntro();", result)
+        self.assertEqual(result.count("\n"), source.count("\n"))
+
     def test_invent_constructor_emitted_exactly_once(self):
         source = "// constructor\ninline CMenuInvent::CMenuInvent() {\n    card_cursor = 0;\n}\n"
         result = header_fixups.fixup_unit_text("inventmn.cpp", source)

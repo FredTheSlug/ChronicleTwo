@@ -196,6 +196,16 @@ TEST_F(PlatformConfig, DebugModeInvalidValuesKeepTheDefault) {
     }
 }
 
+TEST_F(PlatformConfig, SkipIntroDefaultsToOffAndRoundTrips) {
+    ASSERT_FALSE(Config{}.skip_intro);
+    ASSERT_FALSE(ConfigParse(R"({"game": {"skip_intro": "yes"}})").skip_intro);
+    Config config;
+    config.skip_intro = true;
+    const Config parsed = ConfigParse(ConfigSerialize(config));
+    ASSERT_TRUE(parsed.skip_intro);
+    ASSERT_TRUE(parsed == config);
+}
+
 TEST_F(PlatformConfig, DebugModeRoundTripsThroughSerialize) {
     Config config;
     config.debug_mode = true;

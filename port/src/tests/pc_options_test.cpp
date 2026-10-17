@@ -49,6 +49,8 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
         "input.glyph_device",
         "game.autosave",
         "game.quick_loadout_title",
+        "game.skip_intro",
+        "game.debug_mode",
     };
     std::set<std::string> actual;
     for (const auto &page : options::Pages()) {
@@ -62,7 +64,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
             ASSERT_TRUE(options::StepRow(row, config, 1) || options::StepRow(row, config, -1)) << row.key;
             EXPECT_NE(config, Config{}) << row.key;
             EXPECT_EQ(ConfigParse(ConfigSerialize(config)), config) << row.key;
-            EXPECT_FALSE(config.debug_mode);
+            EXPECT_EQ(config.debug_mode, row.key == "game.debug_mode") << row.key;
             EXPECT_DOUBLE_EQ(config.tick_rate, 60);
         }
     }
@@ -158,7 +160,8 @@ TEST(PcOptions, HitTestingUsesVisibleRowsAndHasNoDeadRowsOrOutOfBoundsHits) {
     EXPECT_EQ(options::HitTest(state, 300, options::kRowY + (audio_rows - 1) * options::kRowStep).index, audio_rows - 1);
     EXPECT_EQ(options::HitTest(state, 300, options::kRowY + audio_rows * options::kRowStep).kind, options::HitKind::None);
     options::SelectPage(state, options::kBindingsPage - 1);
-    EXPECT_EQ(options::HitTest(state, 300, 180).kind, options::HitKind::None);
+    const auto game_rows = static_cast<int>(options::Pages()[options::kBindingsPage - 1].rows.size());
+    EXPECT_EQ(options::HitTest(state, 300, options::kRowY + game_rows * options::kRowStep).kind, options::HitKind::None);
     options::SelectPage(state, options::kBindingsPage);
     state.first[options::kBindingsPage] = 7;
     EXPECT_EQ(options::HitTest(state, 300, 120).index, 7);

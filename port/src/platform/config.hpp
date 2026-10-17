@@ -21,11 +21,13 @@ enum class ConfigHaptics {
 };
 
 struct Config : HostSettings {
-    bool         interpolation = true;
-    bool         debug_mode = false;
-    bool         autosave = true;
+    bool interpolation = true;
+    bool debug_mode = false;
+    bool autosave = true;
     // game.quick_loadout_title "plate": the quick loadout's title on a plate like the EXP gauge's, not on a bar.
     bool quick_loadout_plate = false;
+    // game.skip_intro: boots past the Sony Computer Entertainment text, the copyright notice and the Level-5 logo.
+    bool         skip_intro = false;
     ConfigAspect aspect = ConfigAspect::Auto;
     float        ui_scale = 1.0f;
     bool         font_sharp = false;
@@ -34,7 +36,7 @@ struct Config : HostSettings {
     // play on a DualSense speaker when one is found instead of the TV.
     bool dualsense_speaker = true;
     // audio.controller_volume: gain on the controller speaker, on top of the master volume.
-    float controller_volume = 1.0f;
+    float         controller_volume = 1.0f;
     ConfigHaptics dualsense_haptics = ConfigHaptics::Full;
     // input.haptics_strength: gain on the DualSense actuators.
     float haptics_strength = 1.0f;

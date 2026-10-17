@@ -1384,7 +1384,7 @@ Each fixup's text must occur exactly once in its file, or the script stops befor
 - `editeff.cpp` and `editmap.cpp`: the identical inline `CMapParts::CMapParts()` copies are blanked, so `map.cpp`'s out-of-line definition is the only one. COFF has no inline-versus-strong resolution.
 - `dng_debug.cpp`: `CTreasureBox::Initialize()` becomes `inline`. `CTreasureBox`'s vtable becomes COMDAT with it.
 - `nowload.cpp`: `SCElogoFade`'s fade loop also stops on `PortSkipIntro()` (`game.skip_intro`), keeping the language select and the title image load.
-
+- `menuop.cpp`: `CMenuOption::KeyStep` moves the cursor's `op_cursorlimmit` bottom (y 274) down to the selected row's place in the settled list through `PortOptionCursorBottom` (`port/src/menuop.cpp`). Retail PAL settles the ninth shown row at 288, so on the last shown row its cursor and frame stopped between the last two rows.
 - `inventmn.cpp`: the native copy removes `inline` from `CMenuInvent::CMenuInvent()` so callers in other units have one emitted constructor. Retail source retains its original spelling.
 - `dng_main.cpp` and `editloop.cpp`: the frame work stacks `BuffWorkData` and `WorkBuffer` hold 10000 `mgSORT_PACKET`s rather than 10000 quadwords, since each sorted packet and its draw-table slot grow with pointer width. The town's total data buffer gives up the difference.
 

@@ -97,6 +97,12 @@ UNIT_FIXUPS = [
      "    for (; frame <= 22 && !PortSkipIntro(); ++frame, opacity_value += 128) {"),
     ("editeff.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     ("editmap.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
+    # PAL's op_cursorlimmit bottom (y 274) lies above the ninth shown row (288); the Options cursor's bottom limit
+    # reaches the selected row's place in the settled list instead.
+    ("menuop.cpp", '                MenuPosData->GetEtcTblValue("op_cursorlimmit", limit[0], limit[1]);',
+     '                MenuPosData->GetEtcTblValue("op_cursorlimmit", limit[0], limit[1]); '
+     'if (LocalMenuBGForm != NULL) { int base[2]; LocalMenuBGForm->GetPutPosXY("base_msg", base[0], base[1]); '
+     'limit[1] = PortOptionCursorBottom(limit[1], pos.y, fptosi(list_y - 3.0f), base[1] - top * 24 - 3); }'),
     # Fusion colours can target a float-aligned ambient field rather than a quadword boundary.
     ("menusys.cpp", "*(u_long128 *) color = *(u_long128 *) fusion_ambient;",
      "memcpy(color, fusion_ambient, sizeof(fusion_ambient));"),

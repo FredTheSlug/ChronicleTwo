@@ -8,13 +8,16 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <format>
 #include <iterator>
+#include <ranges>
 #include <vector>
 
 #include "collision_assets.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "dng_event.hpp"
+#include "dng_event_port.hpp"
 #include "dng_main.hpp"
 #include "mg_memory.hpp"
 #include "monster.hpp"
@@ -161,6 +164,19 @@ std::vector<MonsterFloor> ParseMonsterFloors(const native_config::Json &document
 }
 
 /**
+ * The floor's placement list: the last block for it, which replaces any earlier one as FLS restarts the list.
+ */
+const MonsterFloor *FloorPlacements(const std::vector<MonsterFloor> &floors, int floor) {
+    const MonsterFloor *found = nullptr;
+    for (const auto &entry : floors) {
+        if (entry.floor == floor) {
+            found = &entry;
+        }
+    }
+    return found;
+}
+
+/**
  * One item of a treasure box group.
  */
 struct TreasureItem {
@@ -221,24 +237,36 @@ PORT_OVERRIDE void CreatMonsterFloorInfo(char *script, int /*length*/) {
         return;
     }
 
-    const int current_floor = DngSaveDataDungeon->floor_id[DngSaveDataDungeon->stage_id];
-    auto     &locate = ActiveMonster->locate;
-    for (const auto &floor : *floors) {
-        if (floor.floor != current_floor) {
-            continue;
+    const MonsterFloor *floor = FloorPlacements(*floors, DngSaveDataDungeon->floor_id[DngSaveDataDungeon->stage_id]);
+    if (floor == nullptr) {
+        return;
+    }
+
+    auto &locate = ActiveMonster->locate;
+    locate.num = 0;
+    // Retail writes past the list for more than MONSTER_LOCATE_MAX monsters; the port drops the rest.
+    for (const auto &monster : floor->monsters) {
+        if (!Inside(locate.monster_id, locate.num)) {
+            break;
         }
-        // A later list for the same floor replaces an earlier one, as FLS restarts it.
-        locate.num = 0;
-        // Retail writes past the list for more than MONSTER_LOCATE_MAX monsters; the port drops the rest.
-        for (const auto &monster : floor.monsters) {
-            if (!Inside(locate.monster_id, locate.num)) {
-                break;
-            }
-            locate.monster_id[locate.num] = static_cast<s16>(monster.monster_id);
-            locate.param[locate.num] = static_cast<s16>(monster.param);
-            locate.num++;
+        locate.monster_id[locate.num] = static_cast<s16>(monster.monster_id);
+        locate.param[locate.num] = static_cast<s16>(monster.param);
+        locate.num++;
+    }
+}
+
+std::vector<int> PortFloorMonsterIds(int dungeon, int floor) {
+    const auto floors = native_config::Read<std::vector<MonsterFloor> >(
+        std::format("dungeon/cfg_file/mos_place{}.cfg.json", dungeon), "monster_floors", ParseMonsterFloors);
+    const MonsterFloor *entry = floors ? FloorPlacements(*floors, floor) : nullptr;
+    std::vector<int>    ids;
+    if (entry != nullptr) {
+        // CreatMonsterFloorInfo keeps the first MONSTER_LOCATE_MAX.
+        for (const auto &monster : entry->monsters | std::views::take(MONSTER_LOCATE_MAX)) {
+            ids.push_back(monster.monster_id);
         }
     }
+    return ids;
 }
 
 PORT_OVERRIDE void CreatTresuarBoxInfo(TRESURE_BOX_FLOOR_INFO *table, char *script, int /*length*/) {

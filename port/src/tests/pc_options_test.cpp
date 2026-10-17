@@ -51,6 +51,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
         "game.quick_loadout_title",
         "game.skip_intro",
         "game.auto_use_event_item",
+        "game.floor_info_monsters",
         "game.debug_mode",
     };
     std::set<std::string> actual;

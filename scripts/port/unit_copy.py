@@ -53,6 +53,10 @@ RETAIL_BRIDGES = {
         ("MenuItemSelectInit(mgCMemory*,int*,int)", "MenuItemSelectInit", "PortRetailMenuItemSelectInit"),
         ("MenuItemSelectDraw()", "MenuItemSelectDraw", "PortRetailMenuItemSelectDraw"),
     ],
+    "dngmenu.cpp": [
+        ("CMenuTreeMap::Step()", "Step", "PortRetailStep"),
+        ("CMenuTreeMap::Draw()", "Draw", "PortRetailDraw"),
+    ],
     "title.cpp": [("TitleCopyRightStep()", "TitleCopyRightStep", "PortRetailTitleCopyRightStep")],
     "menuchr.cpp": [
         ("InitMainCharaBG(int,mgCMemory*,int)", "InitMainCharaBG", "PortRetailInitMainCharaBG"),

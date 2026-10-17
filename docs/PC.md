@@ -508,6 +508,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `game.quick_loadout_title` | string | bar | bar, plate | the quick loadout panel's title on a bar, or on a plate like the EXP gauge's; see [QUICK_LOADOUT.md](QUICK_LOADOUT.md) |
 | `game.auto_use_event_item` | bool | false | | an event that asks for one item the bag holds is handed it without the item picker; see "Auto-use event items" |
 | `game.skip_intro` | bool | false | | boot past the Sony Computer Entertainment text, the copyright notice and the Level-5 logo to the title screen |
+| `game.floor_info_monsters` | bool | false | | Triangle on a dungeon floor's information lists its monsters (spoilers); see "Floor monster list" |
 | `video.present_mode` | string | fifo | fifo, mailbox, immediate | Vulkan present mode |
 | `video.interpolation` | bool | true | | interpolate display frames between ticks |
 | `video.max_fps` | number | 0 | 0 or more | display frame cap; 0 is unlimited |
@@ -585,7 +586,7 @@ The PC page uses the game's font and Options artwork. L1/R1 changes tabs, Up/Dow
 | Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, FPS counter |
 | Audio | Master volume and PS2/custom soundtrack |
 | Controls | Mouse sensitivity, Y inversion and capture; stick sensitivity and X/Y inversion; button symbols and glyph style |
-| Game | Autosave, quick loadout title, skip intro, auto-use event items and debug mode |
+| Game | Autosave, quick loadout title, skip intro, auto-use event items, floor monster list and debug mode |
 | Bindings | Keyboard and mouse bindings for pad buttons, movement, look, FPS and debug menu |
 
 Edits save to `config.json` and apply immediately. Soundtrack selection takes effect the next time a song starts, including one whose data is already loaded. Custom recordings use the actual sequence JSON path in `soundtrack/soundtrack.json`; `AUDIO_TRACE` prints that path. An absent or invalid recording falls back to the converted sequence. Current music is not restarted by moving the setting.
@@ -956,6 +957,33 @@ comments list capture frames; `--screenshot-display` also captures eased
 presentation frames. Enable the option in each replay's save-root config.
 `tools/input/dungeon-mouse-zoom-wall.input` adds a sideways wall approach,
 distance clamping, an inward reversal and reset in the same corridor.
+
+### Floor monster list
+
+`game.floor_info_monsters` (**Floor monster list** in PC SETTINGS > Game, off by default) adds a list of a dungeon
+floor's monsters to its information on the floor map (`port/src/floor_monsters.cpp`). Off, the floor map is
+unchanged. On, it shows what the game keeps hidden (mimic chests, drop chances): Triangle opens the list from the
+information when the floor lists no Georama materials, or from the materials list's last page, which then no longer
+returns to the information. Triangle turns the list's pages and leaves it from the last one; Cancel leaves at once.
+The prompt "Triangle: See monster info" (the Monster Notes item's command) shows under the information, with retail's
+Move prompt moved up a row, and under the materials list's last page; it also shows for a floor chosen from the
+dungeon menu. Clicking the prompt presses Triangle. Turning the setting off while the information or the list is
+open restores the original screen.
+
+Each kind of monster is listed with its count, then its drops and their chances. The counts come from the floor's
+list in its `monster_floors` document (`dungeon/cfg_file/mos_place<n>.cfg.json`, see
+[NATIVE_CONFIGS.md](NATIVE_CONFIGS.md)), read as `CreatMonsterFloorInfo` and `AutoSetMonster` read it: each entry is
+placed once, mimics become treasure boxes, and live monsters past `MONSTER_ACTIVE_MAX` are not placed. Monsters that
+events add are not listed. The first entry's kind carries the floor's gate key and shows the key's name in gold. Drop
+chances follow `_SET_DEAD_START`: with both of the first two slots set, 13% and 4%; with one, 17%; the third slot
+25%, or 100% while Borneo is with the player. A monster without reward money drops nothing. Names come from the
+loaded monster table and item messages in the current language.
+
+The list is drawn on the materials list's board, opaque and up to 12 rows tall. `tools/input/floor-monsters-channel.input`
+(`--jump dungeon:0 --fast-load`) shows the list for a floor without materials, and
+`tools/input/floor-monsters-deathtrap.input` (`--jump dungeon:4 --fast-load`) opens every floor with the menu debug
+mode and pages from Deathtrap's materials to its monsters; their comments give capture frames. Both need the setting
+on in the save root's `config.json`.
 
 ## Decision 1: long64 is kept
 
@@ -1394,6 +1422,7 @@ The 26 native unit headers are `charasetup`, `collision`, `dataread`, `dng_event
 
 MWCC accepts a `void Draw()` that hides the base's `int Draw()` and gives it a new vtable slot. clang rejects that, and no standard spelling keeps the PS2 vtables. The `int` declarations make the two draws overrides instead. This is an accepted difference. The port's definitions (`port/src/dng_event.cpp`, `port/src/dng_hud.cpp`) are real bodies that return 0; the `int` return type is the whole fixup.
 
+- `dngmenu.hpp`: `CMenuTreeMap` declares `PortRetailStep` and `PortRetailDraw`, the retail bridges that the floor monster list's `Step` and `Draw` seams call (see "How `port/src` takes precedence").
 - `nd_meswin.hpp`: `#ifndef MES_WINDOW_OUT_OF_LINE_INIT` becomes `#if 1`, so `ClsMes::Init` is inline in every unit. `dngmenu.cpp`'s out-of-line copy was a strong definition and collided with the COMDAT copies on COFF.
 - `collision.hpp`: `memset` takes `static_cast<void *>`, because `mgVu0FBOX` is not trivially copyable and `-Wnontrivial-memcall` rejects it.
 - `mapload.hpp`: `CFuncPoint` gets a memberwise copy assignment on its constructor's line. `InventData`'s `mgVu0FBOX` makes the union's implicit copy deleted under clang; MWCC generated it, and `CFuncPointMngr::GetLight` and `CMap::GetCharaLight` assign points with it. Retail's bodies then compile unchanged.

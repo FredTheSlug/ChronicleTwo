@@ -10,6 +10,7 @@
 #include "dngfloor.hpp"
 #include "dngmenu.hpp"
 #include "dngmenu_port.hpp"
+#include "floor_monsters.hpp"
 #include "gamepad.hpp"
 #include "menu_mouse_floor.hpp"
 #include "menuaqua.hpp"
@@ -54,6 +55,10 @@ bool ClickLabel(const ClsMes &message, int lines, const MenuMouseSample &mouse) 
 // The floor information, its questions and the materials list.
 void FloorScreenMouse() {
     const auto &mouse = MenuMouseTake();
+    // The floor monster list's Triangle prompt is a help label like retail's.
+    if (const ClsMes *hint = floor_monsters::DrawnHint(); hint != nullptr && ClickLabel(*hint, 1, mouse)) {
+        return;
+    }
     if (CMenuTreePt->key_arg_no == DNG_TREE_MAP_SCREEN_FLOOR && dngfloor_infoview &&
         DngAskMessageDrawFlag == DNG_TREE_MAP_ASK_JUMP && MenuDCMsg[3]) {
         // Only the floor information's own labels act on a left click, so a double click on a room cannot travel.

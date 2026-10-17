@@ -55,6 +55,16 @@ class UnitFixups(unittest.TestCase):
             header_fixups.fixup_unit_text("inventmn.cpp", source + source)
         self.assertEqual(header_fixups.fixup_unit_text("other.cpp", source), source)
 
+    def test_work_stacks_scale_with_sort_packets(self):
+        root = Path(__file__).resolve().parents[2] / "ps2/src"
+        for unit, stack in (("dng_main.cpp", "BuffWorkData"), ("editloop.cpp", "WorkBuffer")):
+            source = (root / unit).read_text()
+            result = header_fixups.fixup_unit_text(unit, source)
+            self.assertIn(f"{stack}.stSetBuffer(", result)
+            self.assertNotIn("stAlloc64(10000), 10000)", result)
+            self.assertEqual(result.count(header_fixups.WORK_STACK_QUADWORDS), 2 if unit == "dng_main.cpp" else 5)
+            self.assertEqual(result.count("\n"), source.count("\n"))
+
 
 if __name__ == "__main__":
     unittest.main()

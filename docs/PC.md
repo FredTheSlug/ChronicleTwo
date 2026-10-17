@@ -1262,6 +1262,7 @@ Each fixup's text must occur exactly once in its file, or the script stops befor
 - `dng_debug.cpp`: `CTreasureBox::Initialize()` becomes `inline`. `CTreasureBox`'s vtable becomes COMDAT with it.
 
 - `inventmn.cpp`: the native copy removes `inline` from `CMenuInvent::CMenuInvent()` so callers in other units have one emitted constructor. Retail source retains its original spelling.
+- `dng_main.cpp` and `editloop.cpp`: the frame work stacks `BuffWorkData` and `WorkBuffer` hold 10000 `mgSORT_PACKET`s rather than 10000 quadwords, since each sorted packet and its draw-table slot grow with pointer width. The town's total data buffer gives up the difference.
 
 Each unit fixup's text must also occur exactly once; missing, duplicate and already-transformed constructor text is rejected by `NativeUnitFixups`.
 

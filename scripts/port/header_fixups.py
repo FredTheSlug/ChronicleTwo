@@ -45,6 +45,10 @@ FIXUPS = [
     ("mapload.hpp", "    CFuncPoint() {}", '    CFuncPoint() {} CFuncPoint &operator=(CFuncPoint &other) { name = other.name; type = other.type; unk_8 = other.unk_8; flag_no = other.flag_no; enable = other.enable; start = other.start; end = other.end; __builtin_memcpy(static_cast<void *>(data), other.data, reinterpret_cast<char *>(&frame) - reinterpret_cast<char *>(data)); frame = other.frame; __builtin_memcpy(position, other.position, sizeof(position)); __builtin_memcpy(rotation, other.rotation, sizeof(rotation)); __builtin_memcpy(scale, other.scale, sizeof(scale)); active = other.active; return *this; }'),
 ]
 
+# Each packet a frame sorts takes one mgSORT_PACKET (one quadword on the PS2) from the scene's work stack, along with
+# its slot in the draw manager's pointer tables. Both grow with pointer width, so the work stacks scale with them.
+WORK_STACK_QUADWORDS = "10000 * (int) sizeof(mgSORT_PACKET) / 16"
+
 # The leading newline anchors each match to its line start: a copy already rewritten fails the exactly-once check
 # instead of gaining a second `inline`.
 # COFF has no inline-vs-strong resolution: map.cpp's out-of-line CMapParts::CMapParts is the single definition,
@@ -101,12 +105,14 @@ UNIT_FIXUPS = [
      "BuffReadData = MainBuffer->stAlloc64(260000);"),
     ("dng_main.cpp", "\n                stack.stSetBuffer(BuffReadData, 200000);",
      "\n                stack.stSetBuffer(BuffReadData, 260000);"),
+    ("dng_main.cpp", "BuffWorkData.stSetBuffer(MainBuffer->stAlloc64(10000), 10000);",
+     f"BuffWorkData.stSetBuffer(MainBuffer->stAlloc64({WORK_STACK_QUADWORDS}), {WORK_STACK_QUADWORDS});"),
     # The town menu's buffer, carved from the end of the main stack after the total data buffer, needs
-    # the same 60000 quadwords for the invention menu's model reads.
+    # the same 60000 quadwords for the invention menu's model reads. The work stack follows it.
     ("editloop.cpp", """    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - 210128);
     printf("data memory size = %d kbyte", (data_size - 210128) * 16 / 1024);""",
-     """    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - 270128);
-    printf("data memory size = %d kbyte", (data_size - 270128) * 16 / 1024);"""),
+     f"""    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - (260128 + {WORK_STACK_QUADWORDS}));
+    printf("data memory size = %d kbyte", (data_size - (260128 + {WORK_STACK_QUADWORDS})) * 16 / 1024);"""),
     # Geostone announcement updates and draws reserve eight nullable message slots.
     ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
     # Geostone conditions are copied bounded into their 128-byte text, and word-wrapped into 128 bytes
@@ -117,10 +123,12 @@ UNIT_FIXUPS = [
      "            char        *wrapped = (char *) stack->Alloc(8);"),
     ("editloop.cpp", """    main_stack->Alloc(data_size - 210128);
     MenuBuffer__2.stSetBuffer(read_buffer = main_stack->stAlloc64(200000), 200000);
-    read_buffer_end = read_buffer + 200000;""",
-     """    main_stack->Alloc(data_size - 270128);
+    read_buffer_end = read_buffer + 200000;
+    WorkBuffer.stSetBuffer(main_stack->stAlloc64(10000), 10000);""",
+     f"""    main_stack->Alloc(data_size - (260128 + {WORK_STACK_QUADWORDS}));
     MenuBuffer__2.stSetBuffer(read_buffer = main_stack->stAlloc64(260000), 260000);
-    read_buffer_end = read_buffer + 260000;"""),
+    read_buffer_end = read_buffer + 260000;
+    WorkBuffer.stSetBuffer(main_stack->stAlloc64({WORK_STACK_QUADWORDS}), {WORK_STACK_QUADWORDS});"""),
 ]
 
 # MWCC-only pragmas. ct_port builds with -Wall and no -Wno-unknown-pragmas, so they are blanked, not silenced.

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -17,6 +18,7 @@
 #include "dng_main.hpp"
 #include "editctrl_port.hpp"
 #include "editloop.hpp"
+#include "gfx/gfx.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "menu_character_assets.hpp"
@@ -70,6 +72,10 @@ int         banner_loop = -1;
 BannerPhase banner_phase = BannerPhase::In;
 int         banner_hold = 0;
 float       banner_x = 0.0f;
+// Changes with every banner shown, so a new banner never slides from the last one's place.
+std::uint64_t banner_generation = 0;
+// Interpolation key of the banner's strip and logo ("QCBANNER").
+constexpr gfx::InterpKey kBannerInterpKey = 0x514342414E4E4552;
 
 // Character-change effect timing in game frames, adapted from Dark Cloud's GAME_TASK_CHARA_CHANGED.
 constexpr int   kChangeFadeFrames = 24;
@@ -222,11 +228,7 @@ PORT_OVERRIDE int KeyMainCharaBG() {
             quick_change_pending = false;
             // A quick loadout loads the same character again with other equipment: the effect, but no name.
             if (!PortQuickLoadoutReloading()) {
-                banner_chara = quick_change_chara;
-                banner_loop = PortLoopNo;
-                banner_phase = BannerPhase::In;
-                banner_hold = 0;
-                banner_x = static_cast<float>(-kBannerWidth);
+                PortShowQuickChangeBanner(quick_change_chara);
             }
             PortQuickLoadoutReloadDone();
             change_fx_pending = true;
@@ -376,6 +378,15 @@ void DrawChangeSparks(const sceVu0FVECTOR base) {
 
 } // namespace
 
+void PortShowQuickChangeBanner(int chara) {
+    banner_chara = chara;
+    banner_loop = PortLoopNo;
+    banner_phase = BannerPhase::In;
+    banner_hold = 0;
+    banner_x = static_cast<float>(-kBannerWidth);
+    banner_generation++;
+}
+
 void PortCancelQuickChangeBanner() {
     banner_chara = -1;
     StopChangeEffect();
@@ -519,8 +530,8 @@ void PortDrawQuickChangeBanner() {
         return;
     }
 
-    const int   ticks = mgFrameRate > 0 ? mgFrameRate : 1;
-    const auto  rest_x = static_cast<float>((mgScreenWidth - kBannerWidth) / 2);
+    const int  ticks = mgFrameRate > 0 ? mgFrameRate : 1;
+    const auto rest_x = (static_cast<float>(mgScreenWidth) - static_cast<float>(kBannerWidth)) / 2;
 
     // An open menu hides the banner without pausing its slide.
     switch (banner_phase) {
@@ -567,7 +578,9 @@ void PortDrawQuickChangeBanner() {
     }
     strip = std::clamp(strip, 0.0f, 1.0f);
 
-    const auto top = static_cast<float>(mgScreenHeight - kBannerHeight - kBannerBottomMargin);
+    // Display frames slide the strip and logo between game frames, and blend the strip's fade.
+    gfx::Interp2DScope interpolation({.key = kBannerInterpKey, .generation = banner_generation});
+    const auto         top = static_cast<float>(mgScreenHeight - kBannerHeight - kBannerBottomMargin);
     DrawMenuFillBox(0.0f, top + kBannerStripPad, static_cast<float>(mgScreenWidth),
                     static_cast<float>(kBannerHeight - 2 * kBannerStripPad), static_cast<int>(kBannerStripAlpha * strip), 0, 0, 0);
 

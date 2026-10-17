@@ -76,6 +76,7 @@ set(CT_GPU_TESTS
     DamagePresentation.Score2InterpolatesAndReusedSlotsStayNewest
     DamagePresentation.SpriteHealClippingAndPause
     DamagePresentation.RealAtlasProjectedEndpoints
+    QuickChangeBannerPresentation.*
     MglibAspect.*
     MglibPresent.*
     MglibSeam.*

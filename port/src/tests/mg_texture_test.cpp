@@ -960,6 +960,48 @@ TEST(MgTexture, NativeSetsReuseIdenticallyNamedPicturesWithoutDecoding) {
     EXPECT_EQ(reinterpret_cast<const unsigned char *>(named->image[0])[0], 91);
 }
 
+TEST(MgTexture, NativeSetsKeepANamedPictureAnotherSetEnteredWithTheSamePixels) {
+    Harness                h;
+    texture_catalog::Entry entry;
+    entry.type = "texture";
+    entry.name = "s2001";
+    entry.width = entry.height = 2;
+    entry.bpp = 32;
+    entry.variants = {
+        {.selector = "base", .levels = {{.path = "#/images/0"}}}
+    };
+    const texture_catalog::Source map{.source = "map.gltf", .groups = {0}, .entries = {entry}};
+    const texture_catalog::Source event{.source = "event.gltf", .groups = {0}, .entries = {entry}};
+    unsigned char                 value = 40;
+    auto                          decode = [&](const texture_catalog::Entry &, std::size_t, datapacks::DecodedTexture &decoded, std::string &) {
+        decoded = {};
+        decoded.width = decoded.height = 2;
+        decoded.levels.emplace_back(16, value);
+        return true;
+    };
+    // Each set names its own copy of the PNG.
+    auto map_name = [](const texture_catalog::Entry &, std::size_t) { return std::string("map/s2001.png"); };
+    auto event_name = [](const texture_catalog::Entry &, std::size_t) { return std::string("event/s2001.png"); };
+    MgTextureEnterNativeSet(&h.manager, 0, map, &h.memory, decode, map_name);
+    auto *texture = h.manager.GetTexture(const_cast<char *>("s2001"), 0);
+    ASSERT_NE(texture, nullptr);
+    const auto *pixels = texture->image[0];
+
+    // The same pixels under another set's name, entered into any block, keep the registration and its pixels.
+    MgTextureEnterNativeSet(&h.manager, -1, event, &h.memory, decode, event_name);
+    EXPECT_EQ(h.manager.GetTexture(const_cast<char *>("s2001"), 0), texture);
+    EXPECT_EQ(texture->image[0], pixels);
+    EXPECT_EQ(h.manager.texture_num, 1);
+
+    // Different pixels under another name replace the picture.
+    value = 90;
+    auto pack_name = [](const texture_catalog::Entry &, std::size_t) { return std::string("pack/s2001.png"); };
+    MgTextureEnterNativeSet(&h.manager, 0, map, &h.memory, decode, pack_name);
+    auto *replaced = h.manager.GetTexture(const_cast<char *>("s2001"), 0);
+    ASSERT_NE(replaced, nullptr);
+    EXPECT_EQ(reinterpret_cast<const unsigned char *>(replaced->image[0])[0], 90);
+}
+
 TEST(MgTexture, KeysLiveInTex0) {
     Harness     h;
     Quads       first_px = Pack(Ct32Pixels(24, 10));

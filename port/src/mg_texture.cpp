@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <print>
+#include <ranges>
 #include <span>
 #include <string>
 #include <unordered_map>
@@ -598,6 +599,24 @@ bool SamePicture(const NativePicture &left, const NativePicture &right) {
 }
 
 /**
+ * Compares a named registration with a picture named by other files, by the pixels it was entered with.
+ *
+ * Two IMG documents can each carry their own copy of the same PNG, so different names do not mean different pixels.
+ * Only the first variant of a named picture is decoded up front, so the others must share their names.
+ */
+bool SameNamedPixels(const CatalogPixels &existing, const NativePicture &picture) {
+    const NativePicture &original = *existing.original;
+    if (picture.identities.empty() || picture.variants.empty() ||
+        original.identities.size() != picture.identities.size() ||
+        !SameDefinition(original.definition, picture.definition) ||
+        !std::ranges::equal(original.identities | std::views::drop(1), picture.identities | std::views::drop(1))) {
+        return false;
+    }
+    const auto &decoded = picture.variants.front();
+    return decoded.width == existing.width && decoded.height == existing.height && decoded.levels == existing.levels;
+}
+
+/**
  * Names every decoded variant of a picture, or returns nothing when any variant is unnamed.
  */
 std::vector<std::string> PictureIdentities(const texture_catalog::Entry &record, const MgTextureImageIdentity &identity) {
@@ -676,7 +695,7 @@ mgCTexture *EnterCatalog(mgCTextureManager *manager, int block, const texture_ca
     if (auto *existing = manager->SearchHash(full_name, block)) {
         const auto found = catalog_pixels.find(existing);
         if (found != catalog_pixels.end() && found->second.original) {
-            if (SamePicture(*found->second.original, *original)) {
+            if (SamePicture(*found->second.original, *original) || (named && SameNamedPixels(found->second, *original))) {
                 found->second.record = &record;
                 found->second.decoder = std::move(decoder);
                 return existing;

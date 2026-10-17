@@ -206,6 +206,16 @@ TEST_F(PlatformConfig, SkipIntroDefaultsToOffAndRoundTrips) {
     ASSERT_TRUE(parsed == config);
 }
 
+TEST_F(PlatformConfig, AutoUseEventItemDefaultsToOffAndRoundTrips) {
+    ASSERT_FALSE(Config{}.auto_use_event_item);
+    ASSERT_FALSE(ConfigParse(R"({"game": {"auto_use_event_item": 1}})").auto_use_event_item);
+    Config config;
+    config.auto_use_event_item = true;
+    const Config parsed = ConfigParse(ConfigSerialize(config));
+    ASSERT_TRUE(parsed.auto_use_event_item);
+    ASSERT_TRUE(parsed == config);
+}
+
 TEST_F(PlatformConfig, DebugModeRoundTripsThroughSerialize) {
     Config config;
     config.debug_mode = true;

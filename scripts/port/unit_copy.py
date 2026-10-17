@@ -50,6 +50,8 @@ RETAIL_BRIDGES = {
     "charasetup.cpp": [("GetRoboPartsInfo(CUserDataManager*)", "GetRoboPartsInfo", "PortRetailGetRoboPartsInfo")],
     "menusys.cpp": [
         ("CBaseMenuClass::MenuItemCommandSelect(int,int)", "MenuItemCommandSelect", "PortRetailMenuItemCommandSelect"),
+        ("MenuItemSelectInit(mgCMemory*,int*,int)", "MenuItemSelectInit", "PortRetailMenuItemSelectInit"),
+        ("MenuItemSelectDraw()", "MenuItemSelectDraw", "PortRetailMenuItemSelectDraw"),
     ],
     "title.cpp": [("TitleCopyRightStep()", "TitleCopyRightStep", "PortRetailTitleCopyRightStep")],
     "menuchr.cpp": [

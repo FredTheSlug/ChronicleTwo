@@ -27,7 +27,9 @@ struct Config : HostSettings {
     // game.quick_loadout_title "plate": the quick loadout's title on a plate like the EXP gauge's, not on a bar.
     bool quick_loadout_plate = false;
     // game.skip_intro: boots past the Sony Computer Entertainment text, the copyright notice and the Level-5 logo.
-    bool         skip_intro = false;
+    bool skip_intro = false;
+    // game.auto_use_event_item: an event that asks for one item the bag holds is handed it without the item picker.
+    bool         auto_use_event_item = false;
     ConfigAspect aspect = ConfigAspect::Auto;
     float        ui_scale = 1.0f;
     bool         font_sharp = false;

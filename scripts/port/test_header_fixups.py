@@ -71,6 +71,13 @@ class UnitFixups(unittest.TestCase):
             self.assertEqual(result.count(header_fixups.WORK_STACK_QUADWORDS), 2 if unit == "dng_main.cpp" else 5)
             self.assertEqual(result.count("\n"), source.count("\n"))
 
+    def test_map_files_read_into_a_measured_buffer(self):
+        source = (Path(__file__).resolve().parents[2] / "ps2/src/sceneload.cpp").read_text()
+        result = header_fixups.fixup_unit_text("sceneload.cpp", source)
+        self.assertNotIn("load_buf = info.load_buf;", result)
+        self.assertEqual(result.count("load_buf = PortMapLoadBuffer(info);"), 1)
+        self.assertEqual(result.count("\n"), source.count("\n"))
+
 
 if __name__ == "__main__":
     unittest.main()

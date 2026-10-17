@@ -2,13 +2,21 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <format>
+#include <memory>
 #include <print>
+#include <string>
+#include <string_view>
 
+#include "bounded_text.hpp"
 #include "character.hpp"
+#include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "editmap.hpp"
 #include "map.hpp"
@@ -19,6 +27,7 @@
 #include "platform/model_assets.hpp"
 #include "scene.hpp"
 #include "sceneload.hpp"
+#include "sceneload_port.hpp"
 #include "scenesnd.hpp"
 
 PORT_OVERRIDE int CScene::LoadChara(int index, u_int *model, char *profile, mgCMemory *model_memory,
@@ -213,4 +222,68 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
     }
 
     return -1;
+}
+
+namespace {
+
+// One 64-byte line, so map reads keep the alignment of retail's stAlloc64 load buffers.
+struct alignas(64) MapLoadLine {
+    std::array<u8, 64> bytes;
+};
+
+// The map read buffer, and the one it replaced, which a deferred map build may still be reading.
+std::unique_ptr<MapLoadLine[]> map_load_lines;
+std::unique_ptr<MapLoadLine[]> map_load_retired;
+std::size_t                    map_load_capacity = 0;
+
+// The bytes LoadMapData's cursor advances past a file: its size rounded up to 64, or nothing when it is missing.
+std::size_t MapFileBytes(std::string_view dir, std::string_view name, std::string_view extension) {
+    std::string path = std::format("{}{}{}", dir, name, extension);
+    int         size = 0;
+
+    if (LoadFile2(path.data(), nullptr, &size, LOAD_FILE_SIZE) == 0 || size <= 0) {
+        return 0;
+    }
+
+    return (static_cast<std::size_t>(size) + 63) / 64 * 64;
+}
+
+} // namespace
+
+std::size_t PortMapLoadBytes(const SCN_LOADMAP_INFO2 &info) {
+    std::size_t bytes = 0;
+
+    for (const SCN_LOADMAP_INFO2::MapFiles &files : info.files) {
+        if (files.enable == 0) {
+            break;
+        }
+
+        const auto dir = bounded_text::View(files.dir, sizeof(files.dir));
+        bytes += MapFileBytes(dir, bounded_text::View(files.map_name, sizeof(files.map_name)), ".map.json");
+        bytes += MapFileBytes(dir, bounded_text::View(files.cfg_name, sizeof(files.cfg_name)), ".cfg.json");
+        bytes += MapFileBytes(dir, bounded_text::View(files.mpk_name, sizeof(files.mpk_name)), ".mpk");
+
+        if (info.load_sky != 0) {
+            // A missing map sky falls back to the common one.
+            bytes += std::max(MapFileBytes(dir, bounded_text::View(files.sky_name, sizeof(files.sky_name)), ".sky"),
+                              MapFileBytes("map/", bounded_text::View(files.def_sky_name, sizeof(files.def_sky_name)), ".sky"));
+        }
+    }
+
+    // The reader zeroes the rest of the last file's final sector.
+    return bytes + DATAREAD_SECTOR_SIZE;
+}
+
+// Retail reads the files into the caller's fixed buffer (the dungeon's BuffReadData or the town's read buffer), which
+// a large map or a datapack's replacement overruns into the objects carved after it.
+u8 *PortMapLoadBuffer(const SCN_LOADMAP_INFO2 &info) {
+    const std::size_t lines = (PortMapLoadBytes(info) + sizeof(MapLoadLine) - 1) / sizeof(MapLoadLine);
+
+    if (lines > map_load_capacity) {
+        map_load_retired = std::move(map_load_lines);
+        map_load_lines = std::make_unique<MapLoadLine[]>(lines);
+        map_load_capacity = lines;
+    }
+
+    return map_load_lines[0].bytes.data();
 }

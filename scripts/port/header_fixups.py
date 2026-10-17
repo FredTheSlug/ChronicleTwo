@@ -132,6 +132,8 @@ UNIT_FIXUPS = [
     MenuBuffer__2.stSetBuffer(read_buffer = main_stack->stAlloc64(260000), 260000);
     read_buffer_end = read_buffer + 260000;
     WorkBuffer.stSetBuffer(main_stack->stAlloc64({WORK_STACK_QUADWORDS}), {WORK_STACK_QUADWORDS});"""),
+    # Map files are read into a buffer sized to them rather than the caller's fixed one.
+    ("sceneload.cpp", "    u8        *load_buf = info.load_buf;", "    u8        *load_buf = PortMapLoadBuffer(info);"),
 ]
 
 # MWCC-only pragmas. ct_port builds with -Wall and no -Wno-unknown-pragmas, so they are blanked, not silenced.

@@ -75,7 +75,7 @@ PORT_OVERRIDE void _set2DSprite(char *name, mgCDrawPrim *primitive, mgRect<int> 
     if (cursor && (color->r || color->g || color->b)) {
         MenuMouseNoteHand(mgPortBinding(primitive->texture.tex0_bits, primitive->texture.tex1_bits),
                           {.x = static_cast<float>(uv.left), .y = static_cast<float>(uv.top), .w = static_cast<float>(uv.right), .h = static_cast<float>(uv.bottom)},
-                          0, 0, color->a);
+                          0, color->a);
     }
     set2DSpriteEasy(primitive, destination, uv, color);
     primitive->End();

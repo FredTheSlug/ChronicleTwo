@@ -313,7 +313,7 @@ PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float ro
     }
     const auto hand_key = MenuMouseNoteHand(mgPortBinding(texture),
                                             {.x = static_cast<float>(menu_long_hand.left), .y = static_cast<float>(menu_long_hand.top), .w = static_cast<float>(menu_long_hand.right), .h = static_cast<float>(menu_long_hand.bottom)},
-                                            rotation, reverse, alpha, scale);
+                                            rotation, alpha, scale);
     // The canonical image retains the selection hand. A displayed mouse pointer
     // replaces this tagged group without changing screenshots or grab textures.
     gfx::Interp2DScope tag({.key = hand_key, .generation = static_cast<uint64_t>(mgPortFrameCount())});

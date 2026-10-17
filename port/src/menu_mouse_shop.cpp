@@ -29,18 +29,6 @@ MenuMouseRect Part(CMenuPosDataForm *form, const char *name) {
     return {.x = x, .y = y, .w = part->w, .h = part->h};
 }
 
-int BagHit(const MenuMouseSample &mouse, CMenuPosDataForm *board, int count) {
-    if (!board || !board->draw_flag) {
-        return -1;
-    }
-    float x;
-    float y;
-    board->GetPutPosXY(nullptr, x, y);
-    const auto hit = menumouse::GridHit({.x = mouse.x, .y = mouse.y}, {.x = MenuItemBrdUnderBrdPosXY[0], .y = MenuItemBrdUnderBrdPosXY[1]},
-                                        {.x = x + 16, .y = y + 20, .w = 240, .h = 250}, count);
-    return hit ? hit.cursor : -1;
-}
-
 void MenuMouseShopUpdate(CShopMenu &menu, CMenuKeyFunc &keys, int goods) {
     const auto &mouse = MenuMouseTake();
     const int   shared_buttons = MenuMouseButtons();
@@ -58,7 +46,7 @@ void MenuMouseShopUpdate(CShopMenu &menu, CMenuKeyFunc &keys, int goods) {
     if (menu.key_arg_no == SHOP_MENU_MODE_BUY_LIST || menu.key_arg_no == SHOP_MENU_MODE_BAG) {
         auto     *board = MenuPosData->GetFormInfo("itembrd");
         const int bag_count = GetNowBagMax(ITEM_BOARD_MAIN);
-        const int bag = BagHit(mouse, board, bag_count);
+        const int bag = menumouse::BagHit({.x = mouse.x, .y = mouse.y}, board, bag_count);
         int       row = -1;
         if (menu.item_brd && menu.item_brd->draw_flag && menu.item_list && menu.item_list->draw_flag) {
             float x;

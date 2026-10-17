@@ -41,6 +41,17 @@ int ScrollTop(int top, int count, int visible_rows, float wheel) {
     return std::clamp(top + (wheel > 0 ? -step : step), 0, std::max(0, (count + 5) / 6 - visible_rows));
 }
 
+int BagHit(Point p, CMenuPosDataForm *board, int count) {
+    if (!board || !board->draw_flag) {
+        return -1;
+    }
+    Point origin;
+    board->GetPutPosXY(nullptr, origin.x, origin.y);
+    const auto hit = GridHit(p, {.x = MenuItemBrdUnderBrdPosXY[0], .y = MenuItemBrdUnderBrdPosXY[1]},
+                             {.x = origin.x + 16, .y = origin.y + 20, .w = 240, .h = 250}, count);
+    return hit ? hit.cursor : -1;
+}
+
 void Gesture::Reset() { *this = {}; }
 
 Action Gesture::Update(const Take &take, Point p, Target hit, bool can_pick_up, bool holding) {

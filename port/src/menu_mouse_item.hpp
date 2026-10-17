@@ -14,7 +14,7 @@ struct Point {
 };
 
 struct Rect {
-    float x = 0, y = 0, w = 0, h = 0;
+    float              x = 0, y = 0, w = 0, h = 0;
     [[nodiscard]] bool Contains(Point p) const;
 };
 
@@ -29,6 +29,8 @@ struct Target {
 // clip is its visible aperture, so rows sliding out cannot be selected.
 Target GridHit(Point p, Point origin, Rect clip, int count);
 int    ScrollTop(int top, int count, int visible_rows, float wheel);
+// The bag cell under p on a drawn item board, or -1.
+int BagHit(Point p, CMenuPosDataForm *board, int count);
 
 struct Take {
     bool          pointing = false, moved = false;

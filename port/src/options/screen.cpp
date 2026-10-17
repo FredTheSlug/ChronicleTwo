@@ -242,7 +242,9 @@ bool Run() {
         if (g_screen.open) {
             return true;
         }
-        if (!g_drain && PortMenuOption && MenuMouseOption(*PortMenuOption, MenuPosData ? MenuPosData->GetFormInfo(const_cast<char *>("Op_Switch")) : nullptr)) {
+        if (!g_drain && PortMenuOption && MenuPosData &&
+            MenuMouseOption(*PortMenuOption, MenuPosData->GetFormInfo(const_cast<char *>("Op_Switch")),
+                            MenuPosData->GetFormInfo(const_cast<char *>("clip0")))) {
             MenuMousePress(confirm);
         }
     }

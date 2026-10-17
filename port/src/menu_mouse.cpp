@@ -31,7 +31,7 @@ struct Hand {
     gfx::TextureBinding texture;
     gfx::LogicalRect    uv{};
     float               rotation = 0, scale = 1;
-    int                 reverse = 0, alpha = 128, seen = -100;
+    int                 alpha = 128, seen = -100;
 } hand;
 
 struct Choices {
@@ -40,6 +40,16 @@ struct Choices {
     bool                       horizontal = false, confirm = false;
     std::vector<MenuMouseRect> rows;
 } choices;
+
+// Choice windows drawn in the last two ticks: the tick each first appeared, the order it was first
+// drawn in, and the tick it was last drawn.
+struct ShownChoices {
+    const void *owner;
+    int         message, first, order, last;
+};
+
+std::vector<ShownChoices> shown_choices;
+int                       shown_order = 0;
 
 struct ListClick {
     const void *owner = nullptr;
@@ -65,6 +75,14 @@ int MenuMouseHit(std::span<const MenuMouseRect> rows, float x, float y) {
     return -1;
 }
 
+MenuMouseRect MenuMouseClip(MenuMouseRect rect, MenuMouseRect clip) {
+    const float left = std::max(rect.x, clip.x);
+    const float top = std::max(rect.y, clip.y);
+    const float right = std::min(rect.x + rect.w, clip.x + clip.w);
+    const float bottom = std::min(rect.y + rect.h, clip.y + clip.h);
+    return right > left && bottom > top ? MenuMouseRect{.x = left, .y = top, .w = right - left, .h = bottom - top} : MenuMouseRect{};
+}
+
 int MenuMouseChoose(const MenuMouseSample &mouse, std::span<const MenuMouseRect> rows, int selected, int wheel_step) {
     if (!mouse.pointing || rows.empty()) {
         return selected;
@@ -77,6 +95,20 @@ int MenuMouseChoose(const MenuMouseSample &mouse, std::span<const MenuMouseRect>
         selected = std::clamp(selected + (-static_cast<int>(std::clamp(mouse.wheel, -32.0f, 32.0f)) * wheel_step), 0, static_cast<int>(rows.size()) - 1);
     }
     return selected;
+}
+
+MenuMouseView MenuMouseScroll(float wheel, MenuMouseView view, int count, int visible, int hovered) {
+    if (wheel == 0 || !std::isfinite(wheel) || count <= 0 || visible <= 0) {
+        return view;
+    }
+    const int notches = static_cast<int>(std::clamp(wheel, -32.0f, 32.0f));
+    view.top = std::clamp(view.top - notches, 0, std::max(0, count - visible));
+    if (hovered >= 0 && view.top + hovered < count) {
+        view.selected = view.top + hovered;
+    } else {
+        view.selected = std::clamp(view.selected, view.top, std::min(count, view.top + visible) - 1);
+    }
+    return view;
 }
 
 namespace {
@@ -149,11 +181,32 @@ void SetCapture(bool on) {
 void MenuMouseEnable(bool on) {
     navigation = on;
     choices = {};
+    shown_choices.clear();
     list_click = {};
     SetCapture(on);
 }
 
 void MenuMouseNoteChoices(const void *owner, int message, std::span<const MenuMouseRect> rows, int selected, bool horizontal) {
+    // A question can open over a list that still draws its cursor (Cedric's repair question over his
+    // commands). The newest window takes the mouse; alternating between them would drop every click.
+    const int now = mgPortFrameCount();
+    std::erase_if(shown_choices, [&](const ShownChoices &window) { return window.last < now - 1; });
+    auto window = std::ranges::find_if(shown_choices, [&](const ShownChoices &shown) {
+        return shown.owner == owner && shown.message == message;
+    });
+    if (window == shown_choices.end()) {
+        shown_choices.push_back({.owner = owner, .message = message, .first = now, .order = ++shown_order, .last = now});
+        window = shown_choices.end() - 1;
+    }
+    window->last = now;
+    // Windows that appear in one tick rank by first draw: the later one is on top. The ranking holds
+    // until a window closes, whatever order later redraws take.
+    const ShownChoices mine = *window;
+    if (std::ranges::any_of(shown_choices, [&](const ShownChoices &shown) {
+            return shown.first > mine.first || (shown.first == mine.first && shown.order > mine.order);
+        })) {
+        return;
+    }
     if (choices.owner != owner || choices.message != message || choices.drawn < mgPortFrameCount() - 1) {
         choices.target = selected;
         choices.confirm = false;
@@ -340,14 +393,14 @@ gfx::InterpKey MenuMouseNextHandKey() {
 gfx::InterpKey MenuMouseReplacedHandKey() { return MenuMousePointerVisible() ? hand.key : 0; }
 
 gfx::InterpKey MenuMouseNoteHand(const gfx::TextureBinding &texture, gfx::LogicalRect uv,
-                                 float rotation, int reverse, int alpha, float scale) {
+                                 float rotation, int alpha, float scale) {
     if (texture.texture == gfx::kNullTexture) {
         return 0;
     }
     const auto key = MenuMouseNextHandKey();
     ++hand_index;
     if (enabled) {
-        hand = {.key = key, .texture = texture, .uv = uv, .rotation = rotation, .scale = scale, .reverse = reverse, .alpha = alpha, .seen = mgPortFrameCount()};
+        hand = {.key = key, .texture = texture, .uv = uv, .rotation = rotation, .scale = scale, .alpha = alpha, .seen = mgPortFrameCount()};
     }
     return key;
 }
@@ -370,9 +423,9 @@ void MenuMouseDraw() {
     state.alpha_func = gfx::AlphaFunc::Greater;
     const float c = std::cos(hand.rotation);
     const float s = std::sin(hand.rotation);
-    const float sign = hand.reverse ? -1 : 1;
-    // The pointing fingertip is at the far edge, halfway down the hand's atlas cell.
-    const float   tip_x = sign * hand.uv.w * hand.scale;
+    // The pointing fingertip is at the far edge, halfway down the hand's atlas cell. The hand is
+    // never mirrored, so its body stays on the same side of the hotspot on every target.
+    const float   tip_x = hand.uv.w * hand.scale;
     const float   tip_y = hand.uv.h * hand.scale * 0.5f;
     const float   texture_scale = mgPortTextureScale(hand.texture.texture);
     gfx::Vertex2D vertices[4]{};
@@ -391,3 +444,9 @@ void MenuMouseDraw() {
 }
 
 void MenuMouseSetButtons(int mask) { buttons = mask; }
+
+void MenuMouseClaimButtons(int mask) {
+    buttons = mask;
+    choices.target = choices.selected;
+    choices.confirm = false;
+}

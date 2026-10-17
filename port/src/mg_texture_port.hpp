@@ -67,7 +67,7 @@ int MgTextureEnterDocument(mgCTextureManager *manager, std::string_view relative
 /**
  * Enters an embedded texture set whose source entries the caller keeps alive until the textures are deleted.
  * An identical registered picture is reused (without decoding when identity names every variant); changed
- * content replaces it in place.
+ * content replaces it in place. A picture named for every variant decodes its other variants when selected.
  */
 int MgTextureEnterNativeSet(mgCTextureManager *manager, int block, const texture_catalog::Source &source,
                             mgCMemory *stack, const MgTextureImageDecoder &decoder, const MgTextureImageIdentity &identity = {});

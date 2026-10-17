@@ -641,8 +641,8 @@ and game captures. The menu hand shares cursor ownership with the operating-syst
 `input.mouse_capture` configures capture, and `input.mouse_release` selects the
 keys that release it.
 
-Mouse selection covers the town and dungeon root menus, title menu, dungeon
-floor map and Save Adventure action, the flat save/load file lists,
+Mouse selection covers the town and dungeon root menus, title menu, world map,
+dungeon floor maps and their help actions, the flat save/load file lists,
 and the field Use Item popup. Yes/No boxes and dialogue choices use the message
 system's drawn choice positions and feed its normal directional input before
 confirming. The pointer follows the renderer's UI mapping, including widescreen
@@ -650,8 +650,22 @@ anchoring and display scaling.
 
 The root and file lists pass their selection through the retail cursor helper,
 so scrolling, help text and background loading follow the same path as a D-pad
-move. The floor map similarly uses its normal next-room transition. The shared
-pointer implementation is `port/src/menu_mouse.cpp`; menu adapters, cursor
+move. The floor map similarly uses its normal next-room transition.
+
+On the world map, hovering an unlocked area's mark selects it; clicking the mark
+or the area's name frame opens its place list. On a dungeon floor map, opened from
+the world map or a dungeon, hovering a room selects it and clicking opens its
+information or question. Each wheel notch moves to the next room the arrow keys
+reach along the path (down onward, up back), preferring Right, Down, Up, then
+Left, so at a fork it keeps to the Right key's branch. Room hit boxes follow the
+drawn pictures and their cull edge. Clicking a help label presses the button its
+symbol shows: Back to Map or Exit Dungeon, Save Progress, and the floor
+information's Move and Cancel; on the floor information only those labels act on
+a left click. On these maps and the screens they open (the place list, the travel
+and floor questions, and Save Progress's save screen), Mouse1 confirms and Mouse2
+cancels in the language's own layout, so Japanese confirms with Circle.
+
+The shared pointer implementation is `port/src/menu_mouse.cpp`; menu adapters, cursor
 transitions, floor selection and message choices live in separate
 `menu_mouse_*.cpp` files.
 
@@ -663,7 +677,13 @@ Deterministic mouse replays are `tools/input/town-mouse-menu.input` and
 controller handoff, scrolling and confirmation timing.
 
 `town-mouse-menu-wide.input` checks opening and cancelling at 16:9.
-`dungeon-mouse-play.input` enters a floor with the mouse and opens its root menu.
+`world-map-mouse.input`, with `--jump town:10 --fast-load --window 1920x1080`,
+hovers and clicks world map areas, walks Rainbow Butterfly Wood's floor map with
+the wheel, clicks Back to Map, Cancel and Move to this floor, and enters floor 1;
+its comments give capture frames. `MenuMouseMap.*` and `MenuMouseMapInput.*`
+cover the area marks, room pictures and culling, wheel steps through a fork, help
+labels and these clicks in English and Japanese.
+`dungeon-mouse-play.input` enters a floor through its Move label and opens its root menu.
 `dungeon-mouse-item-popup.input` follows the normal dungeon replay to the locked
 gate and selects the Gate Key with the mouse. `title-mouse-load.input` exercises
 Continue, a file-row click and its confirmation using a copied flat-save fixture.

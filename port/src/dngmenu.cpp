@@ -5,8 +5,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <numbers>
+#include <optional>
 #include <vector>
 
+#include "dngmenu_port.hpp"
 #include "mainloop.hpp"
 #include "memcard.hpp"
 #include "menudraw.hpp"
@@ -390,27 +392,49 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoot(mgRect<float> rect, DNGMAP_ROOT_INFO *r
     prim->End();
 }
 
-PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO *room, unsigned int /*unused*/,
-                                            int opacity, float brightness) {
-    const auto extent = mgPortVisibleUiExtent(mgPortCurrentTarget());
-
-    if (room == nullptr || rect.left > extent.right + 20.0f || rect.top > extent.bottom + 30.0f) {
-        return;
+std::optional<mgRect<float> > PortDngRoomPicture(int dng_no, const DNGMAP_ROOM_INFO &room, float x, float y, float right,
+                                                 float bottom) {
+    if (x > right + 20.0f || y > bottom + 30.0f) {
+        return std::nullopt;
     }
 
-    rect.left -= 30.0f;
-    rect.top += -42.0f;
-    mgRect<float> picture = rect;
-    mgCDrawPrim  *prim = GetMenuPrim();
-    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
-    picture.right = 96.0f;
-    picture.bottom = 66.0f;
+    mgRect<float> picture(x - 30.0f, y - 42.0f, 96.0f, 66.0f);
 
     if (dng_no == 4 || dng_no == 5 || dng_no == 6) {
         picture.right = 100.0f;
         picture.bottom = 68.0f;
     }
 
+    if (room.visited) {
+        // Sub and boss rooms draw their larger special picture.
+        if ((room.flag & DNGMAP_ROOM_FLAG_SUB) || (room.flag & DNGMAP_ROOM_FLAG_BOSS)) {
+            picture.right = 96.0f;
+            picture.bottom = 96.0f;
+        }
+
+        picture.left += static_cast<float>(room.offset_x);
+        picture.top += static_cast<float>(room.offset_y);
+    }
+
+    return picture;
+}
+
+PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO *room, unsigned int /*unused*/,
+                                            int opacity, float brightness) {
+    if (room == nullptr) {
+        return;
+    }
+
+    const auto extent = mgPortVisibleUiExtent(mgPortCurrentTarget());
+    const auto placed = PortDngRoomPicture(dng_no, *room, rect.left, rect.top, extent.right, extent.bottom);
+
+    if (!placed) {
+        return;
+    }
+
+    const mgRect<float> picture = *placed;
+    mgCDrawPrim        *prim = GetMenuPrim();
+    SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     mgRect<int> tex;
     mgRect<int> special;
     tex.Set(0, 66, 96, 66);
@@ -445,13 +469,7 @@ PORT_OVERRIDE void CDngFreeMap::DrawRoomOne(mgRect<float> rect, DNGMAP_ROOM_INFO
             if (room->tex_no >= 3) {
                 tex.bottom = 90;
             }
-
-            picture.right = static_cast<float>(special.right);
-            picture.bottom = static_cast<float>(special.bottom);
         }
-
-        picture.left += static_cast<float>(room->offset_x);
-        picture.top += static_cast<float>(room->offset_y);
     }
 
     int   level = static_cast<int>(128.0f * brightness);

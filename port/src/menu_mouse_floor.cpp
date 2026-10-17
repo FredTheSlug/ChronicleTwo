@@ -1,67 +1,147 @@
 #include "common.h"
 
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdlib>
+#include <span>
 #include <vector>
 
 #include "dngfloor.hpp"
 #include "dngmenu.hpp"
+#include "dngmenu_port.hpp"
 #include "gamepad.hpp"
-#include "menu_mouse.hpp"
+#include "menu_mouse_floor.hpp"
 #include "menuaqua.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menusys.hpp"
 #include "mglib_port.hpp"
+#include "nd_meswin.hpp"
 #include "stubs/dngmenu.hpp"
 
 namespace {
 CDngFloorManager *pending_manager = nullptr;
 GLID_INFO        *pending_room = nullptr;
 int               pending_frame = -1;
+
+// Longest path a wheel turn walks, past any retail floor count.
+constexpr int kMaxWheelSteps = 32;
+
+GLID_INFO *FloorRoom(std::span<GLID_INFO> cells, int floor_id) {
+    const auto found = std::ranges::find_if(
+        cells, [floor_id](const GLID_INFO &cell) { return cell.type == GLID_TYPE_ROOM && cell.room.floor_id == floor_id; });
+    return floor_id >= 0 && found != cells.end() ? &*found : nullptr;
+}
+
+// A left click on a drawn help label presses the button its symbol shows.
+bool ClickLabel(const ClsMes &message, int lines, const MenuMouseSample &mouse) {
+    if (!mouse.pointing || !(mouse.clicked & 1)) {
+        return false;
+    }
+    for (int line = 0; line < lines; ++line) {
+        const int button = MenuMouseLabelButton(message, line);
+        if (button != 0 && MenuMouseLabelRect(message, line).Contains(mouse.x, mouse.y)) {
+            MenuMouseRows({}, 0);
+            MenuMouseLanguageClicks();
+            MenuMousePress(button);
+            return true;
+        }
+    }
+    return false;
+}
+
+// The floor information, its questions and the materials list.
+void FloorScreenMouse() {
+    const auto &mouse = MenuMouseTake();
+    if (CMenuTreePt->key_arg_no == DNG_TREE_MAP_SCREEN_FLOOR && dngfloor_infoview &&
+        DngAskMessageDrawFlag == DNG_TREE_MAP_ASK_JUMP && MenuDCMsg[3]) {
+        // Only the floor information's own labels act on a left click, so a double click on a room cannot travel.
+        if (ClickLabel(*MenuDCMsg[3], 3, mouse)) {
+            return;
+        }
+        MenuMouseRows({}, 0);
+    }
+    // The start, side, boss and exit questions, the information-only view and the materials list take the shared
+    // clicks in the language's layout.
+    MenuMouseLanguageClicks();
+}
 } // namespace
+
+GLID_INFO *MenuMouseFloorStep(std::span<GLID_INFO> cells, GLID_INFO *from, int notches) {
+    // At a fork the wheel keeps to the branch the Right key continues along, as the map draws it.
+    constexpr std::array onward = {GLID_DIR_RIGHT, GLID_DIR_DOWN, GLID_DIR_UP, GLID_DIR_LEFT};
+    constexpr std::array back = {GLID_DIR_LEFT, GLID_DIR_UP, GLID_DIR_DOWN, GLID_DIR_RIGHT};
+    const int            steps = std::min(std::abs(notches), kMaxWheelSteps);
+    for (int n = 0; from != nullptr && from->type == GLID_TYPE_ROOM && n < steps; ++n) {
+        GLID_INFO *next = nullptr;
+        for (const auto dir : notches > 0 ? onward : back) {
+            GLID_INFO *room = FloorRoom(cells, from->room.key_room[dir]);
+            if (room != nullptr && room->room.selectable == 1 &&
+                (notches > 0 ? room->room.order > from->room.order : room->room.order < from->room.order)) {
+                next = room;
+                break;
+            }
+        }
+        if (next == nullptr) {
+            break;
+        }
+        from = next;
+    }
+    return from;
+}
 
 bool MenuMouseFloor() {
     if (DngTreeMode == DNG_TREE_MODE_SAVE) {
         return false;
     }
-    if (!CMenuTreePt || !MenuDngMap || !MenuDngMap->floor_manager ||
-        CMenuTreePt->mode != MENU_ASK_MODE_NONE || CMenuTreePt->key_arg_no != DNG_TREE_MAP_SCREEN_MAP) {
+    if (!CMenuTreePt || !MenuDngMap || !MenuDngMap->floor_manager || CMenuTreePt->mode != MENU_ASK_MODE_NONE) {
         return true;
     }
+    if (CMenuTreePt->key_arg_no != DNG_TREE_MAP_SCREEN_MAP) {
+        FloorScreenMouse();
+        return true;
+    }
+    auto                      *manager = MenuDngMap->floor_manager;
+    const std::span<GLID_INFO> cells{manager->glid_info, static_cast<std::size_t>(std::max(0, manager->glid_num))};
+    const auto                 extent = mgPortVisibleUiExtent(gfx::kMainTarget);
     std::vector<MenuMouseRect> rows;
     std::vector<GLID_INFO *>   rooms;
-    auto                      *manager = MenuDngMap->floor_manager;
     int                        selected = 0;
-    for (int i = 0; i < manager->glid_num; ++i) {
-        auto *room = &manager->glid_info[i];
-        if (room->type != GLID_TYPE_ROOM || room->room.selectable != 1) {
+    for (auto &cell : cells) {
+        if (cell.type != GLID_TYPE_ROOM || cell.room.selectable != 1) {
             continue;
         }
         float x = 0;
         float y = 0;
-        MenuDngMap->CalcGlidPutPos(room, x, y, 0);
-        if (room == CMenuTreePt->select_glid) {
-            selected = static_cast<int>(rooms.size());
+        MenuDngMap->CalcGlidPutPos(&cell, x, y, 0);
+        if (&cell == CMenuTreePt->select_glid) {
+            selected = static_cast<int>(rows.size());
         }
-        rooms.push_back(room);
-        rows.push_back({.x = x - 30 + room->room.offset_x, .y = y - 42 + room->room.offset_y, .w = 96, .h = 66});
+        // A room DrawRoomOne culls takes no clicks.
+        const auto picture = PortDngRoomPicture(MenuDngMap->dng_no, cell.room, x, y, extent.right, extent.bottom);
+        rooms.push_back(&cell);
+        rows.push_back(picture ? MenuMouseRect{.x = picture->left, .y = picture->top, .w = picture->right, .h = picture->bottom}
+                               : MenuMouseRect{});
     }
+    // The help line's labels are Back to Map or Exit Dungeon (Square) and Save Progress (Triangle).
     const auto &mouse = MenuMouseTake();
-    // The save command is the retail Triangle action at the bottom of the map.
-    if (TreeMapSaveFlag && MenuDCMsg[6]) {
-        const auto   &help = *MenuDCMsg[6];
-        MenuMouseRect save{.x = static_cast<float>(help.line_pos[1][0]), .y = static_cast<float>(help.line_pos[1][1] - 8), .w = static_cast<float>(help.line_w[1]), .h = 32};
-        if (mouse.pointing && save.Contains(mouse.x, mouse.y) && (mouse.clicked & 1)) {
-            MenuMouseRows({}, selected);
-            MenuMousePress(PAD_TRIANGLE);
-            return true;
-        }
+    if (CMenuTreePt->help_view && !menu_debug_flag && MenuDCMsg[6] && ClickLabel(*MenuDCMsg[6], 2, mouse)) {
+        return true;
     }
-    const int hit = MenuMouseRows(rows, selected);
+    const int hit = MenuMouseRows(rows, selected, 0);
+    MenuMouseLanguageClicks();
+    GLID_INFO *target = nullptr;
     if (!rooms.empty() && hit != selected) {
-        // Feed the hovered room into the retail directional transition, which
+        target = rooms[hit];
+    } else if (mouse.pointing && mouse.wheel != 0 && std::isfinite(mouse.wheel)) {
+        target = MenuMouseFloorStep(cells, CMenuTreePt->select_glid, -static_cast<int>(mouse.wheel));
+    }
+    if (target != nullptr && target != CMenuTreePt->select_glid) {
+        // Feed the selected room into the retail directional transition, which
         // refreshes its help, camera position, light and previous-room state.
         pending_manager = manager;
-        pending_room = rooms[hit];
+        pending_room = target;
         pending_frame = mgPortFrameCount();
         MenuMousePress(PAD_DOWN);
     }

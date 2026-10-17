@@ -19,7 +19,7 @@
 
 namespace {
 bool            enabled = false, closing = false;
-int             frame = -1, buttons = 0, rows_frame = -1;
+int             frame = -1, buttons = 0, rows_frame = -1, language_frame = -1;
 std::uint32_t   held = 0;
 MenuMouseSample sample;
 bool            navigation = false;
@@ -185,7 +185,7 @@ void SetCapture(bool on) {
     sample = {};
     sample.x = mgScreenWidth * 0.5f;
     sample.y = mgScreenHeight * 0.5f;
-    frame = rows_frame = -1;
+    frame = rows_frame = language_frame = -1;
     buttons = 0;
 }
 
@@ -348,6 +348,21 @@ int MenuMouseRows(std::span<const MenuMouseRect> rows, int selected, int wheel_s
         }
     }
     return MenuMouseChoose(mouse, rows, selected, wheel_step);
+}
+
+int MenuMouseLanguageButtons(int mask, int language) {
+    // Only a lone Cross or Circle swaps; both together stay as they are.
+    const bool lone = ((mask & PAD_CROSS) != 0) != ((mask & PAD_CIRCLE) != 0);
+    return language == LANG_JAPANESE && lone ? mask ^ (PAD_CROSS | PAD_CIRCLE) : mask;
+}
+
+void MenuMouseLanguageClicks() {
+    MenuMouseTake();
+    // Adapters can run more than once a tick; swap this tick's clicks once.
+    if (language_frame != frame) {
+        language_frame = frame;
+        buttons = MenuMouseLanguageButtons(buttons, LanguageCode);
+    }
 }
 
 void MenuMouseDelayConfirm(const void *owner, int selected, int target, int ticks) {

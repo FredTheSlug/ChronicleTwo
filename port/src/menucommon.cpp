@@ -43,6 +43,31 @@
 #include "stubs/menucommon.hpp"
 #include "sysmes.hpp"
 
+PORT_OVERRIDE int LoadFileMenu(char *name, u_long128 *buffer, int mode) {
+    if (!name || !buffer) {
+        return -1;
+    }
+    constexpr std::array<std::string_view, 7> language_directories{"0/", "1/", "2/", "3/", "4/", "5/", "1/"};
+    if (LanguageCode < 0 || static_cast<std::size_t>(LanguageCode) >= language_directories.size()) {
+        return -1;
+    }
+    std::string_view member(name);
+    const bool       texture = member.starts_with("textures/");
+    if (texture) {
+        member.remove_prefix(std::string_view("textures/").size());
+    }
+    std::string path = texture ? "textures/menu/" : "menu/";
+    path += language_directories[static_cast<std::size_t>(LanguageCode)];
+    path += member;
+    int size = 0;
+    if (mode == MENU_FILE_LOAD_BG) {
+        LoadFileBG(path.data(), buffer, &size);
+    } else if (mode == MENU_FILE_LOAD_DIRECT) {
+        LoadFile2(path.data(), buffer, &size, LOAD_FILE_READ);
+    }
+    return size;
+}
+
 PORT_OVERRIDE int MenuCommonReadData(mgCMemory *memory, char **names, int mode) {
     StartReadBG();
     memory->Align64();

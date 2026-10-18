@@ -20,7 +20,11 @@ Entry names:
 - are relative, with no empty, `.` or `..` component, and no `\`, `:`, NUL or control character;
 - are unique ignoring ASCII case. Original case is preserved.
 
-Directories have no entries of their own.
+Directories have no entries of their own. All PNGs and standalone texture JSON
+are under `textures/`, preserving ordinary source directories and removing
+extension-bearing container directory components. Character PNGs use the nearest
+`.chr` basename with sequential suffixes. Models and their `.game.json` sidecars
+keep their model locations and refer to the relocated images.
 
 ## Container
 
@@ -73,7 +77,7 @@ for each entry, in name order:
 | Key | Meaning |
 | --- | --- |
 | `schema_version` | 1 |
-| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 17 includes gameplay JSON in the archive |
+| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 18 places all textures under `textures/` and records relocated PACK members |
 | `layout` | `"zip"` |
 | `archive_size` | Size of `data.zip` in bytes |
 | `archive_entries` | Number of entries |
@@ -120,7 +124,9 @@ also applies the rules that need only one entry:
 - no `.img` path component, `.chr` file, binary PACK container or obsolete root index
   (`manifest.json`, `catalog.json`, `audio_catalog.json`, `model_catalog.json`,
   `cfg_catalog.json`);
-- `pack.json` markers are exactly `{"schema_version":1,"kind":"asset_directory"}`;
+- `pack.json` markers have `schema_version: 1`, `kind: "asset_directory"`, and an
+  optional `texture_members` array of `{"name":"one.json","path":"textures/map/one.json"}`
+  records linking logical members to physical texture documents;
 - no proprietary scene audio table (`snd2/rev.bin`, `snd2/map_index.txt`);
 - files other than PNG, MP4, WAV, glTF and JSON contain no TIM2 or IMG texture payload.
 

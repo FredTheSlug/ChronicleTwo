@@ -341,7 +341,10 @@ PORT_OVERRIDE int CEffectScriptMan::BuildPack(int base_no, u_int *pack, mgCMemor
     } else if (const auto parent = AssetDirectoryPath(pack)) {
         directory = *parent;
         if (definition->type == EFF_SPT_BASE_IMG) {
-            resource.texture = (directory / (std::string(definition->file) + ".json")).generic_string();
+            const auto name = std::string(definition->file) + ".json";
+            if (const auto *texture = AssetDirectoryRead(pack, name.c_str(), nullptr)) {
+                resource.texture = DataReadBufferPath(texture).value_or(std::string{});
+            }
         }
     } else {
         return -1;
@@ -373,7 +376,7 @@ PORT_OVERRIDE int CEffectScriptMan::LoadBaseEffSpt(int base_no, mgCMemory *memor
             resource.model = model;
         }
     } else if (definition->type == EFF_SPT_BASE_IMG) {
-        resource.texture = "dungeon/eff_script/" + std::string(definition->file) + ".json";
+        resource.texture = "textures/dungeon/eff_script/" + std::string(definition->file) + ".json";
     }
     const auto script = EffectScript("dungeon/eff_script/" + std::string(definition->script) + ".stb");
     return BuildNativeEffect(*this, base_no, resource, script, memory, texture_block);
@@ -405,7 +408,8 @@ PORT_OVERRIDE int CEffectScriptMan::GetNeedFilePath(int base_no, char *resource,
     if (!definition || !resource || !script) {
         return 0;
     }
-    std::sprintf(resource, "dungeon/eff_script/%s.%s", definition->file, definition->type == EFF_SPT_BASE_CHR ? "gltf" : "json");
+    std::sprintf(resource, "%sdungeon/eff_script/%s.%s", definition->type == EFF_SPT_BASE_CHR ? "" : "textures/", definition->file,
+                 definition->type == EFF_SPT_BASE_CHR ? "gltf" : "json");
     std::sprintf(script, "dungeon/eff_script/%s.stb", definition->script);
     return 1;
 }

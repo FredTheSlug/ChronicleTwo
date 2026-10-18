@@ -74,7 +74,43 @@ class NativeAssetPathsTests(unittest.TestCase):
 
     def test_config_and_texture_paths_remain_distinct(self):
         self.assertEqual(native_asset_paths.rewrite('"menu/item.cfg" "menu/item.img"'),
-                         '"menu/item.cfg.json" "menu/item.json"')
+                         '"menu/item.cfg.json" "textures/menu/item.json"')
+
+    def test_texture_namespace_flattens_containers_and_preserves_ordinary_directories(self):
+        self.assertEqual(native_asset_paths.rewrite('"img/system.img" "map/room.pac/panel.tm2" "menu/common.pak/sub/icon.img"'),
+                         '"textures/img/system.json" "textures/map/panel.json" "textures/menu/sub/icon.json"')
+
+    def test_texture_members_keep_logical_names_and_suffixes_do_not_gain_roots(self):
+        self.assertEqual(native_asset_paths.rewrite('GetPackFile(pack, "poster.img", 0); AssetDirectoryRead(pack, "sub/poster.tm2", 0); strcat(path, ".img"); "font.img"'),
+                         'AssetDirectoryRead(pack, "poster.json", 0); AssetDirectoryRead(pack, "sub/poster.json", 0); strcat(path, ".json"); "textures/font.json"')
+
+    def test_texture_dynamic_formats_and_ordinary_relative_names(self):
+        self.assertEqual(native_asset_paths.rewrite('"img/esystem%d.img" "map/%s.pac/panel.img"'),
+                         '"textures/img/esystem%d.json" "textures/map/panel.json"')
+
+    def test_character_texture_documents_use_nearest_owner(self):
+        self.assertEqual(native_asset_paths.rewrite('"chara/hero.chr/body.img" "event/hero.chr_/face.tm2"'),
+                         '"textures/chara/hero-body.json" "textures/event/hero_-face.json"')
+
+    def test_stored_pack_texture_names_are_logical(self):
+        self.assertEqual(native_asset_paths.rewrite('char *imglist[]={"allitem.img","spectre.img","img.img"};', "menushop.cpp"),
+                         'char *imglist[]={"allitem.json","spectre.json","img.json"};')
+        self.assertEqual(native_asset_paths.rewrite('char *imgtbl[]={"img.img","allitem.img","edmenu.img"};', "menusys.cpp"),
+                         'char *imgtbl[]={"img.json","allitem.json","edmenu.json"};')
+        self.assertEqual(native_asset_paths.rewrite('sprintf(map_name,"dmap%d.img",number); sprintf(filename,"dmap%d.img",number);', "dngmenu.cpp"),
+                         'sprintf(map_name,"dmap%d.json",number); sprintf(filename,"textures/dmap%d.json",number);')
+
+    def test_loading_path_prefix_belongs_to_directory_producer(self):
+        self.assertEqual(native_asset_paths.rewrite('sprintf(name,"img/%d/",language); strcpy(path,name); strcat(path,"loading.img");', "nowload.cpp"),
+                         'sprintf(name,"textures/img/%d/",language); strcpy(path,name); strcat(path,"loading.json");')
+
+    def test_font_filenames_remain_local_and_texture_names_remain_unprefixed(self):
+        self.assertEqual(native_asset_paths.rewrite('sprintf(file_name,"FontTex_%d.tm2",page); sprintf(path,"meswin/%s",file_name); EnterTexture(block,file_name,data);', "mainloop.cpp"),
+                         'sprintf(file_name,"FontTex_%d.json",page); sprintf(path,"textures/meswin/%s",file_name); EnterTexture(block,file_name,data);')
+
+    def test_race_texture_path_is_rooted_and_buffer_fits(self):
+        self.assertEqual(native_asset_paths.rewrite('char image_path[0x20]; ChangeDir("/sg/gyo/"); sprintf(image_path,"grttex_new6_%d.img",LanguageCode);', "gyorace.cpp"),
+                         'char image_path[0x40]; ChangeDir("/sg/gyo/"); sprintf(image_path,"/textures/sg/gyo/grttex_new6_%d.json",LanguageCode);')
 
     def test_icon_models_and_skin_resources_use_gltf(self):
         self.assertEqual(native_asset_paths.rewrite('"dc2_ic.ico" "hero.wgt" "hero.bbp"'),

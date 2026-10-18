@@ -625,8 +625,10 @@ bool EnterRepairTexture(const void *data, int block) {
         if (!loaded) {
             CT_LOG_ERROR(Data, "repair texture: {}", error);
         }
-    } else if (const auto directory = AssetDirectoryPath(data)) {
-        MgTextureEnterDocument(&mgTexManager, *directory + "/repair_powder2d.json", block, nullptr, nullptr);
+    } else if (const auto *texture = AssetDirectoryRead(data, "repair_powder2d.json", nullptr)) {
+        if (const auto texture_path = DataReadBufferPath(texture)) {
+            MgTextureEnterDocument(&mgTexManager, *texture_path, block, nullptr, nullptr);
+        }
         char texture_name[] = "menueff0";
         loaded = mgTexManager.GetTexture(texture_name, block) != nullptr;
     }

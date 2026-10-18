@@ -98,7 +98,7 @@ protected:
         Vm("dungeon/articles/eff01.assets/n_heal.stb");
         Vm("dungeon/articles/eff01.assets/n_heal_sub.stb");
         Vm("dungeon/articles/eff01.assets/bakudan.stb");
-        Write(root / "data/dungeon/eff_script/n_heal.json", game["resources"]["texture_sets"][0]["document"]);
+        Write(root / "data/textures/dungeon/eff_script/n_heal.json", game["resources"]["texture_sets"][0]["document"]);
         Vm("dungeon/eff_script/n_heal.stb");
         std::filesystem::create_directories(root / "data");
         DataReadIndex(root / "data");

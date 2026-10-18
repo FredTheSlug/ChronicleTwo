@@ -17,6 +17,7 @@
 #include "event_background.hpp"
 #include "event_func.hpp"
 #include "mainloop.hpp"
+#include "menucommon.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/paths.hpp"
 #include "runscript.hpp"
@@ -50,13 +51,15 @@ protected:
         };
         for (const auto *directory : {"event/ui", "event/assets"}) {
             for (int number : {1, 2}) {
-                Write(std::string(directory) + "/poster_" + std::to_string(number) + ".json", texture);
+                Write("textures/" + std::string(directory) + "/poster_" + std::to_string(number) + ".json", texture);
                 Write(std::string(directory) + "/config_" + std::to_string(number) + ".json", config);
             }
         }
         Write("event/assets/pack.json", {
-                                            {"schema_version", 1                },
-                                            {"kind",           "asset_directory"}
+                                            {"schema_version",  1                                                                                                                                                                   },
+                                            {"kind",            "asset_directory"                                                                                                                                                   },
+                                            {"texture_members", nlohmann::json::array({{{"name", "poster_1.json"}, {"path", "textures/event/assets/poster_1.json"}},
+                                                                                       {{"name", "poster_2.json"}, {"path", "textures/event/assets/poster_2.json"}}})}
         });
         DataReadIndex(root / "data");
         SetCurrentDir(nullptr);
@@ -95,14 +98,14 @@ protected:
 } // namespace
 
 TEST_F(EventAssetPaths, LocalizesTextureJsonThroughCurrentDirectoryWithoutLocalizingConfig) {
-    char directory[] = "event/ui/";
+    char directory[] = "textures/event/ui/";
     SetCurrentDir(directory);
     char texture[64] = "poster_1.json";
-    char config[64] = "config_1.json";
+    char config[64] = "event/ui/config_1.json";
     FileNameConvLanguage(texture);
     FileNameConvLanguage(config);
     EXPECT_STREQ(texture, "poster_2.json");
-    EXPECT_STREQ(config, "config_1.json");
+    EXPECT_STREQ(config, "event/ui/config_1.json");
     char script[64] = "scene_1.stb";
     char text[64] = "message_1.txt";
     FileNameConvLanguage(script);
@@ -126,13 +129,35 @@ TEST_F(EventAssetPaths, LocalizesTextureJsonInsideLoadedEventDirectory) {
 
 TEST_F(EventAssetPaths, KeepsEnglishAndUnrecognizedJsonNames) {
     LanguageCode = LANG_ENGLISH;
-    char texture[64] = "event/ui/poster_1.json";
+    char texture[64] = "textures/event/ui/poster_1.json";
     FileNameConvLanguage(texture);
-    EXPECT_STREQ(texture, "event/ui/poster_1.json");
+    EXPECT_STREQ(texture, "textures/event/ui/poster_1.json");
     LanguageCode = LANG_FRENCH;
     char unknown[64] = "missing_1.json";
     FileNameConvLanguage(unknown);
     EXPECT_STREQ(unknown, "missing_1.json");
+}
+
+TEST_F(EventAssetPaths, MenuLoaderProducesPhysicalTexturePathsAndRetainsOtherResources) {
+    Write("textures/menu/2/chap0.json", {
+                                            {"test", "french"}
+    });
+    Write("textures/menu/1/chap0.json", {
+                                            {"test", "english"}
+    });
+    Write("menu/2/help.cfg.json", {
+                                      {"test", "commands"}
+    });
+    DataReadIndex(root / "data");
+    char texture[] = "textures/chap0.json";
+    char commands[] = "help.cfg.json";
+    ASSERT_GT(LoadFileMenu(texture, marker.data(), MENU_FILE_LOAD_DIRECT), 0);
+    EXPECT_EQ(DataReadBufferPath(marker.data()), "textures/menu/2/chap0.json");
+    ASSERT_GT(LoadFileMenu(commands, marker.data(), MENU_FILE_LOAD_DIRECT), 0);
+    EXPECT_EQ(DataReadBufferPath(marker.data()), "menu/2/help.cfg.json");
+    LanguageCode = LANG_CHINESE;
+    ASSERT_GT(LoadFileMenu(texture, marker.data(), MENU_FILE_LOAD_DIRECT), 0);
+    EXPECT_EQ(DataReadBufferPath(marker.data()), "textures/menu/1/chap0.json");
 }
 
 TEST_F(EventAssetPaths, BackgroundCharacterBatchExceedsSceneScratchWithoutWritingIt) {

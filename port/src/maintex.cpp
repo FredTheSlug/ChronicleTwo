@@ -30,7 +30,7 @@ PORT_OVERRIDE void MainTextureInterface(mgCMemory *stack, CScene *scene) {
     auto *buffer = stack->stAllocTest(1);
     char  path[64];
     int   file_size = 0;
-    std::snprintf(path, sizeof(path), "img/esystem%d.json", LanguageCode);
+    std::snprintf(path, sizeof(path), "textures/img/esystem%d.json", LanguageCode);
     LoadFile(path, buffer, &file_size);
     mgTexManager.EnterIMGFile(reinterpret_cast<u_char *>(buffer), 0x67, stack, nullptr);
     stack->Alloc(file_size / 16 + 1);

@@ -61,8 +61,9 @@ protected:
         };
         bundle = gltf.dump(2);
         folder = Json({
-                          {"schema_version", 1                },
-                          {"kind",           "asset_directory"}
+                          {"schema_version",  1                                                                                                  },
+                          {"kind",            "asset_directory"                                                                                  },
+                          {"texture_members", Json::array({{{"name", "repair_powder2d.json"}, {"path", "textures/menu/1/repair_powder2d.json"}}})}
         })
                      .dump(2);
         Write(root / "data/menu/eff/repair.gltf", gltf);
@@ -106,7 +107,7 @@ protected:
         game["resources"]["texture_sets"] = Json::array({{{"document", Texture("menueff0")}}});
         Write(root / "data/menu/eff/repair.game.json", game);
         Write(root / "data/menu/1/chrchg0.pac/pack.json", Json::parse(folder));
-        Write(root / "data/menu/1/chrchg0.pac/repair_powder2d.json", Texture("menueff0"));
+        Write(root / "data/textures/menu/1/repair_powder2d.json", Texture("menueff0"));
         std::filesystem::create_directories(root / "data");
         DataReadIndex(root / "data");
         DataReadRegisterAsset(bundle.data(), "menu/eff/repair.gltf", bundle.size());

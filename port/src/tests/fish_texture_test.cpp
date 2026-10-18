@@ -115,8 +115,8 @@ protected:
             {{"command", "MODEL"},   {"args", Json::array({geometry})}                              }
         });
         Write(root / "data/models/fish.game.json", game);
-        Write(root / "data/menu/aqua/fish/f01a1.json", Texture(4));
-        Write(root / "data/menu/aqua/fish/f01a2.json", Texture(8));
+        Write(root / "data/textures/menu/aqua/fish/f01a1.json", Texture(4));
+        Write(root / "data/textures/menu/aqua/fish/f01a2.json", Texture(8));
         std::filesystem::create_directories(root / "data");
         DataReadIndex(root / "data");
         texture_memory.SetHeapMem(texture_storage.data(), static_cast<int>(texture_storage.size()));

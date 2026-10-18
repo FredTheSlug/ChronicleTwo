@@ -10,7 +10,7 @@
  */
 std::optional<std::string> AssetDirectoryPath(const void *directory);
 /**
- * Reads an explicitly named file or child directory from a native asset directory.
+ * Reads an explicitly named native file, relocated texture or child directory.
  */
 u_int *AssetDirectoryRead(const void *directory, const char *name, int *out_size);
 /**
@@ -20,9 +20,9 @@ u_int *AssetDirectoryRead(const void *directory, int index, char **out_name, int
 /**
  * Reads direct native members selected by glTF, typed JSON kind, or actual file extension.
  */
-int AssetDirectoryReadExtension(const void *directory, const char *kind, u_int **files, int max_files, int *sizes, char **names);
+int AssetDirectoryReadExtension(const void *directory, const char *kind, u_int **outputs, int max_files, int *sizes, char **names);
 /**
- * Counts directly contained native files and child directories, excluding metadata sidecars.
+ * Counts logical direct members, including relocated textures and excluding metadata sidecars.
  */
 int AssetDirectoryCount(const void *directory);
 /**

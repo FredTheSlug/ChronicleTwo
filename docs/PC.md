@@ -109,7 +109,7 @@ insufficient progress samples. The ZIP writer reports completed producer work as
 `dc2data gameplay <iso-or-directory> port/gameplay` explicitly refreshes the repository gameplay JSON from the disc; `configs` remains an alias. Normal extraction uses the compiled gameplay corpus without reading or regenerating repository JSON. The extracted archive contains compact copies at the same root-relative paths.
 `current` compares the source path and file metadata with the versioned marker and checks the archive size; it returns 0 only when extraction can be skipped. `check` performs the full hash and payload audit.
 
-The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and `MOVIE`. Give it `<game-root>/data` as the output. The C++ command-line program calls the Rust extractor through a `cxx` bridge; conversion runs in process. The archive holds every retained and converted asset plus compact gameplay documents in `<game-root>/data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), with a version marker at `<game-root>/data.json`. Textures use compact JSON and PNG; sound uses compact semantic JSON and PCM WAV; models and complete characters use glTF, external buffers and compact asset sidecars. Configuration, map, character and audio gameplay settings remain pretty-printed native JSON in the tracked `port/gameplay/` corpus for review. Movies are self-contained MP4 with copied MPEG-2 video and embedded lossless ALAC audio. Ordinary PACK archives become directories marked by a minimal `pack.json`. Native game code references physical asset paths directly, without catalogs or manifests. See the [migration](PORT_ASSET_MIGRATION.md), [texture](PORT_TEXTURE_FORMAT.md), [audio](PORT_AUDIO_FORMAT.md), [model](PORT_MODEL_FORMAT.md), and [configuration](PORT_CONFIG_FORMAT.md) documents. `dc2data check <game-root>/data` validates native payloads and the whole-output SHA-256 digest. Normal extraction reads the ISO once into shared memory and converts all asset categories on one worker pool into a bounded ZIP stream. It creates no staged asset files; verification reads the complete ZIP before transactional publication. Exit status: 0 on success, 1 on an error or failed check, 2 on usage error.
+The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and `MOVIE`. Give it `<game-root>/data` as the output. The C++ command-line program calls the Rust extractor through a `cxx` bridge; conversion runs in process. The archive holds every retained and converted asset plus compact gameplay documents in `<game-root>/data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), with a version marker at `<game-root>/data.json`. Textures use compact JSON and PNG; sound uses compact semantic JSON and PCM WAV; models and complete characters use glTF, external buffers and compact asset sidecars. Configuration, map, character and audio gameplay settings remain pretty-printed native JSON in the tracked `port/gameplay/` corpus for review. Movies are self-contained MP4 with copied MPEG-2 video and embedded lossless ALAC audio. Ordinary PACK archives become directories marked by `pack.json`, which records physical paths for relocated texture members. Native game code references physical asset paths directly, without catalogs or manifests. See the [migration](PORT_ASSET_MIGRATION.md), [texture](PORT_TEXTURE_FORMAT.md), [audio](PORT_AUDIO_FORMAT.md), [model](PORT_MODEL_FORMAT.md), and [configuration](PORT_CONFIG_FORMAT.md) documents. `dc2data check <game-root>/data` validates native payloads and the whole-output SHA-256 digest. Normal extraction reads the ISO once into shared memory and converts all asset categories on one worker pool into a bounded ZIP stream. It creates no staged asset files; verification reads the complete ZIP before transactional publication. Exit status: 0 on success, 1 on an error or failed check, 2 on usage error.
 
 Each texture variant is a full-colour RGBA PNG. When retail animation scripts copy colours between textures, extraction bakes the finite source-colour variants into separate destination PNGs and records their selectors in the texture document. Source palettes are used only during extraction; runtime textures and generated render targets use RGBA pixels without palette files or palette uploads. `data.json` carries the current `data_version`, and the game rejects an older extraction so the launcher can rebuild it.
 
@@ -131,7 +131,7 @@ The game reads its data through a read-only file system of mounts (`platform/vfs
 Put datapacks in a `datapacks/` directory beside `data.zip`. The launch scripts
 therefore use `port/run/datapacks/`; `--data DIR` uses `DIR/../datapacks/`. A
 pack is a ZIP archive, `datapacks/<name>.zip`, holding files at their entry
-names in `data.zip`, such as `menu/example_0.png` for a texture or
+names in `data.zip`, such as `textures/menu/example_0.png` for a texture or
 `event/view_pal.txt` for a retained retail file. Build one from a folder with
 `dc2data pack <folder> <name>.zip`; PNG and MP4 entries are stored and other
 entries use Zstandard. A plain folder `datapacks/<name>/` with the same layout
@@ -141,14 +141,14 @@ exist, the archive is used. Names may contain spaces or Unicode characters:
 ```text
 <game-root>/
   data.zip
-    menu/example.json
-    menu/example_0.png
+    textures/menu/example.json
+    textures/menu/example_0.png
   datapacks/
     datapacks.json
     My texture pack.zip
-      menu/example_0.png
+      textures/menu/example_0.png
     Menu tweaks/
-      menu/example_0.png
+      textures/menu/example_0.png
 ```
 
 Activate packs and set their priority in `datapacks/datapacks.json`. Each
@@ -212,8 +212,11 @@ PNG inputs are limited to 256 MiB each, padded canvases to 16,384 pixels per
 dimension, and decoded mip chains to 256 MiB. GPU texture dimensions must also
 fit the active device's limits.
 
-The texture PNG paths are stable across the compact image-document update, so
-packs using the current numbered PNG names keep working. The same pack folders
+Data version 18 moves PNGs and standalone texture JSON below `textures/`,
+retaining ordinary directories and removing extension-bearing container
+directories. Character PNGs use the character basename and sequential suffixes,
+such as `textures/chara/hero_0.png`. Re-extract after upgrading, and update older
+datapack paths to match the new archive entries. The same pack folders
 can replace PCM WAV files, bank or sequence JSON, converted
 configuration JSON, self-contained movie MP4 files, glTF models, and model
 metadata at their entry names in `data.zip`.

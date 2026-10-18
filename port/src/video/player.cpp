@@ -10,11 +10,14 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <array>
 #include <cstdio>
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <print>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <utility>
 
@@ -307,6 +310,9 @@ struct MoviePlayer::Impl {
     int64_t                     next_pts = 0;
     bool                        draining = false;
     bool                        failed = false;
+    int64_t                     decoded = 0; /**< Pictures decoded since Open. */
+    DecodeRejections            rejections;  /**< Undecodable packets and pictures passed over. */
+    int64_t                     length = 0;  /**< The container's duration on the movie clock; 0 when it gives none. */
 
     ~Impl() {
         sws_freeContext(resampler);
@@ -346,6 +352,9 @@ struct MoviePlayer::Impl {
         const auto rate = av_guess_frame_rate(format, format->streams[video], nullptr);
         if (rate.num > 0 && rate.den > 0) {
             duration = std::max<int64_t>(1, av_rescale_q(1, av_inv_q(rate), kMovieClock));
+        }
+        if (format->duration > 0) {
+            length = av_rescale_q(format->duration, {.num = 1, .den = AV_TIME_BASE}, kMovieClock);
         }
         return true;
     }
@@ -389,35 +398,46 @@ struct MoviePlayer::Impl {
             const int result = avcodec_receive_frame(codec, frame);
             if (result == 0) {
                 if (!ValidSize(frame->width, frame->height)) {
-                    failed = true;
-                    return std::nullopt;
+                    return Fail(AVERROR_INVALIDDATA, "picture size");
                 }
                 Frame out;
                 out.pts = frame->best_effort_timestamp == AV_NOPTS_VALUE ? next_pts : av_rescale_q(frame->best_effort_timestamp, format->streams[video]->time_base, kMovieClock);
                 next_pts = out.pts + duration;
                 out.decoded.reset(av_frame_alloc());
                 if (!out.decoded) {
-                    failed = true;
-                    return std::nullopt;
+                    return Fail(AVERROR(ENOMEM), "picture allocation");
                 }
                 av_frame_move_ref(out.decoded.get(), frame);
+                rejections.Decoded();
+                decoded++;
                 return out;
             }
             if (result == AVERROR_EOF) {
                 return std::nullopt;
             }
+            if (result == AVERROR_INVALIDDATA) {
+                if (!Skip()) {
+                    return Fail(result, "decoding");
+                }
+                continue;
+            }
             if (result != AVERROR(EAGAIN) || draining) {
-                failed = true;
-                return std::nullopt;
+                return Fail(result, "decoding");
             }
             bool submitted = false;
-            while (av_read_frame(format, packet) >= 0) {
+            int  read = 0;
+            while ((read = av_read_frame(format, packet)) >= 0) {
                 if (packet->stream_index == video) {
                     const int sent = avcodec_send_packet(codec, packet);
                     av_packet_unref(packet);
+                    if (sent == AVERROR_INVALIDDATA) {
+                        if (!Skip()) {
+                            return Fail(sent, "decoding");
+                        }
+                        continue;
+                    }
                     if (sent < 0) {
-                        failed = true;
-                        return std::nullopt;
+                        return Fail(sent, "decoding");
                     }
                     submitted = true;
                     break;
@@ -425,16 +445,45 @@ struct MoviePlayer::Impl {
                 av_packet_unref(packet);
             }
             if (!submitted) {
+                if (read != AVERROR_EOF) {
+                    return Fail(read, "reading the file");
+                }
                 draining = true;
-                if (avcodec_send_packet(codec, nullptr) < 0) {
-                    failed = true;
-                    return std::nullopt;
+                if (const int sent = avcodec_send_packet(codec, nullptr); sent < 0) {
+                    return Fail(sent, "decoding");
                 }
             }
         }
         return std::nullopt;
     }
+
+    /** Passes over an undecodable packet or picture for the next good one; false when too many come in a row. */
+    bool Skip() {
+        if (rejections.Total() == 0) {
+            std::println(stderr, "movie: skipping an undecodable picture");
+        }
+        return rejections.Skip();
+    }
+
+    /** Stops decoding with its one diagnostic; the movie ends at the last picture shown. */
+    std::nullopt_t Fail(int code, std::string_view stage) {
+        failed = true;
+        std::array<char, AV_ERROR_MAX_STRING_SIZE> text{};
+        av_strerror(code, text.data(), text.size());
+        std::println(stderr, "movie: {} stopped the pictures after {} ({}); the movie ends at the last one shown", stage,
+                     decoded, text.data());
+        return std::nullopt;
+    }
 };
+
+bool DecodeRejections::Skip() {
+    total++;
+    return ++run <= kMaxInARow;
+}
+
+void DecodeRejections::Decoded() { run = 0; }
+
+int64_t DecodeRejections::Total() const { return total; }
 
 PictureFit FitPicture(int retail_width, int retail_height, int width, int height) {
     if (retail_width <= 0 || retail_height <= 0) {
@@ -526,7 +575,7 @@ bool MoviePlayer::Advance(int64_t elapsed) {
     const auto     fit = FitPicture(retail_width, retail_height, picture.width, picture.height);
     if (!ValidSize(fit.width, fit.height) || !impl->Convert(picture, fit, rgba)) {
         // As a picture that fails to decode: the movie ends at the last one shown.
-        impl->failed = true;
+        impl->Fail(AVERROR(EINVAL), "picture conversion");
         input_exhausted = true;
         queue.clear();
         return false;
@@ -552,6 +601,8 @@ bool MoviePlayer::Ended() const { return input_exhausted && queue.empty() && Has
 std::shared_ptr<const audio::PcmTrack> MoviePlayer::Audio() const { return audio_track; }
 
 int64_t MoviePlayer::PicturesShown() const { return pictures_shown; }
+
+int64_t MoviePlayer::Length() const { return impl ? impl->length : 0; }
 
 int MoviePlayer::SourceWidth() const { return source_width; }
 

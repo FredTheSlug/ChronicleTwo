@@ -920,7 +920,7 @@
      "handler": "_GET_FRONT_VEC",
      "luau": "GetFrontVec",
      "description": "Writes the action character facing direction to script outputs.",
-     "source": "ps2/src/actscript.cpp:592",
+     "source": "ps2/src/actscript.cpp:593",
      "arity_checks": [
       "!= 3"
      ],
@@ -971,7 +971,7 @@
      "handler": "_GET_PADON",
      "luau": "GetPadon",
      "description": "Returns the current gamepad buttons held down.",
-     "source": "ps2/src/actscript.cpp:610",
+     "source": "ps2/src/actscript.cpp:612",
      "arity_checks": [
       "<= 0"
      ],
@@ -1013,7 +1013,7 @@
      "handler": "_GET_PADDOWN",
      "luau": "GetPaddown",
      "description": "Returns gamepad buttons pressed this frame.",
-     "source": "ps2/src/actscript.cpp:624",
+     "source": "ps2/src/actscript.cpp:626",
      "arity_checks": [
       "<= 0"
      ],
@@ -1046,7 +1046,7 @@
      "handler": "_GET_PADUP",
      "luau": "GetPadup",
      "description": "Returns gamepad buttons released this frame.",
-     "source": "ps2/src/actscript.cpp:638",
+     "source": "ps2/src/actscript.cpp:640",
      "arity_checks": [
       "<= 0"
      ],
@@ -1094,7 +1094,7 @@
      "handler": "_GET_BTN",
      "luau": "GetBtn",
      "description": "Returns the state of a selected logical gamepad button.",
-     "source": "ps2/src/actscript.cpp:652",
+     "source": "ps2/src/actscript.cpp:654",
      "arity_checks": [
       "<= 0"
      ],
@@ -1165,7 +1165,7 @@
      "handler": "_GET_PAD_HISTORY",
      "luau": "GetPadHistory",
      "description": "Returns the action character recorded gamepad history.",
-     "source": "ps2/src/actscript.cpp:667",
+     "source": "ps2/src/actscript.cpp:669",
      "arity_checks": [
       "<= 0"
      ],
@@ -1197,7 +1197,7 @@
      "handler": "_RESET_PAD_HISTORY",
      "luau": "ResetPadHistory",
      "description": "Clears the action character recorded gamepad history.",
-     "source": "ps2/src/actscript.cpp:681",
+     "source": "ps2/src/actscript.cpp:683",
      "uses": {
       "sites": 63,
       "files": 9
@@ -1236,7 +1236,7 @@
      "handler": "_GET_ACUMU_PAD",
      "luau": "GetAcumuPad",
      "description": "Returns the number of steps for which the charge button has been held.",
-     "source": "ps2/src/actscript.cpp:691",
+     "source": "ps2/src/actscript.cpp:693",
      "uses": {
       "sites": 27,
       "files": 7
@@ -1266,7 +1266,7 @@
      "handler": "_RESET_ACUMU_PAD",
      "luau": "ResetAcumuPad",
      "description": "Clears the count of steps for which the charge button has been held.",
-     "source": "ps2/src/actscript.cpp:701",
+     "source": "ps2/src/actscript.cpp:703",
      "uses": {
       "sites": 20,
       "files": 7
@@ -1286,7 +1286,7 @@
      "handler": "_RUN_MAIN_MOVE",
      "luau": "RunMainMove",
      "description": "Runs human or monster movement according to the character movement type.",
-     "source": "ps2/src/actscript.cpp:711",
+     "source": "ps2/src/actscript.cpp:713",
      "uses": {
       "sites": 28,
       "files": 24
@@ -1306,7 +1306,7 @@
      "handler": "_RUN_SHROW_MOVE",
      "luau": "RunShrowMove",
      "description": "Moves the character on foot while it holds something to throw.",
-     "source": "ps2/src/actscript.cpp:733",
+     "source": "ps2/src/actscript.cpp:735",
      "uses": {
       "sites": 32,
       "files": 25
@@ -1326,7 +1326,7 @@
      "handler": "_RUN_TAME_MOVE",
      "luau": "RunTameMove",
      "description": "Moves the character on foot while it charges an attack.",
-     "source": "ps2/src/actscript.cpp:743",
+     "source": "ps2/src/actscript.cpp:745",
      "uses": {
       "sites": 16,
       "files": 9
@@ -1346,7 +1346,7 @@
      "handler": "_RUN_HOLD_MOVE",
      "luau": "RunHoldMove",
      "description": "Moves the character on foot while it aims a gun, with the given standing and moving motions.",
-     "source": "ps2/src/actscript.cpp:753",
+     "source": "ps2/src/actscript.cpp:755",
      "arity_checks": [
       "!= 2"
      ],
@@ -1394,7 +1394,7 @@
      "handler": "_GET_POS",
      "luau": "GetPos",
      "description": "Writes the action character world position to three script outputs.",
-     "source": "ps2/src/actscript.cpp:811",
+     "source": "ps2/src/actscript.cpp:813",
      "arity_checks": [
       "!= 3"
      ],
@@ -1445,7 +1445,7 @@
      "handler": "_CHECK_FRONT_KEY",
      "luau": "CheckFrontKey",
      "description": "Returns how closely the camera-relative stick input aligns with the character facing direction.",
-     "source": "ps2/src/actscript.cpp:849",
+     "source": "ps2/src/actscript.cpp:851",
      "arity_checks": [
       "!= 1"
      ],
@@ -1477,7 +1477,7 @@
      "handler": "_CHECK_BACK_KEY",
      "luau": "CheckBackKey",
      "description": "Reports whether stick input points behind a locked-on character.",
-     "source": "ps2/src/actscript.cpp:879",
+     "source": "ps2/src/actscript.cpp:881",
      "arity_checks": [
       "!= 1"
      ],
@@ -1509,7 +1509,7 @@
      "handler": "_SET_BLOW_ANGLE",
      "luau": "SetBlowAngle",
      "description": "Turns the action character opposite its knockback vector.",
-     "source": "ps2/src/actscript.cpp:917",
+     "source": "ps2/src/actscript.cpp:919",
      "arity_checks": [
       "!= 0"
      ],
@@ -1532,7 +1532,7 @@
      "handler": "_SET_BLOW_MOVE",
      "luau": "SetBlowMove",
      "description": "Sets a timed movement impulse in the character-relative direction.",
-     "source": "ps2/src/actscript.cpp:933",
+     "source": "ps2/src/actscript.cpp:935",
      "arity_checks": [
       "> 4",
       "== 4"
@@ -1663,7 +1663,7 @@
      "handler": "_BLOW_START",
      "luau": "BlowStart",
      "description": "Starts a timed knockback with speed, deceleration and duration from the script.",
-     "source": "ps2/src/actscript.cpp:974",
+     "source": "ps2/src/actscript.cpp:976",
      "arity_checks": [
       "!= 3"
      ],
@@ -1733,7 +1733,7 @@
      "handler": "_SET_MENU_FLAG",
      "luau": "SetMenuFlag",
      "description": "Sets whether the character may open the menu.",
-     "source": "ps2/src/actscript.cpp:797",
+     "source": "ps2/src/actscript.cpp:799",
      "arity_checks": [
       "!= 1"
      ],
@@ -1771,7 +1771,7 @@
      "handler": "_RUN_ROBO_MOVE",
      "luau": "RunRoboMove",
      "description": "Runs the robot movement handler selected by its movement type.",
-     "source": "ps2/src/actscript.cpp:768",
+     "source": "ps2/src/actscript.cpp:770",
      "uses": {
       "sites": 8,
       "files": 1
@@ -1806,7 +1806,7 @@
      "handler": "_GET_ROT",
      "luau": "GetRot",
      "description": "Writes the action character rotation to three script outputs.",
-     "source": "ps2/src/actscript.cpp:830",
+     "source": "ps2/src/actscript.cpp:832",
      "arity_checks": [
       "!= 3"
      ],
@@ -1857,7 +1857,7 @@
      "handler": "_SET_DMG2",
      "luau": "SetDmg2",
      "description": "Enters damage dealt between two named frames while a motion plays, and sets its power rate.",
-     "source": "ps2/src/actscript.cpp:992",
+     "source": "ps2/src/actscript.cpp:994",
      "arity_checks": [
       "< 8",
       "> 9",
@@ -2112,7 +2112,7 @@
      "handler": "_SET_OBJ",
      "luau": "SetObj",
      "description": "Registers a named frame as an action object slot.",
-     "source": "ps2/src/actscript.cpp:1028",
+     "source": "ps2/src/actscript.cpp:1030",
      "arity_checks": [
       "!= 2"
      ],
@@ -2164,7 +2164,7 @@
      "handler": "_SET_BODY",
      "luau": "SetBody",
      "description": "Enters a body collision sphere around one of the character's entered objects.",
-     "source": "ps2/src/actscript.cpp:1049",
+     "source": "ps2/src/actscript.cpp:1051",
      "arity_checks": [
       "!= 2"
      ],
@@ -2215,7 +2215,7 @@
      "handler": "_SW_EFFECT",
      "luau": "SwEffect",
      "description": "Schedules a sword effect between named frames during a motion.",
-     "source": "ps2/src/actscript.cpp:1063",
+     "source": "ps2/src/actscript.cpp:1065",
      "arity_checks": [
       "< 9",
       "> 10",
@@ -2491,7 +2491,7 @@
      "handler": "_SET_SND",
      "luau": "SetSnd",
      "description": "Schedules a sound effect between frames of a named motion.",
-     "source": "ps2/src/actscript.cpp:1118",
+     "source": "ps2/src/actscript.cpp:1120",
      "arity_checks": [
       "> 4"
      ],
@@ -2576,7 +2576,7 @@
      "handler": "_SET_ACCUME_FX",
      "luau": "SetAccumeFx",
      "description": "Associates an action object frame and effect number with the charge effect.",
-     "source": "ps2/src/actscript.cpp:1150",
+     "source": "ps2/src/actscript.cpp:1152",
      "arity_checks": [
       "!= 2"
      ],
@@ -2626,7 +2626,7 @@
      "handler": "_SET_ACCUME_FLAG",
      "luau": "SetAccumeFlag",
      "description": "Changes the action character charge effect mode and input accumulation state.",
-     "source": "ps2/src/actscript.cpp:1178",
+     "source": "ps2/src/actscript.cpp:1180",
      "arity_checks": [
       "!= 1"
      ],
@@ -2663,7 +2663,7 @@
      "handler": "_GET_MONSTER_NOWSTS",
      "luau": "GetMonsterNowsts",
      "description": "Returns the current status of the targeted monster.",
-     "source": "ps2/src/actscript.cpp:1235",
+     "source": "ps2/src/actscript.cpp:1237",
      "arity_checks": [
       "!= 1"
      ],
@@ -2696,7 +2696,7 @@
      "handler": "_SET_MURDEROUS",
      "luau": "SetMurderous",
      "description": "Sets the action character aggression value and its duration.",
-     "source": "ps2/src/actscript.cpp:1260",
+     "source": "ps2/src/actscript.cpp:1262",
      "arity_checks": [
       "!= 2"
      ],
@@ -2747,7 +2747,7 @@
      "handler": "_GET_TRG_DISTANCE",
      "luau": "GetTrgDistance",
      "description": "Returns the distance from the action character to its target.",
-     "source": "ps2/src/actscript.cpp:1275",
+     "source": "ps2/src/actscript.cpp:1277",
      "arity_checks": [
       "!= 1"
      ],
@@ -2779,7 +2779,7 @@
      "handler": "_SET_TRG_ANGLE",
      "luau": "SetTrgAngle",
      "description": "Turns the action character toward a nearby target at a limited rate.",
-     "source": "ps2/src/actscript.cpp:1289",
+     "source": "ps2/src/actscript.cpp:1291",
      "arity_checks": [
       "!= 2"
      ],
@@ -2853,7 +2853,7 @@
      "handler": "_SET_GUARD_FLAG",
      "luau": "SetGuardFlag",
      "description": "Sets the action character guard flag.",
-     "source": "ps2/src/actscript.cpp:1331",
+     "source": "ps2/src/actscript.cpp:1333",
      "arity_checks": [
       "!= 1"
      ],
@@ -2891,7 +2891,7 @@
      "handler": "_SET_MUTEKI",
      "luau": "SetMuteki",
      "description": "Sets the action character invulnerability duration.",
-     "source": "ps2/src/actscript.cpp:1345",
+     "source": "ps2/src/actscript.cpp:1347",
      "arity_checks": [
       "!= 1"
      ],
@@ -2930,7 +2930,7 @@
      "handler": "_CHECK_HAND_OBJ",
      "luau": "CheckHandObj",
      "description": "Returns the type of object held by the action character.",
-     "source": "ps2/src/actscript.cpp:1359",
+     "source": "ps2/src/actscript.cpp:1361",
      "uses": {
       "sites": 21,
       "files": 7
@@ -2960,7 +2960,7 @@
      "handler": "_SET_ITEM_USED",
      "luau": "SetItemUsed",
      "description": "Runs the held item action and returns its result.",
-     "source": "ps2/src/actscript.cpp:1369",
+     "source": "ps2/src/actscript.cpp:1371",
      "uses": {
       "sites": 7,
       "files": 7
@@ -2990,7 +2990,7 @@
      "handler": "_THROW_HAND_OBJECT",
      "luau": "ThrowHandObject",
      "description": "Throws the item object held by the action character.",
-     "source": "ps2/src/actscript.cpp:1379",
+     "source": "ps2/src/actscript.cpp:1381",
      "uses": {
       "sites": 8,
       "files": 7
@@ -3010,7 +3010,7 @@
      "handler": "_CHECK_CATCH",
      "luau": "CheckCatch",
      "description": "Catches a monster or picks up a stone at the named frame, or with three arguments kicks or looks for a stone to kick.",
-     "source": "ps2/src/actscript.cpp:1389",
+     "source": "ps2/src/actscript.cpp:1391",
      "arity_checks": [
       "== 1",
       "== 3"
@@ -3082,7 +3082,7 @@
      "handler": "_RELEASE_OBJ",
      "luau": "ReleaseObj",
      "description": "Releases or throws held characters and clears the held object state.",
-     "source": "ps2/src/actscript.cpp:1410",
+     "source": "ps2/src/actscript.cpp:1412",
      "arity_checks": [
       "== 1"
      ],
@@ -3164,7 +3164,7 @@
      "handler": "_SET_SHOT",
      "luau": "SetShot",
      "description": "Fires Max's gun or Monica's magic from one of the character's entered objects.",
-     "source": "ps2/src/actscript.cpp:1713",
+     "source": "ps2/src/actscript.cpp:1715",
      "arity_checks": [
       "< 4",
       "> 5",
@@ -3311,7 +3311,7 @@
      "handler": "_SHOT",
      "luau": "Shot",
      "description": "Fires the ridepod's weapon from its muzzle frames.",
-     "source": "ps2/src/actscript.cpp:1878",
+     "source": "ps2/src/actscript.cpp:1880",
      "arity_checks": [
       "!= 4",
       "!= 1",
@@ -3374,7 +3374,7 @@
      "handler": "_GET_OBJECT_POS",
      "luau": "GetObjectPos",
      "description": "Writes the world position of a named action object to script outputs.",
-     "source": "ps2/src/actscript.cpp:2101",
+     "source": "ps2/src/actscript.cpp:2103",
      "arity_checks": [
       "!= 4"
      ],
@@ -3449,7 +3449,7 @@
      "handler": "_SET_DIR_GUN",
      "luau": "SetDirGun",
      "description": "Enables directional gun aiming for the action character.",
-     "source": "ps2/src/actscript.cpp:2127",
+     "source": "ps2/src/actscript.cpp:2129",
      "uses": {
       "sites": 4,
       "files": 2
@@ -3469,7 +3469,7 @@
      "handler": "_SET_SPECIAL_SHOT",
      "luau": "SetSpecialShot",
      "description": "Fires a charged magic sword projectile from a named action object.",
-     "source": "ps2/src/actscript.cpp:1823",
+     "source": "ps2/src/actscript.cpp:1825",
      "arity_checks": [
       "!= 1"
      ],
@@ -3507,7 +3507,7 @@
      "handler": "_GET_NOW_HP_RATE",
      "luau": "GetNowHpRate",
      "description": "Returns the current battle character HP divided by maximum HP.",
-     "source": "ps2/src/actscript.cpp:2137",
+     "source": "ps2/src/actscript.cpp:2139",
      "arity_checks": [
       "!= 1"
      ],
@@ -3540,7 +3540,7 @@
      "handler": "_SET_BOMB",
      "luau": "SetBomb",
      "description": "Reduces the battle character HP to five percent.",
-     "source": "ps2/src/actscript.cpp:2154",
+     "source": "ps2/src/actscript.cpp:2156",
      "uses": {
       "sites": 1,
       "files": 1
@@ -3560,7 +3560,7 @@
      "handler": "_GET_ACTION_CODE",
      "luau": "GetActionCode",
      "description": "Returns the model number of the battle character primary equipment.",
-     "source": "ps2/src/actscript.cpp:2164",
+     "source": "ps2/src/actscript.cpp:2166",
      "arity_checks": [
       "!= 1"
      ],
@@ -3593,7 +3593,7 @@
      "handler": "_GET_ATTK_POINT",
      "luau": "GetAttkPoint",
      "description": "Returns the attack status value of a selected weapon parameter slot.",
-     "source": "ps2/src/actscript.cpp:2179",
+     "source": "ps2/src/actscript.cpp:2181",
      "arity_checks": [
       "!= 2"
      ],
@@ -3638,7 +3638,7 @@
      "handler": "_GET_RING_COLOR",
      "luau": "GetRingColor",
      "description": "Returns the RGB color of the equipped ring effect.",
-     "source": "ps2/src/actscript.cpp:2195",
+     "source": "ps2/src/actscript.cpp:2197",
      "arity_checks": [
       "!= 3"
      ],
@@ -3686,7 +3686,7 @@
      "handler": "_SET_MOS",
      "luau": "SetMos",
      "description": "Starts a named motion on the action character or a named linked character.",
-     "source": "ps2/src/actscript.cpp:2224",
+     "source": "ps2/src/actscript.cpp:2226",
      "arity_checks": [
       "<= 0",
       "> 4",
@@ -3818,7 +3818,7 @@
      "handler": "_CHECK_MOS_END",
      "luau": "CheckMosEnd",
      "description": "Reports whether the current or named motion has ended.",
-     "source": "ps2/src/actscript.cpp:2279",
+     "source": "ps2/src/actscript.cpp:2281",
      "arity_checks": [
       "== 1",
       "== 2"
@@ -3851,7 +3851,7 @@
      "handler": "_NOW_MOS_WAIT",
      "luau": "NowMosWait",
      "description": "Returns how far through its motion the character, or the named part, is.",
-     "source": "ps2/src/actscript.cpp:2305",
+     "source": "ps2/src/actscript.cpp:2307",
      "arity_checks": [
       "== 1",
       "== 2"
@@ -3909,7 +3909,7 @@
      "handler": "_GET_MOS_STATUS",
      "luau": "GetMosStatus",
      "description": "Returns the status of the current or named motion.",
-     "source": "ps2/src/actscript.cpp:2345",
+     "source": "ps2/src/actscript.cpp:2347",
      "arity_checks": [
       "== 1",
       "== 2"
@@ -3967,7 +3967,7 @@
      "handler": "_SET_XCHG_STEP",
      "luau": "SetXchgStep",
      "description": "Sets the action character motion blend speed.",
-     "source": "ps2/src/actscript.cpp:2371",
+     "source": "ps2/src/actscript.cpp:2373",
      "arity_checks": [
       "!= 1"
      ],
@@ -3997,7 +3997,7 @@
      "handler": "_SET_MOS_STEP",
      "luau": "SetMosStep",
      "description": "Sets the playback step of the action character motion.",
-     "source": "ps2/src/actscript.cpp:2392",
+     "source": "ps2/src/actscript.cpp:2394",
      "arity_checks": [
       "!= 1"
      ],
@@ -4026,7 +4026,7 @@
      "handler": "_TRG_ON_MOS",
      "luau": "TrgOnMos",
      "description": "Requests advancement of the action character motion sequence.",
-     "source": "ps2/src/actscript.cpp:2406",
+     "source": "ps2/src/actscript.cpp:2408",
      "uses": {
       "sites": 0,
       "files": 0
@@ -4046,7 +4046,7 @@
      "handler": "_RESET_MOS",
      "luau": "ResetMos",
      "description": "Resets the action character motion.",
-     "source": "ps2/src/actscript.cpp:2416",
+     "source": "ps2/src/actscript.cpp:2418",
      "uses": {
       "sites": 4,
       "files": 4
@@ -4066,7 +4066,7 @@
      "handler": "_SET_DEFAULT_MOS",
      "luau": "SetDefaultMos",
      "description": "Sets the default motion name for the action character.",
-     "source": "ps2/src/actscript.cpp:2426",
+     "source": "ps2/src/actscript.cpp:2428",
      "arity_checks": [
       "!= 1"
      ],
@@ -4099,7 +4099,7 @@
      "handler": "_NOW_MOS_CHGWAIT",
      "luau": "NowMosChgwait",
      "description": "Returns the action character motion change wait.",
-     "source": "ps2/src/actscript.cpp:2331",
+     "source": "ps2/src/actscript.cpp:2333",
      "arity_checks": [
       "!= 1"
      ],
@@ -4132,7 +4132,7 @@
      "handler": "_SET_NEBA2",
      "luau": "SetNeba2",
      "description": "Slows the character's motion while its status condition slows it.",
-     "source": "ps2/src/actscript.cpp:2440",
+     "source": "ps2/src/actscript.cpp:2442",
      "uses": {
       "sites": 27,
       "files": 5
@@ -4152,7 +4152,7 @@
      "handler": "_ESM_CREATE",
      "luau": "EsmCreate",
      "description": "Creates a named effect script and optionally returns its effect slot.",
-     "source": "ps2/src/actscript.cpp:2453",
+     "source": "ps2/src/actscript.cpp:2455",
      "arity_checks": [
       "case 1",
       "case 2"
@@ -4211,7 +4211,7 @@
      "handler": "_ESM_SET_VECT1",
      "luau": "EsmSetVect1",
      "description": "Sets the first script vector of an effect slot.",
-     "source": "ps2/src/actscript.cpp:2484",
+     "source": "ps2/src/actscript.cpp:2486",
      "uses": {
       "sites": 32,
       "files": 14
@@ -4272,7 +4272,7 @@
      "handler": "_ESM_SET_VECT2",
      "luau": "EsmSetVect2",
      "description": "Sets the second script vector of an effect slot.",
-     "source": "ps2/src/actscript.cpp:2509",
+     "source": "ps2/src/actscript.cpp:2511",
      "uses": {
       "sites": 22,
       "files": 12
@@ -4348,7 +4348,7 @@
      "handler": "_ESM_FINISH",
      "luau": "EsmFinish",
      "description": "Requests the finish program for an effect script slot.",
-     "source": "ps2/src/actscript.cpp:2534",
+     "source": "ps2/src/actscript.cpp:2536",
      "uses": {
       "sites": 4,
       "files": 4
@@ -4378,7 +4378,7 @@
      "handler": "_ESM_DELETE",
      "luau": "EsmDelete",
      "description": "Deletes an effect script slot owned by the action character.",
-     "source": "ps2/src/actscript.cpp:2559",
+     "source": "ps2/src/actscript.cpp:2561",
      "uses": {
       "sites": 8,
       "files": 4
@@ -4408,7 +4408,7 @@
      "handler": "_ESM_SET_VALUE",
      "luau": "EsmSetValue",
      "description": "Sets an integer or float value in an effect script slot.",
-     "source": "ps2/src/actscript.cpp:2584",
+     "source": "ps2/src/actscript.cpp:2586",
      "arity_checks": [
       "!= 3"
      ],

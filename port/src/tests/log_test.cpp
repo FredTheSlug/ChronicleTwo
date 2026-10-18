@@ -95,13 +95,16 @@ TEST_F(Log, SessionIdIsDateTimeAndFourHexDigits) {
 TEST_F(Log, SpecsNameALevelAndCategoryLevels) {
     const std::optional<LogSpec> spec = LogParseSpec(" WARN, gfx=trace ,Audio=off");
     ASSERT_TRUE(spec.has_value());
-    EXPECT_EQ(spec->level, LogLevel::Warning);
-    const std::vector<std::pair<LogCategory, LogLevel> > expected = {
+    const LogSpec parsed = spec.value_or(LogSpec{});
+    EXPECT_EQ(parsed.level, LogLevel::Warning);
+    const std::vector<std::pair<LogCategory, LogLevel>> expected = {
         {LogCategory::Gfx,   LogLevel::Trace},
         {LogCategory::Audio, LogLevel::Off  },
     };
-    EXPECT_EQ(spec->categories, expected);
-    EXPECT_FALSE(LogParseSpec("data=debug")->level.has_value());
+    EXPECT_EQ(parsed.categories, expected);
+    const std::optional<LogSpec> category_only = LogParseSpec("data=debug");
+    ASSERT_TRUE(category_only.has_value());
+    EXPECT_FALSE(category_only.value_or(LogSpec{}).level.has_value());
     EXPECT_FALSE(LogSpecValid(""));
     EXPECT_FALSE(LogSpecValid("loud"));
     EXPECT_FALSE(LogSpecValid("gfx="));
@@ -229,7 +232,7 @@ struct LogsWhenDestroyed {
     ~LogsWhenDestroyed() noexcept {
         try {
             CT_LOG_WARN(Memory, "late line {}", 7);
-        } catch (...) {
+        } catch (...) { // NOLINT(bugprone-empty-catch): a destructor must not throw during thread exit.
         }
     }
 };

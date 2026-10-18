@@ -98,17 +98,9 @@ inline std::atomic<bool> g_stopped{false};
 inline thread_local bool t_exiting = false;
 
 /**
- * Marks a thread as exiting before its logging queue is destroyed.
+ * Registers the caller's exit marker before using its logging queue.
  */
-struct ExitMark {
-    /**
-     * Marks the current thread as unable to queue further records.
-     */
-    ~ExitMark() { t_exiting = true; }
-};
-
-/** Thread-local guard that detects queue teardown. */
-inline thread_local ExitMark t_exit_mark;
+void MarkThreadUse();
 
 /**
  * Creates the logger associated with an index on first use.
@@ -127,7 +119,7 @@ std::string FormatLate(std::string_view format, std::format_args args);
  * Returns a category logger or indicates that direct writing is required.
  */
 inline quill::Logger *Logger(std::size_t index) {
-    static_cast<void>(&t_exit_mark);
+    MarkThreadUse();
     if (t_exiting || g_stopped.load(std::memory_order_relaxed)) {
         return nullptr;
     }

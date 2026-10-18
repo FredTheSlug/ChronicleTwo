@@ -110,7 +110,8 @@ TEST_F(EventCleanup, SceneBindingsRetainEveryOtherRetailHandler) {
     for (int i = 0; i < retail.ext_func_num; ++i) {
         if (i == EVENT_EXT_DNG_EFFECT_ALL_CLEAR || i == EVENT_EXT_DIST_VECTOR ||
             i == EVENT_EXT_DIST_VECTOR2 || i == EVENT_EXT_AMG_GET_ATTR_STATUS ||
-            i == EVENT_EXT_OBJS_SET_EOH_FRAME_POS || i == EVENT_EXT_SWE_SET_COLOR ||
+            i == EVENT_EXT_OBJS_SET_EOH_FRAME_POS || i == EVENT_EXT_GET_FISHINGTOURNAMENT_ETC ||
+            i == EVENT_EXT_SWE_SET_COLOR ||
             i == EVENT_EXT_SWE_SET_TEXTURE || i == EVENT_EXT_SWE_START_EFFECT) {
             EXPECT_NE(EventScript.ext_func_table[i], retail.ext_func_table[i]);
         } else {

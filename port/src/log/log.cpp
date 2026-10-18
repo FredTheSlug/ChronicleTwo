@@ -194,13 +194,11 @@ private:
     // Quill reads no thread names on MinGW and says so in the name. An unnamed Linux thread carries the program's
     // name (cut to the kernel's 15 characters), inherited from the thread that started it, so its id is shown.
     static bool Named(std::string_view thread_name) {
-        if (thread_name.empty() || thread_name == "ThreadNameDisabled") {
-            return false;
-        }
 #ifdef __linux__
-        return thread_name != std::string_view(program_invocation_short_name).substr(0, 15);
+        return !thread_name.empty() && thread_name != "ThreadNameDisabled" &&
+               thread_name != std::string_view(program_invocation_short_name).substr(0, 15);
 #else
-        return true;
+        return !thread_name.empty() && thread_name != "ThreadNameDisabled";
 #endif
     }
 };
@@ -542,6 +540,22 @@ std::mutex g_ps2_mutex;
 std::string g_ps2_pending;
 
 } // namespace
+
+void log_detail::MarkThreadUse() {
+    if (t_exiting) {
+        return;
+    }
+
+    /**
+     * Marks the caller as exiting before its logging queue is destroyed.
+     */
+    struct ExitMark {
+        ~ExitMark() { t_exiting = true; }
+    };
+
+    thread_local ExitMark exit_mark;
+    static_cast<void>(&exit_mark);
+}
 
 void log_detail::WriteLate(std::size_t index, LogLevel level, std::string_view message) {
     const bool session = index == kSessionLogger;

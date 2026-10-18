@@ -26,3 +26,12 @@ ffmpeg -f lavfi -i "nullsrc=size=160x96:rate=25:duration=0.96,format=yuv420p,geq
   -c:v h264_nvenc -preset p7 -bf 2 -g 24 -profile:v main -rc constqp -qp 18 -fflags +bitexact \
   -map_metadata -1 -movflags +faststart movie_h264_bframes.mp4
 ```
+
+`movie_future_picture.mp4` is `movie.mp4`'s three MPEG-2 pictures without audio, the third stamped at 100 s while the
+container still gives 0.12 s, so its pictures stall past the length, for the movie end tests:
+
+```sh
+ffmpeg -f lavfi -i 'testsrc2=size=16x16:rate=25:duration=0.12' -vf "setpts='if(eq(N,2),100/TB,PTS)'" \
+  -fps_mode passthrough -c:v mpeg2video -bf 0 -fflags +bitexact -flags +bitexact \
+  -map_metadata -1 -movflags +faststart movie_future_picture.mp4
+```

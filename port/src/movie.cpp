@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -39,11 +40,21 @@ struct MovieState {
     bool                  with_audio = false;
     bool                  audio_on = false;
     int64_t               start_tick = 0;
-    gfx::TextureHandle    uploaded_to = gfx::kNullTexture;
-    bool                  dirty = false;
+    // A real-time clock times the movie from Play itself: Load runs between the last clock pump and Play, and the
+    // audio starts at Play.
+    std::chrono::steady_clock::time_point start_time;
+    int64_t                               elapsed = 0;
+    gfx::TextureHandle                    uploaded_to = gfx::kNullTexture;
+    bool                                  dirty = false;
 };
 
 MovieState g_movie;
+// Tests replace the host time the real-time movie clock reads.
+MoviePortNow g_now = nullptr;
+
+std::chrono::steady_clock::time_point Now() {
+    return g_now != nullptr ? g_now() : std::chrono::steady_clock::now();
+}
 
 void MovieStartAudio() {
     audio::Mixer &mixer = audio::DefaultMixer();
@@ -53,12 +64,34 @@ void MovieStartAudio() {
     g_movie.audio_on = true;
 }
 
+// Starts the movie clock with the audio.
+void MovieStartClock() {
+    g_movie.start_tick = ClockTickCount();
+    g_movie.start_time = Now();
+}
+
 void MoviePump() {
     const int64_t elapsed =
-        std::llround(static_cast<double>(ClockTickCount() - g_movie.start_tick) * 90000.0 / ClockTickRate());
+        ClockUnbounded()
+            ? std::llround(static_cast<double>(ClockTickCount() - g_movie.start_tick) * 90000.0 / ClockTickRate())
+            : std::llround(std::chrono::duration<double>(Now() - g_movie.start_time).count() * 90000.0);
+    g_movie.elapsed = elapsed;
     if (g_movie.player.Advance(elapsed)) {
         g_movie.dirty = true;
     }
+}
+
+// While the game keeps pumping it, a movie whose pictures stop coming ends a little after its container's known length;
+// its audio has ended by then.
+bool MovieOverran() {
+    const int64_t length = g_movie.player.Length();
+    if (!MoviePortOverran(g_movie.elapsed, length)) {
+        return false;
+    }
+    std::println(stderr, "movie: {} still has pictures to show {:.1f} s past its {:.1f} s length; ending it",
+                 PathsDisplay(g_movie.path), static_cast<double>(kMoviePortOverrun) / 90000.0,
+                 static_cast<double>(length) / 90000.0);
+    return true;
 }
 
 void MovieUpload() {
@@ -109,6 +142,8 @@ void MovieReset() {
     g_movie.with_audio = false;
     g_movie.audio_on = false;
     g_movie.start_tick = 0;
+    g_movie.start_time = {};
+    g_movie.elapsed = 0;
     g_movie.uploaded_to = gfx::kNullTexture;
     g_movie.dirty = false;
 }
@@ -172,11 +207,11 @@ PORT_OVERRIDE void CMovie::Play(char *path) {
     g_movie.playing = true;
     g_movie.started = true;
     is_playing = true;
-    g_movie.start_tick = ClockTickCount();
     g_movie.dirty = true;
     if (g_movie.opened && g_movie.with_audio && g_movie.player.Audio() != nullptr) {
         MovieStartAudio();
     }
+    MovieStartClock();
     MovieUpload();
 }
 
@@ -201,7 +236,7 @@ PORT_OVERRIDE int CMovie::EndCheck() {
     }
 
     MoviePump();
-    if (!g_movie.player.Ended()) {
+    if (!g_movie.player.Ended() && !MovieOverran()) {
         return 0;
     }
     if (!g_movie.loop) {
@@ -212,14 +247,26 @@ PORT_OVERRIDE int CMovie::EndCheck() {
     if (!g_movie.opened) {
         return 1;
     }
-    g_movie.start_tick = ClockTickCount();
     g_movie.dirty = true;
     if (g_movie.with_audio && g_movie.player.Audio() != nullptr) {
         MovieStartAudio();
     }
+    MovieStartClock();
     return 0;
 }
 
 PORT_OVERRIDE int CMovie::IsStarted() {
     return g_movie.started ? 1 : 0;
+}
+
+int64_t MoviePortClock() {
+    return g_movie.elapsed;
+}
+
+bool MoviePortOverran(int64_t elapsed, int64_t length) {
+    return length > 0 && elapsed > length + kMoviePortOverrun;
+}
+
+void MoviePortSetNow(MoviePortNow now) {
+    g_now = now;
 }

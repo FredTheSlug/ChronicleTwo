@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -227,6 +228,16 @@ TEST(MoviePlayer, StandardMp4ContainsVideoAndEmbeddedLosslessAudio) {
     EXPECT_FALSE(player.IsOpen());
     ASSERT_TRUE(player.Open(fixture, false));
     EXPECT_EQ(player.Audio(), nullptr);
+}
+
+TEST(MoviePlayer, LengthIsTheContainerDuration) {
+    video::MoviePlayer player;
+    EXPECT_EQ(player.Length(), 0);
+    ASSERT_TRUE(player.Open(fs::path(__FILE__).parent_path() / "fixtures/movie.mp4", true));
+    // Three 25 fps pictures and 5760 frames of 48 kHz audio: 0.12 s.
+    EXPECT_EQ(player.Length(), 10800);
+    player.Close();
+    EXPECT_EQ(player.Length(), 0);
 }
 
 TEST(MovieGlue, MissingMovieStartsAndEndsAtOnce) {
@@ -571,13 +582,16 @@ TEST(MoviePlayer, ThreadedDecodingShowsTheSamePicturesInOrder) {
 
 namespace {
 
-// A data root holding the 16x16 fixture as movie/hd.mp4, so a CMovie can load it by its game name.
+// A data root holding the 16x16 fixture as movie/hd.mp4 and the stalling one as movie/future.mp4, so a CMovie
+// can load them by their game names.
 struct FixtureMovieRoot {
     fs::path root = fs::temp_directory_path() / ("dc2_movie_hd_" + std::to_string(dc::test::ProcessId()));
 
     FixtureMovieRoot() {
         fs::create_directories(root / "movie");
         fs::copy_file(fs::path(__FILE__).parent_path() / "fixtures/movie.mp4", root / "movie/hd.mp4",
+                      fs::copy_options::overwrite_existing);
+        fs::copy_file(fs::path(__FILE__).parent_path() / "fixtures/movie_future_picture.mp4", root / "movie/future.mp4",
                       fs::copy_options::overwrite_existing);
         datapacks::Load(root);
     }
@@ -744,4 +758,125 @@ TEST(MovieTextureGpu, OtherSizesAreResampledToAMultipleWithOneDiagnostic) {
     ASSERT_NE(first, std::string::npos) << result.log;
     EXPECT_EQ(result.log.find("movie:", first), std::string::npos) << result.log;
     EXPECT_LE(MaxPictureDifference(result), 2);
+}
+
+TEST(MoviePlayer, UndecodablePicturesAreSkippedUntilTooManyComeInARow) {
+    // Each rejection followed by a good picture is skipped, however many there are.
+    video::DecodeRejections rejections;
+    for (int i = 0; i < 2 * video::DecodeRejections::kMaxInARow; i++) {
+        EXPECT_TRUE(rejections.Skip());
+        rejections.Decoded();
+    }
+    EXPECT_EQ(rejections.Total(), 2 * video::DecodeRejections::kMaxInARow);
+    // A decoder that rejects everything stops the movie.
+    for (int i = 0; i < video::DecodeRejections::kMaxInARow; i++) {
+        EXPECT_TRUE(rejections.Skip());
+    }
+    EXPECT_FALSE(rejections.Skip());
+}
+
+namespace {
+
+std::chrono::steady_clock::time_point g_fake_now;
+
+std::chrono::steady_clock::time_point FakeNow() {
+    return g_fake_now;
+}
+
+struct FakeMovieClock {
+    FakeMovieClock() {
+        g_fake_now = std::chrono::steady_clock::time_point{} + std::chrono::seconds(1000);
+        MoviePortSetNow(FakeNow);
+    }
+
+    FakeMovieClock(const FakeMovieClock &) = delete;
+    FakeMovieClock &operator=(const FakeMovieClock &) = delete;
+
+    ~FakeMovieClock() { MoviePortSetNow(nullptr); }
+};
+
+} // namespace
+
+TEST(MovieGlue, RealTimeClockRunsFromPlayNotFromTheLastTick) {
+    RestoreDataRoot  restore_data{.root = PathsDataRoot()};
+    FixtureMovieRoot movie_root;
+    RestoreClock     restore_clock{.rate = ClockTickRate(), .unbounded = ClockUnbounded()};
+    FakeMovieClock   fake_clock;
+    ClockSetUnbounded(false);
+    ClockSetTickRate(60.0);
+    ClockReset();
+    ClockPump();
+
+    auto movie = std::make_unique<CMovie>();
+    char name[] = "HD.MP4";
+    char texture[] = "moviework";
+    movie->Load(name, static_cast<mgCMemory **>(nullptr), 16, 16, true, false, false);
+    // Load decodes the soundtrack after the frame's clock pump, hundreds of milliseconds for a long movie; the
+    // soundtrack starts at Play.
+    g_fake_now += std::chrono::milliseconds(300);
+    movie->Play(texture);
+    movie->SwitchThread();
+    EXPECT_EQ(MoviePortClock(), 0);
+    g_fake_now += std::chrono::milliseconds(40);
+    movie->SwitchThread();
+    EXPECT_EQ(MoviePortClock(), 3600);
+    EXPECT_EQ(movie->EndCheck(), 0);
+    // The third picture's 40 ms end at 0.12 s.
+    g_fake_now += std::chrono::milliseconds(79);
+    EXPECT_EQ(movie->EndCheck(), 0);
+    g_fake_now += std::chrono::milliseconds(1);
+    EXPECT_EQ(movie->EndCheck(), 1);
+    EXPECT_EQ(MoviePortClock(), 10800);
+    movie->Term();
+}
+
+TEST(MovieGlue, StalledPicturesEndTwoSecondsPastTheLength) {
+    EXPECT_FALSE(MoviePortOverran(0, 10800));
+    EXPECT_FALSE(MoviePortOverran(10800 + kMoviePortOverrun, 10800));
+    EXPECT_TRUE(MoviePortOverran(10800 + kMoviePortOverrun + 1, 10800));
+    // A container without a duration never ends early this way.
+    EXPECT_FALSE(MoviePortOverran(1'000'000'000, 0));
+}
+
+TEST(MovieGlue, EndCheckEndsAStalledMovieTwoSecondsPastItsLength) {
+    RestoreDataRoot  restore_data{.root = PathsDataRoot()};
+    FixtureMovieRoot movie_root;
+    RestoreClock     restore_clock{.rate = ClockTickRate(), .unbounded = ClockUnbounded()};
+    // One tick is 1800 movie clock units; future.mp4 is 0.12 s (10800) long and its third picture is due at 100 s.
+    ClockSetUnbounded(true);
+    ClockSetTickRate(50.0);
+    ClockReset();
+    constexpr int kDeadlineTicks = (10800 + kMoviePortOverrun) / 1800;
+    char          name[] = "FUTURE.MP4";
+    char          texture[] = "moviework";
+
+    auto movie = std::make_unique<CMovie>();
+    movie->Load(name, static_cast<mgCMemory **>(nullptr), 16, 16, false, false, false);
+    movie->Play(texture);
+    int ticks = 0;
+    while (ticks < 1000) {
+        ClockPump();
+        ticks++;
+        if (movie->EndCheck() != 0) {
+            break;
+        }
+    }
+    // At the deadline itself the movie still waits; one tick past it, it ends.
+    EXPECT_EQ(ticks, kDeadlineTicks + 1);
+    movie->Term();
+
+    // A looping movie restarts there instead, its clock from zero.
+    movie->Load(name, static_cast<mgCMemory **>(nullptr), 16, 16, false, true, false);
+    movie->Play(texture);
+    for (int tick = 1; tick <= kDeadlineTicks + 1; tick++) {
+        ClockPump();
+        ASSERT_EQ(movie->EndCheck(), 0) << "tick " << tick;
+        if (tick == kDeadlineTicks) {
+            EXPECT_EQ(MoviePortClock(), 10800 + kMoviePortOverrun);
+        }
+    }
+    ClockPump();
+    movie->SwitchThread();
+    EXPECT_EQ(MoviePortClock(), 1800);
+    movie->Term();
 }

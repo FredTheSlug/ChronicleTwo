@@ -10,12 +10,14 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <ranges>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "gfx/gfx.hpp"
 #include "kazarov/data_version.hpp"
 #include "platform/archive_mount.hpp"
 #include "platform/config_catalog.hpp"
@@ -273,6 +275,49 @@ TEST_F(DataArchive, OverrideIndexMergesZipAndFolderPacksByLoadOrder) {
     Write(root / "datapacks/datapacks.json", std::string(R"({"schema_version":1,"load_order":["high","low"]})"));
     datapacks::Load(root / "data.zip");
     EXPECT_EQ(datapacks::Resolve("chara/hero.bin")->Display(), "low.zip!chara/HERO.BIN");
+}
+
+TEST_F(DataArchive, TextureOverrideZipUsesItsContentsWithoutPackManifest) {
+    const std::string document = "textures/menu/0/save.json";
+    const std::string png = "textures/menu/0/save_0.png";
+    Write(tree / document,
+          R"({"schema_version":3,"groups":[0],"entries":[{"name":"blank","pictures":[{"canvas":{"width":2,"height":2}}]}]})");
+    Pack(tree, root / "data.zip");
+    const auto staging = root / "staging/detail";
+    Write(staging / document,
+          R"({"schema_version":3,"groups":[0],"entries":[{"name":"added","pictures":[{"levels":["save_0.png"]}]}]})");
+    fs::create_directories((staging / png).parent_path());
+    const std::array<uint8_t, 16> pixels{80, 80, 80, 255, 80, 80, 80, 255,
+                                         80, 80, 80, 255, 80, 80, 80, 255};
+    ASSERT_TRUE(gfx::WritePng(staging / png, pixels.data(), 2, 2));
+    Write(staging / "textures/pack-only/image.png", Bytes(1, 7));
+    Write(staging / "pack.json", R"({"schema_version":1,"texture_members":[]})");
+    Pack(staging, root / "datapacks/detail.zip");
+    Write(root / "datapacks/datapacks.json", R"({"schema_version":1,"load_order":["detail"]})");
+
+    const auto base = ArchiveMountOpen(root / "data.zip");
+    texture_catalog::Load(base);
+    datapacks::Load(base, root / "data.zip");
+    texture_catalog::SetCandidateResolver(datapacks::Candidates);
+    const auto members = datapacks::DirectoryMembers("textures");
+    EXPECT_NE(std::ranges::find(members, fs::path("textures/pack-only")), members.end());
+    const auto *source = texture_catalog::Find(document);
+    ASSERT_NE(source, nullptr);
+    ASSERT_EQ(source->entries.size(), 1u);
+    EXPECT_EQ(source->entries[0].name, "added");
+    ASSERT_EQ(source->entries[0].variants[0].levels.size(), 1u);
+    const auto &level = source->entries[0].variants[0].levels[0];
+    EXPECT_EQ(level.path, png);
+    EXPECT_EQ(level.file.Display(), "detail.zip!" + png);
+    const auto override = datapacks::Resolve(png);
+    ASSERT_TRUE(override);
+    EXPECT_EQ(override.value().Display(), level.file.Display());
+    datapacks::DecodedTexture decoded;
+    std::string               error;
+    ASSERT_TRUE(datapacks::Decode(source->entries[0], 0, decoded, error)) << error;
+    ASSERT_EQ(decoded.levels.size(), 1u);
+    EXPECT_EQ(decoded.levels[0][0], 80);
+    texture_catalog::Clear();
 }
 
 TEST_F(DataArchive, DataReadLoadsFromDataZipWithoutDirectories) {

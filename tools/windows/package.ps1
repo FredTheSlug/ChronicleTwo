@@ -21,5 +21,13 @@ $paths = foreach ($name in $names) {
 }
 $gameplay = Join-Path $build 'assets/data.zip'
 if (!(Test-Path -LiteralPath $gameplay -PathType Leaf)) { throw "Missing gameplay archive: $gameplay" }
-Compress-Archive -LiteralPath (@($paths) + @($gameplay)) -DestinationPath $archive -Force
+$packageFiles = @($paths) + @($gameplay)
+$cmakeCache = Join-Path $build 'CMakeCache.txt'
+$tracyEnabled = @(Get-Content -LiteralPath $cmakeCache | Where-Object { $_ -eq 'CT_ENABLE_TRACY:BOOL=ON' }).Count -ne 0
+if ($tracyEnabled) {
+    $tracyLicense = Join-Path $build 'Tracy-LICENSE.txt'
+    if (!(Test-Path -LiteralPath $tracyLicense -PathType Leaf)) { throw "Missing Tracy license: $tracyLicense" }
+    $packageFiles += $tracyLicense
+}
+Compress-Archive -LiteralPath $packageFiles -DestinationPath $archive -Force
 Write-Output "Packaged $($paths.Count) program/runtime files and data.zip in $archive."

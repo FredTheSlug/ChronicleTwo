@@ -589,20 +589,20 @@ std::vector<std::filesystem::path> DirectoryMembers(const std::filesystem::path 
         return {};
     }
     std::unordered_map<std::string, std::string> members;
-    auto                                         collect = [&](const std::shared_ptr<const vfs::Mount> &mount) {
+    auto                                         collect = [&](const std::shared_ptr<const vfs::Mount> &mount, bool is_pack) {
         if (!mount) {
             return;
         }
         for (const auto &member : mount->List(*name)) {
             const auto path = *name + '/' + member.name;
-            if (!member.directory || mount->Find(path + "/pack.json")) {
+            if (!member.directory || is_pack || mount->Find(path + "/pack.json")) {
                 members.insert_or_assign(vfs::FoldKey(member.name), path);
             }
         }
     };
-    collect(base);
+    collect(base, false);
     for (const auto &pack : packs) {
-        collect(pack.mount);
+        collect(pack.mount, true);
     }
     std::vector<std::pair<std::string, std::filesystem::path> > sorted;
     sorted.reserve(members.size());

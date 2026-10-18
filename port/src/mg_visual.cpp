@@ -15,6 +15,7 @@
 #include "mg_visual_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "profile.hpp"
 #include "visualmotion.hpp"
 
 namespace {
@@ -124,6 +125,11 @@ std::unordered_map<const mgCFace *, FaceEntry> &FaceTable() {
     return table;
 }
 
+#ifdef CT_ENABLE_TRACY
+uint64_t gpu_upload_failures = 0;
+uint64_t immediate_face_draws = 0;
+#endif
+
 void ReleaseMesh(mgVisualFaceMesh &mesh) {
     if (mesh.mesh != gfx::kNullMesh) {
         gfx::DestroyMesh(mesh.mesh);
@@ -140,6 +146,11 @@ void UploadIfReady(FaceEntry &entry) {
     }
 
     mesh.mesh = gfx::CreateMesh(mesh.vertices, mesh.indices);
+#ifdef CT_ENABLE_TRACY
+    if (ct::profile::Enabled() && mesh.mesh == gfx::kNullMesh) {
+        ++gpu_upload_failures;
+    }
+#endif
 }
 
 } // namespace
@@ -195,6 +206,7 @@ mgVisualFaceMesh mgVisualPortBuildFace(const mgCVisualMDT &visual, const mgCFace
 }
 
 void mgVisualPortRefreshFace(mgCVisualMDT *visual, mgCFace *face) {
+    CT_PROFILE_ZONE("Build visual face");
     const int  kind = visual->Iam();
     FaceEntry &entry = FaceTable()[face];
     // Address reuse replaces the table's owner. Queued draws keep the previous geometry alive until their
@@ -241,9 +253,22 @@ void mgVisualPortSweep() {
         return;
     }
     swept_frame = frame;
+    CT_PROFILE_ZONE("Sweep visual faces");
 
     auto &table = FaceTable();
+#ifdef CT_ENABLE_TRACY
+    const bool profiling = ct::profile::Enabled();
+    uint64_t   gpu_faces = 0;
+    uint64_t   cpu_bytes = 0;
+#endif
     for (auto it = table.begin(); it != table.end();) {
+#ifdef CT_ENABLE_TRACY
+        if (profiling) {
+            gpu_faces += it->second.mesh->mesh != gfx::kNullMesh;
+            cpu_bytes += it->second.mesh->vertices.size() * sizeof(gfx::Vertex3D) +
+                         it->second.mesh->indices.size() * sizeof(uint32_t);
+        }
+#endif
         const int unused = frame - it->second.last_frame;
         if (it->second.persistent) {
             if (unused > kPersistentMeshUnusedFrameLimit) {
@@ -259,6 +284,17 @@ void mgVisualPortSweep() {
         // A queued draw may still own this CPU geometry after the table forgets it.
         it = table.erase(it);
     }
+#ifdef CT_ENABLE_TRACY
+    if (profiling) {
+        CT_PROFILE_PLOT("Visual face table entries", static_cast<int64_t>(table.size()));
+        CT_PROFILE_PLOT("Visual resident GPU faces", static_cast<int64_t>(gpu_faces));
+        CT_PROFILE_PLOT("Visual retained CPU bytes", static_cast<int64_t>(cpu_bytes));
+        CT_PROFILE_PLOT("Visual GPU upload failures", static_cast<int64_t>(gpu_upload_failures));
+        CT_PROFILE_PLOT("Visual immediate face draws", static_cast<int64_t>(immediate_face_draws));
+    }
+    gpu_upload_failures = 0;
+    immediate_face_draws = 0;
+#endif
 }
 
 PORT_OVERRIDE u_int *GetScrPad() {
@@ -313,6 +349,7 @@ struct GroupDraw {
 // Both prog0 submissions. Every call goes through here, so the renderer and frame checks mgPortDrawMesh makes
 // apply to all of them.
 void SubmitFaces(const GroupDraw &group, const std::vector<FaceDraw> &faces) {
+    CT_PROFILE_ZONE("Submit visual faces");
     if (!mgPortRendererReady() || !mgPortFrameOpen()) {
         return;
     }
@@ -327,6 +364,11 @@ void SubmitFaces(const GroupDraw &group, const std::vector<FaceDraw> &faces) {
             mgPortDrawMeshProg0(face.geometry->mesh, 0, face.geometry->index_count, group.mesh, prog0, face.binding,
                                 group.state, &group.transform);
         } else {
+#ifdef CT_ENABLE_TRACY
+            if (ct::profile::Enabled()) {
+                ++immediate_face_draws;
+            }
+#endif
             mgPortDrawMeshImmediateProg0(face.geometry->vertices, face.geometry->indices, group.mesh, prog0,
                                          face.binding, group.state, &group.transform);
         }
@@ -573,6 +615,7 @@ PORT_OVERRIDE int mgCVisualMDT::CreateRenderInfoPacket(u_int * /*packet*/, float
 }
 
 PORT_OVERRIDE uptr mgCVisualMDT::CreatePacket(mgCDrawManager * /*manager*/) {
+    CT_PROFILE_ZONE("Create visual packet");
     for (mgFACE_GROUP *group = face_group; group != nullptr; group = group->next) {
         for (mgCFace *face = group->face; face != nullptr; face = face->next) {
             CreateFacePacket(nullptr, face);
@@ -586,6 +629,7 @@ PORT_OVERRIDE uptr mgCVisualFixMDT::CreatePacket(mgCDrawManager * /*manager*/) {
 }
 
 PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawManager *draw_manager) {
+    CT_PROFILE_ZONE("Draw visual");
     if (draw_manager == nullptr) {
         draw_manager = &mgDrawManager;
     }

@@ -64,6 +64,12 @@ export SDL_VULKAN_LIBRARY="$(brew --prefix vulkan-loader)/lib/libvulkan.1.dylib"
 export VK_DRIVER_FILES="$(brew --prefix)/etc/vulkan/icd.d/MoltenVK_icd.json"
 ```
 
+### Profiling
+
+Native builds include [Tracy 0.14.1](https://github.com/wolfpld/tracy/releases/tag/v0.14.1) from a pinned source archive. Tracy records game zones, frame marks and plots only while `game.debug_mode=true` or a `--jump` debug session is active. Start the matching Tracy profiler and connect to localhost while the game runs; recording begins on connection. Normal sessions leave the local listener idle, and sampling and system tracing are disabled. `-DCT_ENABLE_TRACY=OFF` removes the dependency and instrumentation from a build entirely.
+
+The default and `Game` frame tracks mark completed game frames; `Display` marks frames actually presented. CPU zones separate canonical scene rendering, display rendering, pacing and readbacks. Loading zones cover archive indexing and reads, script checks, model documents and instances, and texture decoding and uploads. Plots show scene draw counts, visual face table size, retained CPU geometry, resident GPU faces, failed mesh uploads and immediate face draws. The last two plots describe work since the preceding visual-face sweep. These zones do not cross the game's cooperative thread switches. The renderer itself has no Vulkan GPU timestamp zones yet. The Flatpak grants network access so a local Tracy profiler outside its sandbox can connect during a debug session. Distributed builds include Tracy's license notice.
+
 ### Debug information
 
 Every configuration keeps DWARF line tables in `darkchronicle`, so crash reports name `file:line`: Release and MinSizeRel build with `-gline-tables-only`, and Debug and RelWithDebInfo keep `-g`. Linux and Windows links write a build id, and Mach-O has its `LC_UUID`. On macOS, non-Debug builds run `dsymutil` after the link, and `darkchronicle.dSYM` must travel with the binary. `-DCT_SYMBOLS=split` also writes `darkchronicle.pdb` (Windows) or `darkchronicle.debug` (Linux), and a Debug dSYM on macOS. `-DCT_SYMBOLS=off` adds nothing. [SYMBOLS.md](SYMBOLS.md) describes the symbol artifacts CI uploads and `tools/crash/symbolize.py`, which re-resolves a report's raw frames.
@@ -170,7 +176,11 @@ central directory or a walk of each folder, are merged into one override index
 keyed by lower-cased path, with each path's replacements resolved in
 `load_order` priority once. A lookup is then a single hash lookup: a hit names
 the winning pack file and any lower-priority replacements behind it, and a miss
-goes to `data.zip`. Pack files are trusted as found: symlinks in folder packs
+goes to `data.zip`. A pack's `pack.json` does not limit this inventory; files
+and child directories present in the pack are found even when it is absent or
+lists no members. A replacement texture JSON can reference a PNG present only
+in the same pack, using a path relative to the JSON under `textures/`. Pack
+files are trusted as found: symlinks in folder packs
 are followed and pack files are neither hashed nor checked against the pack. A
 pack holding paths that differ only by ASCII case disables the packs. Missing
 configuration leaves the retail assets active; invalid configuration disables

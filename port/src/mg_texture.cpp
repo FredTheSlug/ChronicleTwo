@@ -27,6 +27,7 @@
 #include "photo_hd.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/texture_catalog.hpp"
+#include "profile.hpp"
 #include "texture_source.hpp"
 
 namespace {
@@ -276,6 +277,7 @@ gfx::TextureHandle UploadMemory16(const mgCTexture *texture, Entry &entry) {
 }
 
 gfx::TextureHandle UploadPixels(const mgCTexture *texture) {
+    CT_PROFILE_ZONE("Upload texture pixels");
     const auto     extent = MgTexturePhysicalExtent(texture);
     const auto     pixels = catalog_pixels.find(texture);
     const uint32_t canvas_width = extent.width;
@@ -547,6 +549,7 @@ std::string DecodeName(const std::string &encoded) {
 
 bool DecodeWith(const MgTextureImageDecoder &decoder, const texture_catalog::Entry &record, std::size_t variant,
                 datapacks::DecodedTexture &decoded, std::string &error) {
+    CT_PROFILE_ZONE("Decode texture image");
     return decoder ? decoder(record, variant, decoded, error) : datapacks::Decode(record, variant, decoded, error);
 }
 
@@ -1624,6 +1627,8 @@ int EnterSource(mgCTextureManager *manager, int block, const texture_catalog::So
 
 int MgTextureEnterDocument(mgCTextureManager *manager, std::string_view relative_json_path, int block,
                            mgCMemory *stack, mgCEnterIMGInfo *info) {
+    CT_PROFILE_ZONE("Load texture document");
+    CT_PROFILE_TEXT(relative_json_path.data(), relative_json_path.size());
     const auto *source = texture_catalog::Find(relative_json_path);
     if (!source) {
         CT_LOG_ERROR(Data, "texture: no native texture document for {}", relative_json_path);

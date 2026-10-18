@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "platform/archive_mount.hpp"
+#include "profile.hpp"
 
 namespace {
 
@@ -30,6 +31,7 @@ std::string Utf8(const fs::path &path) {
 class ArchiveMount final : public vfs::Mount {
 public:
     explicit ArchiveMount(const fs::path &path) : file_(path), label_(Utf8(path.filename())) {
+        CT_PROFILE_ZONE("Open asset archive");
         const auto text = Utf8(path);
         try {
             archive_.emplace(kazarov::open_archive(rust::Str(text.data(), text.size())));
@@ -88,12 +90,14 @@ public:
     }
 
     bool ReadInto(std::size_t index, void *buffer, std::size_t size) const override {
+        CT_PROFILE_ZONE("Read archive entry");
         if (index >= entries_.size() || entries_[index].size != size) {
             return false;
         }
         if (size == 0) {
             return true;
         }
+        CT_PROFILE_TEXT(entries_[index].name.data(), entries_[index].name.size());
         try {
             kazarov::archive_read_entry(**archive_, index, rust::Slice<std::uint8_t>(static_cast<std::uint8_t *>(buffer), size));
             return true;
@@ -103,6 +107,7 @@ public:
     }
 
     bool ReadPrefix(std::size_t index, std::span<std::uint8_t> out) const override {
+        CT_PROFILE_ZONE("Read archive header");
         const auto &entry = entries_.at(index);
         if (out.size() > entry.size) {
             return false;
@@ -155,6 +160,7 @@ private:
      * Groups every entry and implied directory under its parent directory's folded name.
      */
     void BuildListing() const {
+        CT_PROFILE_ZONE("List archive directories");
         std::unordered_map<std::string, std::unordered_map<std::string, vfs::Member> > members;
         for (const auto &entry : entries_) {
             std::size_t start = 0;

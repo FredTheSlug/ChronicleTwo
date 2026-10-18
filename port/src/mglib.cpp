@@ -33,6 +33,7 @@
 #include "platform/clock.hpp"
 #include "platform/paths.hpp"
 #include "present.hpp"
+#include "profile.hpp"
 #include "scenesnd.hpp"
 #include "stubs/mglib.hpp"
 
@@ -1355,6 +1356,7 @@ PORT_OVERRIDE void mgSetRenderInfo(float fov, float clip_near, float clip_far) {
 }
 
 PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
+    CT_PROFILE_REFRESH();
     if (manager == nullptr) {
         manager = &mgDrawManager;
     }
@@ -1467,6 +1469,7 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
         recording = false;
 
         if (list) {
+            CT_PROFILE_ZONE("Canonical scene render");
             gfx::RenderList(*list, 1.0f, gfx::RenderOptions{.canonical = true});
         }
 
@@ -1474,12 +1477,16 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
         last_list = std::move(list);
         // The display image keeps its own bars, and no display frame need run before letterboxing.
         if (clear_bars && last_list) {
+            CT_PROFILE_ZONE("Letterbox display render");
             gfx::RenderList(*last_list, 1.0f, gfx::RenderOptions{});
         }
         PresentTickRendered();
 
-        CacheMarkedColors();
-        AnswerDepthQueries();
+        {
+            CT_PROFILE_ZONE("Canonical readbacks");
+            CacheMarkedColors();
+            AnswerDepthQueries();
+        }
     }
 
     gfx_open = false;
@@ -1496,6 +1503,8 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
     depth_next = kFirstAllocatedDepthSlot;
     frame_open = false;
     ++frame_count;
+    CT_PROFILE_FRAME("Game");
+    CT_PROFILE_MAIN_FRAME();
     CrashFrameEnd(frame_count);
 
     if (exit_frames > 0 && frame_count == exit_frames) {

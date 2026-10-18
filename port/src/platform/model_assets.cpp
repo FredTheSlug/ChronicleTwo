@@ -41,6 +41,7 @@
 #include "platform/datapacks.hpp"
 #include "platform/legacy_encoding.hpp"
 #include "platform/model_assets.hpp"
+#include "profile.hpp"
 #include "visualmotion.hpp"
 
 int conv_new_text(char *, char *);
@@ -581,6 +582,7 @@ std::shared_ptr<const Json> ParseGameplay(const std::filesystem::path &gltf, std
  * Parses actual glTF bytes alongside explicit native gameplay semantics.
  */
 std::shared_ptr<Document> ReadBytes(std::span<const std::byte> bytes, const Json &custom, const std::filesystem::path &relative = {}, bool overlaid = false) {
+    CT_PROFILE_ZONE("Parse model document");
     if (bytes.empty()) {
         throw std::runtime_error("empty native glTF document");
     }
@@ -627,6 +629,7 @@ std::shared_ptr<Document> ReadBytes(std::span<const std::byte> bytes, const Json
  * Loads an explicitly named native glTF asset through datapack priority.
  */
 std::shared_ptr<Document> Read(const std::filesystem::path &relative, bool allow_standard = false) {
+    CT_PROFILE_ZONE("Read model document");
     std::string error = "native glTF asset missing: " + relative.generic_string();
     for (const auto &path : datapacks::Candidates(relative)) {
         if (!vfs::Size(path)) {
@@ -1923,6 +1926,7 @@ bool StandardScaleOrder(Document &document, const fastgltf::Node &node) {
 }
 
 mgCFrame *Instantiate(const std::shared_ptr<Document> &document, mgLoadData &load, std::string &error) {
+    CT_PROFILE_ZONE("Instantiate model");
     try {
         const auto &frames = document->metadata.at("frames");
         if (frames.empty() || (document->frame_nodes.empty() && document->asset.nodes.size() < document->node_offset + frames.size())) {

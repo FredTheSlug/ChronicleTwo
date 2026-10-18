@@ -1189,6 +1189,41 @@ TEST(MgTexture, DirectDocumentFallsBackFromMalformedDatapackJson) {
     EXPECT_EQ(source->entries[0].height, 5);
 }
 
+TEST(MgTexture, DatapackDocumentCanReferencePackOnlyTexturePng) {
+    CatalogFixture fixture;
+    const auto     pack = fixture.directory.parent_path() / "datapacks";
+    const auto     base_document = fixture.directory / "textures/menu/0/save.json";
+    const auto     pack_document = pack / "detail/textures/menu/0/save.json";
+    std::filesystem::create_directories(base_document.parent_path());
+    std::filesystem::create_directories(pack_document.parent_path());
+    std::ofstream(base_document)
+        << R"({"schema_version":3,"groups":[0],"entries":[{"name":"blank","pictures":[{"canvas":{"width":2,"height":2}}]}]})";
+    std::ofstream(pack_document)
+        << R"({"schema_version":3,"groups":[0],"entries":[{"name":"added","pictures":[{"levels":["save_0.png"]}]}]})";
+    WriteRgbaPng(pack_document.parent_path() / "save_0.png", 2, 2,
+                 std::vector<uint8_t>(std::size_t{2} * 2 * 4, 80));
+    const auto invalid = pack / "invalid/textures/menu/0/save_0.png";
+    std::filesystem::create_directories(invalid.parent_path());
+    std::ofstream(invalid) << "corrupt";
+    std::ofstream(pack / "datapacks.json") << R"({"schema_version":1,"load_order":["detail","invalid"]})";
+    std::string error;
+    ASSERT_TRUE(texture_catalog::Load(fixture.directory, error)) << error;
+    datapacks::Load(fixture.directory);
+    texture_catalog::SetCandidateResolver(datapacks::Candidates);
+
+    const auto *source = texture_catalog::Find("textures/menu/0/save.json");
+    ASSERT_NE(source, nullptr);
+    ASSERT_EQ(source->entries.size(), 1u);
+    EXPECT_EQ(source->entries[0].name, "added");
+    ASSERT_EQ(source->entries[0].variants[0].levels.size(), 1u);
+    EXPECT_EQ(source->entries[0].variants[0].levels[0].path, "textures/menu/0/save_0.png");
+    EXPECT_TRUE(source->entries[0].variants[0].levels[0].file.Display().ends_with("detail/textures/menu/0/save_0.png"));
+    datapacks::DecodedTexture decoded;
+    ASSERT_TRUE(datapacks::Decode(source->entries[0], 0, decoded, error)) << error;
+    ASSERT_EQ(decoded.levels.size(), 1u);
+    EXPECT_EQ(decoded.levels[0][0], 80);
+}
+
 TEST(MgTexture, EmbeddedSetUsesImageReferencesAndRetainsVariantDecoder) {
     const auto document = nlohmann::json::parse(
         R"({"schema_version":3,"groups":[0],"entries":[{"name":"embedded","pictures":[{"levels":["#/images/0"],"variants":[{"selector":"alternate","levels":["#/images/1"]}]}]}]})");

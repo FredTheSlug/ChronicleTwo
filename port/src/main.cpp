@@ -33,6 +33,7 @@
 #include "platform/settings.hpp"
 #include "platform/window.hpp"
 #include "present.hpp"
+#include "profile.hpp"
 #include "sce/threads.hpp"
 #include "sound_port.hpp"
 #include "test_hooks.hpp"
@@ -217,6 +218,7 @@ void PumpHost() {
 }
 
 void ApplyConfigChange(const HostSettings &before, const HostSettings &after) {
+    CT_PROFILE_REFRESH();
     LogApplyConfig(ConfigGet().log);
     if (before.present_mode != after.present_mode) {
         gfx::SetPresentMode(PresentMode(after.present_mode));
@@ -307,6 +309,7 @@ int Run(int argc, const char **argv) {
         }
     }
     ConfigLoad();
+    CT_PROFILE_REFRESH();
     LogAttachFile(PathsSaveRoot(), ConfigGet().log);
     CrashSetBundleRoot(PathsSaveRoot());
     if (crash_test) {
@@ -367,6 +370,7 @@ int Run(int argc, const char **argv) {
     if (crash_test) {
         CrashTestArm(*crash_test, CrashTestWhen::FirstFrame);
     }
+    CT_PROFILE_THREAD("Game / host");
     MainLoop();
 
     ClockRemovePumpHook(PumpHost);

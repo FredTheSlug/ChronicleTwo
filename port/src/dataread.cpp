@@ -35,6 +35,7 @@
 #include "platform/paths.hpp"
 #include "platform/texture_catalog.hpp"
 #include "platform/vfs.hpp"
+#include "profile.hpp"
 #include "script_timing.hpp"
 #include "texture_copy.hpp"
 #include "texture_source.hpp"
@@ -207,6 +208,8 @@ std::optional<int> FileSize(const IndexedFile &file) {
 
 // Reads a whole file into a sector-padded buffer without recording the buffer, so it is safe off the main thread.
 int ReadUnregistered(const IndexedFile &file, void *buffer) {
+    CT_PROFILE_ZONE("Read asset");
+    CT_PROFILE_TEXT(file.relative.data(), file.relative.size());
     const std::optional<int> size = FileSize(file);
     if (!size) {
         return -1;
@@ -373,6 +376,7 @@ void BuildIndex(const std::shared_ptr<const vfs::Mount> &base, const fs::path &r
 } // namespace
 
 void DataReadIndex(const fs::path &root) {
+    CT_PROFILE_ZONE("Index game assets");
     const auto start = std::chrono::steady_clock::now();
     TextureSourceClear();
     loaded_buffers.clear();
@@ -536,6 +540,7 @@ ScriptTimingOutcome CheckScriptTiming(const std::string &key, const IndexedFile 
 } // namespace
 
 ScriptTimingValidation DataReadValidateScriptTiming() {
+    CT_PROFILE_ZONE("Validate script timing");
     ScriptTimingValidation report;
     const auto             start = std::chrono::steady_clock::now();
     const auto             keys = DataReadScriptKeys();
@@ -653,6 +658,7 @@ PORT_OVERRIDE void InitReadBG() {
 // The copy happens now, but the slot stays pending so callers polling ReadBGSync see retail's issue and
 // complete states.
 PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
+    CT_PROFILE_ZONE("Load background asset");
     if (out_size) {
         *out_size = 0;
     }
@@ -759,6 +765,7 @@ PORT_OVERRIDE int LoadFile(char *path, void *buffer, int *out_size) {
 }
 
 PORT_OVERRIDE int LoadFile2(char *path, void *buffer, int *out_size, int mode) {
+    CT_PROFILE_ZONE("Load asset");
     if (out_size) {
         *out_size = 0;
     }

@@ -30,13 +30,18 @@ TEST(EffectListLoad, EntersDirectTextureDocumentsWithoutRetailImageMembers) {
     const auto previous = PathsDataRoot();
     fs::create_directories(base / "data/effect");
     fs::create_directories(base / "data/effect/map.efp/nested");
-    std::ofstream(base / "data/effect/map.efp/pack.json") << R"({"schema_version":1,"kind":"asset_directory"})";
+    std::ofstream(base / "data/effect/map.efp/pack.json")
+        << R"({"schema_version":1,"kind":"asset_directory","texture_members":[{"name":"mist.json","path":"textures/effect/mist-variant.json"}]})";
     const nlohmann::json texture = {
         {"schema_version", 3                                                                                         },
         {"groups",         {0}                                                                                       },
         {"entries",        {{{"name", "effect_native"}, {"pictures", {{{"canvas", {{"width", 2}, {"height", 2}}}}}}}}}
     };
     std::ofstream(base / "data/effect/map.efp/spark.json") << texture.dump(2);
+    fs::create_directories(base / "data/textures/effect");
+    auto relocated = texture;
+    relocated["entries"][0]["name"] = "effect_relocated";
+    std::ofstream(base / "data/textures/effect/mist-variant.json") << relocated.dump(2);
     std::ofstream(base / "data/effect/map.efp/unrelated.json") << nlohmann::json({
                                                                                      {"schema_version", 1             },
                                                                                      {"kind",           "sound_bundle"}
@@ -62,8 +67,10 @@ TEST(EffectListLoad, EntersDirectTextureDocumentsWithoutRetailImageMembers) {
     list.LoadEFPFile(path, reinterpret_cast<u_int *>(pack.data()), 0, &memory);
     EXPECT_EQ(list.effect_num, 0);
     char texture_name[] = "effect_native";
+    char relocated_name[] = "effect_relocated";
     char nested_name[] = "nested_texture";
     EXPECT_NE(mgTexManager.GetTexture(texture_name, 0), nullptr);
+    EXPECT_NE(mgTexManager.GetTexture(relocated_name, 0), nullptr);
     EXPECT_EQ(mgTexManager.GetTexture(nested_name, 0), nullptr);
     mgTexManager.Initialize(0x1000, -1);
     DataReadIndex(previous);

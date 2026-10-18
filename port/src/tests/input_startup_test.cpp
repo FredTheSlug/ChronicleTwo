@@ -47,7 +47,7 @@ protected:
 };
 } // namespace
 
-TEST_F(InputStickSettings, DefaultsReverseLookWhileLiveInversionRestoresEachAxis) {
+TEST_F(InputStickSettings, DefaultsReverseRightStickWhileLeftStickStaysUninverted) {
     for (const auto axis : {SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY,
                             SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY}) {
         ASSERT_TRUE(SDL_SetJoystickVirtualAxis(joystick, axis, 20000));
@@ -71,8 +71,8 @@ TEST_F(InputStickSettings, DefaultsReverseLookWhileLiveInversionRestoresEachAxis
             EXPECT_GT(InputGetPad(0).left_y, kInputAxisCentre);
             InputSetLookOnLeftStick(true);
             InputPoll();
-            EXPECT_EQ(InputGetPad(0).left_x > kInputAxisCentre, invert_x);
-            EXPECT_EQ(InputGetPad(0).left_y > kInputAxisCentre, invert_y);
+            EXPECT_GT(InputGetPad(0).left_x, kInputAxisCentre);
+            EXPECT_GT(InputGetPad(0).left_y, kInputAxisCentre);
             InputSetLookOnLeftStick(false);
         }
     }

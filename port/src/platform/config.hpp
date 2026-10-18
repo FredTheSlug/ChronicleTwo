@@ -53,7 +53,7 @@ struct Config : HostSettings {
     bool operator==(const Config &) const = default;
 };
 
-// <save root>/config.json. A missing file is written with the defaults. A file that exists but cannot
+// <save root>/../config.json. A missing file is written with the defaults. A file that exists but cannot
 // be read leaves the defaults in memory and is never written this session. Returns whether it was read.
 bool ConfigLoad();
 bool ConfigSave();

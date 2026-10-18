@@ -24,6 +24,7 @@
 #include "log/log.hpp"
 #include "mainloop.hpp"
 #include "menu_mouse.hpp"
+#include "menu_world.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_math.hpp"
 #include "mg_texture_port.hpp"
@@ -1122,23 +1123,25 @@ void mgPortDrawMeshImmediate(std::span<const gfx::Vertex3D> vertices, std::span<
 void mgPortDrawMeshProg0(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
                          const gfx::MeshConstants &constants, const gfx::Prog0Constants &prog0,
                          const gfx::TextureBinding &texture, const gfx::DrawState &state,
-                         const gfx::MeshTransform *transform) {
+                         const gfx::MeshTransform *transform, const gfx::Prog0Palette *palette) {
     if (!ready || !gfx_open) {
         return;
     }
 
-    gfx::DrawMeshProg0(mesh, first_index, index_count, constants, prog0, texture, TargetDrawState(state), transform);
+    gfx::DrawMeshProg0(mesh, first_index, index_count, constants, prog0, texture, TargetDrawState(state), transform,
+                       palette);
 }
 
 void mgPortDrawMeshImmediateProg0(std::span<const gfx::Vertex3D> vertices, std::span<const uint32_t> indices,
                                   const gfx::MeshConstants &constants, const gfx::Prog0Constants &prog0,
                                   const gfx::TextureBinding &texture, const gfx::DrawState &state,
-                                  const gfx::MeshTransform *transform) {
+                                  const gfx::MeshTransform *transform, const gfx::Prog0Palette *palette) {
     if (!ready || !gfx_open) {
         return;
     }
 
-    gfx::DrawMeshImmediateProg0(vertices, indices, constants, prog0, texture, TargetDrawState(state), transform);
+    gfx::DrawMeshImmediateProg0(vertices, indices, constants, prog0, texture, TargetDrawState(state), transform,
+                                palette);
 }
 
 int mgPortVuProg() {
@@ -1470,7 +1473,9 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
 
         if (list) {
             CT_PROFILE_ZONE("Canonical scene render");
-            gfx::RenderList(*list, 1.0f, gfx::RenderOptions{.canonical = true});
+            if (!menuworld::RenderPauseFrame(*list)) {
+                gfx::RenderList(*list, 1.0f, gfx::RenderOptions{.canonical = true});
+            }
         }
 
         previous_list = std::move(last_list);

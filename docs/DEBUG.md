@@ -9,7 +9,7 @@ Retail cites are `ps2/src` file:line. PC cites are `port/src` or `tools/kazarov`
 - `true`: at boot, `MasterDebugCode` is set to `MASTER_DEBUG_CODE` and `MasterDebugModeOn` is set to 1. Retail `title.cpp:2377` then unlocks pad 2 without a developer save. Retail `title.cpp:2281` would otherwise read the save's debug code. Also enables the pad-1 chord below.
 - `false`: nothing changes at boot. Retail behaviour: pad 2 unlocks only if the four shoulders are held on pad 2 at boot and a memory card save carries a debug code. The pad-1 chord is off.
 
-Set `"game": {"debug_mode": true}` in the save root's `config.json` to enable native debug controls. Ordinary boots preserve the retail developer-save gate. `--jump` enables debug controls explicitly for that run.
+Set `"game": {"debug_mode": true}` in the `config.json` beside the save root to enable native debug controls. Ordinary boots preserve the retail developer-save gate. `--jump` enables debug controls explicitly for that run.
 
 Boot code: `port/src/debug_mode.cpp` (`DebugModeBoot`), called from `port/src/mainloop.cpp` after the retail shoulder check.
 

@@ -32,9 +32,9 @@ class ScriptResourceAuditTest(unittest.TestCase):
             raw, stage = base / "raw", base / "stage"
             (raw / "chara").mkdir(parents=True)
             (raw / "chara/hero.chr").write_bytes(b"raw")
-            (stage / "port_data/chara").mkdir(parents=True)
-            (stage / "port_data/chara/hero.gltf").write_text("{}")
-            (stage / "data").mkdir()
+            (stage / "data/chara").mkdir(parents=True)
+            (stage / "data/chara/hero.gltf").write_text("{}")
+            (stage / "data").mkdir(exist_ok=True)
             (stage / "data/test.stb").write_bytes(fixture())
             report = audit(raw, stage)
             self.assertEqual(report["scripts"], 1)
@@ -47,8 +47,8 @@ class ScriptResourceAuditTest(unittest.TestCase):
             raw, stage = base / "raw", base / "stage"
             (raw / "chara").mkdir(parents=True)
             (raw / "chara/hero.chr").write_bytes(b"raw")
-            (stage / "port_data").mkdir(parents=True)
-            (stage / "data").mkdir()
+            (stage / "data").mkdir(parents=True)
+            (stage / "data").mkdir(exist_ok=True)
             (stage / "data/test.stb").write_bytes(fixture())
             report = audit(raw, stage)
             self.assertEqual(len(report["missing_native_targets"]), 1)
@@ -63,9 +63,9 @@ class ScriptResourceAuditTest(unittest.TestCase):
             raw, stage = base / "raw", base / "stage"
             (raw / "snd2/mon").mkdir(parents=True)
             (raw / "snd2/mon/en_044.snd").write_bytes(b"raw")
-            (stage / "port_data/snd2/mon").mkdir(parents=True)
-            (stage / "port_data/snd2/mon/en_044.sound.json").write_text("{}")
-            (stage / "data").mkdir()
+            (stage / "data/snd2/mon").mkdir(parents=True)
+            (stage / "data/snd2/mon/en_044.sound.json").write_text("{}")
+            (stage / "data").mkdir(exist_ok=True)
             (stage / "data/test.stb").write_bytes(fixture(b"snd2/mon/EN_044\t.snd"))
             report = audit(raw, stage)
             self.assertEqual(report["actionable_residuals"][0]["published_targets"], ["snd2/mon/en_044.sound.json"])
@@ -79,8 +79,8 @@ class ScriptResourceAuditTest(unittest.TestCase):
             base = Path(directory)
             raw, stage = base / "raw", base / "stage"
             raw.mkdir()
-            (stage / "port_data").mkdir(parents=True)
-            (stage / "data").mkdir()
+            (stage / "data").mkdir(parents=True)
+            (stage / "data").mkdir(exist_ok=True)
             for name in ("main.stb", "extra.stb_", "other.bin"):
                 (stage / "data" / name).write_bytes(fixture(b"non-resource dialogue"))
             (stage / "data/plain.txt").write_text("unrelated text")

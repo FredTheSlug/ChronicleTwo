@@ -24,7 +24,21 @@ A rotation key replaces an authored matrix's scale in the game; a clip that rota
 
 Each CFG `KEY` interval is one action and one glTF animation, named in English (see [motion names](MOTION_NAMES.md)); a motion without `KEY` intervals is one action named after its file. Clip times start at zero, and keys the game would interpolate at an action's first and last frame are sampled with the game's own interpolation (including its rotation thresholds) and added there. Where several actions share an interval each still has its own clip. Auxiliary material, visibility, camera and vertex keys are sliced to each action the same way, with step sampling for visibility and linear sampling for the rest. A `KEY` that ends before it starts (one in the retail data: `横飛びL` in `event/e00/e50/e50_monica.chr`) plays as a still pose at its start.
 
-Motions loaded onto an existing character, such as event and extension motions, are published into the models the game loads them onto and never into an animation-only glTF. The extractor reads those loads from the compiled event and map scripts (`_LOAD_MOTION`, and `_LOAD_CHARA` of the pack itself, with constant actors or actors read from globals the script only sets to constants) and from a table of the game code that loads packs itself (fishing, the buggy game and the invent menu). Actor 0 is the player unit, whose model the game picks at run time from the active character and weapon, so those motions go to each player model they fit. Every target must fit the motion's skeleton; [the model format](PORT_MODEL_FORMAT.md#motions-for-other-bundles-models) gives the rules. Their clips are named `<bundle>/<action>`.
+Motions loaded onto an existing character, such as event and extension motions, are published into the models the game loads them onto and never into an animation-only glTF. The extractor reads those loads from the compiled event and map scripts (`_LOAD_MOTION`, and `_LOAD_CHARA` of the pack itself, with constant actors or actors read from globals the script only sets to constants) and from a table of the game code that loads packs itself (fishing, the buggy game and the invent menu). Actor 0 is the player unit, whose model the game picks at run time from the active character and weapon, so those motions go to each player model they fit. Every target must fit the motion's skeleton; [the model format](PORT_MODEL_FORMAT.md#motions-for-other-bundles-models) gives the rules.
+
+Fourteen of the 254 external motions are placed by skeleton match because no load reaches them, and `dc2data` reports each one:
+
+| Motion | Reason | Models |
+|---|---|---|
+| `event/e00/e50/e50_guiltoni#1`, `event/e300/e352/e352_guiltoni#0`, `event/e500/e536/e536_guiltoni#0` | Scripts load the pack, but its own models do not fit | `event/lm/p00_06vs` |
+| `dungeon/chara/c01_fishing#0` | Unloaded; the game loads the copy `chara/c01_fishing` onto the player | Max's player models |
+| `menu/chara4/c01_camera#0` | Unloaded; the game loads the copy in `camera.pac` onto the invent menu's Max | `menu/chara4/c01b_think` |
+| `event/e200/e209/e208_mints#0` | Unloaded; copy of `event/e200/e208/e208_mints` | That copy's models |
+| `event/e700/e712/e207_monica#0` | Unloaded; copy of `event/e200/e207/e207_monica` | That copy's models |
+| `sg/sig/sig.pak/mints_bomb#0` | Unloaded; copy of `sg/pb/pb.pak/mints_bomb` | Max's player models |
+| `event/e3_event/e3_mints#0`, `event/e700/e712/e712_mints#0` | Unloaded, no copy | Best skeleton fit: `chara/c01_base` |
+| `event/lm/monica#0`, `event/lm/mo_vs_gil2/c02_vs2#0` | Unloaded, no copy | Best skeleton fit: `chara/c02_base` |
+| `event/lm/mo_vs_gil2/b03a_vs2#0`, `dungeon/monster/b18a#1` | Unloaded, no copy | Best skeleton fit: `event/lm/p00_06vs` | Their clips are named `<bundle>/<action>`.
 
 MDT corner streams become standard position, normal, UV and colour attributes. Sidecar primitive mappings preserve independent source stream identities for CPU deformation. Normalized normals and clamped colours meet glTF requirements. Sparse `stream_overrides` retain only components standard reconstruction cannot reproduce: fourth components, nonunit normals, unclamped colours and unused source elements. Full geometry streams are not duplicated.
 

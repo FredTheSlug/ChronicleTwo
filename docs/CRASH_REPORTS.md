@@ -92,7 +92,7 @@ A copy of `logs/darkchronicle-<session>.log`, made after a flush of at most 2 se
 
 ### config.json
 
-`<save root>/config.json`, with every path redacted as below.
+`<save root>/../config.json`, with every path redacted as below.
 
 ### last_crash.json
 

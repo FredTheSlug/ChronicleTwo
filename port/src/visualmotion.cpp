@@ -167,7 +167,7 @@ PORT_OVERRIDE int mgCVisualMotionMDT::CreateExtRenderInfoPacket(u_int * /*packet
     mgMulMatrix(inverse_root, root_matrix, base_matrix[frame_id]);
     mgInversMatrix(root_local, inverse_root);
 
-    gfx::Prog0Constants &prog0 = mgVisualPortCurrentProg0();
+    gfx::Prog0Palette &palette = mgVisualPortCurrentPalette();
 
     for (int i = 0; i < slot_count; i++) {
         const int slot = bone[i];
@@ -184,7 +184,7 @@ PORT_OVERRIDE int mgCVisualMotionMDT::CreateExtRenderInfoPacket(u_int * /*packet
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 4; col++) {
-                prog0.bones[i][row][col] = bone_matrix[col][row];
+                palette.bones[i][row][col] = bone_matrix[col][row];
             }
         }
     }

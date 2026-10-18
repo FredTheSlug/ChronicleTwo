@@ -602,7 +602,8 @@ TEST(MgVisual, QueuedFixFaceSurvivesFaceAddressReuse) {
     ASSERT_EQ(next.DataAssignMDT(next_file.header(), &model.memory(), nullptr), 1);
     ASSERT_EQ(next.face_group, group);
     ASSERT_EQ(next.face_group->face, face);
-    ASSERT_NE(mgVisualPortGroupMesh(group, nullptr)->mesh, previous);
+    // The reused address holds identical geometry, so the batch and its GPU mesh carry over.
+    EXPECT_EQ(mgVisualPortGroupMesh(group, nullptr)->mesh, previous);
 
     mgPreEndDraw(nullptr);
     mgEndDraw(0, nullptr);

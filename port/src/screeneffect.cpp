@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "gfx/gfx.hpp"
-#include "menu_world.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
 #include "screeneffect.hpp"
@@ -119,9 +118,8 @@ float DepthOfFieldDepth(float distance) {
 }
 
 PORT_OVERRIDE void DepthOfField(int levels, float *depths, mgCTexture *work_texture, float strength) {
-    // Retail draws nothing without its work texture. The focus band suits the walking camera; the menu's close
-    // framing of the player would come out blurred.
-    if (work_texture == nullptr || menuworld::Framing()) {
+    // Retail draws nothing without its work texture. The focus band suits the walking camera.
+    if (work_texture == nullptr) {
         return;
     }
 

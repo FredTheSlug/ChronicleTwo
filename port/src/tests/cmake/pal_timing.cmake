@@ -24,7 +24,7 @@ ct_empty_data_fixture("${ROOT}" "${DATA_VERSION_SOURCE}")
 file(MAKE_DIRECTORY "${ROOT}/data/dungeon/eff_script" "${ROOT}/save")
 file(WRITE "${ROOT}/data/dungeon/eff_script/m_curse_h.stb" "not-SB2")
 if(LEGACY_CONFIG)
-    file(WRITE "${ROOT}/save/config.json" "{\"game\":{\"timing\":\"pal\",\"tick_rate\":50}}")
+    file(WRITE "${ROOT}/config.json" "{\"game\":{\"timing\":\"pal\",\"tick_rate\":50}}")
 endif()
 execute_process(COMMAND "${EXE}" --headless --offscreen --data "${ROOT}/data"
     --save "${ROOT}/save" --frames 1 RESULT_VARIABLE rc OUTPUT_VARIABLE out ERROR_VARIABLE err)

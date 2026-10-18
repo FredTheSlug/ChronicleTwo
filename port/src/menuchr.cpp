@@ -25,6 +25,7 @@
 #include "mainloop_port.hpp"
 #include "menu_character_assets.hpp"
 #include "menuchr_port.hpp"
+#include "menucommon.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "mg_texture.hpp"
@@ -245,9 +246,10 @@ PORT_OVERRIDE int KeyMainCharaBG() {
     for (int step = 0; step < kQuickChangeMaxSteps; ++step) {
         if (PortRetailKeyMainCharaBG() != 0) {
             quick_change_pending = false;
-            // A quick loadout loads the same character again with other equipment: the effect, but no name.
+            // A quick loadout loads the same character again with other equipment: the effect, but no name or sound.
             if (!PortQuickLoadoutReloading()) {
                 PortShowQuickChangeBanner(quick_change_chara);
+                MenuSePlay(SYSTEM_SE_TRANSFORM);
             }
             PortQuickLoadoutReloadDone();
             change_fx_pending = true;

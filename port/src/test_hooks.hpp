@@ -9,6 +9,7 @@
 
 enum class JumpMode {
     Town,
+    Georama,
     Dungeon,
     Event,
     Title,

@@ -570,7 +570,7 @@ bool ConfigSave() {
     if (g_keep_file) {
         return false;
     }
-    const std::filesystem::path path = PathsSaveRoot() / "config.json";
+    const std::filesystem::path path = (PathsSaveRoot() / ".." / "config.json").lexically_normal();
     std::error_code             error;
     std::filesystem::create_directories(path.parent_path(), error);
     Json root = Json::object();
@@ -624,7 +624,7 @@ bool ConfigSave() {
 }
 
 bool ConfigLoad() {
-    const std::filesystem::path        path = PathsSaveRoot() / "config.json";
+    const std::filesystem::path        path = (PathsSaveRoot() / ".." / "config.json").lexically_normal();
     std::error_code                    error;
     const std::filesystem::file_status status = std::filesystem::status(path, error);
     g_keep_file = false;

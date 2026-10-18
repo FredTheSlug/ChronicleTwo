@@ -69,7 +69,7 @@ void SetRotationZ(float (*m)[4], float angle) {
 
 // The palette stores each bone transposed, so its row r is column r of the matrix.
 void ExpectSlotMatches(int slot, const float (*expected)[4]) {
-    const float (*bone)[4] = mgVisualPortCurrentProg0().bones[slot];
+    const float (*bone)[4] = mgVisualPortCurrentPalette().bones[slot];
     for (int row = 0; row < 3; ++row) {
         for (int col = 0; col < 4; ++col) {
             EXPECT_NEAR(bone[row][col], expected[col][row], kTol)
@@ -78,11 +78,12 @@ void ExpectSlotMatches(int slot, const float (*expected)[4]) {
     }
 }
 
-// CreateRenderInfoPacket resets the palette to identity before CreateExtRenderInfoPacket writes it. Unused and
-// NULL-frame rows keep that reset, so each test starts from the same state.
+// CreateRenderInfoPacket fills a skinned record's palette with identity before CreateExtRenderInfoPacket writes it.
+// These tests call the latter directly, so they reset the palette themselves. Unused and NULL-frame rows keep that
+// reset, so each test starts from the same state.
 void ResetPalette() {
-    gfx::Prog0Constants &prog0 = mgVisualPortCurrentProg0();
-    for (auto &bone : prog0.bones) {
+    gfx::Prog0Palette &palette = mgVisualPortCurrentPalette();
+    for (auto &bone : palette.bones) {
         for (int row = 0; row < 3; ++row) {
             for (int col = 0; col < 4; ++col) {
                 bone[row][col] = row == col ? 1.0f : 0.0f;
@@ -203,7 +204,7 @@ TEST(VisualMotion, PaletteIsModelSpace) {
     ResetPalette();
     visual.CreateExtRenderInfoPacket(nullptr, object_a, &mgRenderInfo);
     ExpectSlotMatches(0, bone_local);
-    EXPECT_NEAR(mgVisualPortCurrentProg0().bones[0][1][3], 2.0f, kTol);
+    EXPECT_NEAR(mgVisualPortCurrentPalette().bones[0][1][3], 2.0f, kTol);
 
     PoseBone(bone, bone_local, object_b);
     ResetPalette();

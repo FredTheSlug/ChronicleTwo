@@ -64,6 +64,9 @@ if(CT_ENABLE_TRACY)
     # The game links the client; its SDK headers and libraries are not installed with the game.
     set_property(DIRECTORY ${tracy_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL TRUE)
     configure_file(${tracy_SOURCE_DIR}/LICENSE ${CMAKE_BINARY_DIR}/Tracy-LICENSE.txt COPYONLY)
+    set(KZ_PORT_TRACY ON CACHE BOOL "" FORCE)
+else()
+    set(KZ_PORT_TRACY OFF CACHE BOOL "" FORCE)
 endif()
 
 # Retail textures are converted offline; the native executable only loads PNG assets.

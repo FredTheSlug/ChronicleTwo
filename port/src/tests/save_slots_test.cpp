@@ -50,8 +50,8 @@ protected:
 
     void SetUp() override {
         SaveSlotSetImportHook({});
-        root = fs::temp_directory_path() / ("dc2_save_slots_" + std::to_string(dc::test::ProcessId()));
-        fs::remove_all(root);
+        root = fs::temp_directory_path() / ("dc2_save_slots_" + std::to_string(dc::test::ProcessId())) / "save";
+        fs::remove_all(root.parent_path());
         fs::create_directories(root / "saves");
         PathsSetSaveRoot(root);
         std::memset(image.get(), 0, sizeof(*image));
@@ -77,7 +77,7 @@ protected:
         SaveSlotNew = false;
         PathsReset();
         std::error_code error;
-        fs::remove_all(root, error);
+        fs::remove_all(root.parent_path(), error);
     }
 
     // A JSON save of the image at a .json path; the raw image elsewhere, as a legacy save.
@@ -589,7 +589,7 @@ TEST_F(SaveSlotTest, ArrivalAutosaveWaitsForControlAndEnabledConfigurationThenRu
         GetMainScene()->event_run = old_event;
         GamePad__2.key_lock = old_lock;
         const auto bytes = ConfigSerialize(old_config);
-        FilesWrite(root / "config.json", bytes.data(), bytes.size(), true);
+        FilesWrite(root.parent_path() / "config.json", bytes.data(), bytes.size(), true);
         ConfigLoad();
         PortAutosaveResetArrival();
     }};
@@ -598,7 +598,7 @@ TEST_F(SaveSlotTest, ArrivalAutosaveWaitsForControlAndEnabledConfigurationThenRu
         auto config = old_config;
         config.autosave = enabled;
         const auto bytes = ConfigSerialize(config);
-        ASSERT_EQ(FilesWrite(root / "config.json", bytes.data(), bytes.size(), true), FilesResult::kWritten);
+        ASSERT_EQ(FilesWrite(root.parent_path() / "config.json", bytes.data(), bytes.size(), true), FilesResult::kWritten);
         ASSERT_TRUE(ConfigLoad());
     };
     PortAutosaveResetArrival();

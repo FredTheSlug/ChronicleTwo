@@ -47,7 +47,10 @@ so:
 | | |
 |---|---|
 | game data | `~/.var/app/org.themoonpeople.ChronicleTwo/data/chronicletwo/data` and `port_data` beside it |
-| saves, `config.json`, the pipeline cache | `~/.var/app/org.themoonpeople.ChronicleTwo/data/chronicletwo/saves` |
+| saves and the pipeline cache | `~/.var/app/org.themoonpeople.ChronicleTwo/data/chronicletwo/saves` |
+
+`config.json` and `logs/` live one level above `saves/`, in
+`~/.var/app/org.themoonpeople.ChronicleTwo/data/chronicletwo`.
 
 `config.json` is described in `docs/PC.md`. `flatpak uninstall --delete-data
 org.themoonpeople.ChronicleTwo` removes both. The usual options still apply:

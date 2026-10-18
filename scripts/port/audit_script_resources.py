@@ -154,7 +154,7 @@ def normalize(text):
 
 
 def audit(raw, stage):
-    native = stage / "port_data"
+    native = stage / "data"
     source_paths, leaves, profiles = {}, collections.defaultdict(set), set()
 
     def inventory(data, alias, depth=0):
@@ -178,7 +178,7 @@ def audit(raw, stage):
             inventory(path.read_bytes(), path.relative_to(raw).as_posix().lower())
     report = {"scripts": 0, "string_pushes": 0, "legacy_suffix_counts": {}, "actionable_residuals": [], "missing_native_targets": [], "missing_direct_references": [], "unresolved_original_references": [], "invalid_scripts": []}
     counts = collections.Counter()
-    for directory in (stage / "data", native):
+    for directory in (native,):
         if not directory.is_dir():
             continue
         for path in sorted(directory.rglob("*")):

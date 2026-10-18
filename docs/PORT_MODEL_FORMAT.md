@@ -114,8 +114,12 @@ A model receives a motion only when its skeleton fits: it has every frame the
 motion keys, and its skeleton family (models with identical frame names) matches
 at least half of the motion's first translation keys, within 0.2 of the best
 candidate. A motion no load reaches but some script names, through arguments that
-cannot be followed statically, is published into every model it fits this way; a
-motion nothing names is not published. `dc2data` reports both.
+cannot be followed statically, is published into every model it fits this way. A
+motion nothing loads or names is kept too: it goes into the models of a loaded copy
+of the same pack (a pack with the same file name, such as `chara/c01_fishing.chr`
+for `dungeon/chara/c01_fishing.chr`) when they fit, and otherwise into the single
+model its skeleton fits best, preferring a player model. `dc2data` reports every
+such placement.
 
 Primitive stream maps restore original vertex and normal identities from expanded glTF corners. Sparse `stream_overrides` preserve only components that standard glTF cannot represent faithfully, including raw game colours and unused stream entries. Standard geometry and node transforms remain authoritative. A replaced glTF can change primitive and accessor counts; the loader generates native stream identities for the replacement layout while preserving gameplay frame semantics.
 

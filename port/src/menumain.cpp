@@ -81,9 +81,7 @@ PORT_OVERRIDE void MenuBaseTextureReEnter() {
 }
 
 PORT_OVERRIDE int MenuMainInit(MENU_INIT_ARG *arg) {
-    if (menuworld::HoldMenuInit(arg)) {
-        return true;
-    }
+    menuworld::MenuOpening(arg);
     return PortRetailMenuMainInit(arg);
 }
 

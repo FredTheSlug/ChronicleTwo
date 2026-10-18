@@ -1,12 +1,14 @@
 #include "common.h"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <span>
 
 #include "gamedata.hpp"
 #include "menu_world.hpp"
 #include "menucommon.hpp"
+#include "menudraw.hpp"
 #include "menumain.hpp"
 #include "menusys.hpp"
 #include "menusys_port.hpp"
@@ -19,6 +21,43 @@ namespace {
 constexpr std::size_t kRequestIdMax = 10;
 // MENU_INIT_ARG::end_code of the item picker's choice, which retail spells only as a number.
 constexpr int kItemChosen = 7;
+
+// Parts of the Item page's quick slots (the frame, icons, counts and cursor anchors), which the town and dungeon
+// menus move toward the top of the screen.
+constexpr std::array kQuickSlotNames = {"itemfrm", "item0", "item1", "item2", "item0num", "item1num",
+                                        "item2num", "c_i0", "c_i1", "c_i2"};
+// Logical pixels the quick slots move up.
+constexpr float kQuickSlotLift = 20.0f;
+
+// A quick slot part with the y retail last gave it, so a lift applies once however often the page is initialised.
+struct QuickSlotPart {
+    MENUFORMPARTS_TYPE *part = nullptr;
+    float               retail_y = 0.0f;
+    float               lifted_y = 0.0f;
+};
+
+std::array<QuickSlotPart, kQuickSlotNames.size()> quick_slot_parts{};
+
+// Sets each quick slot part to its retail y, or to that y lifted when the page is the main menu's.
+void SetQuickSlotLift(CMenuItemInfo &menu, bool lift) {
+    CMenuPosDataForm *form = menu.view_form[0];
+    if (form == nullptr) {
+        return;
+    }
+    for (std::size_t i = 0; i < kQuickSlotNames.size(); ++i) {
+        MENUFORMPARTS_TYPE *part = form->GetPartInfo(const_cast<char *>(kQuickSlotNames[i]));
+        if (part == nullptr) {
+            continue;
+        }
+        QuickSlotPart &entry = quick_slot_parts[i];
+        // A part whose y is not the last one lifted was rewritten by retail's init, so that y is the retail position.
+        if (entry.part != part || part->y != entry.lifted_y) {
+            entry = {part, part->y, part->y};
+        }
+        part->y = lift ? entry.retail_y - kQuickSlotLift : entry.retail_y;
+        entry.lifted_y = part->y;
+    }
+}
 
 } // namespace
 
@@ -73,4 +112,12 @@ PORT_OVERRIDE void MenuItemSelectDraw() {
 PORT_OVERRIDE void MenuItemDraw() {
     const menuworld::ItemDrawScope scope;
     PortRetailMenuItemDraw();
+}
+
+PORT_OVERRIDE int MenuItemInit(mgCMemory *stack, int *tex_block, int mode) {
+    const int  result = PortRetailMenuItemInit(stack, tex_block, mode);
+    const bool main_menu = MenuCommonInfo->open_type == MENU_OPEN_MAIN_TOWN || MenuCommonInfo->open_type == MENU_OPEN_MAIN_DUNGEON;
+    SetQuickSlotLift(class_menu_item_info, main_menu);
+    menuworld::ItemOpening();
+    return result;
 }

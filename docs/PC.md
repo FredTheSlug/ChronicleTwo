@@ -68,7 +68,7 @@ export VK_DRIVER_FILES="$(brew --prefix)/etc/vulkan/icd.d/MoltenVK_icd.json"
 
 Native builds include [Tracy 0.14.1](https://github.com/wolfpld/tracy/releases/tag/v0.14.1) from a pinned source archive. Tracy records game zones, frame marks and plots only while `game.debug_mode=true` or a `--jump` debug session is active. Start the matching Tracy profiler and connect to localhost while the game runs; recording begins on connection. Normal sessions leave the local listener idle, and sampling and system tracing are disabled. `-DCT_ENABLE_TRACY=OFF` removes the dependency and instrumentation from a build entirely.
 
-The default and `Game` frame tracks mark completed game frames; `Display` marks frames actually presented. CPU zones separate canonical scene rendering, display rendering, pacing and readbacks. Loading zones cover archive indexing and reads, script checks, model documents and instances, and texture decoding and uploads. Plots show scene draw counts, visual face table size, retained CPU geometry, resident GPU face batches, failed mesh uploads and immediate face draws. The last two plots describe work since the preceding visual-face sweep. These zones do not cross the game's cooperative thread switches. The renderer itself has no Vulkan GPU timestamp zones yet. The Flatpak grants network access so a local Tracy profiler outside its sandbox can connect during a debug session. Distributed builds include Tracy's license notice.
+The default and `Game` frame tracks mark completed game frames; `Display` marks frames actually presented. CPU zones separate canonical scene rendering, display rendering, pacing and readbacks. Loading zones cover archive indexing and reads, script checks, model documents and instances, and texture decoding and uploads. Plots show scene draw counts, visual face table size, retained CPU geometry, resident GPU face batches, failed mesh uploads and immediate face draws. The last two plots describe work since the preceding visual-face sweep. These zones do not cross the game's cooperative thread switches. The renderer adds `Kazarov` CPU zones (RenderList, Interpolated, Replay, frame open/close, acquire, submit, present, fence wait), per-frame plots (mesh and 2D draws, descriptor binds, grab copies and pre-copies, transient bytes) and Vulkan GPU zones for dynamic-rendering spans, grab copies, uploads, depth queries and the swapchain blit. A capture's per-event GPU times export with `tracy-csvexport -g`. The Flatpak grants network access so a local Tracy profiler outside its sandbox can connect during a debug session. Distributed builds include Tracy's license notice.
 
 ### Optimisation
 
@@ -249,7 +249,7 @@ loader. Put each file at its entry name in `data.zip`, directly inside the
 same pack. These file paths follow the loader's case-insensitive
 matching, and replacement file sizes are used when loading. Direct native files can also be supplied by active datapacks. Game configuration
 commands, audio controls and movies use their actual JSON and MP4 paths. The
-user's `config.json` in the save root remains the port's settings file.
+user's `config.json` beside the save root remains the port's settings file.
 
 The data root is the first of these that applies:
 
@@ -463,7 +463,7 @@ darkchronicle [options]
 | Option | Meaning |
 |---|---|
 | `--data DIR` | the extracted game data; `--data=DIR` also works. Resolved as in "Game data and first run" |
-| `--save DIR` | saves, `config.json` and the pipeline cache; `--save=DIR` also works. Resolved as in "Game data and first run" |
+| `--save DIR` | saves and the pipeline cache; `config.json` and `logs/` go in its parent directory. `--save=DIR` also works. Resolved as in "Game data and first run" |
 | `--window WxH` | window size in pixels, `x` or `X` between the sides. Default: `video.width` and `video.height` in `config.json`, then the monitor's. Headless: the offscreen image's size |
 | `--headless` | on Linux and macOS, SDL's offscreen video driver with a Vulkan headless surface (`VK_EXT_headless_surface`); on Windows, SDL's `windows` driver with a hidden window. Without a headless surface it behaves as `--offscreen` |
 | `--offscreen` | `--headless` without a Vulkan surface: frames are rendered to an image only |
@@ -576,7 +576,7 @@ Fixtures and extracted game data stay outside the repository.
 2. `ParseOptions` reads the other options. A usage error exits with status 2. `--input` loads its script here, and a bad script exits with status 2.
 2a. `LogInit` starts the logger with stderr only, at the level of `--log-level` or `DC2_LOG`, and routes Kazarov's diagnostics into it. `LogShutdown` is registered with `atexit` before anything else that `main` registers, so it runs last. The session header goes to the log (see [LOGGING.md](LOGGING.md)).
 2b. `CrashInit` installs the crash handlers and starts the crash report writer; runs with `--headless`, `--frames` or `--input` never show a crash dialog (see [CRASH_REPORTS.md](CRASH_REPORTS.md)). `--crash-test` (or `DC2_CRASH_TEST`) is parsed here.
-3. `ConfigLoad` reads `config.json` from the save root (see "config.json"). `LogAttachFile` then applies its `log` section and opens `<save root>/logs/darkchronicle-<session>.log`, which starts with every line logged since `LogInit`. `CrashSetBundleRoot` then puts crash bundles under `<save root>/crashes/<session>/`, and an early `--crash-test` fires.
+3. `ConfigLoad` reads `config.json` from the save root's parent directory (see "config.json"). `LogAttachFile` then applies its `log` section and opens `<save root>/../logs/darkchronicle-<session>.log`, which starts with every line logged since `LogInit`. `CrashSetBundleRoot` then puts crash bundles under `<save root>/crashes/<session>/`, and an early `--crash-test` fires.
 4. `FirstRunRequireData` checks the data root and opens setup when extraction is needed, or exits with status 3 in headless mode (see "Game data and first run").
 4a. `InitCDFile` indexes the data root, printing `dataread: indexed N files under <dir>`. NTSC script validation runs before the window, renderer, audio and clock. Incompatible scripts are named in the log and startup exits with status 5; desktop runs also show an error dialog.
 5. The window opens, or the offscreen surface with `--headless`. A windowed run then shows the notice of a crash in an earlier session, if there is one not yet shown. Input initialises, and the input script is installed.
@@ -602,7 +602,9 @@ Launch hooks prepare an explicit scene jump and give requested items on arrival.
 
 ## config.json
 
-The configuration is `<save root>/config.json`, with the sections `game`, `video`, `audio`, `input` and `log`. They fill Kazarov's `HostSettings` (`tools/kazarov/include/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
+The configuration is `<save root>/../config.json`, with the sections `game`, `video`, `audio`, `input` and `log`. They fill Kazarov's `HostSettings` (`tools/kazarov/include/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
+
+With `run.sh` or `run.bat`, settings and logs live at `port/run/config.json` and `port/run/logs/`. Installed builds keep them directly above `saves/` in the per-user application directory. A custom `--save` or `DC2_SAVE` also places them in the save root's parent directory. Existing installations should move `config.json` and `logs/` out of the save root to that parent directory.
 
 - Missing: the file is written with the defaults.
 - Unreadable (it exists but cannot be read, or is not a regular file): the defaults are used, `config: could not read <path>; using defaults and leaving it untouched` goes to stderr, and the file is not written in that session.
@@ -659,7 +661,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.mouse_release` | string or array of strings | empty | key names | keys that release the captured mouse |
 | `input.bindings` | object: action to string or array of strings | empty | key names | rebinds actions; action names are lowercased |
 | `log.level` | string | auto | auto, trace, debug, info, warning, error, critical, off | the lowest level logged; `auto` is `debug` in a Debug build and `info` otherwise. `--log-level` and `DC2_LOG` outrank it; applies live |
-| `log.file` | bool | true | | write the session log under `<save root>/logs/`; `DC2_LOG_FILE=0` turns it off; applies live |
+| `log.file` | bool | true | | write the session log under `<save root>/../logs/`; `DC2_LOG_FILE=0` turns it off; applies live |
 | `log.keep` | int | 10 | 1 to 1000 | session logs kept in `logs/`, this session's included; older ones are deleted when the file opens |
 | `log.console` | bool | true | | copy log lines to stderr and the game's `printf` to stdout; applies live |
 | `log.categories` | object: category to level | empty | category names, levels as `log.level` without `auto` | levels for single categories, over `log.level`; see [LOGGING.md](LOGGING.md) |
@@ -716,7 +718,7 @@ Resolution changes the windowed size; fullscreen uses the desktop. A command-lin
 
 Confirm on a binding shows **Press a key...**. Press a key or mouse button; Escape cancels and cannot be bound. The opening press is ignored, and the new input must be released before navigation resumes. Square or **Restore binding** removes that action's override and restores its defaults. Controller buttons retain their retail assignments. Glyph style changes the PC page's device-specific button prompts; keyboard prompts use current bindings. With **Button symbols** on New, the retail menus and messages draw the symbols of `glyphs/` for that style too (see [GLYPHS.md](GLYPHS.md)); Original keeps the PlayStation art everywhere.
 
-A failed write shows a warning. Settings still work in the current session. Check the save folder and change a setting to retry. A configuration file that could not be read remains protected against replacement.
+A failed write shows a warning. Settings still work in the current session. Check the save root's parent directory and change a setting to retry. A configuration file that could not be read remains protected against replacement.
 
 `tools/input/pc-settings.input` replays all four tabs, a key rebind, Escape cancellation, and return to retail Options from `--jump town:10 --fast-load`. Its comments give capture frames. `tools/input/pc-settings-mouse.input` exercises clicking and mouse-button capture at `--window 1280x960`. Use fresh save roots and `--screenshot-display 2` for both.
 
@@ -888,10 +890,23 @@ and `help-mouse.input` (`--jump dungeon:0:1`) replay these at `--window 1920x108
 with `--fast-load`; their comments give capture frames. `--screenshot-fps`
 captures include the menu pointer.
 
-### Mouse follow camera
+### Stick and mouse follow camera
+
+Right-stick look directly rotates the town and dungeon walking cameras at a
+steady angular rate for each stick deflection, without a speed ramp or queued
+rotation after release. Camera following still eases normally. Vertical look
+keeps the selected height within the active camera's limits instead of drifting
+back toward its resting height. Stick and mouse look share the collision checks
+below; shoulder-button rotation and other camera modes retain their own controls.
+
+**Invert stick X** and **Invert stick Y** default to **Off**. Off uses the opposite
+direction from the original controller mapping; On restores the original direction
+for that axis. This also applies to the left stick while it controls first-person
+look, without reversing normal movement. The switches apply immediately and retain
+their existing configuration keys. Mouse and gyro inversion are independent.
 
 Mouse motion directly turns the active walking camera around the character. It
-does not deflect the right stick or inherit its dead zone and easing. Vertical
+does not deflect the right stick or inherit its dead zone. Vertical
 motion changes follow-camera height within the active retail limits, keeping the
 view aimed at the character. `input.mouse_sensitivity` is degrees per mouse
 count; `input.mouse_invert_y` reverses vertical motion. Mouse1 and Mouse2 retain
@@ -1014,9 +1029,11 @@ Item page and opens Bread's commands by frame 2850. These two scripts also use
 
 ### Item page over the paused world
 
-The town and dungeon main menus open over the paused world instead of the retail backdrop (`port/src/menu_world.cpp`). The request waits up to 20 ticks for the player to stop, swings the following camera to the player's front, where the next world tick's collision check keeps it clear of scenery, hides the player and its shadow, and holds the camera 89.7 units out and to the side so the player stands in the space the Item page leaves for the character. Depth of field is off from then until the menu closes. `MenuMainInit` then runs on that frame. Its `MenuCapture` keeps the frame at window resolution in a frame target of its own, while retail's half-size grab, which the other pages show, copies the world as it was when the menu was asked for, with the player and the walking camera. A subgame, the eye view, a fixed town camera, a non-following camera or the loop leaving its field mode leaves the menu as retail opens it.
+The town and dungeon main menus capture the exact field frame at the pause instant (`port/src/menu_world.cpp`). The renderer replays that frame's recorded draws once with the player removed, and the same frame is then drawn in full. The playerless copy leaves out the player's meshes, shadow and outline, the effects the player owns, and the town's exit markers. Subgame menus retain retail behavior.
 
-On the Item page the picture replaces the black fill and the retail backdrop forms. The menu character is drawn through the world camera at the player's spot, facing it; the Ridepod is drawn at 0.6 scale and the monster form at 0.8. A looked-at weapon or rod keeps the menu's close-up. Panels left of the bag board are anchored to the left edge and the rest to the right, within a centred 16:9 area (`gfx::UiAnchor::max_aspect`); the selection frame and the command popup move with their panel, a carried item is drawn at the pointer, and mouse hit tests map the pointer back to the retail layout. Closing the menu restores the camera and the player.
+Entering Items runs the native orb close. The orb shows the scene dissolving as it converges on the backdrop, and the retail bg16 background fades. Returning to the root menu uses the native open. The menu character is framed on the left, its feet above the name and centred on the HP bar, and fades in after the orb closes. The Item title is centred, and on the town and dungeon menus the quick-select slots sit higher.
+
+The Item panels spread across a centred 16:9 area (`gfx::UiAnchor::max_aspect`): panels left of the bag board anchor to the left edge and the rest to the right. The cursor follows one continuous offset across the split, stays hidden until the panels settle, and is never mirrored. Mouse hit tests map the pointer back to the retail layout. The debug item browser ignores the spread.
 
 ### Make and Monster Transform mouse
 
@@ -1136,7 +1153,7 @@ falls back to retail movement. No retail parameter set is retained by zoom.
 exercise both limits, walking, reset and menu interruptions with the respective
 `--jump town:10 --fast-load` and `--jump dungeon:0:1 --fast-load` hooks. Their
 comments list capture frames; `--screenshot-display` also captures eased
-presentation frames. Enable the option in each replay's save-root config.
+presentation frames. Enable the option in `config.json` beside each replay's save root.
 `tools/input/dungeon-mouse-zoom-wall.input` adds a sideways wall approach,
 distance clamping, an inward reversal and reset in the same corridor.
 `tools/input/dungeon-mouse-zoom-walk.input` zooms fully out there and walks
@@ -1167,7 +1184,7 @@ The list is drawn on the materials list's board, opaque and up to 12 rows tall. 
 (`--jump dungeon:0 --fast-load`) shows the list for a floor without materials, and
 `tools/input/floor-monsters-deathtrap.input` (`--jump dungeon:4 --fast-load`) opens every floor with the menu debug
 mode and pages from Deathtrap's materials to its monsters; their comments give capture frames. Both need the setting
-on in the save root's `config.json`.
+on in the `config.json` beside the save root.
 
 ### Dungeon monster limit
 
@@ -1326,7 +1343,7 @@ The PAL scripts (`.stb`) hold the NTSC frame counts and convert them while they 
 
 - One game frame is one pass of the game's loop, and one recorded list. It spans `mgFrameRate` clock ticks: 2 at the fixed 60 Hz rate, so 30 game frames a second. `mgFrameRate` keeps its meaning.
 - After the canonical render, `mgEndFrame` calls `PresentWaitFrame`. It waits the same tick count `WaitVSync` waited for; the rotating-thread and pump behaviour is unchanged. Meanwhile `present.cpp` renders display frames from the newest list and the one before it. Each display frame's alpha is the elapsed fraction of the game frame: the ticks since the frame began plus the fraction of the current tick, over `mgFrameRate`. An alpha from the clock tick alone would run 0 to 1 twice per game frame at `mgFrameRate` 2. Display frames are presented as fast as `video.present_mode` and `video.max_fps` allow (`max_fps` 0 is unlimited). A game frame whose wait presented nothing presents its canonical image afterwards (`PresentTickEnd`).
-- Interpolated: the models of tagged mesh draws, and the camera (`tools/kazarov/src/cpp/gfx/README.md`, "Display lists"). A draw is tagged with `mgPortInterpScope(object, teleport_distance, blend_vertices, no_interpolation)`, keyed by the `mgCFrame` or, outside a frame, the visual's record. `kMgPortFrameTeleportDistance` is 200 units. Skinned prog0 draws blend their 32-bone model-space palette (`gfx::Prog0Constants::bones`) per bone: translation lerped, rotation slerped from the Gram-Schmidt rotation, scale and shear lerped in its frame. A bone that moved further than the draw's teleport distance keeps the newest pose. The rest of the per-draw block follows the interpolated model and camera: `model_world` is the interpolated model, `clip_or_view` and the object-space eye are re-based through the tick's and the interpolated object-to-eye transforms, and point lights shift with the object's origin. Dark Cloud 1's port, which shares the renderer, records no prog0 block, so it takes no such path.
+- Interpolated: the models of tagged mesh draws, and the camera (`tools/kazarov/src/cpp/gfx/README.md`, "Display lists"). A draw is tagged with `mgPortInterpScope(object, teleport_distance, blend_vertices, no_interpolation)`, keyed by the `mgCFrame` or, outside a frame, the visual's record. `kMgPortFrameTeleportDistance` is 200 units. Skinned prog0 draws blend their 32-bone model-space palette (`gfx::Prog0Palette::bones`) per bone: translation lerped, rotation slerped from the Gram-Schmidt rotation, scale and shear lerped in its frame. A bone that moved further than the draw's teleport distance keeps the newest pose. The rest of the per-draw block follows the interpolated model and camera: `model_world` is the interpolated model, `clip_or_view` and the object-space eye are re-based through the tick's and the interpolated object-to-eye transforms, and point lights shift with the object's origin. Dark Cloud 1's port, which shares the renderer, records no prog0 block, so it takes no such path.
 - Depth-tested screen effects set `gfx::DrawState::screen_space` so the depth-of-field layers stay screen-aligned while sampling the display camera's refreshed grabs. World sprites retain camera reprojection.
 - Dungeon pickup sprites (`CPullItem`, including coins, ABS and floating items) opt into keyed world-corner interpolation. `SetItem` starts a new emission generation; matched corners blend in world space under the display camera, including bobbing, glow size and opacity. Atlas animation stays newest. Reused slots, unmatched/incompatible draws, motion beyond 200 units, near-plane crossings and multi-camera lists keep newest own motion. Canonical and alpha-1 rendering remain exact.
 - Enemy anger-counter marks (`CEnemyGekirin`) have independent screen-space keys, so their movement and break-away bounce interpolate even when HP changes or neighbouring marks disappear. `ResetGekirin` starts a new generation for refills and reused monsters. Game steps, rage counts and canonical rendering are unchanged.
@@ -1402,7 +1419,7 @@ When the controller speaker's device (see "Controller speaker") has four channel
 #### Optional sharp text
 
 `video.text_font` is `"original"` by default. In **Options → PC SETTINGS → Display**, set **Text font**
-to **Sharp**, or set `"sharp"` in the save folder's `config.json`. Put a trusted TrueType font at
+to **Sharp**, or set `"sharp"` in the `config.json` beside the save folder. Put a trusted TrueType font at
 `<save>/lang/font.ttf` to try sharp ASCII dialogue and menu text. `lang/font.ttf` beside the
 executable is the fallback location. Restart after changing the font file; toggling Original/Sharp
 applies on the next drawn text without a restart.

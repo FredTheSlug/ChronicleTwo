@@ -3,6 +3,7 @@
 #include <array>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -24,6 +25,8 @@ namespace {
 constexpr int kFaceUnusedFrameLimit = 600;
 // Persistent faces retain CPU geometry while idle GPU meshes release their slots.
 constexpr int kPersistentMeshUnusedFrameLimit = 1800;
+// Evictions only free memory, so they may run up to this many frames late.
+constexpr int kSweepInterval = 16;
 
 // The GS guard band reaches 10% past the screen on each side; the six-plane clip keeps what lies inside it.
 constexpr float kGuardScale = 1.1f;
@@ -196,6 +199,20 @@ std::shared_ptr<mgVisualGroupMesh> BuildGroup(const std::vector<std::shared_ptr<
     return group;
 }
 
+template <typename T>
+bool SameElements(const std::vector<T> &lhs, const std::vector<T> &rhs) {
+    if (lhs.size() != rhs.size()) {
+        return false;
+    }
+    return lhs.empty() || std::memcmp(lhs.data(), rhs.data(), lhs.size() * sizeof(T)) == 0;
+}
+
+// Compares every field byte for byte, so a rebuilt face with identical geometry is recognised as unchanged.
+bool SameFaceMesh(const mgVisualFaceMesh &lhs, const mgVisualFaceMesh &rhs) {
+    return lhs.index_count == rhs.index_count && lhs.skinned == rhs.skinned && lhs.type == rhs.type &&
+           SameElements(lhs.vertices, rhs.vertices) && SameElements(lhs.indices, rhs.indices);
+}
+
 } // namespace
 
 mgVisualFaceMesh mgVisualPortBuildFace(const mgCVisualMDT &visual, const mgCFace &face, bool skinned) {
@@ -217,6 +234,14 @@ mgVisualFaceMesh mgVisualPortBuildFace(const mgCVisualMDT &visual, const mgCFace
             return out;
         }
         weights = motion.weight;
+    }
+
+    const size_t vertices_per_corner = skinned ? 2 : 1;
+    out.vertices.reserve(static_cast<size_t>(corner_count) * vertices_per_corner);
+    if ((face.type & MG_FACE_PRIM_MASK) == MG_PRIM_TRIANGLE_STRIP) {
+        out.indices.reserve(corner_count >= 3 ? 3 * static_cast<size_t>(corner_count - 2) : 0);
+    } else {
+        out.indices.reserve(3 * static_cast<size_t>(corner_count / 3));
     }
 
     for (int corner = 0; corner < corner_count; corner++) {
@@ -252,10 +277,13 @@ void mgVisualPortRefreshFace(mgCVisualMDT *visual, mgCFace *face) {
     CT_PROFILE_ZONE("Build visual face");
     const int  kind = visual->Iam();
     FaceEntry &entry = FaceTable()[face];
-    // Address reuse replaces the table's owner. A group batch built from the previous geometry keeps it alive
-    // and is rebuilt when it next draws.
-    entry.mesh = std::make_shared<const mgVisualFaceMesh>(
-        mgVisualPortBuildFace(*visual, *face, kind == MG_VISUAL_KIND_MOTION_MDT));
+    mgVisualFaceMesh mesh = mgVisualPortBuildFace(*visual, *face, kind == MG_VISUAL_KIND_MOTION_MDT);
+    // An unchanged face keeps its mesh, so the group batches built from it stay valid and are not rebuilt.
+    // A changed face is a new mesh, and a group batch built from the previous one keeps it alive until it
+    // next draws.
+    if (entry.mesh == nullptr || !SameFaceMesh(*entry.mesh, mesh)) {
+        entry.mesh = std::make_shared<const mgVisualFaceMesh>(std::move(mesh));
+    }
     // A plain visual is rebuilt on every CreateFacePacket and would churn GPU meshes if uploaded, so its
     // group batches stay on the CPU.
     entry.persistent = kind == MG_VISUAL_KIND_FIX_MDT || kind == MG_VISUAL_KIND_MOTION_MDT;
@@ -274,27 +302,56 @@ FaceEntry *FindFace(const mgCFace *face) {
     return &found->second;
 }
 
-// The batch of the groups from first up to end, keyed by first.
-std::shared_ptr<const mgVisualGroupMesh> GroupMesh(const mgFACE_GROUP *first, const mgFACE_GROUP *end) {
-    std::vector<std::shared_ptr<const mgVisualFaceMesh> > faces;
-    bool                                                  persistent = true;
+// Visits the face entries of the groups from first up to end that have geometry, in draw order.
+template <typename Visit>
+void VisitGroupFaces(const mgFACE_GROUP *first, const mgFACE_GROUP *end, Visit &&visit) {
     for (const mgFACE_GROUP *group = first; group != end; group = group->next) {
         for (const mgCFace *face = group->face; face != nullptr; face = face->next) {
             const FaceEntry *entry = FindFace(face);
             if (entry == nullptr || entry->mesh->indices.empty()) {
                 continue;
             }
-            faces.push_back(entry->mesh);
-            persistent = persistent && entry->persistent;
+            visit(*entry);
         }
     }
-    mgVisualPortSweep();
-    if (faces.empty()) {
+}
+
+void SweepPeriodically() {
+    if (mgPortFrameCount() % kSweepInterval == 0) {
+        mgVisualPortSweep();
+    }
+}
+
+// The batch of the groups from first up to end, keyed by first.
+std::shared_ptr<const mgVisualGroupMesh> GroupMesh(const mgFACE_GROUP *first, const mgFACE_GROUP *end) {
+    // The cached batch is checked face by face against its sources, so a steady frame copies no face pointers.
+    const GroupEntry *cached = nullptr;
+    if (const auto found = GroupTable().find(first); found != GroupTable().end()) {
+        cached = &found->second;
+    }
+    bool   persistent = true;
+    bool   matched = cached != nullptr;
+    size_t kept = 0;
+    VisitGroupFaces(first, end, [&](const FaceEntry &entry) {
+        persistent = persistent && entry.persistent;
+        matched = matched && kept < cached->sources.size() && cached->sources[kept].get() == entry.mesh.get();
+        ++kept;
+    });
+    matched = matched && kept == cached->sources.size();
+
+    SweepPeriodically();
+    if (kept == 0) {
         return nullptr;
     }
 
+    // The sweep may have erased this group's entry, in which case the cached pointer is no longer used and
+    // operator[] yields a fresh entry that is rebuilt below.
     GroupEntry &entry = GroupTable()[first];
-    if (entry.mesh == nullptr || entry.sources != faces) {
+    if (!matched || entry.mesh == nullptr) {
+        std::vector<std::shared_ptr<const mgVisualFaceMesh> > faces;
+        faces.reserve(kept);
+        // The sweep spares every face this walk visited, so the second walk sees the same faces.
+        VisitGroupFaces(first, end, [&](const FaceEntry &face_entry) { faces.push_back(face_entry.mesh); });
         entry.mesh = BuildGroup(faces);
         entry.sources = std::move(faces);
     }
@@ -403,6 +460,7 @@ namespace {
 struct RenderRecord {
     gfx::MeshConstants  mesh;
     gfx::Prog0Constants prog0;
+    gfx::Prog0Palette   palette;
     gfx::MeshTransform  transform{};
     gfx::DrawState      state;
     bool                drawn = false;
@@ -425,9 +483,17 @@ struct RunDraw {
 struct GroupDraw {
     gfx::MeshConstants  mesh;
     gfx::Prog0Constants prog0;
-    gfx::MeshTransform  transform{};
-    gfx::DrawState      state;
-    const void         *object{};
+    // A copy, because the record is overwritten by the next visual before a packet's deferred draw runs.
+    std::optional<gfx::Prog0Palette> palette;
+    gfx::MeshTransform               transform{};
+    gfx::DrawState                   state;
+    const void                      *object{};
+};
+
+// A deferred group draw's state, shared by the packet's closure so the closure stays small.
+struct GroupPacket {
+    GroupDraw            draw;
+    std::vector<RunDraw> runs;
 };
 
 // Both prog0 submissions. Every call goes through here, so the renderer and frame checks mgPortDrawMesh makes
@@ -438,15 +504,16 @@ void SubmitRuns(const GroupDraw &group, const std::vector<RunDraw> &runs) {
         return;
     }
 
-    mgPortInterpScope   scope(group.object, kMgPortFrameTeleportDistance);
-    gfx::Prog0Constants prog0 = group.prog0;
+    mgPortInterpScope scope(group.object, kMgPortFrameTeleportDistance);
+    gfx::DrawState    state = group.state;
 
     for (const RunDraw &draw : runs) {
-        prog0.face = draw.run.face_flags;
+        state.prog0_face = draw.run.face_flags;
 
+        const gfx::Prog0Palette *palette = group.palette ? &*group.palette : nullptr;
         if (draw.geometry->mesh != gfx::kNullMesh) {
-            mgPortDrawMeshProg0(draw.geometry->mesh, draw.run.first_index, draw.run.index_count, group.mesh, prog0,
-                                draw.binding, group.state, &group.transform);
+            mgPortDrawMeshProg0(draw.geometry->mesh, draw.run.first_index, draw.run.index_count, group.mesh,
+                                group.prog0, draw.binding, state, &group.transform, palette);
         } else {
 #ifdef CT_ENABLE_TRACY
             if (ct::profile::Enabled()) {
@@ -454,8 +521,8 @@ void SubmitRuns(const GroupDraw &group, const std::vector<RunDraw> &runs) {
             }
 #endif
             const auto indices = std::span(draw.geometry->indices).subspan(draw.run.first_index, draw.run.index_count);
-            mgPortDrawMeshImmediateProg0(draw.geometry->vertices, indices, group.mesh, prog0, draw.binding, group.state,
-                                         &group.transform);
+            mgPortDrawMeshImmediateProg0(draw.geometry->vertices, indices, group.mesh, group.prog0, draw.binding, state,
+                                         &group.transform, palette);
         }
     }
 }
@@ -553,6 +620,10 @@ gfx::Prog0Constants &mgVisualPortCurrentProg0() {
     return CurrentRecord().prog0;
 }
 
+gfx::Prog0Palette &mgVisualPortCurrentPalette() {
+    return CurrentRecord().palette;
+}
+
 PORT_OVERRIDE int mgCVisualMDT::CreateRenderInfoPacket(u_int * /*packet*/, float (*matrix)[4], mgRENDER_INFO *info) {
     RenderRecord &record = CurrentRecord();
     record.drawn = info->attr != nullptr;
@@ -566,13 +637,6 @@ PORT_OVERRIDE int mgCVisualMDT::CreateRenderInfoPacket(u_int * /*packet*/, float
     gfx::Prog0Constants &prog0 = record.prog0;
 
     std::memset(&prog0, 0, sizeof prog0);
-    for (auto &bone : prog0.bones) {
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 4; col++) {
-                bone[row][col] = row == col ? 1.0f : 0.0f;
-            }
-        }
-    }
 
     record.transform = mgPortMeshTransform(&matrix[0][0]);
     if (attr.depth_bias > 1.0f) {
@@ -674,6 +738,16 @@ PORT_OVERRIDE int mgCVisualMDT::CreateRenderInfoPacket(u_int * /*packet*/, float
         flags |= gfx::kProg0ColorAdd;
     }
     prog0.flags = flags;
+    // Skinning is decided above. Identity bones hold until the motion code writes this visual's pose.
+    if ((flags & gfx::kProg0Skinned) != 0) {
+        for (auto &bone : record.palette.bones) {
+            for (int row = 0; row < 3; row++) {
+                for (int col = 0; col < 4; col++) {
+                    bone[row][col] = row == col ? 1.0f : 0.0f;
+                }
+            }
+        }
+    }
 
     const bool fogged = attr.fog != 0 && info->fog_enable != 0;
     this->prmode = (fogged ? kPrmodeFog : 0) | kPrmodeDefault;
@@ -765,6 +839,9 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
         GroupDraw draw;
         draw.mesh = record.mesh;
         draw.prog0 = record.prog0;
+        if ((record.prog0.flags & gfx::kProg0Skinned) != 0) {
+            draw.palette = record.palette;
+        }
         std::memcpy(draw.prog0.diffuse, mat->diffuse, sizeof draw.prog0.diffuse);
         std::memcpy(draw.prog0.specular, mat->unk_10, sizeof draw.prog0.specular);
         draw.prog0.specular_power = kMaterialPower;
@@ -775,6 +852,7 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
 
         std::vector<RunDraw> runs;
         if (const auto geometry = GroupMesh(group, end)) {
+            runs.reserve(geometry->runs.size());
             for (const mgVisualGroupRun &run : geometry->runs) {
                 const bool textured = (run.face_flags & MG_FACE_NO_TEXTURE) == 0;
                 runs.push_back({.geometry = geometry, .run = run, .binding = textured ? binding : gfx::TextureBinding()});
@@ -791,8 +869,9 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
             break;
         }
 
-        mgPortSetPacketDraw(packet, [draw, runs = std::move(runs)] {
-            SubmitRuns(draw, runs);
+        auto group_packet = std::make_shared<const GroupPacket>(GroupPacket{std::move(draw), std::move(runs)});
+        mgPortSetPacketDraw(packet, [group_packet] {
+            SubmitRuns(group_packet->draw, group_packet->runs);
         });
 
         const int block = mat->texture != nullptr ? mat->texture->block : -1;

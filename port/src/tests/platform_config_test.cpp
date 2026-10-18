@@ -18,7 +18,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-// Each case gets an empty save root: SettingsChange on a window-affecting field would open a window,
+// Each case gets an empty run directory: SettingsChange on a window-affecting field would open a window,
 // so the cases that need one write the file and load it.
 class PlatformConfig : public testing::Test {
 protected:
@@ -26,7 +26,7 @@ protected:
         root_ = fs::temp_directory_path() / std::format("dc2_config_{}", dc::test::ProcessId());
         fs::remove_all(root_);
         fs::create_directories(root_);
-        PathsSetSaveRoot(root_);
+        PathsSetSaveRoot(root_ / "saves");
     }
 
     void TearDown() override {
@@ -63,10 +63,18 @@ void CaptureChange(const HostSettings &before, const HostSettings &after) {
 TEST_F(PlatformConfig, DefaultsAreWrittenWhenAbsent) {
     ASSERT_FALSE(ConfigLoad());
     ASSERT_TRUE(fs::exists(Path()));
+    EXPECT_FALSE(fs::exists(PathsSaveRoot() / "config.json"));
     ASSERT_TRUE(ConfigParse(Read()) == Config{});
     ASSERT_TRUE(SettingsGet().tick_rate == kConfigTickRateDefault);
     ASSERT_TRUE(ConfigLoad());
     ASSERT_TRUE(SettingsGet() == static_cast<const HostSettings &>(Config{}));
+}
+
+TEST_F(PlatformConfig, TrailingSaveSeparatorKeepsConfigInParentDirectory) {
+    PathsSetSaveRoot(PathsSaveRoot() / "");
+    ASSERT_FALSE(ConfigLoad());
+    EXPECT_TRUE(fs::exists(Path()));
+    EXPECT_FALSE(fs::exists(PathsSaveRoot() / "config.json"));
 }
 
 TEST_F(PlatformConfig, TinyFrameCapsClampButZeroRemainsUncapped) {

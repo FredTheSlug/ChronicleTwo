@@ -76,6 +76,22 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
                                                        MainChara__2, SubGameRunning(), GamePad__2.key_lock,
                                                        DebugInfo.debug_camera != 0)
                               : TownMouseCameraOwns(this, scene, pad, walking, SubGameRunning(), GamePad__2.key_lock);
+    float      stick_yaw = 0;
+    float      stick_pitch = 0;
+    if (owns) {
+        const bool button_turn = !(rot_cancel & CAMERA_ROT_CANCEL_BUTTON) &&
+                                 (pad->Btn(PAD_BTN_L1_HELD) || pad->Btn(PAD_BTN_R1_HELD));
+        if (!button_turn) {
+            stick_yaw = -control.rot;
+            control.rot = 0;
+        }
+        stick_pitch = -0.01f * control.height;
+        control.height = 0;
+    }
+    const bool reset = control.rot_back || (ConfigGet().mouse_zoom && look.zoom_reset);
+    if (fresh && stick_yaw != 0 && !reset) {
+        CancelRotBack();
+    }
     // Wheel zoom has its own framing policy. Extending right-stick look parity
     // to player actions must not change which states can take over distance.
     const bool zoom_owns = owns && (!dungeon || (!MainChara__2->lock_on && MainChara__2->CheckRunEvent()));
@@ -108,16 +124,35 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
         zoom.Read(*this, fresh ? look.zoom : 0,
                   (fresh && look.zoom_reset) || control.rot_back, ConfigGet().mouse_zoom);
     }
-    // A pad-only session (even with the option enabled) takes exactly the retail
-    // path until a wheel request. Other camera owners never inherit zoom limits.
+    CameraCtrlParam *param = GetActiveParam();
+    const float      rest_min_height = param->rest_min_height;
+    const float      rest_max_height = param->rest_max_height;
+    const int        saved_rot_cancel = rot_cancel;
+    if (owns) {
+        // Direct pitch stays where the player leaves it instead of springing
+        // back toward a resting height through the follow camera's easing.
+        param->rest_min_height = param->min_height;
+        param->rest_max_height = param->max_height;
+        if (stick_yaw != 0) {
+            rot_cancel |= CAMERA_ROT_CANCEL_AUTO_MOVE;
+        }
+    }
+    // Other camera owners never inherit wheel zoom limits.
     if (zoom_keeps && zoom.active) {
         zoom.Move(*this, *scene, control, player_rot, polys, poly_count);
     } else {
         MoveCamera(&control, player_rot, polys, poly_count);
     }
+    param->rest_min_height = rest_min_height;
+    param->rest_max_height = rest_max_height;
+    rot_cancel = saved_rot_cancel;
 
-    if (!fresh || control.rot_back || (ConfigGet().mouse_zoom && look.zoom_reset) || !owns ||
-        (look.yaw == 0 && look.pitch == 0) || !std::isfinite(look.yaw) || !std::isfinite(look.pitch)) {
+    // Stick deflection sets an angular rate per logic tick, with no queued turn
+    // or distance-dependent acceleration. Follow movement keeps its own easing.
+    const float yaw = look.yaw + stick_yaw;
+    const float pitch = look.pitch + stick_pitch;
+    if (!fresh || reset || !owns ||
+        (yaw == 0 && pitch == 0) || !std::isfinite(yaw) || !std::isfinite(pitch)) {
         return;
     }
 
@@ -153,10 +188,10 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     if (count < 0 || count >= 512) {
         return;
     }
-    if (MouseCameraYaw(*this, look.yaw, orbit_polys, count) != 0) {
+    if (MouseCameraYaw(*this, yaw, orbit_polys, count) != 0) {
         CancelRotBack();
     }
-    MouseCameraPitch(*this, look.pitch, orbit_polys, count, zoom_keeps ? zoom.HeightScale(*this) : 1.0f);
+    MouseCameraPitch(*this, pitch, orbit_polys, count, zoom_keeps ? zoom.HeightScale(*this) : 1.0f);
     // Direct motion is proved against the camera's data; a far zoom also keeps
     // the walls only the characters' collision knows out of the drawn view.
     if (zoom_keeps && zoom.active) {

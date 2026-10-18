@@ -142,7 +142,7 @@ void Draw() {
             Text(ButtonName("square", config) + ": Restore binding", 278, 348, kRight - 284, false, 12);
         }
         if (g_screen.save_failed) {
-            Help("Could not save config.json. Settings work this session.\nCheck the save folder; change a setting to retry.");
+            Help("Could not save config.json. Settings work this session.\nCheck the folder above the saves; change a setting to retry.");
         } else if (DisplayGetWarning() != DisplayWarning::None) {
             Help("The display could not apply that mode.\nThe setting shows the mode the window kept.");
         } else if (g_screen.binding >= 0) {

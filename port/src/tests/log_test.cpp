@@ -97,7 +97,7 @@ TEST_F(Log, SpecsNameALevelAndCategoryLevels) {
     ASSERT_TRUE(spec.has_value());
     const LogSpec parsed = spec.value_or(LogSpec{});
     EXPECT_EQ(parsed.level, LogLevel::Warning);
-    const std::vector<std::pair<LogCategory, LogLevel>> expected = {
+    const std::vector<std::pair<LogCategory, LogLevel> > expected = {
         {LogCategory::Gfx,   LogLevel::Trace},
         {LogCategory::Audio, LogLevel::Off  },
     };
@@ -306,7 +306,7 @@ TEST_F(LogFiles, SessionFileHasTimeLevelThreadAndCategory) {
     LogConfig config = TestConfig();
     config.file = true;
     CT_LOG_INFO(Data, "before the file");
-    LogAttachFile(directory, config);
+    LogAttachFile(directory / "saves" / "", config);
     const std::filesystem::path path = LogFilePath();
     ASSERT_EQ(path.parent_path(), directory / "logs");
     EXPECT_EQ(path.filename().string(), std::format("darkchronicle-{}.log", LogSessionId()));

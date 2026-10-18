@@ -46,8 +46,10 @@ void                     mgVisualPortSweep();
 
 mgCDrawEnv mgVisualPortDrawEnv(const mgCVisualAttr &attr, const mgCDrawEnv &base);
 
-// The motion visual writes its bones here: CreateRenderInfoPacket's record is a file static in mg_visual.cpp.
+// The current visual's record is a file static in mg_visual.cpp; the motion visual writes its bones to the palette.
 gfx::Prog0Constants &mgVisualPortCurrentProg0();
+// The bones of the current record's skinned draw; only kProg0Skinned records read them.
+gfx::Prog0Palette &mgVisualPortCurrentPalette();
 
 // The object a visual is drawn under (the mgCFrame whose Draw is running), or nullptr. Mesh draws key their
 // interpolation by it; it is never dereferenced.

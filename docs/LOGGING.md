@@ -60,7 +60,7 @@ lines on its console in every build type. A directly launched executable keeps t
 
 - **stderr** (`log.console`, on by default): the message alone, one line per call, no timestamp. Lines at or above
   the category's level.
-- **The session file**: `<save root>/logs/darkchronicle-<session>.log`, opened by `LogAttachFile` once
+- **The session file**: `<save root>/../logs/darkchronicle-<session>.log`, opened by `LogAttachFile` once
   `config.json` is read. Lines logged since `LogInit` are held in memory (up to 1 MiB) and written first, so the
   file begins with the session header. Each line reads
 

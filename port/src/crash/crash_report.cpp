@@ -812,7 +812,7 @@ void WriterSetBundleRoot(const std::string &save_root_utf8, const std::string &d
     bundle.dir_path = bundle.crashes_path / PathsFromUtf8(Session());
     bundle.report_path = bundle.dir_path / "report.txt";
     bundle.last_crash_path = bundle.crashes_path / "last_crash.json";
-    bundle.config_path = save_root / "config.json";
+    bundle.config_path = (save_root / ".." / "config.json").lexically_normal();
     bundle.crashes_dir = PathsDisplay(bundle.crashes_path);
     bundle.dir = PathsDisplay(bundle.dir_path);
     bundle.report = PathsDisplay(bundle.report_path);

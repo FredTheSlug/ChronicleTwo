@@ -46,6 +46,21 @@ PORT_OVERRIDE void DrawMenuFillBox(int alpha, int red, int green, int blue) {
     }
 }
 
+PORT_OVERRIDE void MenuMainFrameModeSet(int mode, int restart) {
+    PortRetailMenuMainFrameModeSet(menuworld::FrameMode(mode), restart);
+}
+
+PORT_OVERRIDE void MenuMainFrameStep() {
+    PortRetailMenuMainFrameStep();
+    menuworld::FrameStepped();
+}
+
+PORT_OVERRIDE void MenuMainFrameImgDraw(int &tex_block) {
+    if (!menuworld::DrawOrbPicture()) {
+        PortRetailMenuMainFrameImgDraw(tex_block);
+    }
+}
+
 PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
                                     int alpha, int red, int green, int blue) {
     if (texture == nullptr || uv.right <= 0) {
@@ -60,7 +75,10 @@ PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgR
                             static_cast<int>(rect.left + rect.right + uv.bottom),
                             static_cast<int>(rect.top + rect.bottom + uv.right));
     auto              scissor = outer;
-    MenuClipRectCheck(scissor);
+    // The cursor is shifted past the logical frame on a wide window, so the frame's clamp would cut its rect.
+    if (!menuworld::CursorDrawing()) {
+        MenuClipRectCheck(scissor);
+    }
     if (scissor.right <= 1) {
         return;
     }
@@ -76,10 +94,15 @@ PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgR
         float       x = (edge == 0 ? outer.right - 3 : outer.left) + PortMenuWakuPosition[0] * sign;
         const float y = edge == 0 ? outer.top - 5 : outer.bottom - 8;
         for (int tile = 0; tile < horizontal_count; ++tile) {
-            prim->TextureCrd(uv.left, uv.top);
-            prim->Vertex(x, y, 0.0f);
-            prim->TextureCrd(uv.left + uv.right, uv.top + uv.bottom);
-            prim->Vertex(x + uv.right, y + uv.bottom, 0.0f);
+            // Tiles overshoot the rectangle's ends by up to three pieces; each is cut at the rectangle's own edges.
+            const float left = std::max(x, static_cast<float>(outer.left));
+            const float right = std::min(x + uv.right, static_cast<float>(outer.right));
+            if (right > left) {
+                prim->TextureCrd(uv.left + static_cast<int>(std::lround(left - x)), uv.top);
+                prim->Vertex(left, y, 0.0f);
+                prim->TextureCrd(uv.left + static_cast<int>(std::lround(right - x)), uv.top + uv.bottom);
+                prim->Vertex(right, y + uv.bottom, 0.0f);
+            }
             x -= uv.right * sign;
         }
         sign = -sign;
@@ -549,6 +572,17 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
         MenuFormDraw(draw_x, draw_y, state);
         return;
     }
+    // The cursor and its frame take the cursor's shift, which eases across the spread, so they never change sides
+    // apart and jump.
+    if (menuworld::CursorForm(*this)) {
+        if (!menuworld::CursorShown()) {
+            return;
+        }
+        const menuworld::CursorDrawScope drawing;
+        const gfx::UiAnchorScope         unanchored(gfx::UiAnchor{});
+        MenuFormDraw(fptosi(x + menuworld::CursorFrameShift()), fptosi(y), state);
+        return;
+    }
     std::optional<gfx::UiAnchorScope> anchor;
     if (const auto spread = menuworld::FormAnchor(*this)) {
         anchor.emplace(*spread);
@@ -558,8 +592,43 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
     form_message = dtype == MENUFORM_DTYPE_MSGFORM && sub_no < std::size(MenuDCMsg) ? MenuDCMsg[sub_no] : nullptr;
     int draw_x = fptosi(x);
     int draw_y = fptosi(y);
-    MenuFormDraw(draw_x, draw_y, state);
+    {
+        const menuworld::CharacterFadeScope fade(*this);
+        MenuFormDraw(draw_x, draw_y, state);
+    }
     form_message = saved_message;
+}
+
+namespace {
+
+// The logical frame's centre, which the window's centre maps to for the unanchored Item title.
+constexpr int kItemTitleCentreX = 320;
+// Retail's icon move mode for the selected icon, which the Item title follows.
+constexpr int kSelectedIconMove = 2;
+// Logical x of the title's text centre from the plate's left edge, in the plate's 112-wide layout. The text sits right
+// of the plate's centre, so the plate's width does not give its centre.
+constexpr int kItemTitleTextCentreX = 90;
+
+// Retargets the Item title's plate so its text is centred on the frame, keeping the height retail moves it to.
+void CentreItemTitle(CMenuPosDataForm &title) {
+    if (title.GetPartInfo(const_cast<char *>("mi0")) == nullptr) {
+        return;
+    }
+    int target[2] = {kItemTitleCentreX - kItemTitleTextCentreX, title.next_y};
+    title.SetNextMovePos(target, MENUFORM_MTYPE_I);
+}
+
+} // namespace
+
+// Retail moves the icons toward their resting places; the Item page keeps its title centred while it is open.
+PORT_OVERRIDE int CMenuPosDataManage::StepMainMenuIconMove(int *icons, int select, int mode) {
+    const int arrived = PortRetailStepMainMenuIconMove(icons, select, mode);
+    if (select == MENU_MODE_ITEM && mode == kSelectedIconMove && menuworld::ItemBackdrop()) {
+        if (CMenuPosDataForm *title = GetFormInfo(GetMenuMainIconChar(MENU_MODE_ITEM)); title != nullptr) {
+            CentreItemTitle(*title);
+        }
+    }
+    return arrived;
 }
 
 PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float rotation,
@@ -581,8 +650,10 @@ PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float ro
     prim->Color(128, 128, 128, alpha);
     const float c = std::cos(rotation);
     const float s = std::sin(rotation);
+    // The Item page's hand always points the same way, whichever side of the spread it is on.
+    const bool mirrored = reverse != 0 && !menuworld::ItemBackdrop();
     for (int i = 0; i < 4; ++i) {
-        const float x = (i & 1 ? 40 : 0) * scale * (reverse ? -1 : 1);
+        const float x = (i & 1 ? 40 : 0) * scale * (mirrored ? -1 : 1);
         const float y = (i & 2 ? 24 : 0) * scale;
         prim->TextureCrd(menu_long_hand.left + (i & 1 ? menu_long_hand.right : 0),
                          menu_long_hand.top + (i & 2 ? menu_long_hand.bottom : 0));

@@ -43,7 +43,7 @@ struct LogBootOptions {
  */
 void LogInit(const LogBootOptions &options);
 /**
- * Opens the session log under the save root and applies retention settings.
+ * Opens the session log beside the save root and applies retention settings.
  */
 void LogAttachFile(const std::filesystem::path &save_root, const LogConfig &config);
 /**

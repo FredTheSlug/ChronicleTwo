@@ -111,6 +111,13 @@ bool GameParseJump(std::string_view text, GameJump &jump) {
         if (colon != std::string_view::npos && !Number(arg, parsed.map, 188)) {
             return false;
         }
+    } else if (name == "georama") {
+        // The developer menu's "diorama map" row: the Georama towns are maps 0 to 4.
+        parsed.mode = JumpMode::Georama;
+        parsed.map = 0;
+        if (colon != std::string_view::npos && !Number(arg, parsed.map, 4)) {
+            return false;
+        }
     } else if (name == "dungeon") {
         parsed.mode = JumpMode::Dungeon;
         parsed.map = 0;
@@ -240,6 +247,13 @@ void GamePrepareJump(int &mode, INIT_LOOP_ARG &arg) {
             arg.map_no = jump.map;
             arg.event_no = 100;
             break;
+        case JumpMode::Georama: {
+            char georama_config[] = "dbg/geo.cfg.json";
+            LoadGameConfig(georama_config);
+            mode = LOOP_EDIT;
+            arg.map_no = jump.map;
+            break;
+        }
         case JumpMode::Dungeon:
             LoadGameConfig(dungeon_config);
             mode = LOOP_DUNGEON;

@@ -6,6 +6,7 @@
 
 #include <atomic>
 
+#include "gfx/profile.hpp"
 #include "test_hooks.hpp"
 
 namespace ct::profile {
@@ -22,7 +23,9 @@ inline bool Enabled() {
  * Publishes the main thread's debug-mode setting to profiling workers.
  */
 inline void RefreshEnabled() {
-    enabled.store(GameDebugEnabled(), std::memory_order_relaxed);
+    const bool value = GameDebugEnabled();
+    enabled.store(value, std::memory_order_relaxed);
+    ::gfx::profile::SetEnabled(value);
 }
 } // namespace ct::profile
 

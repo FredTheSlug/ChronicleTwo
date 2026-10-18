@@ -179,7 +179,7 @@ protected:
                    std::string_view thread_id, std::string_view thread_name, const std::string & /*process_id*/,
                    std::string_view logger_name, quill::LogLevel log_level,
                    std::string_view /*log_level_description*/, std::string_view /*log_level_short_code*/,
-                   const std::vector<std::pair<std::string, std::string>> * /*named_args*/,
+                   const std::vector<std::pair<std::string, std::string> > * /*named_args*/,
                    std::string_view log_message, std::string_view /*log_statement*/) final {
         Take({.timestamp_ns = log_timestamp,
               .level = PortLevel(log_level),
@@ -461,7 +461,7 @@ void Start() {
     static const auto *const             kept_file = new std::shared_ptr<quill::Sink>(file);
     g_file_sink = static_cast<FileSink *>(kept_file->get());
     for (std::size_t i = 0; i <= kCategoryCount; ++i) {
-        std::vector<std::shared_ptr<quill::Sink>> sinks;
+        std::vector<std::shared_ptr<quill::Sink> > sinks;
         // The game's printf reaches stdout directly (ps2_printf.cpp); the session logger is the file's alone.
         if (i < kCategoryCount && static_cast<LogCategory>(i) != LogCategory::Ps2) {
             sinks.push_back(console);
@@ -522,7 +522,7 @@ void ApplyFileLocked() {
     if (!g_file_path.empty()) {
         return;
     }
-    const std::filesystem::path directory = g_save_root / "logs";
+    const std::filesystem::path directory = (g_save_root / ".." / "logs").lexically_normal();
     std::error_code             error;
     std::filesystem::create_directories(directory, error);
     std::filesystem::path path = directory / std::format("{}{}{}", kLogPrefix, LogSessionId(), kLogSuffix);
@@ -651,7 +651,7 @@ bool LogSpecValid(std::string_view spec) {
 }
 
 LogLevel LogEffectiveLevel(LogCategory category) {
-    const auto find = [category](const std::vector<std::pair<LogCategory, LogLevel>> &levels) {
+    const auto find = [category](const std::vector<std::pair<LogCategory, LogLevel> > &levels) {
         const auto it = std::ranges::find_if(levels, [category](const auto &entry) { return entry.first == category; });
         return it == levels.end() ? std::nullopt : std::optional(it->second);
     };

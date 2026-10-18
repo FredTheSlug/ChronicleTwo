@@ -1982,7 +1982,7 @@ TEST_F(NativeModel, SkinUsesGltfBindsOnlyInItsLoadedHierarchy) {
     for (int axis = 0; axis < 4; ++axis) {
         object[axis][axis] = 1;
     }
-    auto &palette = mgVisualPortCurrentProg0().bones[0];
+    auto &palette = mgVisualPortCurrentPalette().bones[0];
     visual->CreateExtRenderInfoPacket(nullptr, object, &mgRenderInfo);
     EXPECT_NEAR(palette[0][3], 0.0f, .0001f);
 

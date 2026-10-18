@@ -200,6 +200,80 @@ TEST(CameraMouse, TownControlConsumesOneSampleAndDoesNotReplayLockedMotion) {
     InputSetOverride(0, nullptr);
 }
 
+TEST(CameraStick, RotationStartsAtFullRateReversesAndStopsWithoutDrift) {
+    CScene &scene = *GetMainScene();
+    scene.active_camera = 0;
+    scene.event_run = 0;
+    PortLoopNo = LOOP_EDIT;
+    GamePad__2.key_lock = 0;
+    InputResetBindings();
+    CPadControl pad{};
+    pad.Initialize();
+    float rotation[4]{};
+
+    for (float distance : {100.0f, 500.0f}) {
+        auto camera = Camera();
+        camera.SetPos(0, 40, distance);
+        auto &param = *camera.GetActiveParam();
+        param.max_dist = 600;
+        param.near_height = param.far_height = 0;
+        param.min_height = -100;
+        param.max_height = 100;
+        param.height = 30;
+        // Pitch remains direct even above the authored resting height.
+        camera.SetPos(0, 70, distance);
+        scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+        for (float input : {1.0f, 1.0f, 1.0f, -1.0f, -1.0f, 0.0f, 0.0f}) {
+            const float heading = std::atan2(camera.pos[0] - camera.ref[0], camera.pos[2] - camera.ref[2]);
+            const float pitch = std::atan2(camera.pos[1] - camera.ref[1], distance);
+            pad.analog[PAD_ANALOG_RIGHT_X_2].value = input;
+            pad.analog[PAD_ANALOG_RIGHT_Y_2].value = input;
+            InputLatchPad(0);
+            camera.MoveCamera(&pad, rotation, nullptr, 0);
+            camera.Step(1);
+            EXPECT_NEAR(std::atan2(camera.pos[0] - camera.ref[0], camera.pos[2] - camera.ref[2]),
+                        heading - 0.05f * input, 0.0001f);
+            EXPECT_NEAR(std::atan2(camera.pos[1] - camera.ref[1], distance),
+                        pitch - 0.02f * input, 0.0001f);
+            EXPECT_NEAR(camera.pos[0], camera.next_pos[0], 0.0001f);
+            EXPECT_NEAR(camera.pos[1], camera.next_pos[1], 0.0001f);
+            EXPECT_FLOAT_EQ(param.rest_max_height, 20);
+            EXPECT_EQ(camera.rot_cancel, 0);
+        }
+    }
+}
+
+TEST(CameraStick, ResetWinsItsFrameAndManualYawCancelsAnUnfinishedReset) {
+    auto  camera = Camera();
+    auto &param = *camera.GetActiveParam();
+    param.near_height = param.far_height = 0;
+    CScene &scene = *GetMainScene();
+    scene.AssignCamera(0, &camera, const_cast<char *>("MainCam"));
+    scene.active_camera = 0;
+    scene.event_run = 0;
+    PortLoopNo = LOOP_EDIT;
+    GamePad__2.key_lock = 0;
+    InputResetBindings();
+    CPadControl pad{};
+    pad.Initialize();
+    pad.analog[PAD_ANALOG_RIGHT_X_2].value = 1;
+    pad.btn[PAD_BTN_L2].value = 1;
+    float rotation[4]{};
+    InputLatchPad(0);
+    camera.MoveCamera(&pad, rotation, nullptr, 0);
+    EXPECT_FLOAT_EQ(camera.pos[0], 0);
+    EXPECT_TRUE(camera.rot_back);
+
+    // A settled pose isolates manual yaw from the reset's pending movement.
+    camera.SetPos(0, 40, 100);
+    pad.btn[PAD_BTN_L2].value = 0;
+    InputLatchPad(0);
+    camera.MoveCamera(&pad, rotation, nullptr, 0);
+    EXPECT_FALSE(camera.rot_back);
+    EXPECT_NEAR(std::atan2(camera.pos[0], camera.pos[2]), -0.05f, 0.0001f);
+    EXPECT_NEAR(std::atan2(camera.next_pos[0], camera.next_pos[2]), -0.05f, 0.0001f);
+}
+
 TEST(CameraMouse, MultipleRevolutionsRetainTheRequestedFinalHeading) {
     auto        camera = Camera();
     const float yaw = 4.5f * std::numbers::pi_v<float>;

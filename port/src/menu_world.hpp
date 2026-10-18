@@ -1,27 +1,78 @@
 #pragma once
 
 #include <optional>
+#include <unordered_set>
 
 #include "gfx/gfx.hpp"
 
+class CActionChara;
 class CMenuPosDataForm;
 struct MENU_INIT_ARG;
 
+namespace gfx {
+struct DisplayList;
+}
+
 /**
- * The paused world behind the Item pages: the main menu waits while the camera frames the player, the frame is
- * kept at window resolution, and the live menu character is drawn standing where the player stood.
+ * The paused world behind the Item pages. The town and dungeon main menus capture it once as they open: the full
+ * picture, and a copy with the player left out, both rendered from the same recorded frame. The Items page uses
+ * that capture as its backdrop, and the orb transitions into and out of Items are driven from here.
  */
 namespace menuworld {
 
 /**
- * True while MenuMainInit must not run yet: a main menu is waiting for the camera to frame the player.
+ * Interpolation key that tags the 2D draws of the player's effects on the dungeon pause frame.
  */
-bool HoldMenuInit(MENU_INIT_ARG *arg);
+inline constexpr gfx::InterpKey kPlayerEffectKey = 0x504C415945464643;
 
 /**
- * Advances the framing once the world tick has drawn, and opens the waiting menu when the frame is ready.
+ * What the playerless picture leaves out of the recorded frame.
  */
-void AfterWorldDraw();
+struct PlayerlessFilter {
+    std::unordered_set<gfx::InterpKey> keys;                               /**< Meshes of the player, its shadows, outlines and effect scripts. */
+    std::unordered_set<gfx::InterpKey> trailing_run_keys;                  /**< Meshes left out only as the last contiguous run they form. */
+    gfx::TextureHandle                 outline_target = gfx::kNullTexture; /**< Render target the outline composites sample, or none. */
+};
+
+/**
+ * Writes the replay that renders the captured frame without the player: the entries that survive the filter, a copy
+ * of the picture into clean, then every entry of the frame as it was recorded.
+ */
+void BuildPlayerlessReplay(const gfx::DisplayList &source, const PlayerlessFilter &filter, gfx::TextureHandle clean,
+                           gfx::DisplayList &replay);
+
+/**
+ * Tags the 2D draws made while it is alive as the player's effects when the dungeon pause frame is recorded.
+ */
+class PlayerEffectScope {
+public:
+    explicit PlayerEffectScope(bool player_owned);
+    PlayerEffectScope(const PlayerEffectScope &) = delete;
+    PlayerEffectScope &operator=(const PlayerEffectScope &) = delete;
+
+private:
+    std::optional<gfx::Interp2DScope> tag; /**< Tag of the draws, present only on the dungeon pause frame. */
+};
+
+/**
+ * True on the dungeon frame that opens the main menu, while its world is still being recorded.
+ */
+bool PausingDungeonFrame();
+
+/**
+ * The player whose effects are drawn on the dungeon pause frame, or null on any other frame.
+ */
+const CActionChara *PausingPlayer();
+
+/**
+ * Renders the captured frame once with the player's meshes omitted, then the full frame it was recorded from.
+ */
+bool RenderPauseFrame(const gfx::DisplayList &source);
+
+/**
+ * Captures the paused world when the town or dungeon main menu opens; other menus leave the world alone.
+ */
+void MenuOpening(const MENU_INIT_ARG *arg);
 
 /**
  * Keeps the framed world at window resolution, once per menu, and returns the frame the retail grab copies: the
@@ -30,22 +81,46 @@ void AfterWorldDraw();
 gfx::TextureHandle TakeMenuGrab();
 
 /**
- * Restores the camera and the player as the main menu closes.
+ * Discards the captured world and restores the camera and the player as the main menu closes.
  */
 void MenuClosed();
 
 /**
- * True while the camera is held for the framing, whose depth of field would blur the whole picture.
+ * Starts the orb close transition as the main menu opens the Item page, and fades the menu character in unless the page is reopened.
  */
-bool Framing();
+void ItemOpening();
 
 /**
- * True while the Item page shows the paused world behind its panels.
+ * While alive, a poly form's menu character draws with the fade-in opacity the Item page has reached.
+ */
+class CharacterFadeScope {
+public:
+    explicit CharacterFadeScope(const CMenuPosDataForm &form);
+    ~CharacterFadeScope();
+    CharacterFadeScope(const CharacterFadeScope &) = delete;
+    CharacterFadeScope &operator=(const CharacterFadeScope &) = delete;
+
+private:
+    CActionChara *chara = nullptr; /**< Character whose parts were given the fade opacity; null when none was. */
+};
+
+/**
+ * Chooses the orb open transition when the Item page returns to the main menu.
+ */
+int FrameMode(int requested);
+
+/**
+ * Tracks the orb's progress after each native frame step, and ends the entry once the orb has closed.
+ */
+void FrameStepped();
+
+/**
+ * True while the Item page shows the captured world behind its panels.
  */
 bool ItemBackdrop();
 
 /**
- * While alive, an Item page draw spreads its panels and draws the paused world in place of its black fill.
+ * While alive, an Item page draw spreads its panels and draws the captured world in place of its black fill.
  */
 class ItemDrawScope {
 public:
@@ -59,14 +134,35 @@ private:
 };
 
 /**
- * Draws the paused world for the Item page's black fill; false for any other fill.
+ * True while a cursor form draws, whose pieces are not clipped to the logical frame.
+ */
+bool CursorDrawing();
+
+/**
+ * While alive, the Item page's cursor forms draw, so their selection frame keeps the cursor's shift rather than its side.
+ */
+class CursorDrawScope {
+public:
+    CursorDrawScope();
+    ~CursorDrawScope();
+    CursorDrawScope(const CursorDrawScope &) = delete;
+    CursorDrawScope &operator=(const CursorDrawScope &) = delete;
+};
+
+/**
+ * Draws the captured world for the Item page's black fill; false for any other fill.
  */
 bool FillWithBackdrop();
 
 /**
- * Opacity of the paused world as the Item page's frame slides back to the main menu.
+ * Draws the orb miniature of the captured world while the Item page is entering; false leaves the retail orb to draw.
  */
-int ItemBackdropAlpha();
+bool DrawOrbPicture();
+
+/**
+ * Opacity, out of 128, at which the player is still drawn over the captured world as the orb closes into Items.
+ */
+int PlayerDissolveAlpha();
 
 /**
  * Sets the view the menu character is drawn through; false leaves it to the menu's own camera.
@@ -74,7 +170,7 @@ int ItemBackdropAlpha();
 bool ViewMenuCharacter();
 
 /**
- * True for the Item page's retail backdrop forms, which the paused world replaces.
+ * True for the Item page's retail backdrop forms, which the captured world replaces.
  */
 bool HidesForm(const CMenuPosDataForm &form);
 
@@ -99,9 +195,29 @@ bool RootChromeUnanchored(const CMenuPosDataForm &form);
 std::optional<gfx::UiAnchor> FormAnchor(const CMenuPosDataForm &form);
 
 /**
- * The anchor of the Item page's selection frame, which moves whole with the panel it is on.
+ * The anchor of the Item page's selection frame, which moves whole with the panel it is on; none within a cursor form.
  */
 std::optional<gfx::UiAnchor> SelectionAnchor();
+
+/**
+ * True for the Item page's cursor forms, which move with the cursor across the spread.
+ */
+bool CursorForm(const CMenuPosDataForm &form);
+
+/**
+ * False while the Item page's cursor waits for the orb and the panels to settle, or while the orb returns.
+ */
+bool CursorShown();
+
+/**
+ * The x shift the Item page's cursor forms are drawn with at retail x, easing from the left panels' shift to the right's.
+ */
+float CursorShift(float x);
+
+/**
+ * The x shift every cursor piece is drawn with, taken from the selection frame so the hand and frame move as one.
+ */
+float CursorFrameShift();
 
 /**
  * The retail layout's x under a pointer at logical x on the spread Item page.

@@ -3331,7 +3331,7 @@ bool ApplySkin(mgCVisualMotionMDT &visual, float (*matrix)[4]) {
     }
     float inverse_mesh[4][4];
     mgInversMatrix(inverse_mesh, matrix);
-    auto       &constants = mgVisualPortCurrentProg0();
+    auto       &palette = mgVisualPortCurrentPalette();
     const auto &matrices = found->second.matrices;
     for (std::size_t slot = 0; slot < matrices.size(); ++slot) {
         float joint[4][4];
@@ -3343,7 +3343,7 @@ bool ApplySkin(mgCVisualMotionMDT &visual, float (*matrix)[4]) {
         mgMulMatrix(skin, inverse_mesh, skin);
         for (int row = 0; row < 3; ++row) {
             for (int column = 0; column < 4; ++column) {
-                constants.bones[slot][row][column] = skin[column][row];
+                palette.bones[slot][row][column] = skin[column][row];
             }
         }
     }

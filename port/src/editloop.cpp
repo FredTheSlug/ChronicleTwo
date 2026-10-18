@@ -10,14 +10,12 @@
 #include "mainloop.hpp"
 #include "map_port.hpp"
 #include "mapselect.hpp"
-#include "menu_world.hpp"
 #include "mg_drawprim.hpp"
 #include "platform/arena.hpp"
 #include "scene.hpp"
+#include "stubs/editloop.hpp"
 
 void UpdateTrBoxFlag(int map_no);
-void PortRetailUpdateTrBoxFlag(int map_no) asm("EditLoop_UpdateTrBoxFlag");
-int  PortRetailEditDraw() asm("EditLoop_EditDraw");
 
 namespace {
 
@@ -68,6 +66,5 @@ PORT_OVERRIDE int EditDraw() {
     FitWorkBuffer();
     const int drawn = PortRetailEditDraw();
     NoteWorkBufferUse();
-    menuworld::AfterWorldDraw();
     return drawn;
 }

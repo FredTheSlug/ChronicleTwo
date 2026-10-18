@@ -45,6 +45,18 @@ FIXUPS = [
      "    int FadeInOutMenu();\n"
      "    int PortRetailStep();\n"
      "    void PortRetailDraw();"),
+    # The player's effects are tagged for the playerless pause picture around retail's draws, which stay under these names.
+    ("actionchara.hpp", "    virtual void DrawEffect();", "    virtual void DrawEffect();\n    void PortRetailDrawEffect();"),
+    ("dng_effect.hpp",
+     "     * @mangled Draw__14CSwordLuminousFv\n     * @address 0x1C2E40\n     * @size 0x200\n     */\n    void Draw();",
+     "     * @mangled Draw__14CSwordLuminousFv\n     * @address 0x1C2E40\n     * @size 0x200\n     */\n    void Draw();\n"
+     "    void PortRetailDraw();"),
+    ("dng_effect.hpp", "    void DrawWire(sceVu0FVECTOR *smooth);",
+     "    void DrawWire(sceVu0FVECTOR *smooth);\n    void PortRetailDrawWire(float (*smooth)[4]);"),
+    # The Item page's title is centred on the frame after retail's icon step, which stays under this name.
+    ("menudraw.hpp", "    int StepMainMenuIconMove(int *icons, int select, int mode);",
+     "    int StepMainMenuIconMove(int *icons, int select, int mode);\n"
+     "    int PortRetailStepMainMenuIconMove(int *icons, int select, int mode);"),
     # A menu message window parked past the screen is clipped to it around retail's draw, which stays under this name.
     ("menucls1.hpp", "    void DrawMsg();",
      "    void DrawMsg();\n"

@@ -99,7 +99,7 @@ TEST(FontPortGpu, SharpDrawingKeepsRetailLayoutAndLineBreaks) {
     const auto root = std::filesystem::temp_directory_path() /
                       ("dc2_font_" + std::to_string(dc::test::ProcessId()));
     ASSERT_FALSE(std::filesystem::exists(root));
-    std::filesystem::create_directories(root / "lang");
+    std::filesystem::create_directories(root / "saves" / "lang");
 
     struct Cleanup {
         std::filesystem::path root;
@@ -110,8 +110,8 @@ TEST(FontPortGpu, SharpDrawingKeepsRetailLayoutAndLineBreaks) {
         }
     } cleanup{root};
 
-    std::filesystem::copy_file(PathsFromUtf8(file), root / "lang" / "font.ttf");
-    PathsSetSaveRoot(root);
+    std::filesystem::copy_file(PathsFromUtf8(file), root / "saves" / "lang" / "font.ttf");
+    PathsSetSaveRoot(root / "saves");
     auto select = [&](const char *choice) {
         std::ofstream(root / "config.json") << R"({"video":{"text_font":")" << choice << "\"}}";
         EXPECT_TRUE(ConfigLoad());

@@ -31,6 +31,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
         "video.interpolation",
         "video.aspect",
         "video.ui_scale",
+        "video.text_font",
         "video.show_fps",
         "audio.master_volume",
         "audio.soundtrack",

@@ -619,7 +619,7 @@ The **PC SETTINGS** entry and the page are drawn at the UI scale, or smaller whe
 
 | Page | Settings |
 |---|---|
-| Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, FPS counter |
+| Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, original/sharp text font, FPS counter |
 | Audio | Master volume and PS2/custom soundtrack |
 | Controls | Mouse sensitivity, Y inversion and capture; stick sensitivity and X/Y inversion; button symbols and glyph style |
 | Game | Autosave, quick loadout title, skip intro, auto-use event items, floor monster list and debug mode |
@@ -1243,9 +1243,11 @@ When the controller speaker's device (see "Controller speaker") has four channel
 
 #### Optional sharp text
 
-`video.text_font` in the save folder's `config.json` is `"original"` by default. Set it to `"sharp"`
-and put a trusted TrueType font at `<save>/lang/font.ttf` to try sharp ASCII dialogue and menu text.
-`lang/font.ttf` beside the executable is the fallback location. Restart after changing the font file.
+`video.text_font` is `"original"` by default. In **Options → PC SETTINGS → Display**, set **Text font**
+to **Sharp**, or set `"sharp"` in the save folder's `config.json`. Put a trusted TrueType font at
+`<save>/lang/font.ttf` to try sharp ASCII dialogue and menu text. `lang/font.ttf` beside the
+executable is the fallback location. Restart after changing the font file; toggling Original/Sharp
+applies on the next drawn text without a restart.
 No font file is bundled by this feature. A missing or unusable font keeps the original text and reports
 the fallback once on stderr.
 

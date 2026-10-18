@@ -322,11 +322,15 @@ TEST_P(MenuMouseMapInput, WorldMapHoverSelectsAnAreaAndClickConfirmsOnlyOnAMark)
     WorldMap world;
     auto    &map = world.map;
     MenuMouseEnable(true);
+    Tick();
+    // The retail area step sounds only its own key moves, so the adapter sounds a hovered area once.
+    const int sounds = MenuCursorSounds();
 
     Move(40, 10);
     EXPECT_TRUE(MenuMouseWorldMap());
     EXPECT_EQ(map->area_no, 2);
     EXPECT_EQ(MenuCheckPushButton(), 0);
+    EXPECT_EQ(MenuCursorSounds(), sounds + 1);
 
     Tick();
     Click();
@@ -343,6 +347,7 @@ TEST_P(MenuMouseMapInput, WorldMapHoverSelectsAnAreaAndClickConfirmsOnlyOnAMark)
     MenuMouseWorldMap();
     EXPECT_EQ(map->area_no, 2);
     EXPECT_EQ(MenuCheckPushButton(), 0);
+    EXPECT_EQ(MenuCursorSounds(), sounds + 1);
 
     Tick();
     Click(2);

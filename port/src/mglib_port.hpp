@@ -20,6 +20,9 @@ class mgCDrawEnv;
 
 // Frame
 
+// Applies a frame layout between ticks. A switch from Fill to Letterbox first lets two ticks clear the
+// main target outside the logical frame: letterboxed, nothing reaches the bars to replace Fill's art.
+void mgPortSetFrameLayout(const gfx::FrameLayout &layout);
 // False until mgInit has run on an initialised renderer. Code that can draw from the now-loading
 // fiber checks it before drawing.
 bool mgPortRendererReady();

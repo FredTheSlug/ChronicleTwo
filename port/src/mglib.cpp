@@ -88,6 +88,8 @@ int                     exit_frames = 0;
 std::filesystem::path   screenshot_path;
 mgPortScreenshotOptions screenshot_options;
 int                     store_count = 0;
+// Ticks that cleared the bars since a switch to letterboxing was asked for; -1 when none waits.
+int letterbox_clears = -1;
 
 mgPortGsState                          gs_state;
 gfx::TextureHandle                     current_target = gfx::kMainTarget;
@@ -537,9 +539,46 @@ void ApplyVisibleBox(mgRENDER_INFO &info) {
     info.screen_box_max[1] = extent.bottom - centre_y;
 }
 
+// Letterboxed, nothing is drawn or cleared past the logical frame, so the bars keep what Fill drew there.
+void ClearBars() {
+    const gfx::LogicalRect frame = gfx::LogicalFrame();
+    const gfx::LogicalRect visible = gfx::VisibleLogicalRect(gfx::kMainTarget);
+    const float            right = frame.x + frame.w;
+    const float            bottom = frame.y + frame.h;
+    const gfx::LogicalRect bars[] = {
+        {.x = visible.x, .y = visible.y, .w = frame.x - visible.x,           .h = visible.h                     },
+        {.x = right,     .y = visible.y, .w = visible.x + visible.w - right, .h = visible.h                     },
+        {.x = frame.x,   .y = visible.y, .w = frame.w,                       .h = frame.y - visible.y           },
+        {.x = frame.x,   .y = bottom,    .w = frame.w,                       .h = visible.y + visible.h - bottom},
+    };
+    const uint8_t black[4] = {0, 0, 0, 0x80};
+    for (const gfx::LogicalRect &bar : bars) {
+        if (bar.w > 0.0f && bar.h > 0.0f) {
+            gfx::Clear(true, black, false, 0.0f, &bar);
+        }
+    }
+}
+
 } // namespace
 
 // Frame
+
+void mgPortSetFrameLayout(const gfx::FrameLayout &layout) {
+    // The two main images alternate between ticks, so letterboxing waits until a tick has cleared each.
+    constexpr int          kClears = 2;
+    const gfx::FrameLayout current = gfx::CurrentFrameLayout();
+    gfx::FrameLayout       applied = layout;
+    if (layout.aspect == gfx::AspectMode::Letterbox && current.aspect == gfx::AspectMode::Fill &&
+        letterbox_clears < kClears) {
+        letterbox_clears = std::max(letterbox_clears, 0);
+        applied.aspect = gfx::AspectMode::Fill;
+    } else {
+        letterbox_clears = -1;
+    }
+    if (applied.aspect != current.aspect || applied.ui_scale != current.ui_scale) {
+        gfx::SetFrameLayout(applied);
+    }
+}
 
 bool mgPortRendererReady() {
     return ready;
@@ -1247,6 +1286,7 @@ PORT_OVERRIDE void mgInit(int screen_mode, int /*video_mode*/) {
     mgSetPkFrameBuffer(-1, -1, -1, -1);
     cut_next_tick = true;
     cut_camera_next_tick = true;
+    letterbox_clears = -1;
     ready = true;
 }
 
@@ -1395,6 +1435,11 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
 
     if (gfx_open) {
         gfx::SetRenderTarget(gfx::kMainTarget);
+        const bool clear_bars = letterbox_clears >= 0;
+        if (clear_bars) {
+            ClearBars();
+            ++letterbox_clears;
+        }
         gfx::DisplayListRef list = gfx::EndRecording();
         recording = false;
 
@@ -1404,6 +1449,10 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
 
         previous_list = std::move(last_list);
         last_list = std::move(list);
+        // The display image keeps its own bars, and no display frame need run before letterboxing.
+        if (clear_bars && last_list) {
+            gfx::RenderList(*last_list, 1.0f, gfx::RenderOptions{});
+        }
         PresentTickRendered();
 
         CacheMarkedColors();

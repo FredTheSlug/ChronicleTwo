@@ -555,6 +555,83 @@ TEST(MglibPresent, DisplayPerTickLeavesCanonicalImage) {
     EXPECT_EQ(with_display, without_display);
 }
 
+namespace {
+// A full-height quad wider than the logical frame, like the menus' backdrops under Fill.
+void RecordWideTick() {
+    mgBeginFrame(nullptr);
+    const std::array<gfx::Vertex2D, 4> quad = {
+        QuadCorner(-200.0f, 0.0f),
+        QuadCorner(712.0f, 0.0f),
+        QuadCorner(712.0f, 480.0f),
+        QuadCorner(-200.0f, 480.0f),
+    };
+    mgPortDraw2D(gfx::Primitive::Quads, quad, gfx::TextureBinding{}, mgPortDrawState());
+    mgEndFrame(nullptr);
+}
+
+// Lit pixels in the columns left and right of the logical frame.
+size_t LitBarPixels(const std::vector<uint8_t> &rgba, uint32_t width, uint32_t height) {
+    const gfx::LogicalMapping mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    const auto                bar = static_cast<uint32_t>(mapping.offset_x);
+    size_t                    lit = 0;
+    for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
+            const uint8_t *p = &rgba[(static_cast<size_t>(y) * width + x) * 4];
+            if ((x < bar || x >= width - bar) && (p[0] > 8 || p[1] > 8 || p[2] > 8)) {
+                ++lit;
+            }
+        }
+    }
+    return lit;
+}
+} // namespace
+
+TEST(MglibPresent, LetterboxSwitchClearsWhatFillDrewBesideTheFrame) {
+    PresentRenderer renderer(1280, 720);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    mgPortSetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = 1.0f});
+    std::vector<uint8_t> rgba;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
+    RecordWideTick();
+    RecordWideTick();
+    ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+    ASSERT_GT(LitBarPixels(rgba, width, height), 0u);
+    // The display image holds Fill's flanks too.
+    gfx::RenderOptions fill;
+    fill.previous = mgPortPreviousList();
+    fill.present = true;
+    ASSERT_TRUE(gfx::RenderList(*mgPortLastList(), 0.5f, fill));
+    ASSERT_TRUE(gfx::ReadbackFrame(rgba, width, height));
+    ASSERT_GT(LitBarPixels(rgba, width, height), 0u);
+
+    // The switch waits for two ticks, which clear the bars of both main images and the display image.
+    // No display frame runs between them, as when presentation skips those ticks.
+    int ticks = 0;
+    for (; ticks < 4; ++ticks) {
+        mgPortSetFrameLayout({.aspect = gfx::AspectMode::Letterbox, .ui_scale = 1.0f});
+        if (gfx::CurrentFrameLayout().aspect == gfx::AspectMode::Letterbox) {
+            break;
+        }
+        RecordWideTick();
+    }
+    ASSERT_EQ(gfx::CurrentFrameLayout().aspect, gfx::AspectMode::Letterbox);
+    EXPECT_EQ(ticks, 2);
+    ASSERT_EQ(gfx::GetLogicalMapping(gfx::kMainTarget).offset_x, 160.0f);
+
+    for (int tick = 0; tick < 2; ++tick) {
+        RecordWideTick();
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+        EXPECT_EQ(LitBarPixels(rgba, width, height), 0u) << "tick " << tick;
+        gfx::RenderOptions options;
+        options.previous = mgPortPreviousList();
+        options.present = true;
+        ASSERT_TRUE(gfx::RenderList(*mgPortLastList(), 0.5f, options));
+        ASSERT_TRUE(gfx::ReadbackFrame(rgba, width, height));
+        EXPECT_EQ(LitBarPixels(rgba, width, height), 0u) << "display frame after tick " << tick;
+    }
+}
+
 TEST(MglibSeam, DrawIntoRegisteredTextureSeedsAndResolves) {
     PresentRenderer renderer(640, 480);
     Textures        textures;

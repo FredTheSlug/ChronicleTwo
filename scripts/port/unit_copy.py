@@ -41,17 +41,28 @@ def load_port_override(path: Path):
 # change; all calls in the original unit still reach the native public seam.
 RETAIL_BRIDGES = {
     "editctrl.cpp": [("ResetViewMode(CScene*)", "ResetViewMode", "PortRetailResetViewMode")],
-    "editloop.cpp": [("UpdateTrBoxFlag(int)", "UpdateTrBoxFlag", "PortRetailUpdateTrBoxFlag")],
+    "editloop.cpp": [
+        ("UpdateTrBoxFlag(int)", "UpdateTrBoxFlag", "PortRetailUpdateTrBoxFlag"),
+        ("EditDraw()", "EditDraw", "PortRetailEditDraw"),
+    ],
     "dng_main.cpp": [
         ("ResetEyeView(CActionChara*)", "ResetEyeView", "PortRetailResetEyeView"),
         ("ChangeSetUnit(int)", "ChangeSetUnit", "PortRetailChangeSetUnit"),
         ("DngMainKey()", "DngMainKey", "PortRetailDngMainKey"),
+        ("DngMainDraw()", "DngMainDraw", "PortRetailDngMainDraw"),
     ],
+    "menumain.cpp": [
+        ("MenuMainInit(MENU_INIT_ARG*)", "MenuMainInit", "PortRetailMenuMainInit"),
+        ("MenuMainExit()", "MenuMainExit", "PortRetailMenuMainExit"),
+        ("MenuWorldTrans()", "MenuWorldTrans", "PortRetailMenuWorldTrans"),
+    ],
+    "menudraw.cpp": [("DrawMenuFillBox(int,int,int,int)", "DrawMenuFillBox", "PortRetailDrawMenuFillBox")],
     "charasetup.cpp": [("GetRoboPartsInfo(CUserDataManager*)", "GetRoboPartsInfo", "PortRetailGetRoboPartsInfo")],
     "menusys.cpp": [
         ("CBaseMenuClass::MenuItemCommandSelect(int,int)", "MenuItemCommandSelect", "PortRetailMenuItemCommandSelect"),
         ("MenuItemSelectInit(mgCMemory*,int*,int)", "MenuItemSelectInit", "PortRetailMenuItemSelectInit"),
         ("MenuItemSelectDraw()", "MenuItemSelectDraw", "PortRetailMenuItemSelectDraw"),
+        ("MenuItemDraw()", "MenuItemDraw", "PortRetailMenuItemDraw"),
     ],
     "dngmenu.cpp": [
         ("CMenuTreeMap::Step()", "Step", "PortRetailStep"),

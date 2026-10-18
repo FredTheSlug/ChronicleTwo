@@ -7,6 +7,7 @@
 #include "gamepad.hpp"
 #include "gfx/gfx.hpp"
 #include "mainloop.hpp"
+#include "menu_world.hpp"
 #include "menuaqua.hpp"
 #include "menuchr.hpp"
 #include "menucls1.hpp"
@@ -327,7 +328,8 @@ Point Start(CMenuItemInfo &menu, CMenuKeyFunc &keys) {
 
 Take TakePointer() {
     const auto &sample = MenuMouseTake();
-    pointer.pos = {.x = sample.x, .y = sample.y};
+    // Hit tests use the retail layout, so the pointer moves back the way its spread panel moved.
+    pointer.pos = {.x = menuworld::RetailPointerX(sample.x), .y = sample.y};
     pointer.pointing = sample.pointing;
     return {.pointing = sample.pointing, .moved = sample.moved || sample.clicked != 0 || sample.wheel != 0, .pressed = sample.clicked, .released = sample.released, .held = sample.held, .wheel = sample.wheel};
 }
@@ -457,12 +459,25 @@ void MenuMousePadTick() {
 
 bool MenuMouseItemActive() { return ItemPage(); }
 
+bool MenuMouseHeldItemAt(float &x, float &y) {
+    if (!ItemPage() || MenuCommonInfo->have_item.item_no <= 0) {
+        return false;
+    }
+    const MenuMouseSample sample = MenuMouseDisplaySample();
+    if (!sample.pointing) {
+        return false;
+    }
+    x = sample.x;
+    y = sample.y;
+    return true;
+}
+
 void MenuMouseItemOrigin(float &x, float &y) {
     if (!ItemPage()) {
         return;
     }
     const Point start = Start(class_menu_item_info, *MenuCommonInfo);
-    x = start.x;
+    x = menuworld::SpreadX(start.x);
     y = start.y;
 }
 

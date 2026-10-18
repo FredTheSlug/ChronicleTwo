@@ -14,3 +14,4 @@ class CActionChara;
 void PortRetailResetEyeView(CActionChara *) asm("DngMain_ResetEyeView");
 int  PortRetailChangeSetUnit(int) asm("DngMain_ChangeSetUnit");
 int  PortRetailDngMainKey() asm("DngMain_DngMainKey");
+void PortRetailDngMainDraw() asm("DngMain_DngMainDraw");

@@ -77,3 +77,5 @@ void MenuMouseClose();
 
 bool MenuMouseItemActive();
 void MenuMouseItemOrigin(float &x, float &y);
+// Where the pointer is on screen while it carries an item on the item page.
+bool MenuMouseHeldItemAt(float &x, float &y);

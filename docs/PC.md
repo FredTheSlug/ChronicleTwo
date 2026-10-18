@@ -870,6 +870,12 @@ outside the menu (1550). `item-menu-mouse-dungeon.input` reaches the dungeon's
 Item page and opens Bread's commands by frame 2850. These two scripts also use
 1280x720; scale `mouse:dx,dy` counts with the window dimensions for other sizes.
 
+### Item page over the paused world
+
+The town and dungeon main menus open over the paused world instead of the retail backdrop (`port/src/menu_world.cpp`). The request waits up to 20 ticks for the player to stop, swings the following camera to the player's front, where the next world tick's collision check keeps it clear of scenery, hides the player and its shadow, and holds the camera 89.7 units out and to the side so the player stands in the space the Item page leaves for the character. Depth of field is off from then until the menu closes. `MenuMainInit` then runs on that frame. Its `MenuCapture` keeps the frame at window resolution in a frame target of its own, while retail's half-size grab, which the other pages show, copies the world as it was when the menu was asked for, with the player and the walking camera. A subgame, the eye view, a fixed town camera, a non-following camera or the loop leaving its field mode leaves the menu as retail opens it.
+
+On the Item page the picture replaces the black fill and the retail backdrop forms. The menu character is drawn through the world camera at the player's spot, facing it; the Ridepod is drawn at 0.6 scale and the monster form at 0.8. A looked-at weapon or rod keeps the menu's close-up. Panels left of the bag board are anchored to the left edge and the rest to the right, within a centred 16:9 area (`gfx::UiAnchor::max_aspect`); the selection frame and the command popup move with their panel, a carried item is drawn at the pointer, and mouse hit tests map the pointer back to the retail layout. Closing the menu restores the camera and the player.
+
 ### Make and Monster Transform mouse
 
 On the Make menu, hovering an invention card or a cell of the item board moves

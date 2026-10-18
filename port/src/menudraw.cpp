@@ -20,6 +20,7 @@
 #include "dataread_port.hpp"
 #include "mainloop.hpp"
 #include "menu_mouse_item.hpp"
+#include "menu_world.hpp"
 #include "menuchr.hpp"
 #include "menudraw.hpp"
 #include "menudraw_port.hpp"
@@ -34,16 +35,28 @@
 #include "mglib_port.hpp"
 #include "platform/model_assets.hpp"
 #include "platform/texture_bundle.hpp"
+#include "stubs/menudraw.hpp"
 #include "userdata.hpp"
 
 PORT_OVERRIDE void MenuReloadCLUT(int index) {
     MgTextureSetDrawVariant(MenuCharaChangeBase_Tex, index == 0 ? MenuCharaChangeCLUT_Tex : nullptr);
 }
 
+PORT_OVERRIDE void DrawMenuFillBox(int alpha, int red, int green, int blue) {
+    if (!menuworld::FillWithBackdrop()) {
+        PortRetailDrawMenuFillBox(alpha, red, green, blue);
+    }
+}
+
 PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
                                     int alpha, int red, int green, int blue) {
     if (texture == nullptr || uv.right <= 0) {
         return;
+    }
+    // The frame's many clipped pieces move together, or a frame between two spread panels comes apart.
+    std::optional<gfx::UiAnchorScope> anchor;
+    if (const auto selection = menuworld::SelectionAnchor()) {
+        anchor.emplace(*selection);
     }
     const mgRect<int> outer(static_cast<int>(rect.left), static_cast<int>(rect.top),
                             static_cast<int>(rect.left + rect.right + uv.bottom),
@@ -126,12 +139,13 @@ PORT_OVERRIDE int MenuCapture(int block, mgCMemory *stack, int draw) {
     mgEndFrame(nullptr);
     mgBeginFrame(nullptr);
 
+    const gfx::TextureHandle source = menuworld::TakeMenuGrab();
     if (MenuFrameTex != nullptr) {
         // Frame target: the window's sides past the logical frame are copied in and carried by the full-frame draw.
         const gfx::TextureHandle target = mgPortRenderTarget(MenuFrameTex, true);
         // Registered before the copy: until a target exists under its TBP0 the texture binds its stack image.
         // Linear at 2:1 samples each 2x2 block's midpoint, which is the box filter retail ran on the CPU.
-        gfx::BlitTexture(gfx::kPreviousFrame, gfx::Rect{.x = 0, .y = 0, .w = mgScreenWidth, .h = mgScreenHeight}, target,
+        gfx::BlitTexture(source, gfx::Rect{.x = 0, .y = 0, .w = mgScreenWidth, .h = mgScreenHeight}, target,
                          gfx::Rect{.x = 0, .y = 0, .w = half_w, .h = half_h}, gfx::Filter::Linear);
     }
 
@@ -298,8 +312,25 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
     // Retail parks unused panels wholly outside its logical frame (SPECHECK,
     // for example, at x=-260). Hide that panel, not the entire page's flanks.
     // As soon as it overlaps the frame, draw its complete entering geometry.
-    if (MenuPanelOutsideFrame(*this)) {
+    if (MenuPanelOutsideFrame(*this) || menuworld::HidesForm(*this)) {
         return;
+    }
+    // An item the mouse carries is drawn at the pointer, unmoved by the spread panels.
+    float held_x = 0.0f;
+    float held_y = 0.0f;
+    if (menuworld::ItemBackdrop() && this == MenuCommonInfo->cursor_form && MenuMouseHeldItemAt(held_x, held_y)) {
+        float tip_x = 0.0f;
+        float tip_y = 0.0f;
+        GetPutPosXY(const_cast<char *>("cursor0"), tip_x, tip_y);
+        const gfx::UiAnchorScope unanchored(gfx::UiAnchor{});
+        int                      draw_x = fptosi(x + held_x - 26.0f - tip_x);
+        int                      draw_y = fptosi(y + held_y - 14.0f - tip_y);
+        MenuFormDraw(draw_x, draw_y, state);
+        return;
+    }
+    std::optional<gfx::UiAnchorScope> anchor;
+    if (const auto spread = menuworld::FormAnchor(*this)) {
+        anchor.emplace(*spread);
     }
     int draw_x = fptosi(x);
     int draw_y = fptosi(y);

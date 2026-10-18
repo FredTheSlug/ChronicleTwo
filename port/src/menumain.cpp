@@ -7,10 +7,12 @@
 
 #include "asset_directory.hpp"
 #include "dataread_port.hpp"
+#include "menu_world.hpp"
 #include "menumain.hpp"
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "platform/texture_catalog.hpp"
+#include "stubs/menumain.hpp"
 #include "texture_source.hpp"
 
 namespace {
@@ -73,4 +75,22 @@ PORT_OVERRIDE void MenuBaseTextureReEnter() {
     EnterCommonTextures(block);
     MenuPosData->AttachCommonTexInfo();
     MenuPosData->ResetTextureInfoAll();
+}
+
+PORT_OVERRIDE int MenuMainInit(MENU_INIT_ARG *arg) {
+    if (menuworld::HoldMenuInit(arg)) {
+        return true;
+    }
+    return PortRetailMenuMainInit(arg);
+}
+
+PORT_OVERRIDE int MenuMainExit() {
+    menuworld::MenuClosed();
+    return PortRetailMenuMainExit();
+}
+
+PORT_OVERRIDE void MenuWorldTrans() {
+    if (!menuworld::ViewMenuCharacter()) {
+        PortRetailMenuWorldTrans();
+    }
 }

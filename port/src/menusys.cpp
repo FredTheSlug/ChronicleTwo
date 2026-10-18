@@ -5,15 +5,13 @@
 #include <span>
 
 #include "gamedata.hpp"
+#include "menu_world.hpp"
 #include "menucommon.hpp"
 #include "menumain.hpp"
 #include "menusys.hpp"
 #include "menusys_port.hpp"
 #include "platform/config.hpp"
-
-extern CItemSelect *EventItemSelect asm("MenuMouse_ItemSelect");
-void                PortRetailMenuItemSelectInit(mgCMemory *, int *, int) asm("MenuSys_MenuItemSelectInit");
-void                PortRetailMenuItemSelectDraw() asm("MenuSys_MenuItemSelectDraw");
+#include "stubs/menusys.hpp"
 
 namespace {
 
@@ -54,7 +52,7 @@ PORT_OVERRIDE void MenuItemSelectInit(mgCMemory *stack, int *tex_block, int mode
     }
 
     MenuItemMainMemory.stSetBuffer(stack->stGetTop(), stack->stGetRest());
-    EventItemSelect = nullptr;
+    ItemSelectPtr = nullptr;
     CGameDataUsed &item = bag[static_cast<std::size_t>(place)];
     MenuArg.end_code = kItemChosen;
     MenuArg.result[0] = item.item_no;
@@ -67,7 +65,12 @@ PORT_OVERRIDE void MenuItemSelectInit(mgCMemory *stack, int *tex_block, int mode
 }
 
 PORT_OVERRIDE void MenuItemSelectDraw() {
-    if (EventItemSelect != nullptr) {
+    if (ItemSelectPtr != nullptr) {
         PortRetailMenuItemSelectDraw();
     }
+}
+
+PORT_OVERRIDE void MenuItemDraw() {
+    const menuworld::ItemDrawScope scope;
+    PortRetailMenuItemDraw();
 }

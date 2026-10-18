@@ -945,16 +945,50 @@ retain their retail actions, including R3's dungeon unit switch.
 Zoom only starts after a wheel request. Pad-only play keeps the retail camera
 path even when the option is enabled. Menus, events, lock-on, first-person,
 fixed cameras, photo mode and Georama retain ownership and do not queue wheel
-or reset input. A map or camera-parameter change clears the selected zoom.
+or reset input. Dungeon attacks and carrying keep the selected distance but do
+not take wheel or reset input. A map or camera-parameter change clears the
+selected zoom.
 
-Each zoom update collects the generated follow destination and ground query,
-runs the retail floor/wall correction, then validates the entire eased corridor
-with four-unit clearance. Eye and target may ease at different rates; both are
-covered. Uncertain geometry, a full collection or a blocked path falls back to
-retail camera movement for that frame, keeping the target following the player.
-The caller's retail collision polygons and automatic obstacle avoidance remain
-active while zooming. No retail parameter set is retained by zoom. This conservative check may shorten motion sooner than
-the retail endpoint checks.
+Each zoom update generates the retail follow destination at an allowed
+distance and runs retail's floor, ceiling and wall correction and obstacle
+avoidance on it, with the geometry gathered along that view. A view through
+dense geometry is gathered in shorter pieces. The look-at point always follows
+the player as in retail; only the eye is shortened, and it keeps six units from
+geometry so mouse turning can move it away from a wall.
+When the request is beyond retail's follow range, the characters' walking
+collision also blocks the view, because the camera's own collision data leaves
+out some facades seen from far away; the nearest wall from either source wins.
+A walking wall counts only where the view crosses it farther from the look-at
+point than retail's maximum follow distance; nearer, the camera's data decides
+as in retail. This is an occlusion trade-off: pulling in to the railings,
+ledges and invisible bounds retail's eye looks across would put the eye at the
+character, but a nearer walking-only wall that retail's shorter view clears can
+still hide the player from a longer zoomed view. Decorations without any
+collision, such as awnings, can also come between.
+
+Within retail's own follow distance (or a nearer request), walls shorten the
+eye on each tick as retail's correction does and release it as soon as
+retail's would. Beyond it, the allowed distance drops at once when a wall cuts
+the view, then holds for three quarters of a second, doubled for each recent
+pull-in up to three seconds. It returns 4% of the remaining gap per tick (at
+least one unit) only after a view 32 units farther has stayed clear for 20
+ticks, both where the camera points and where it will point over the next
+second if it keeps turning as it is. Walking through rocks therefore keeps a
+shorter distance instead of returning toward each next rock. When the eased
+eye would be drawn behind a wall, it is placed in front of that wall on the
+drawn view, on the same side of the look-at point, and presentation
+interpolation is cut, so display frames do not pass through it; from there it
+eases at the camera's own speed again. Interpolation is also cut when a wall
+from the camera's collision crosses any view a display frame blends between
+the drawn pose and the next, with the eye and look-at point each moving
+linearly, such as a post both views pass on either side. Walls only the
+walking collision knows are not part of that check: they limit each tick's own
+view beyond retail's maximum follow distance, so one can show only in the
+display frames blending between two ticks whose views clear it, never in a
+tick's own view. The same check follows direct mouse
+turning. A wheel request takes the requested distance at once, still limited
+by the same correction. Only a pose that cannot be gathered even in pieces
+falls back to retail movement. No retail parameter set is retained by zoom.
 
 `tools/input/town-mouse-zoom.input` and `tools/input/dungeon-mouse-zoom.input`
 exercise both limits, walking, reset and menu interruptions with the respective
@@ -963,6 +997,8 @@ comments list capture frames; `--screenshot-display` also captures eased
 presentation frames. Enable the option in each replay's save-root config.
 `tools/input/dungeon-mouse-zoom-wall.input` adds a sideways wall approach,
 distance clamping, an inward reversal and reset in the same corridor.
+`tools/input/dungeon-mouse-zoom-walk.input` zooms fully out there and walks
+along, around and toward the corridor walls; the player stays in view throughout.
 
 ### Floor monster list
 

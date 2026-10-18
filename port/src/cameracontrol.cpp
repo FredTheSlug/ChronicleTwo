@@ -78,7 +78,10 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
                               : TownMouseCameraOwns(this, scene, pad, walking, SubGameRunning(), GamePad__2.key_lock);
     // Wheel zoom has its own framing policy. Extending right-stick look parity
     // to player actions must not change which states can take over distance.
-    const bool                   zoom_owns = owns && (!dungeon || (!MainChara__2->lock_on && MainChara__2->CheckRunEvent()));
+    const bool zoom_owns = owns && (!dungeon || (!MainChara__2->lock_on && MainChara__2->CheckRunEvent()));
+    // A selected distance survives attacks and carrying, which only pause wheel
+    // input; handing those ticks to retail would pull the eye in and back out.
+    const bool                   zoom_keeps = owns && (!dungeon || !MainChara__2->lock_on);
     static CameraZoom            zoom;
     static CCameraControl       *zoom_camera = nullptr;
     static CScene               *zoom_scene = nullptr;
@@ -107,7 +110,7 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     }
     // A pad-only session (even with the option enabled) takes exactly the retail
     // path until a wheel request. Other camera owners never inherit zoom limits.
-    if (zoom_owns && zoom.active) {
+    if (zoom_keeps && zoom.active) {
         zoom.Move(*this, *scene, control, player_rot, polys, poly_count);
     } else {
         MoveCamera(&control, player_rot, polys, poly_count);
@@ -153,7 +156,12 @@ PORT_OVERRIDE void CCameraControl::MoveCamera(CPadControl *pad, float *player_ro
     if (MouseCameraYaw(*this, look.yaw, orbit_polys, count) != 0) {
         CancelRotBack();
     }
-    MouseCameraPitch(*this, look.pitch, orbit_polys, count, zoom_owns ? zoom.HeightScale(*this) : 1.0f);
+    MouseCameraPitch(*this, look.pitch, orbit_polys, count, zoom_keeps ? zoom.HeightScale(*this) : 1.0f);
+    // Direct motion is proved against the camera's data; a far zoom also keeps
+    // the walls only the characters' collision knows out of the drawn view.
+    if (zoom_keeps && zoom.active) {
+        zoom.KeepVisible(*this, *scene, polys, poly_count);
+    }
 }
 
 // Retail body, with the height ratio divided as the EE FPU divides it.

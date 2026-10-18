@@ -12,7 +12,11 @@ struct CCPoly;
 struct mgVu0FBOX;
 
 // Returns -1 when collection cannot prove complete coverage within capacity.
-int MouseCameraCollectPolys(CScene &scene, mgVu0FBOX &box, CCPoly *out, int capacity);
+// Walking gathers the characters' collision instead of the camera's.
+int MouseCameraCollectPolys(CScene &scene, mgVu0FBOX &box, CCPoly *out, int capacity, bool walking = false);
+
+// Distance from a point to the nearest polygon; 0 for invalid input or geometry.
+float MouseCameraClearance(const float *point, CCPoly *polys, int count);
 
 // Only the active, unlocked walking camera may take a mouse sample; other camera modes keep ownership.
 bool TownMouseCameraOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,
@@ -37,8 +41,3 @@ float MouseCameraYaw(CCameraControl &camera, float yaw, CCPoly *polys, int count
 // Tilt the follow view by changing eye height, within the active retail limits.
 // Returns the accepted height delta; the look-at point remains on the character.
 float MouseCameraPitch(CCameraControl &camera, float pitch, CCPoly *polys, int count, float height_scale = 1.0f);
-
-// Commit the safe prefix of a generated follow destination, leaving the actual eye untouched. Covers
-// independent eye/target easing, so a thin wall cannot be skipped between clear endpoints. Returns -1
-// when the corridor cannot be proved; the caller then falls back to retail movement.
-float MouseCameraClampFollow(CCameraControl &camera, const CCameraControl &candidate, CCPoly *polys, int count);

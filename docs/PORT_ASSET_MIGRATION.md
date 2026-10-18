@@ -7,6 +7,14 @@ publishes native assets and the retained retail files together in one archive,
 `data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), and leaves out their substituted
 originals. The PS2 source and include trees remain unchanged.
 
+The current data version is in `tools/kazarov/data_version.json`. Kazarov
+`2e6ef96` first includes the Help menu's 44 movies from `MOVIE/TUTO` and
+`MOVIE/TUTO2`, at data version 14. This fix did not bump the version, so an
+extraction made before it needs re-extraction even if its marker already says
+14. Rebuild and re-extract as described in
+[Game data and first run](PC.md#game-data-and-first-run); never edit `data.json`
+to claim the new version.
+
 | Retail asset | Published representation |
 | --- | --- |
 | Sound banks and sequences | Versioned semantic JSON and PCM WAV samples |

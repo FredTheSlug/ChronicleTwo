@@ -23,3 +23,8 @@ bool MenuMessageParked(CDC2Mes &mes);
 
 // True while MenuFormDraw draws the message form that shows mes.
 bool MenuFormDrawsMessage(const CDC2Mes &mes);
+
+/**
+ * Aligns the English PAL character board's central grey slot with its portrait and surrounding slots.
+ */
+void MenuAlignCharacterSlot(CMenuPosDataForm &form);

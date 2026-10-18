@@ -33,7 +33,7 @@ bool Contains(std::string_view path) {
 std::vector<vfs::Ref> Paths(std::string_view path) {
     try {
         const auto relative = Relative(std::string(path));
-        return relative.extension() == ".json" ? datapacks::Candidates(relative) : std::vector<vfs::Ref>{};
+        return relative.extension() == ".json" ? datapacks::GameplayCandidates(relative) : std::vector<vfs::Ref>{};
     } catch (const std::exception &) {
         return {};
     }

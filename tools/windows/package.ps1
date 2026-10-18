@@ -1,4 +1,4 @@
-# Packages CMake's program/runtime list without extracted assets.
+# Packages CMake's program/runtime list and the gameplay archive seed.
 param([Parameter(Mandatory)][string]$BuildDirectory,
       [Parameter(Mandatory)][string]$Destination)
 $ErrorActionPreference = 'Stop'
@@ -19,5 +19,7 @@ $paths = foreach ($name in $names) {
     if (!(Test-Path -LiteralPath $path -PathType Leaf)) { throw "Missing runtime file: $path" }
     $path
 }
-Compress-Archive -LiteralPath $paths -DestinationPath $archive -Force
-Write-Output "Packaged $($paths.Count) program/runtime files in $archive."
+$gameplay = Join-Path $build 'assets/data.zip'
+if (!(Test-Path -LiteralPath $gameplay -PathType Leaf)) { throw "Missing gameplay archive: $gameplay" }
+Compress-Archive -LiteralPath (@($paths) + @($gameplay)) -DestinationPath $archive -Force
+Write-Output "Packaged $($paths.Count) program/runtime files and data.zip in $archive."

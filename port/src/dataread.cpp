@@ -56,7 +56,7 @@ constexpr std::array<std::string_view, 4> kExcludedRootNames = {"manifest.txt", 
 struct IndexedFile {
     vfs::Ref    file;             /**< Data file supplying the bytes. */
     bool        replaced = false; /**< A datapack file stands in for the extracted one. */
-    std::string relative;         /**< Actual root-relative filename, including directory metadata files. */
+    std::string relative;         /**< Logical asset filename, including directory metadata files. */
 };
 
 std::unordered_map<std::string, IndexedFile> file_index;
@@ -170,6 +170,11 @@ const IndexedFile *Lookup(const std::string &key) {
         found = file_index.find(key + "/pack.json");
     }
     if (found == file_index.end()) {
+        if (const auto candidates = config_catalog::Paths(key); !candidates.empty()) {
+            const auto &candidate = candidates.front();
+            const auto  relative = key.starts_with("gameplay/") ? key.substr(9) : key;
+            return &file_index.emplace(key, IndexedFile{.file = candidate, .replaced = datapacks::IsReplacement(candidate), .relative = relative}).first->second;
+        }
         for (const auto &relative : {key, key + "/pack.json"}) {
             if (const auto replacement = datapacks::Resolve(relative)) {
                 return &file_index.emplace(relative, IndexedFile{.file = *replacement, .replaced = true, .relative = relative}).first->second;
@@ -345,6 +350,16 @@ void BuildIndex(const std::shared_ptr<const vfs::Mount> &base, const fs::path &r
     for (std::size_t index = 0; index < count; ++index) {
         std::string relative = base->Name(index);
         if (IsExcludedRootName(std::string_view(relative).substr(0, relative.find('/')))) {
+            continue;
+        }
+        if (relative.starts_with("gameplay/")) {
+            relative.erase(0, 9);
+            auto candidates = config_catalog::Paths(relative);
+            if (!candidates.empty()) {
+                const bool replaced = datapacks::IsReplacement(candidates.front());
+                auto       key = vfs::FoldKey(relative);
+                file_index.insert_or_assign(std::move(key), IndexedFile{.file = std::move(candidates.front()), .replaced = replaced, .relative = std::move(relative)});
+            }
             continue;
         }
         std::string key = vfs::FoldKey(relative);

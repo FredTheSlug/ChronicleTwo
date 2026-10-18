@@ -549,6 +549,28 @@ std::vector<vfs::Ref> Candidates(const std::filesystem::path &relative) {
     return candidates;
 }
 
+std::vector<vfs::Ref> GameplayCandidates(const std::filesystem::path &relative) {
+    const auto name = vfs::RelativeName(relative);
+    if (!name) {
+        return {};
+    }
+    const std::string     logical = name->starts_with("gameplay/") ? name->substr(9) : *name;
+    const std::string     physical = "gameplay/" + logical;
+    std::vector<vfs::Ref> candidates;
+    const auto            append = [&](const std::shared_ptr<const vfs::Mount> &mount) {
+        if (auto file = vfs::Find(mount, physical)) {
+            candidates.push_back(std::move(file));
+        } else if (auto file = vfs::Find(mount, logical)) {
+            candidates.push_back(std::move(file));
+        }
+    };
+    for (const auto &pack : std::views::reverse(packs)) {
+        append(pack.mount);
+    }
+    append(base);
+    return candidates;
+}
+
 std::optional<vfs::Ref> Asset(const std::filesystem::path &relative) {
     auto candidates = Candidates(relative);
     if (candidates.empty()) {

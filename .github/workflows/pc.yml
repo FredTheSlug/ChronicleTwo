@@ -142,7 +142,7 @@ jobs:
         run: cargo test --locked --manifest-path tools/kazarov/Cargo.toml
 
       - name: Package the macOS build
-        run: tar -czf artifacts/chronicletwo-macos-arm64.tar.gz -C port/build/macos-arm64 darkchronicle
+        run: tar -czf artifacts/chronicletwo-macos-arm64.tar.gz -C port/build/macos-arm64 darkchronicle -C assets data.zip
 
       - name: Upload the macOS build
         uses: actions/upload-artifact@v7

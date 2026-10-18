@@ -37,9 +37,9 @@ protected:
         Write("bundle/model.game.json", {
                                             {"schema_version", 1}
         });
-        Write("bundle/config.json", {
-                                        {"schema_version", 2           },
-                                        {"kind",           "shop_lists"}
+        Write("gameplay/bundle/config.json", {
+                                                 {"schema_version", 2           },
+                                                 {"kind",           "shop_lists"}
         });
         Write("bundle/texture.json", {
                                          {"schema_version", 3            },
@@ -50,9 +50,9 @@ protected:
                                              {"schema_version", 1             },
                                              {"kind",           "sound_bundle"}
         });
-        Write("bundle/child/other.json", {
-                                             {"schema_version", 2           },
-                                             {"kind",           "shop_lists"}
+        Write("gameplay/bundle/child/other.json", {
+                                                      {"schema_version", 2           },
+                                                      {"kind",           "shop_lists"}
         });
         std::ofstream(root / "data/bundle/raw.bin", std::ios::binary) << "abc";
         datapacks::Load(root / "data");
@@ -66,7 +66,10 @@ protected:
         std::filesystem::remove_all(root);
     }
 
-    void Write(const std::filesystem::path &path, const Json &data) { std::ofstream(root / "data" / path) << data.dump(2); }
+    void Write(const std::filesystem::path &path, const Json &data) {
+        std::filesystem::create_directories((root / "data" / path).parent_path());
+        std::ofstream(root / "data" / path) << data.dump(2);
+    }
 };
 } // namespace
 

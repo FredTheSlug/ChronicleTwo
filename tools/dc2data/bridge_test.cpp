@@ -85,7 +85,7 @@ int main() {
                 Require(bytes == std::vector<std::uint8_t>{'D', 'A', 'T', 'A'}, "extracted entry contents mismatch");
                 found = true;
             }
-            if (name == "menu/cfg7/wepdat.cfg.json") {
+            if (name == "gameplay/menu/cfg7/wepdat.cfg.json") {
                 std::vector<std::uint8_t> bytes(kazarov::archive_entry_size(*archive, index));
                 kazarov::archive_read_entry(*archive, index, rust::Slice<std::uint8_t>(bytes.data(), bytes.size()));
                 const std::string document(bytes.begin(), bytes.end());

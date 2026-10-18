@@ -18,6 +18,7 @@
 #include "dataread_port.hpp"
 #include "kazarov/data_version.hpp"
 #include "platform/archive_mount.hpp"
+#include "platform/config_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/firstrun.hpp"
 #include "platform/vfs.hpp"
@@ -276,7 +277,7 @@ TEST_F(DataArchive, OverrideIndexMergesZipAndFolderPacksByLoadOrder) {
 
 TEST_F(DataArchive, DataReadLoadsFromDataZipWithoutDirectories) {
     const std::string gameplay = R"({"schema_version":2,"kind":"weapon","records":[]})";
-    Write(tree / "menu/cfg7/wepdat.cfg.json", gameplay);
+    Write(tree / "gameplay/menu/cfg7/wepdat.cfg.json", gameplay);
     Pack(tree, root / "data.zip");
     Write(root / "data.json", R"({"schema_version":1,"data_version":)" + std::to_string(KAZAROV_DATA_VERSION) + "}");
     EXPECT_FALSE(FirstRunDataMissing(root / "data"));
@@ -299,10 +300,47 @@ TEST_F(DataArchive, DataReadLoadsFromDataZipWithoutDirectories) {
     if (!settings) {
         FAIL() << "archived gameplay document is missing";
     }
-    EXPECT_TRUE(settings->Display().starts_with("data.zip!"));
+    EXPECT_EQ(settings->Display(), "data.zip!gameplay/menu/cfg7/wepdat.cfg.json");
+    EXPECT_FALSE(datapacks::Asset("menu/cfg7/wepdat.cfg.json"));
     EXPECT_FALSE(vfs::HostPath(*settings));
     EXPECT_EQ(Read(*settings), (std::vector<std::uint8_t>(gameplay.begin(), gameplay.end())));
+    char gameplay_name[] = "menu/cfg7/wepdat.cfg.json";
+    ASSERT_EQ(LoadFile2(gameplay_name, buffer.data(), &size, LOAD_FILE_READ), 1);
+    EXPECT_EQ(size, gameplay.size());
+    EXPECT_EQ(std::memcmp(buffer.data(), gameplay.data(), gameplay.size()), 0);
+    EXPECT_EQ(DataReadBufferPath(buffer.data()), gameplay_name);
+    EXPECT_EQ(DataReadAssetPath(gameplay_name), gameplay_name);
+    EXPECT_EQ(DataReadNativeKeys("menu/cfg7"), (std::vector<std::string>{gameplay_name}));
     EXPECT_FALSE(DataReadFind("character_clips.json"));
+}
+
+TEST_F(DataArchive, GameplayDocumentsPreservePackPriorityAcrossNamespacedAndLegacyPaths) {
+    const std::string relative = "menu/cfg7/wepdat.cfg.json";
+    Write(tree / "gameplay" / relative, "base");
+    Pack(tree, root / "data.zip");
+    Write(root / "datapacks/low/gameplay" / relative, "low");
+    Write(root / "datapacks/high" / relative, "legacy high");
+    Write(root / "datapacks/datapacks.json", std::string(R"({"schema_version":1,"load_order":["low","high"]})"));
+    DataReadIndex(root / "data");
+
+    const auto candidates = config_catalog::Paths(relative);
+    ASSERT_EQ(candidates.size(), 3u);
+    EXPECT_TRUE(candidates[0].Display().ends_with("high/" + relative));
+    EXPECT_TRUE(candidates[1].Display().ends_with("low/gameplay/" + relative));
+    EXPECT_EQ(candidates[2].Display(), "data.zip!gameplay/" + relative);
+    const auto legacy = DataReadFind(relative.c_str());
+    if (!legacy) {
+        FAIL() << "legacy gameplay replacement is missing";
+    }
+    EXPECT_EQ(legacy->Display(), candidates[0].Display());
+
+    Write(root / "datapacks/high/gameplay" / relative, "namespaced high");
+    DataReadIndex(root / "data");
+    const auto selected = DataReadFind(relative.c_str());
+    if (!selected) {
+        FAIL() << "namespaced gameplay replacement is missing";
+    }
+    EXPECT_TRUE(selected->Display().ends_with("high/gameplay/" + relative));
 }
 
 TEST_F(DataArchive, MoviePlaysIdenticallyFromAStoredArchiveEntry) {

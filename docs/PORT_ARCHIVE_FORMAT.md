@@ -9,8 +9,10 @@ packer to the game and `dc2data`.
 ## Namespace
 
 Entries form a single namespace for retained retail files, converted textures, models, audio,
-movies and gameplay JSON. The tracked, pretty-printed documents in `port/gameplay/` are compiled
-into the extractor and published as compact JSON at the same relative paths. Conversion
+movies and gameplay JSON. The tracked, pretty-printed documents in `port/gameplay/` are packaged
+as compact JSON under `gameplay/` in a gameplay-only seed `data.zip`. The executable contains only
+the document paths and SHA-256 hashes used to validate that seed. Extraction copies the validated
+documents into the same `gameplay/` paths in the completed archive. Conversion
 submits final assets directly to the ZIP writer; it creates no intermediate asset tree. Entry
 names are relative to the asset namespace and must not collide, even ignoring case.
 
@@ -28,7 +30,7 @@ keep their model locations and refer to the relocated images.
 
 ## Container
 
-The archive is a standard ZIP file (APPNOTE 6.3.10), always written in ZIP64 form:
+The completed archive is a standard ZIP file (APPNOTE 6.3.10), always written in ZIP64 form:
 
 | Field | Value |
 | --- | --- |
@@ -52,6 +54,12 @@ straight from the file: an MP4 entry can be streamed by file range starting at i
 Standalone directory packing produces identical bytes for identical files with the same Zstandard
 library version. Progressive extraction may arrange local entries by completion order; its content
 digest is independent of that order.
+
+The smaller build-generated gameplay seed uses classic ZIP size and offset fields, with the
+same Zstandard compression, timestamps, CRCs and 64-byte payload alignment. It is built into
+`assets/data.zip` and installed or packaged as `data.zip` beside the executable. It has no
+`data.json` marker and cannot substitute for a completed extraction. Rebuilding the seed does
+not modify an existing completed archive.
 
 ## Integrity
 
@@ -77,7 +85,7 @@ for each entry, in name order:
 | Key | Meaning |
 | --- | --- |
 | `schema_version` | 1 |
-| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 18 places all textures under `textures/` and records relocated PACK members |
+| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 19 places gameplay documents under `gameplay/`; version 18 introduced `textures/` and relocated PACK members |
 | `layout` | `"zip"` |
 | `archive_size` | Size of `data.zip` in bytes |
 | `archive_entries` | Number of entries |

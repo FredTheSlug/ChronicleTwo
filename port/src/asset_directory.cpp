@@ -108,10 +108,10 @@ bool Valid(const Json &data, std::string_view kind) {
 }
 
 /**
- * Reads a directly selected actual file, recording its physical relative path and byte extent.
+ * Reads a selected asset, recording its logical lookup path and byte extent.
  */
 File *Read(fs::path relative, std::string_view kind = {}) {
-    auto candidates = datapacks::Candidates(relative);
+    auto candidates = Key(relative.extension().generic_string()) == ".json" ? datapacks::GameplayCandidates(relative) : datapacks::Candidates(relative);
     if (candidates.empty()) {
         relative /= "pack.json";
         candidates = datapacks::Candidates(relative);
@@ -149,15 +149,15 @@ File *Read(fs::path relative, std::string_view kind = {}) {
 }
 
 /**
- * Identifies a logical PACK member and its physical native asset path.
+ * Identifies a logical PACK member and its native asset lookup path.
  */
 struct Member {
-    fs::path    path; /**< Physical native file or child directory. */
+    fs::path    path; /**< Logical native file or child-directory lookup path. */
     std::string name; /**< Logical name returned to PACK consumers. */
 };
 
 /**
- * Merges relocated texture membership with direct native files in deterministic name order.
+ * Merges texture membership, gameplay documents and native files in deterministic name order.
  */
 std::vector<Member> Members(const std::string &directory) {
     std::map<std::string, Member> members;
@@ -175,6 +175,13 @@ std::vector<Member> Members(const std::string &directory) {
         const auto key = Key(name);
         if (key != "pack.json" && !key.ends_with(".game.json")) {
             members.insert_or_assign(key, Member{.path = path, .name = name});
+        }
+    }
+    for (const auto &path : datapacks::DirectoryMembers(fs::path("gameplay") / directory)) {
+        const auto name = path.filename().generic_string();
+        const auto key = Key(name);
+        if (key.ends_with(".json")) {
+            members.insert_or_assign(key, Member{.path = fs::path(directory) / name, .name = name});
         }
     }
     std::vector<Member> result;

@@ -61,6 +61,10 @@ const std::filesystem::path &Root();
  */
 std::vector<vfs::Ref> Candidates(const std::filesystem::path &relative);
 /**
+ * Lists gameplay documents under gameplay/ in pack priority order, accepting legacy unprefixed paths per mount.
+ */
+std::vector<vfs::Ref> GameplayCandidates(const std::filesystem::path &relative);
+/**
  * Lists merged direct file and child-directory names through datapack priority.
  */
 std::vector<std::filesystem::path> DirectoryMembers(const std::filesystem::path &relative);

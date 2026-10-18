@@ -490,7 +490,7 @@ std::shared_ptr<const Json> ParseGameplay(const std::filesystem::path &gltf, std
             if (game->contains("models")) {
                 auto gameplay_path = gltf;
                 gameplay_path.replace_extension(".character.json");
-                for (const auto &candidate : datapacks::Candidates(gameplay_path)) {
+                for (const auto &candidate : datapacks::GameplayCandidates(gameplay_path)) {
                     std::vector<uint8_t> gameplay_bytes;
                     if (!datapacks::ReadFileBytes(candidate, gameplay_bytes)) {
                         continue;

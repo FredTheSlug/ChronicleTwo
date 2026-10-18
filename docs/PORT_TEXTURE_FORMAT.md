@@ -1,8 +1,8 @@
 # Converted texture format
 
 `dc2data` publishes textures as entries in `data.zip` without a global texture
-catalog or runtime source-alias table. The current extraction is data version 18,
-recorded in the adjacent `data.json` marker. Standalone texture documents use
+catalog or runtime source-alias table. Data version 18 introduced the texture namespace;
+the adjacent `data.json` marker records the extraction's version. Standalone texture documents use
 `schema_version: 3`; adjacent model asset sidecars use `schema_version: 1`.
 
 ## Standalone texture documents

@@ -12,7 +12,7 @@ std::vector<vfs::Ref> AudioAssetCandidates(std::string_view name) {
             return {};
         }
     }
-    return datapacks::Candidates(path);
+    return path.extension() == ".json" ? datapacks::GameplayCandidates(path) : datapacks::Candidates(path);
 }
 
 std::vector<std::string> AudioDocuments(std::string_view path) {

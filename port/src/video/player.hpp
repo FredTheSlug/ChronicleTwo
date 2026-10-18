@@ -27,6 +27,24 @@ struct PictureFit {
 PictureFit FitPicture(int retail_width, int retail_height, int width, int height);
 
 /**
+ * Counts the undecodable packets and pictures a movie passes over. More than kMaxInARow in a row, with no picture
+ * decoded between them, stop the movie, so a decoder that rejects everything cannot hold the game in one Advance.
+ */
+class DecodeRejections {
+public:
+    static constexpr int kMaxInARow = 250; /**< Ten seconds of 25 fps pictures. */
+    /** Counts one rejection; false once the run is longer than kMaxInARow. */
+    bool Skip();
+    /** Ends the run: a picture decoded. */
+    void                  Decoded();
+    [[nodiscard]] int64_t Total() const;
+
+private:
+    int     run = 0;   /**< Rejections since the last decoded picture. */
+    int64_t total = 0; /**< Rejections since Open. */
+};
+
+/**
  * Plays a standard MP4 with embedded audio against the game's movie clock.
  */
 class MoviePlayer {
@@ -46,6 +64,10 @@ public:
     [[nodiscard]] bool                                   Ended() const;
     [[nodiscard]] std::shared_ptr<const audio::PcmTrack> Audio() const;
     [[nodiscard]] int64_t                                PicturesShown() const;
+    /**
+     * The container's duration on the 90 kHz movie clock, the longer of its tracks; 0 when closed or unknown.
+     */
+    [[nodiscard]] int64_t                                Length() const;
     [[nodiscard]] int                                    SourceWidth() const;
     [[nodiscard]] int                                    SourceHeight() const;
     [[nodiscard]] int                                    Scale() const;

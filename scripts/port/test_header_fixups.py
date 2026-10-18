@@ -94,6 +94,55 @@ class UnitFixups(unittest.TestCase):
         self.assertEqual(result.count(extra), 7)
         self.assertEqual(result.count("\n"), source.count("\n"))
 
+    def test_monster_slots_keep_to_the_floor_limit(self):
+        root = Path(__file__).resolve().parents[2] / "ps2/src"
+        for unit, calls in (("monster.cpp", 1), ("dng_event.cpp", 2), ("event_func.cpp", 1)):
+            source = (root / unit).read_text(encoding="latin-1")
+            result = header_fixups.fixup_unit_text(unit, source)
+            self.assertEqual(result.count("PortMonsterActiveLimit()"), calls)
+            self.assertEqual(result.count("\n"), source.count("\n"))
+        source = (root / "monster.cpp").read_text(encoding="latin-1")
+        self.assertIn("priority_limit = PortMonsterLatchLimits();", header_fixups.fixup_unit_text("monster.cpp", source))
+
+    def test_monster_scene_slots_start_at_the_monster_slot(self):
+        root = Path(__file__).resolve().parents[2] / "ps2/src"
+        for unit in ("actionchara.cpp", "actscript.cpp", "monster.cpp"):
+            result = header_fixups.fixup_unit_text(unit, (root / unit).read_text(encoding="latin-1"))
+            self.assertNotIn("MONSTER_ACTIVE_MAX * 2", result)
+            self.assertNotRegex(result, r"(?<!DNG_CHARA_SLOT_MONSTER) \+ MONSTER_ACTIVE_MAX\b|[=-] MONSTER_ACTIVE_MAX;")
+
+    def test_georama_tables_grow_with_the_town(self):
+        source = Path(__file__).resolve().parents[2] / "ps2/include"
+        mirror = header_fixups.build_mirror(source)
+        editmap = mirror["editmap.hpp"].decode("latin-1")
+        self.assertEqual(editmap.count("CEditHouse                          *house;"), 1)
+        self.assertEqual(editmap.count("s32 *house_npc;"), 1)
+        self.assertEqual(editmap.count("void PortRetailClearAllParts();"), 1)
+        self.assertEqual(editmap.count("\n"), (source / "editmap.hpp").read_bytes().count(b"\n") + 1)
+        collision = mirror["collision.hpp"].decode("latin-1")
+        self.assertIn("CCPOLY_PARTS_EDIT = 0x8000,", collision)
+        self.assertIn("CCPOLY_PARTS_SLOT_MASK = 0x7FFF,", collision)
+        editmenu = mirror["editmenu.hpp"].decode("latin-1")
+        for name in ("place_no", "place_name", "placed_list", "house_list"):
+            self.assertIn(f"        {name} = NULL;", editmenu)
+            self.assertNotIn(f"sizeof({name})", editmenu)
+        self.assertIn("char (*place_name)[0x40];", editmenu)
+        self.assertEqual(editmenu.count("\n"), (source / "editmenu.hpp").read_bytes().count(b"\n"))
+
+    def test_georama_parts_have_no_placement_or_polygon_limit(self):
+        root = Path(__file__).resolve().parents[2] / "ps2/src"
+        source = (root / "editinfo.cpp").read_text(encoding="latin-1")
+        result = header_fixups.fixup_unit_text("editinfo.cpp", source)
+        self.assertIn(f"emapNowInfo->max_num = {header_fixups.GEORAMA_PARTS_MAX_NUM};", result)
+        self.assertEqual(result.count("\n"), source.count("\n"))
+        source = (root / "editmenu.cpp").read_text(encoding="latin-1")
+        result = header_fixups.fixup_unit_text("editmenu.cpp", source)
+        self.assertIn("    if (true) {\n        ExeScript(\"POLYOF\");", result)
+        self.assertIn("(menu->make_parts->max_num < 99 ? menu->make_parts->max_num : 99)", result)
+        self.assertEqual(result.count("\n"), source.count("\n"))
+        with self.assertRaises(SystemExit):
+            header_fixups.fixup_unit_text("editinfo.cpp", header_fixups.fixup_unit_text("editinfo.cpp", (root / "editinfo.cpp").read_text(encoding="latin-1")))
+
     def test_map_files_read_into_a_measured_buffer(self):
         source = (Path(__file__).resolve().parents[2] / "ps2/src/sceneload.cpp").read_text()
         result = header_fixups.fixup_unit_text("sceneload.cpp", source)

@@ -9,6 +9,7 @@
 
 #include "memcard.hpp"
 #include "platform/files.hpp"
+#include "save_json.hpp"
 
 enum class SaveSlotState {
     Ready,
@@ -16,7 +17,8 @@ enum class SaveSlotState {
     WrongSize,
     WrongVersion,
     Incomplete,
-    BadChecksum
+    BadChecksum,
+    Invalid
 };
 
 struct SaveSlot {
@@ -30,7 +32,7 @@ struct SaveSlot {
 
 struct SaveSlotList {
     std::vector<SaveSlot> saves;
-    // Includes unreadable flat names and unarchived legacy entries from both cards.
+    // Includes unreadable save names and the legacy images, flat or on either card, not yet converted.
     std::set<int> occupied;
     int           first_free = 0;
     bool          read_failed = false;
@@ -38,17 +40,6 @@ struct SaveSlotList {
 
 extern SaveSlotList SaveSlots;
 extern bool         SaveSlotNew;
-
-// Where the player stood when a town autosave was written. Retail saves hold only the map, and loading a town save
-// starts at the map's save point, so the PC keeps the spot in a file beside the autosave, tied to it by its counter.
-struct AutosaveSpawn {
-    u64   counter = 0;
-    int   map_no = -1;
-    float position[4] = {};
-    float rotation[4] = {};
-    float camera_pos[4] = {};
-    float camera_ref[4] = {};
-};
 
 /**
  * Replaces or clears the validated spawn awaiting the town's first controllable frame.
@@ -62,27 +53,23 @@ std::optional<AutosaveSpawn> SaveSlotTakePendingSpawn(int map_no);
 std::filesystem::path SaveSlotsRoot();
 std::filesystem::path SaveSlotPath(int number, bool second_card = false);
 std::filesystem::path SaveSlotAutosavePath();
-std::filesystem::path SaveSlotAutosaveSpawnPath(u64 counter);
 
 /**
- * Publishes validated town spawn metadata before its matching autosave image.
+ * The file number of a save name or legacy save name, with or without the .json extension, or -1.
  */
-bool SaveSlotWriteSpawn(const AutosaveSpawn &spawn);
+int         SaveSlotNumber(const std::string &name, bool &second_card);
+int         SaveSlotFirstFree(const SaveSlotList &list);
+int         SaveSlotRows(const SaveSlotList &list, bool saving);
+bool        SaveSlotIsNew(const SaveSlotList &list, int row, bool saving);
+const char *SaveSlotStatus(SaveSlotState state);
 /**
- * Reads finite, versioned spawn data belonging to the selected save image.
+ * Reads a whole save: a JSON file, or a legacy image converted in memory.
  */
-std::optional<AutosaveSpawn> SaveSlotReadSpawn(u64 counter, int map_no);
+SaveSlotState SaveSlotRead(const std::filesystem::path &path, SaveDocument &document);
 /**
- * Removes obsolete spawn sidecars after an autosave has been published.
+ * Lists the saves, after converting each legacy image, flat or on a card, into a JSON file once.
  */
-void          SaveSlotPruneSpawns(std::optional<u64> keep);
-int           SaveSlotNumber(const std::string &name, bool &second_card);
-int           SaveSlotFirstFree(const SaveSlotList &list);
-int           SaveSlotRows(const SaveSlotList &list, bool saving);
-bool          SaveSlotIsNew(const SaveSlotList &list, int row, bool saving);
-const char   *SaveSlotStatus(SaveSlotState state);
-SaveSlotState SaveSlotRead(const std::filesystem::path &path, SAVEDATA_FORMAT &image);
-SaveSlotList  SaveSlotScan(bool include_autosave = true);
+SaveSlotList SaveSlotScan(bool include_autosave = true);
 /**
  * Refreshes the manager and its compatibility table with the requested save rows.
  */
@@ -93,20 +80,19 @@ int SaveSlotRefresh(CMemoryCardManager &manager, bool include_autosave);
 // retail fixed-size table.
 CMemoryCardManager *SaveSlotManager();
 
-FilesResult SaveSlotWrite(const std::filesystem::path &path, const SAVEDATA_FORMAT &image, bool replace);
+FilesResult SaveSlotWrite(const std::filesystem::path &path, const SaveDocument &document, bool replace);
 
 // Writes the game as it stands over the autosave, as a town save or, for LOOP_DUNGEON, as a save the
 // title resumes on the current floor; false if the write failed, the autosave then keeping what it held.
 // A town save given a spawn also records it, so that loading the autosave returns the player to that spot.
-bool SaveSlotWriteAutosave(int program_loop_no, AutosaveSpawn *spawn = nullptr);
+bool SaveSlotWriteAutosave(int program_loop_no, const AutosaveSpawn *spawn = nullptr);
 
-// A legacy row publishes a new flat file, then attempts to archive its entry.
-FilesResult SaveSlotWrite(const SaveSlot &slot, const SAVEDATA_FORMAT &image);
+// A legacy row publishes a new JSON file, then attempts to archive its original.
+FilesResult SaveSlotWrite(const SaveSlot &slot, const SaveDocument &document);
 
 // Deterministic filesystem interleavings for import regressions. An empty hook
 // uses the OS operations; false models a reported failure at that boundary.
 enum class SaveSlotImportStage {
-    Comparing,
     Published,
     BeforeArchive,
     Archived

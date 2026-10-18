@@ -11,6 +11,7 @@
 #include <format>
 #include <iterator>
 #include <ranges>
+#include <span>
 #include <vector>
 
 #include "collision_assets.hpp"
@@ -35,7 +36,7 @@ PORT_OVERRIDE void CTreasureBoxManager::SetCollisionModel(u32 *model, mgCMemory 
 void PrepareMonsterMemory(CMonsterMan &manager) {
     // Model copies grow individual slots when their source character is known.
     constexpr int quadwords = kMonsterScriptQuadwords + 4;
-    for (int index = 0; index < MONSTER_ACTIVE_MAX; ++index) {
+    for (int index = 0; index < PortMonsterActiveLimit(); ++index) {
         auto &slot = manager.memory[index];
         std::snprintf(slot.name, sizeof(slot.name), "monster slot %d", index);
         auto *buffer = reinterpret_cast<u_long128 *>(ArenaBlock(&slot, static_cast<std::size_t>(quadwords) * sizeof(u_long128)));

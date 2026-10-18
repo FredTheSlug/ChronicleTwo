@@ -7,3 +7,7 @@ class ClsMes;
 
 // The native fishing-tournament external opens its records window through the event message lookup.
 ClsMes *GetMes(int id) asm("EventFunc_GetMes");
+
+// The monster slot limits of the current floor (port/src/monster.cpp).
+int PortMonsterLatchLimits();
+int PortMonsterActiveLimit();

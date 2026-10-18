@@ -4,7 +4,7 @@
 
 The port runs the retail main loop on the shared renderer and mixer, reading extracted PAL disc files. Supported checkpoints include the boot movies, title, costume selection, opening event, Palm Brinks exploration and the first Underground Channel floor. Town and dungeon movement, inventory item use, chapter resources, menus, photos and save/continue have native implementations and bounded replay fixtures. These checkpoints do not establish a complete campaign or every sub-game; the fish race still aborts at its unimplemented loop.
 
-The PC controls include keyboard menu navigation, mouse menus and item drag/drop, town and dungeon mouse camera control, optional wheel zoom, a PC settings page and flat save files. Sharp ASCII font rendering is an opt-in prototype, off by default. Presentation can interpolate between logic frames independently of the display rate. Ordinary boots leave debug controls disabled; `game.debug_mode=true` or `--jump` enables them explicitly.
+The PC controls include keyboard menu navigation, mouse menus and item drag/drop, town and dungeon mouse camera control, optional wheel zoom, a PC settings page, JSON save files and Georama towns without a part limit. Sharp ASCII font rendering is an opt-in prototype, off by default. Presentation can interpolate between logic frames independently of the display rate. Ordinary boots leave debug controls disabled; `game.debug_mode=true` or `--jump` enables them explicitly.
 
 ## Building and running
 
@@ -277,21 +277,22 @@ to the screen that opened the menu. Replacing a save retains the retail yes/no
 confirmation, with No selected initially. Unusable saves also require this
 confirmation before replacement.
 
-Each save is one file under `<save root>/saves/`, named
-`BESCES-51190dkcl<N>` (File N+1). The list has no 13-file limit. New Save uses the
+Each save is one JSON file under `<save root>/saves/`, named
+`BESCES-51190dkcl<N>.json` (File N+1). The list has no 13-file limit. New Save uses the
 first unused number, rechecks it when writing, and never replaces an occupied
-name. Files with unsupported versions, incomplete writes or wrong sizes remain
-visible with their status. Unreadable entries are skipped; occupied disk names
-on both legacy cards and in the flat folder still reserve their numbers. Listing
-caches the header, story progress
-and play time by file size and modification time, and successful game writes
-invalidate the affected cache entry immediately. The unused-file number is
-computed on each catalog scan, including the scan before publication; drawing
-the row does not query the disk. Loading always rereads the
-complete image and checks the retail digits before changing game state. Files
-are never removed automatically; unrelated names and temporary files are not rows.
+name. Files with unsupported versions, unusable contents or wrong sizes remain
+visible with their status. Unreadable entries are skipped; occupied names of saves,
+of legacy images in the folder and of legacy card entries all reserve their numbers.
+Listing reads each file's header (format, version, map, story progress, play time,
+counter and unlocks) and caches it by file size and modification time; successful
+game writes invalidate the affected cache entry immediately. The unused-file number
+is computed on each catalog scan, including the scan before publication; drawing
+the row does not query the disk. Loading always rereads and checks the complete
+file before changing game state. Files over 64 MiB are refused before they are
+parsed. Files are never removed automatically; unrelated names and temporary files
+are not rows.
 
-The autosave is `<save root>/saves/autosave`, the same image as a numbered
+The autosave is `<save root>/saves/autosave.json`, the same document as a numbered
 save, and never written by the save screen. It is written as a town save
 once on each town map, the first frame the player walks it outside an interior
 (however the town was entered, including leaving a dungeon by paying half the
@@ -301,23 +302,19 @@ player has control there. Menus, events, locked input and paused field or player
 updates defer the save. Turning autosave off leaves the arrival eligible when
 it is enabled again. Loading the dungeon one takes retail's path for a
 save made on a floor: the title enters the saved dungeon and floor with
-`mc_load` set. A town autosave first publishes versioned, pretty-printed
-`autosave.spawn.<counter>.json` beside it: the player's position,
-rotation and camera, with the autosave's counter. Retail saves hold only the
-map, and a loaded town save starts at that map's save point (or its entrance on
-a map without one); after loading the autosave, the first frame the player has
-control on its map moves them back to the recorded spot. A spot file whose
-schema, counter, map or finite coordinates do not match the autosave is ignored.
-Spawn data is consumed once, after the player regains control. New games and
-manual or failed loads clear pending spawn data. Matching metadata is written
-durably before the autosave image; older sidecars are pruned only after the new
-image is published. Failed publication retains the matching metadata for either
-image that may remain on disk. The autosave's counter is the newest, so the load
-screen, which lists it
-first as "Autosave", starts on it until a later save; choosing it loads at once,
-as it has no file number for the confirmation to name. `game.autosave` (PC
-Settings, Game page) turns it off; headless, `--jump`, input-script and replay
-runs never write it.
+`mc_load` set. A town autosave also records, in its `pc.spawn` object, the
+player's position, rotation and camera. Retail saves hold only the map, and a
+loaded town save starts at that map's save point (or its entrance on a map
+without one); after loading the autosave, the first frame the player has control
+on its map moves them back to the recorded spot. A spot whose map differs from the
+save's, or whose coordinates are missing or not finite, is dropped while the save
+still loads. Spawn data is consumed once, after the player regains control. New
+games and manual or failed loads clear pending spawn data. The autosave's counter
+is the newest, so the load screen, which lists it first as "Autosave", starts on
+it until a later save; choosing it loads at once, as it has no file number for the
+confirmation to name. `game.autosave` (PC Settings, Game page) turns it off;
+headless, `--jump`, input-script and replay runs never write it. Spot files
+`autosave.spawn.<counter>.json` from earlier builds are ignored and can be deleted.
 
 The window icon uses the native `title/dc2_ic.gltf` model. Datapack
 models take priority, with malformed replacements falling back to the next
@@ -325,56 +322,108 @@ valid candidate. The bundled two-moons icon remains available before extraction
 or when no model is valid; headless runs skip icon rendering. On Windows the
 native model also supplies `chronicletwo.ico` and the game shortcut.
 
-On discovery, old `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` payloads are
-copied byte for byte into new flat files in `saves/`, using exclusive creation.
-The equivalent files from `mc1` get a `.card2` suffix and an `(import 2)` label,
-keeping different saves at equal slot numbers distinct. Existing flat files
-are never overwritten during import. If any flat save has identical complete
-bytes, no new copy is needed; a different legacy save at an occupied number is
-imported under the first unused number. If a possible matching flat file cannot
-be compared because its metadata or contents are unavailable, copying that
-legacy entry is deferred until a later scan; existing copies are kept.
+#### Save file format
 
-After copying or finding identical bytes, the whole original card entry,
-including icons and payload, is moved atomically into `imported/mc0/<name>` or
-`imported/mc1/<name>`. An occupied archive name gets a numbered suffix; nothing
-is overwritten or deleted. Archived entries are never scanned for import.
-If copying fails, the original entry stays loadable if readable. If the archive
-move fails, its original row stays listed alongside the flat copy; this identical
-duplicate is temporary. While that copy still has identical bytes, a later
-readable scan finds it and retries the move without creating another copy.
-No import markers are read or written; any existing `.save-imports/` directory is left untouched.
+A save is a pretty-printed (two-space) JSON object written by `port/src/save_json.cpp`:
 
-Replacing a still-listed legacy row writes a new flat save with exclusive
-creation and then attempts the same archive move. If the move fails, the new
-save is kept and the original row stays listed. Ordinary flat saves retain
-atomic replacement. While archiving keeps failing, replacing or deleting the
-last matching flat copy can cause the unarchived legacy save to be published
-again, including when the legacy payload becomes readable again after failed
-reads. Newer saved progress is preserved; the old save can reappear as another
-row. Once an identical copy is readable, later scans do not publish more copies.
-Card payloads and archived originals are never modified.
-When moving or backing up a save root, include `saves/`, both card directories
-and `imported/`.
+```json
+{
+  "format": "chronicletwo-save",
+  "schema_version": 1,
+  "header": { "version": "dc2Ver4", "map_no": 10, "unique_counter": 3, "play_time": 123456, ... },
+  "save": { "bit_flag": [...], "play_time": 123456, "user_data": { ... }, ... },
+  "towns": [ { "parts": [...], "houses": [...], "place_log": [...], "grids": [...] }, ... ],
+  "pc": { "spawn": { "map_no": 10, "position": [...], ... } },
+  "checksum": "crc32:1A2B3C4D"
+}
+```
 
-The payload is the existing port save image and its retail header and checksums;
-no PC metadata is added. As before, it uses the host layout of `CSaveData`,
-including its photo records, so this does not add PS2-console save compatibility.
-Older `dc2Ver2` images of the supported port layout are accepted and converted
-with the retail invention-card routine; retail does not check this version's
-digits. Unconverted Ver2 headers do not grant costume/bonus unlocks or debug
-codes and do not participate in newest-save selection. Photo album and separate
-bonus-data storage keep their existing paths.
+- `header` holds `SAVEDATA_FORMAT`'s header fields by name except its version
+  check digits and incomplete flag, plus copies of `play_time` and `game_progress`,
+  so the list reads one object. `version` is always `dc2Ver4`.
+- `save` holds every member of `CSaveData` in declaration order, under its C++ name.
+  Numbers keep their exact integer values (enum fields stay integers, named by
+  their enum in the headers); `s8` fields are written signed on every host. Nested
+  records are objects and arrays are arrays. Floats are finite numbers; an infinity
+  or NaN is kept as `{"float_bits": <u32>}`. Unknown byte runs (`unk_*` arrays) and
+  the photo pixels (`photo_work`, 16-bit little-endian colours) are base64 strings.
+  The item, weapon, ridepod, attachment, fish and boiled-fish names are UTF-8 text
+  converted from CP932; a name that would not come back byte for byte (invalid
+  CP932, no terminator, bytes after the terminator) is `{"base64": ...}`. On read,
+  text too long for its field is cut without splitting a character. An item's
+  `data` is the union member its `used_type` names (`item`, `attach`, `weapon`,
+  `robopart`, `fish`, `giftbox`, `boiled`), or the union's base64 bytes for any other
+  type. Photo image pointers are not saved; the album binds them when it opens.
+- Each town record in `save.edit_data` keeps `save_count`, `culture_point`,
+  `analyze` and `unk_5110`. The town's layout is the matching `towns` entry, with no
+  limit: `parts` (`id`, `state`, `angle`, `pos`, four `color` triples and `house`,
+  the house number plus one), `houses` (`npc_no`), `place_log` (`[parts_no, base_no]`
+  pairs indexing `parts`) and `grids` (`num_x`, `num_z`, `pos` and base64 `cells`, a
+  byte per cell, X major, bit 0 set for river).
+- `pc` holds data of the PC only; it is empty except in a town autosave.
+- `checksum` is the CRC-32 (IEEE) of the document without it, dumped with sorted keys
+  and no indentation. A file whose checksum does not match is "Corrupt save". The
+  key may be removed to edit a save by hand; a file without it is not checked. It is
+  not a cryptographic integrity check.
+
+`format`, `schema_version`, `header` and `save` are required; `towns`, `pc` and
+`checksum` are optional. Unknown keys are ignored, a missing required key or one of
+the wrong type makes the save "Unusable save (contents)", and so does a number out
+of its field's range. A `schema_version` newer than the build reads is "Unsupported
+save version". Each schema change adds a migration from the previous version, applied
+in order when an older file is read; version 1 has none.
+
+#### Legacy saves
+
+Images in the port's earlier layout (exactly the host `sizeof(SAVEDATA_FORMAT)`) are
+converted into JSON saves once, then moved into `<save root>/imported/`:
+
+- a flat image `saves/BESCES-51190dkcl<N>` or `<N>.card2` becomes
+  `BESCES-51190dkcl<N>.json` (or `.card2.json`), the original moving to
+  `imported/flat/<name>`;
+- a legacy `saves/autosave` becomes `autosave.json` unless one exists, and moves to
+  `imported/flat/autosave`;
+- a card entry `mc0/BESCES-51190dkcl<N>/BESCES-51190dkcl<N>` becomes
+  `BESCES-51190dkcl<N>.json`, and one from `mc1` `BESCES-51190dkcl<N>.card2.json`
+  with an `(import 2)` label; the whole entry, icons included, moves to
+  `imported/mc0/<name>` or `imported/mc1/<name>`.
+
+A legacy save takes its own number when no JSON save has it, and the first unused
+number otherwise. Conversion validates the image as loading did (version, incomplete
+flag, retail check digits), converts a `dc2Ver2` image's invention cards with the
+retail routine, and decodes each town record's layout. A converted Ver2 save grants
+no costume or bonus unlocks or debug code and has counter 0, so it is not the newest
+save, until it is saved again. New files are created exclusively; existing JSON saves
+are never overwritten. An occupied archive name gets a numbered suffix; nothing is
+overwritten or deleted, and archived entries are never scanned again.
+
+A legacy save is already converted when a JSON save lists the same header (counter,
+play time, story progress, map, loop, dungeon, floor and fish count); it is then only
+moved. Payloads are not compared beyond that header, so two legacy saves that differ
+only in their contents share one converted copy. If conversion fails, the legacy save
+stays listed with its status and, if valid, loads through the same conversion in
+memory. If the move fails, its original row stays listed beside the converted copy
+and a later scan retries only the move. While moving keeps failing, replacing or
+deleting the converted copy lets the next scan convert the legacy save again under a
+new number; newer progress is never overwritten. Replacing a still-listed legacy row
+writes a new JSON save with exclusive creation and then moves the original. Card
+payloads and archived originals are never modified. No import markers are read or
+written; any existing `.save-imports/` directory is left untouched. When moving or
+backing up a save root, include `saves/`, both card directories and `imported/`.
+
+The save data uses the host layout of `CSaveData`; PS2-console save images (0x659C0
+bytes) are not converted and stay listed as "Unusable save (size)". Photo album and
+separate bonus-data storage keep their raw files and existing paths.
 
 Save rows, the unused-file row, new-save/overwrite/load prompts, operation failure
 notices and Finny Frenzy confirmations use the disc's retail localized messages.
 The flat-folder notices "No saves found." and "Could not read the save folder.
 Return and try again.", the second-card suffix "(import 2)", and the detailed
-statuses "Cannot read save", "Unusable save (size)", "Unsupported save version",
-"Incomplete save", "Corrupt save" and the fallback "Unusable save" have no
-corresponding retail flat-file diagnostics and remain in English. Retail's
-no-data notice names a memory card and slot, so it is not used for an empty PC
-save folder.
+statuses "Cannot read save", "Unusable save (size)", "Unusable save (contents)",
+"Unsupported save version", "Incomplete save", "Corrupt save" and the fallback
+"Unusable save" have no corresponding retail flat-file diagnostics and remain in
+English. Retail's no-data notice names a memory card and slot, so it is not used for
+an empty PC save folder.
 
 The photo album and Extras data keep libmc's two cards, `<save root>/mc0` and
 `mc1`; `mc1` is created when a memory card manager starts, so both album slots work.
@@ -390,8 +439,7 @@ rename and directory sync on POSIX. Failed writes report an error and leave the
 menu available for retry. A process interrupted before publication leaves the
 previous save and may leave a `<filename>.<hex>.tmp` file; these temporary files
 can be removed while the game is closed. A load reads and validates the complete
-image before changing the live game state. The retail checksum format is retained;
-it is not a cryptographic integrity check.
+file before changing the live game state.
 
 ### Retail data fixes
 
@@ -551,6 +599,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `game.auto_use_event_item` | bool | false | | an event that asks for one item the bag holds is handed it without the item picker; see "Auto-use event items" |
 | `game.skip_intro` | bool | false | | boot past the Sony Computer Entertainment text, the copyright notice and the Level-5 logo to the title screen |
 | `game.floor_info_monsters` | bool | false | | Triangle on a dungeon floor's information lists its monsters (spoilers); see "Floor monster list" |
+| `game.more_monsters` | bool | false | | a dungeon floor holds up to 60 monsters instead of 24, and every monster in range shows and acts; see "Dungeon monster limit" |
 | `video.present_mode` | string | fifo | fifo, mailbox, immediate | Vulkan present mode |
 | `video.interpolation` | bool | true | | interpolate display frames between ticks |
 | `video.max_fps` | number | 0 | 0 or more | display frame cap; 0 is unlimited |
@@ -635,7 +684,7 @@ The **PC SETTINGS** entry and the page are drawn at the UI scale, or smaller whe
 | Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, original/sharp text font, FPS counter |
 | Audio | Master volume and PS2/custom soundtrack |
 | Controls | Mouse sensitivity, Y inversion and capture; stick sensitivity and X/Y inversion; button symbols and glyph style |
-| Game | Autosave, quick loadout title, skip intro, auto-use event items, floor monster list and debug mode |
+| Game | Autosave, quick loadout title, skip intro, auto-use event items, floor monster list, more monsters and debug mode |
 | Bindings | Keyboard and mouse bindings for pad buttons, movement, look, FPS and debug menu |
 
 Edits save to `config.json` and apply immediately. Soundtrack selection takes effect the next time a song starts, including one whose data is already loaded. Custom recordings use the actual sequence JSON path in `soundtrack/soundtrack.json`; `AUDIO_TRACE` prints that path. An absent or invalid recording falls back to the converted sequence. Current music is not restarted by moving the setting.
@@ -1099,6 +1148,81 @@ The list is drawn on the materials list's board, opaque and up to 12 rows tall. 
 mode and pages from Deathtrap's materials to its monsters; their comments give capture frames. Both need the setting
 on in the save root's `config.json`.
 
+### Dungeon monster limit
+
+Retail keeps 24 monster slots, scene characters `DNG_CHARA_SLOT_MONSTER` (24) to 47, and only the five nearest
+monsters (`CMonsterMan::priority_limit`) show and act; `CActiveMonster::CheckView` fades the rest out and `ThinkHost`
+skips them. The port's mirror of `monster.hpp` raises `MONSTER_ACTIVE_MAX` to 60, so the slots run to scene character
+83 of 128. `CMonsterMan::Initialize` reads `game.more_monsters` once per floor through `PortMonsterLatchLimits`
+(`port/src/monster.cpp`): off, the floor uses 24 slots and a priority limit of 5, exactly as retail; on, it uses all 60
+and every monster in range shows and acts. Unit fixups hold `AutoSetMonster`'s spawn count,
+`CMonsterMan::SearchActiveMonsterBlock` and the event scene's slot memory to that limit, and `PrepareMonsterMemory`
+(`port/src/dng_event.cpp`) carves script memory only for the slots in use. A floor's placement list holds at most 32
+monsters (`MONSTER_LOCATE_MAX`), so the setting raises a floor's opening count to at most 32; the remaining slots take
+monsters spawned later.
+
+### Georama limits
+
+Retail caps a town at 256 edit part slots, a 1024-entry placement log, 32 houses,
+a per-town polygon and drawing budget, each definition's `MAX_NUM` and a save
+record of 300 parts, and its save quits the game past 300. The port keeps none of
+these, always:
+
+- `GetMaxPolyn` and `GetMaxDrawMem` (`port/src/editdata.cpp`) give every town no
+  budget, and a unit fixup makes every Georama menu run its `POLYOF` script, which
+  hides the polygon counter as retail does for its fifth town.
+- A unit fixup sets every part definition's `max_num` to 9999, the limit of a held
+  part count; the build menu clamps to 99 before quadrupling a map-wide part's limit
+  (a second fixup), so the lifted value cannot overflow its `s16`.
+- `CEditMap::CreateTable` (`port/src/editmap.cpp`) reserves one block for the edit
+  part slots and one for their placement log, each sized for 32767 slots (the log
+  names slots in an `s16`), and constructs slots as the town needs them:
+  `eNewPlaceParts` reuses a free slot first and constructs the next one otherwise,
+  four log entries with it. Slots never move, as placed parts and their animations
+  keep pointers to them, and retail walks them as an array. A slot reused from the
+  previous town's block starts zeroed.
+- Part models are copied into `parts_heap` and then into further heaps of the same
+  size (`BuildEditParts`); `DeleteEditParts` frees from the heap that holds the model
+  and `ClearAllParts` clears every heap around retail's clear, kept as a bridge.
+- Houses are one block sized for every slot, so a part's house pointer never moves;
+  `eNewHouseInfo` reuses an inactive house before adding one. A removal's homeless
+  villagers (`RemoveInfo::house_npc`) live in a vector of the port. Header fixups
+  turn both arrays into pointers.
+- Collision polygons name a placed part's slot in 15 bits (`CCPOLY_PARTS_EDIT` is
+  `0x8000` and the slot mask `0x7FFF`, header fixups), so walking on parts in slots
+  above 4095 finds them.
+- The Georama menu's placed-part, part-name, placed and house lists
+  (`CMenuGeorama::place_no`, `place_name`, `placed_list`, `house_list`) are vectors
+  of `port/src/editmenu.cpp`, as long as the town has slots; header fixups make them
+  pointers that `UpdateGeoramaPartsList` sets. It shows the culture points once
+  rather than once per part. `stubs/editmenu.hpp` exposes the menu's town, menu and
+  buildable-part table to it.
+- The town's frame work stack grows with its slots before each draw (`EditDraw`,
+  `port/src/editloop.cpp`): 256 sorted packets and their draw-table slots per part
+  slot beyond retail's 10000 packets, and twice its size for the next frame once a
+  frame has used more than half of it.
+- `RemoveEditParts` keeps retail's rule without its recursion: a removed part takes
+  every part resting on it through the log, but only when it has a log entry of its
+  own, and a removed river cell takes the river parts it carried. `PaintFence`
+  gathers fences into a vector and paints the joined ones without recursing.
+  `CultureAnalyze` finds each part's children through the log once; parts beyond
+  0x200 in one territory count, where retail stopped. `LoadData` places the parts
+  resting on placed parts pass by pass as retail does, through an index of the log.
+  The analysis conditions (`editanalyze.cpp`) still count at most 0x200 parts of a
+  kind, which only saturates their thresholds.
+- A town's layout is saved beside its save record rather than in it: `SaveData` and
+  `LoadData` (`port/src/editdata.cpp`) write and read the layout kept for the record
+  (`PortTownLayout`, `port/src/save_json.cpp`), with every part, house, log entry and
+  grid; the record's own arrays stay cleared. `GetPlaceEditPartsNum`
+  (`port/src/savedata.cpp`) counts placed parts in those layouts. Clearing a record
+  (a new game) forgets its layout; loading a save replaces them (see "Save file
+  format").
+
+`port/src/tests/georama_parts_test.cpp` covers slot growth to 5000 parts, the heaps,
+houses beyond 32, the slot ceiling, removal against retail's recursion, tall stacks,
+culture points against `CultureAnalyzeParts`, fence painting against retail's
+recursion, and a 5000-part town saved and loaded back.
+
 ## Decision 1: long64 is kept
 
 The PS2's `long` is 64-bit, and on Windows (LLP64) it is not. `scripts/port/long64.py` rewrites the build-tree copies of `ps2/src` and the `ps2/include` mirror, on every host, so the port keeps the PS2's width:
@@ -1129,7 +1253,7 @@ Headroom does not reach a stack carved with an explicit size. `charasetup.cpp`'s
 
 Retail's `LoadMapData` reads a map's `.map`, `.cfg`, `.mpk` and `.sky` one after another into the caller's fixed load buffer (the dungeon's `BuffReadData`, the town's read buffer) with no bound, so a large map or a datapack's replacement ran into the objects carved after it. A unit fixup makes it read into `PortMapLoadBuffer` (`port/src/sceneload.cpp`) instead: host memory outside the arenas, 64-byte aligned and sized to the files' 64-byte-rounded sizes plus the last read's sector tail. It grows when a map needs more and keeps the buffer it replaced for a deferred map build still reading it. `sceneload_map_buffer_test.cpp` covers it.
 
-Retail places objects in runs with hand-written quadword counts. The placement operators in `port/src/mg_memory.cpp` grow the run to the host object's size while it is still its arena's last, as Dark Cloud 1 does. `arena_placement_test.cpp` lists the 51 literal-count sites whose host object outgrows its run, such as `CCharacter2` (2496 bytes in 0x68 quadwords), and the 8 cast-not-placed runs that nothing can grow: the script stacks `RS_STACKDATA` and `RS_CALLDATA` (`actscript.cpp`, `effscript.cpp`, `event.cpp`, `runscript_opcodes.cpp`) and `mgSORT_PACKET` (`mg_drawprim.cpp`). Each of those overruns its run on the host until `ps2/src` sizes it with `sizeof`.
+Retail places objects in runs with hand-written quadword counts. The placement operators in `port/src/mg_memory.cpp` grow the run to the host object's size while it is still its arena's last, as Dark Cloud 1 does. `arena_placement_test.cpp` lists the 50 literal-count sites whose host object outgrows its run, such as `CCharacter2` (2496 bytes in 0x68 quadwords), and the 8 cast-not-placed runs that nothing can grow: the script stacks `RS_STACKDATA` and `RS_CALLDATA` (`actscript.cpp`, `effscript.cpp`, `event.cpp`, `runscript_opcodes.cpp`) and `mgSORT_PACKET` (`mg_drawprim.cpp`). Each of those overruns its run on the host until `ps2/src` sizes it with `sizeof`.
 
 On Windows the executable is linked with `--dynamicbase` and `--high-entropy-va`, lld's MinGW defaults pinned in `port/cmake/arena.cmake`. The image base is 0x140000000, relocated by high-entropy ASLR, and the image is `LARGE_ADDRESS_AWARE`, so the image and the `VirtualAlloc` mappings lie above 4 GiB, and a truncated pointer faults at once. Linux stays `-pie -z separate-code`. Dark Cloud 1 links Windows with the same defaults.
 
@@ -1539,7 +1663,7 @@ The 22 `#ifndef PORT` guards are 21 in the eight `.cpp` files that hold assembly
 
 `port/include/stubs/<unit>.hpp`, when it exists, is included ahead of `ps2/src/<unit>.cpp`, after `port.h` and nothing else. It declares what the port defines in place of code `PORT` leaves out, and it renames or supplies what the unit takes from MWCC or from the PS2 link alone. Only the port's build sees `port/include`.
 
-The 26 native unit headers are `charasetup`, `collision`, `dataread`, `dng_event`, `dng_main`, `dngfloor`, `dngmenu`, `editctrl`, `editmap2`, `effect`, `event`, `event_func`, `gamepad`, `gameutil`, `inventmn`, `mainloop`, `menudraw`, `menumain`, `menuop`, `menusys`, `mg_frame`, `mg_math`, `mglib`, `nowload`, `photo`, `title`. `mg_dataset` declares the `CopyFrame` bridge. Their link-name bridges and native caller declarations remain outside retail source.
+The 27 native unit headers are `charasetup`, `collision`, `dataread`, `dng_event`, `dng_main`, `dngfloor`, `dngmenu`, `editctrl`, `editmap2`, `editmenu`, `effect`, `event`, `event_func`, `gamepad`, `gameutil`, `inventmn`, `mainloop`, `menudraw`, `menumain`, `menuop`, `menusys`, `mg_frame`, `mg_math`, `mglib`, `nowload`, `photo`, `title`. `mg_dataset` declares the `CopyFrame` bridge. Their link-name bridges and native caller declarations remain outside retail source.
 
 ## Header fixups
 
@@ -1550,6 +1674,9 @@ The 26 native unit headers are `charasetup`, `collision`, `dataread`, `dng_event
 
 MWCC accepts a `void Draw()` that hides the base's `int Draw()` and gives it a new vtable slot. clang rejects that, and no standard spelling keeps the PS2 vtables. The `int` declarations make the two draws overrides instead. This is an accepted difference. The port's definitions (`port/src/dng_event.cpp`, `port/src/dng_hud.cpp`) are real bodies that return 0; the `int` return type is the whole fixup.
 
+- `editmap.hpp`: `CEditMap::house` and `RemoveInfo::house_npc` are pointers, and `CEditMap` declares `PortRetailClearAllParts`, the retail bridge the town clear calls (see "Georama limits").
+- `collision.hpp`: `CCPOLY_PARTS_EDIT` is `0x8000` and `CCPOLY_PARTS_SLOT_MASK` `0x7FFF`, so collision polygons name Georama slots above 4095.
+- `editmenu.hpp`: `CMenuGeorama::place_no`, `place_name`, `placed_list` and `house_list` are pointers to the port's vectors, set to `NULL` by the constructor in place of its four `memset`s.
 - `dngmenu.hpp`: `CMenuTreeMap` declares `PortRetailStep` and `PortRetailDraw`, the retail bridges that the floor monster list's `Step` and `Draw` seams call (see "How `port/src` takes precedence").
 - `nd_meswin.hpp`: `#ifndef MES_WINDOW_OUT_OF_LINE_INIT` becomes `#if 1`, so `ClsMes::Init` is inline in every unit. `dngmenu.cpp`'s out-of-line copy was a strong definition and collided with the COMDAT copies on COFF.
 - `collision.hpp`: `memset` takes `static_cast<void *>`, because `mgVu0FBOX` is not trivially copyable and `-Wnontrivial-memcall` rejects it.
@@ -1571,6 +1698,7 @@ Each fixup's text must occur exactly once in its file, or the script stops befor
 - `menuop.cpp`: `CMenuOption::KeyStep` moves the cursor's `op_cursorlimmit` bottom (y 274) down to the selected row's place in the settled list through `PortOptionCursorBottom` (`port/src/menuop.cpp`). Retail PAL settles the ninth shown row at 288, so on the last shown row its cursor and frame stopped between the last two rows.
 - `inventmn.cpp`: the native copy removes `inline` from `CMenuInvent::CMenuInvent()` so callers in other units have one emitted constructor. Retail source retains its original spelling.
 - `charasetup.cpp`: `mem_table`'s character model stacks take 12000 more quadwords each (see "Arenas").
+- `editinfo.cpp`: every Georama part definition's `max_num` is 9999; `editmenu.cpp`: the build menu clamps a part's limit to 99 before quadrupling it, and every town's Georama menu hides the polygon counter (`POLYOF`) (see "Georama limits").
 - `dng_main.cpp` and `editloop.cpp`: the frame work stacks `BuffWorkData` and `WorkBuffer` hold 10000 `mgSORT_PACKET`s rather than 10000 quadwords, since each sorted packet and its draw-table slot grow with pointer width. The town's total data buffer gives up the difference.
 
 Each unit fixup's text must also occur exactly once; missing, duplicate and already-transformed constructor text is rejected by `NativeUnitFixups`.

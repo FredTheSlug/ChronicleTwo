@@ -29,6 +29,12 @@ FIXUPS = [
     # Paint colours close the menu into paint mode on the first visit as well as returned visits.
     ("editmenu.hpp", "        paint_top = 0;", "        paint_top = 0; paint_return = 1;"),
     ("dng_event.hpp", "    virtual void Draw();", "    virtual int Draw();"),
+    # The monster scene slots end MONSTER_ACTIVE_MAX past their start, however many there are.
+    ("dng_main.hpp", "    DNG_CHARA_SLOT_MONSTER = 24, /**< First slot of the MONSTER_ACTIVE_MAX active monsters. */",
+     "    DNG_CHARA_SLOT_MONSTER = 24, /**< First slot of the MONSTER_ACTIVE_MAX active monsters. */"
+     " DNG_CHARA_SLOT_MONSTER_END = DNG_CHARA_SLOT_MONSTER + MONSTER_ACTIVE_MAX,"),
+    # A dungeon floor holds up to 60 monsters with game.more_monsters; the floors use retail's 24 slots otherwise.
+    ("monster.hpp", "    MONSTER_ACTIVE_MAX = 24,", "    MONSTER_ACTIVE_MAX = 60,"),
     ("dng_hud.hpp", "    virtual void Draw();", "    virtual int Draw();"),
     # The quick loadout's "Equip Slot" command wraps the item command list; retail's routine stays under this name.
     ("menusys.hpp", "    int MenuItemCommandSelect(int select_key, int push_button);",
@@ -52,7 +58,35 @@ FIXUPS = [
     # InventData's mgVu0FBOX makes the union's copy assignment deleted; MWCC generated the memberwise copy
     # GetLight and GetCharaLight assign with, so the mirror spells it out on the declaration's line.
     ("mapload.hpp", "    CFuncPoint() {}", '    CFuncPoint() {} CFuncPoint &operator=(CFuncPoint &other) { name = other.name; type = other.type; unk_8 = other.unk_8; flag_no = other.flag_no; enable = other.enable; start = other.start; end = other.end; __builtin_memcpy(static_cast<void *>(data), other.data, reinterpret_cast<char *>(&frame) - reinterpret_cast<char *>(data)); frame = other.frame; __builtin_memcpy(position, other.position, sizeof(position)); __builtin_memcpy(rotation, other.rotation, sizeof(rotation)); __builtin_memcpy(scale, other.scale, sizeof(scale)); active = other.active; return *this; }'),
+    # A town's houses and the villagers a removal leaves homeless grow with its placed parts (port/src/editmap.cpp).
+    ("editmap.hpp", "    CEditHouse                           house[EDIT_MAP_HOUSE_MAX];             /**< Houses that placed buildings give. */",
+     "    CEditHouse                          *house;                                 /**< Houses that placed buildings give. */"),
+    ("editmap.hpp", "        s32  house_npc[EDIT_REMOVE_HOUSE_MAX];   /**< Villagers whose house was removed. */",
+     "        s32 *house_npc;                          /**< Villagers whose house was removed. */"),
+    # Clearing a town also clears its extra model heaps around retail's clear, which stays under this name.
+    ("editmap.hpp", "    void ClearAllParts();", "    void ClearAllParts();\n    void PortRetailClearAllParts();"),
+    # Collision polygons name placed Georama parts beyond slot 4095.
+    ("collision.hpp", "    CCPOLY_PARTS_EDIT = 0x1000,     /**< The polygon belongs to a placed Georama part. */",
+     "    CCPOLY_PARTS_EDIT = 0x8000,     /**< The polygon belongs to a placed Georama part. */"),
+    ("collision.hpp", "    CCPOLY_PARTS_SLOT_MASK = 0xFFF, /**< Placed-part slot of such a polygon. */",
+     "    CCPOLY_PARTS_SLOT_MASK = 0x7FFF, /**< Placed-part slot of such a polygon. */"),
+    # The Georama menu's placed-part lists live in host vectors sized to the town (port/src/editmenu.cpp).
+    ("editmenu.hpp", "    s32                     place_no[GEORAMA_PARTS_LIST_MAX];         /**< Number of every placed part of the town. */",
+     "    s32                    *place_no;                                 /**< Number of every placed part of the town. */"),
+    ("editmenu.hpp", "    char                    place_name[GEORAMA_PARTS_LIST_MAX][0x40]; /**< Name of each part of place_no. */",
+     "    char (*place_name)[0x40];                                         /**< Name of each part of place_no. */"),
+    ("editmenu.hpp", "    GEORAMA_PARTS_LIST_ITEM placed_list[GEORAMA_PARTS_LIST_MAX];      /**< Every placed part, for GEORAMA_VIEW_PLACED. */",
+     "    GEORAMA_PARTS_LIST_ITEM *placed_list;                             /**< Every placed part, for GEORAMA_VIEW_PLACED. */"),
+    ("editmenu.hpp", "    GEORAMA_PARTS_LIST_ITEM house_list[GEORAMA_PARTS_LIST_MAX];       /**< Placed houses, for GEORAMA_VIEW_CHECK_POINT. */",
+     "    GEORAMA_PARTS_LIST_ITEM *house_list;                              /**< Placed houses, for GEORAMA_VIEW_CHECK_POINT. */"),
+    ("editmenu.hpp", "        memset(place_no, 0, sizeof(place_no));", "        place_no = NULL;"),
+    ("editmenu.hpp", "        memset(place_name, 0, sizeof(place_name));", "        place_name = NULL;"),
+    ("editmenu.hpp", "        memset(placed_list, 0, sizeof(placed_list));", "        placed_list = NULL;"),
+    ("editmenu.hpp", "        memset(house_list, 0, sizeof(house_list));", "        house_list = NULL;"),
 ]
+
+# Copies of each Georama part definition a town may place: the limit of a held part count (SAVE_BUILD_PARTS_NUM_MAX).
+GEORAMA_PARTS_MAX_NUM = 9999
 
 # Each packet a frame sorts takes one mgSORT_PACKET (one quadword on the PS2) from the scene's work stack, along with
 # its slot in the draw manager's pointer tables. Both grow with pointer width, so the work stacks scale with them.
@@ -143,6 +177,39 @@ UNIT_FIXUPS = [
      f"60000 + {CHARA_MODEL_STACK_EXTRA}, 10000,"),
     ("charasetup.cpp", "    {75000,  40000,", f"    {{75000 + {CHARA_MODEL_STACK_EXTRA},  40000,"),
     ("charasetup.cpp", "    {120000, 0,", f"    {{120000 + {CHARA_MODEL_STACK_EXTRA}, 0,"),
+    # Each floor reads game.more_monsters once; spawns, free slots and the slots' script memory keep to its limit.
+    ("monster.cpp", "    priority_limit = 5;", "    priority_limit = PortMonsterLatchLimits();"),
+    ("monster.cpp", "    for (slot = 0; slot < MONSTER_ACTIVE_MAX; slot++) {\n        monster = active[slot];",
+     "    for (slot = 0; slot < PortMonsterActiveLimit(); slot++) {\n        monster = active[slot];"),
+    ("dng_event.cpp", "        if (spawn_count > MONSTER_ACTIVE_MAX) {\n            spawn_count = MONSTER_ACTIVE_MAX;",
+     "        if (spawn_count > PortMonsterActiveLimit()) {\n            spawn_count = PortMonsterActiveLimit();"),
+    ("event_func.cpp", "    for (j = 0; j < MONSTER_ACTIVE_MAX; j++) {\n        u_long128 *buffer = monster_stack->stAlloc64(0xFA0);",
+     "    for (j = 0; j < PortMonsterActiveLimit(); j++) {\n        u_long128 *buffer = monster_stack->stAlloc64(0xFA0);"),
+    # Monster scene slots start at DNG_CHARA_SLOT_MONSTER rather than at MONSTER_ACTIVE_MAX, which grows above.
+    ("actionchara.cpp", "            if (index >= MONSTER_ACTIVE_MAX * 2) {\n                index = MONSTER_ACTIVE_MAX;",
+     "            if (index >= DNG_CHARA_SLOT_MONSTER_END) {\n                index = DNG_CHARA_SLOT_MONSTER;"),
+    ("actionchara.cpp", "GetCharacter(tries + MONSTER_ACTIVE_MAX)", "GetCharacter(DNG_CHARA_SLOT_MONSTER + tries)"),
+    ("actionchara.cpp", "return tries + MONSTER_ACTIVE_MAX;", "return DNG_CHARA_SLOT_MONSTER + tries;"),
+    ("actionchara.cpp", "GetCharacter(i + MONSTER_ACTIVE_MAX)", "GetCharacter(DNG_CHARA_SLOT_MONSTER + i)"),
+    ("actionchara.cpp", "return best + MONSTER_ACTIVE_MAX;", "return DNG_CHARA_SLOT_MONSTER + best;"),
+    ("actionchara.cpp", "return ids[rank] + MONSTER_ACTIVE_MAX;", "return DNG_CHARA_SLOT_MONSTER + ids[rank];"),
+    ("actionchara.cpp", "for (index = MONSTER_ACTIVE_MAX; index < MONSTER_ACTIVE_MAX * 2; index++)",
+     "for (index = DNG_CHARA_SLOT_MONSTER; index < DNG_CHARA_SLOT_MONSTER_END; index++)"),
+    ("actionchara.cpp", "target_no = MONSTER_ACTIVE_MAX;\n                } else {",
+     "target_no = DNG_CHARA_SLOT_MONSTER;\n                } else {"),
+    ("actionchara.cpp", "if (target_no >= MONSTER_ACTIVE_MAX * 2) {\n                    target_no = MONSTER_ACTIVE_MAX;",
+     "if (target_no >= DNG_CHARA_SLOT_MONSTER_END) {\n                    target_no = DNG_CHARA_SLOT_MONSTER;"),
+    ("actionchara.cpp", "target_no = MONSTER_ACTIVE_MAX;", "target_no = DNG_CHARA_SLOT_MONSTER;"),
+    ("actionchara.cpp", "target_no - MONSTER_ACTIVE_MAX;", "target_no - DNG_CHARA_SLOT_MONSTER;"),
+    ("actscript.cpp", "int chara_no = MONSTER_ACTIVE_MAX;", "int chara_no = DNG_CHARA_SLOT_MONSTER;"),
+    ("actscript.cpp", "chara_no <= MONSTER_ACTIVE_MAX * 2 - 1", "chara_no < DNG_CHARA_SLOT_MONSTER_END"),
+    ("monster.cpp", "GetCharacter(i + MONSTER_ACTIVE_MAX)", "GetCharacter(DNG_CHARA_SLOT_MONSTER + i)"),
+    ("monster.cpp", "GetCharacter(slot + MONSTER_ACTIVE_MAX)", "GetCharacter(DNG_CHARA_SLOT_MONSTER + slot)"),
+    ("monster.cpp", "chara_type = slot + MONSTER_ACTIVE_MAX;", "chara_type = DNG_CHARA_SLOT_MONSTER + slot;"),
+    ("monster.cpp", "if (i + MONSTER_ACTIVE_MAX == target_no)", "if (DNG_CHARA_SLOT_MONSTER + i == target_no)"),
+    ("monster.cpp", "*slot = i + MONSTER_ACTIVE_MAX;", "*slot = DNG_CHARA_SLOT_MONSTER + i;"),
+    ("monster.cpp", "CheckHit(i + MONSTER_ACTIVE_MAX)", "CheckHit(DNG_CHARA_SLOT_MONSTER + i)"),
+    ("monster.cpp", "target_no == i + MONSTER_ACTIVE_MAX)", "target_no == DNG_CHARA_SLOT_MONSTER + i)"),
     # Geostone announcement updates and draws reserve eight nullable message slots.
     ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
     # A Georama list that fits on one page has no scroll range: the EE FPU's 0/0 is finite, IEEE's is NaN.
@@ -164,6 +231,15 @@ UNIT_FIXUPS = [
     WorkBuffer.stSetBuffer(main_stack->stAlloc64({WORK_STACK_QUADWORDS}), {WORK_STACK_QUADWORDS});"""),
     # Map files are read into a buffer sized to them rather than the caller's fixed one.
     ("sceneload.cpp", "    u8        *load_buf = info.load_buf;", "    u8        *load_buf = PortMapLoadBuffer(info);"),
+    # Every Georama part definition may be placed as often as the player can hold it.
+    ("editinfo.cpp", "    emapNowInfo->max_num = spiGetStackInt(stack);",
+     f"    emapNowInfo->max_num = {GEORAMA_PARTS_MAX_NUM};"),
+    # The build menu quadruples a map-wide part's limit in an s16 before clamping it to 99; clamping first keeps every
+    # retail result without overflowing the lifted limit.
+    ("editmenu.cpp", "                        menu->make_num_max = (short) menu->make_parts->max_num;",
+     "                        menu->make_num_max = (short) (menu->make_parts->max_num < 99 ? menu->make_parts->max_num : 99);"),
+    # Towns have no polygon budget, so every Georama menu hides the polygon counter as retail's fifth town does.
+    ("editmenu.cpp", "    if (town_no == 4) {\n        ExeScript(\"POLYOF\");", "    if (true) {\n        ExeScript(\"POLYOF\");"),
 ]
 
 # MWCC-only pragmas. ct_port builds with -Wall and no -Wno-unknown-pragmas, so they are blanked, not silenced.

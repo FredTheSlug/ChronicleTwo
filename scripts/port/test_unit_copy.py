@@ -58,6 +58,13 @@ class RetailBridgeTests(unittest.TestCase):
             with self.assertRaises(self.override.Error):
                 unit_copy.retail_bridges(self.override, source, True)
 
+    def test_town_clear_keeps_retail_body_under_its_bridge(self):
+        source = Path(__file__).resolve().parents[2] / "ps2/src/editmap.cpp"
+        mirror = unit_copy.retail_bridges(self.override, source, True)
+        self.assertEqual(mirror.count("void CEditMap::PortRetailClearAllParts() {"), 1)
+        self.assertIn("(&parts_heap)->ClearHeapMem();", mirror)
+        self.assertNotIn("CEditMap::ClearAllParts()", mirror)
+
     def test_other_units_have_no_bridge(self):
         self.assertEqual(unit_copy.retail_bridges(self.override, Path("other.cpp"), True), "")
 

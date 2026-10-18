@@ -41,6 +41,7 @@ def load_port_override(path: Path):
 # change; all calls in the original unit still reach the native public seam.
 RETAIL_BRIDGES = {
     "editctrl.cpp": [("ResetViewMode(CScene*)", "ResetViewMode", "PortRetailResetViewMode")],
+    "editmap.cpp": [("CEditMap::ClearAllParts()", "ClearAllParts", "PortRetailClearAllParts")],
     "editloop.cpp": [
         ("UpdateTrBoxFlag(int)", "UpdateTrBoxFlag", "PortRetailUpdateTrBoxFlag"),
         ("EditDraw()", "EditDraw", "PortRetailEditDraw"),

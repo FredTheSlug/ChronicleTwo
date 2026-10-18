@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <format>
 #include <memory>
 #include <vector>
 
@@ -13,20 +15,46 @@
 #include "monster.hpp"
 #include "monster_memory.hpp"
 #include "platform/arena.hpp"
+#include "platform/config.hpp"
+#include "platform/paths.hpp"
+#include "platform_fixture.hpp"
 #include "runscript.hpp"
 #include "scene.hpp"
 
-TEST(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
+namespace {
+
+// Loads a floor with game.more_monsters set as given, in an isolated save root.
+class MonsterMemory : public testing::TestWithParam<bool> {
+protected:
+    void SetUp() override {
+        root = std::filesystem::temp_directory_path() / std::format("dc2_monster_memory_{}", dc::test::ProcessId());
+        PathsSetSaveRoot(root);
+        Config config;
+        config.more_monsters = GetParam();
+        ASSERT_TRUE(ConfigChange(config));
+        PortMonsterLatchLimits();
+    }
+
+    void TearDown() override {
+        ConfigChange(Config{});
+        PortMonsterLatchLimits();
+        std::filesystem::remove_all(root);
+    }
+
+    std::filesystem::path root;
+};
+
+TEST_P(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
     // Exercise the scripted loader without loading a reference model (-1 is an empty kind).
     auto                                          manager = std::make_unique<CMonsterMan>();
     auto                                          monsters = std::make_unique<CActiveMonster[]>(MONSTER_ACTIVE_MAX);
     std::unique_ptr<CScene, decltype(&std::free)> scene(
         static_cast<CScene *>(std::calloc(1, sizeof(CScene))), &std::free);
     ASSERT_NE(scene, nullptr);
-    scene->chara_num = 2 * MONSTER_ACTIVE_MAX;
+    scene->chara_num = DNG_CHARA_SLOT_MONSTER_END;
     for (int i = 0; i < MONSTER_ACTIVE_MAX; ++i) {
-        scene->chara[i + MONSTER_ACTIVE_MAX].status = 1;
-        scene->chara[i + MONSTER_ACTIVE_MAX].chara = &monsters[i];
+        scene->chara[DNG_CHARA_SLOT_MONSTER + i].status = 1;
+        scene->chara[DNG_CHARA_SLOT_MONSTER + i].chara = &monsters[i];
     }
 
     constexpr int          slot_quads = kMonsterScriptQuadwords + 4;
@@ -54,7 +82,15 @@ TEST(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
     const auto parent_begin = reinterpret_cast<std::uintptr_t>(memory.stack);
     const auto parent_end = parent_begin + static_cast<std::size_t>(memory.stack_size) * sizeof(u_long128);
     const int  parent_used = memory.stack_used;
+    EXPECT_EQ(PortMonsterActiveLimit(), GetParam() ? MONSTER_ACTIVE_MAX : 24);
+    // Every slot binds its scene character; only the floor's slots get script memory.
     for (int i = 0; i < MONSTER_ACTIVE_MAX; ++i) {
+        EXPECT_EQ(manager->active[i], &monsters[i]) << i;
+        if (i >= PortMonsterActiveLimit()) {
+            EXPECT_EQ(manager->memory[i].stack_size, 0) << i;
+        }
+    }
+    for (int i = 0; i < PortMonsterActiveLimit(); ++i) {
         mgCMemory &slot = manager->memory[i];
         EXPECT_EQ(slot.stack_size, slot_quads) << i;
         EXPECT_EQ(slot.stack_used, 0) << i;
@@ -78,13 +114,13 @@ TEST(MonsterMemory, SingleMonsterLoadInitializesEveryHostArena) {
     EXPECT_EQ(memory.stack_used, parent_used);
 }
 
-TEST(MonsterMemory, ModelCopySizesItsSlotBeforeAllocatingScriptStacks) {
+TEST_P(MonsterMemory, ModelCopySizesItsSlotBeforeAllocatingScriptStacks) {
     auto manager = std::make_unique<CMonsterMan>();
     auto source = std::make_unique<CActiveMonster>();
     auto destination = std::make_unique<CActiveMonster>();
     PrepareMonsterMemory(*manager);
     CMonsterMan *saved_manager = ActiveMonster;
-    auto        &slot = manager->memory[0];
+    auto        &slot = manager->memory[PortMonsterActiveLimit() - 1];
 
     source->Initialize();
     auto copy_model = [&](int count, int &capacity) {
@@ -129,3 +165,8 @@ TEST(MonsterMemory, ModelCopySizesItsSlotBeforeAllocatingScriptStacks) {
     copy_model(768, second_capacity);
     EXPECT_GT(second_capacity, first_capacity);
 }
+
+INSTANTIATE_TEST_SUITE_P(MoreMonsters, MonsterMemory, testing::Bool(),
+                         [](const testing::TestParamInfo<bool> &info) { return info.param ? "On" : "Off"; });
+
+} // namespace

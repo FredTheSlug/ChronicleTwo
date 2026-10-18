@@ -8,15 +8,19 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <vector>
 
+#include "charasetup.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "gfx/gfx.hpp"
+#include "menu_character_assets.hpp"
 #include "menuaqua.hpp"
 #include "menumain.hpp"
 #include "mglib.hpp"
 #include "platform/paths.hpp"
+#include "userdata.hpp"
 
 namespace {
 /**
@@ -36,6 +40,69 @@ struct MenuGlobals {
     }
 };
 } // namespace
+
+TEST(MenuWorkspace, CharacterSoundPathsUseConvertedAssetsAndHandleMissingRidepodArm) {
+    auto user = std::make_unique<CUserDataManager>();
+    char path[0x60]{};
+    user->chara_data[USER_CHARA_MAX].equip[CHARA_EQUIP_SUB].item_no = 0x16;
+    GetCharacterSnd(user.get(), USER_CHARA_MAX, path);
+    EXPECT_STREQ(path, "snd2/chara/CH_000.sound.json");
+    user->chara_data[USER_CHARA_MAX].equip[CHARA_EQUIP_SUB].item_no = 0x28;
+    GetCharacterSnd(user.get(), USER_CHARA_MAX, path);
+    EXPECT_STREQ(path, "snd2/chara/CH_018.sound.json");
+    user->chara_data[USER_CHARA_MAX].equip[CHARA_EQUIP_SUB].item_no = -1;
+    GetCharacterSnd(user.get(), USER_CHARA_MAX, path);
+    EXPECT_STREQ(path, "snd2/chara/CH_000.sound.json");
+    GetCharacterSnd(user.get(), USER_CHARA_MONICA, path);
+    EXPECT_STREQ(path, "snd2/chara/CH_020.sound.json");
+
+    user->robo_data.parts[ROBO_PART_ARM].item_no = -1;
+    std::strcpy(path, "stale");
+    GetCharacterSnd(user.get(), USER_CHARA_ROBO, path);
+    EXPECT_STREQ(path, "");
+    std::strcpy(path, "stale");
+    GetCharacterSnd(user.get(), USER_CHARA_MONSTER, path);
+    EXPECT_STREQ(path, "");
+    std::strcpy(path, "stale");
+    GetCharacterSnd(nullptr, USER_CHARA_MAX, path);
+    EXPECT_STREQ(path, "");
+    GetCharacterSnd(user.get(), USER_CHARA_MAX, nullptr);
+}
+
+TEST(MenuWorkspace, CharacterChangeFindsItemTextureWithOrWithoutSoundRead) {
+    const auto root = std::filesystem::temp_directory_path() /
+                      ("menu_item_read_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto previous_root = PathsDataRoot();
+    char       previous_directory[0x6C]{};
+    GetCurrentDir(previous_directory);
+    const auto data = root / "data";
+    std::filesystem::create_directories(data / "snd2/chara");
+    std::filesystem::create_directories(data / "textures/img");
+    std::ofstream(data / "snd2/chara/CH_000.sound.json") << "sound";
+    std::ofstream(data / "textures/img/allitem.json") << "texture";
+    DataReadIndex(data);
+    SetCurrentDir(nullptr);
+
+    alignas(16) std::array<u_long128, 256> sound{};
+    alignas(16) std::array<u_long128, 256> item{};
+    char                                   sound_path[] = "snd2/chara/CH_000.sound.json";
+    char                                   item_path[] = "textures/img/allitem.json";
+    InitReadBG();
+    ASSERT_TRUE(LoadFileBG(sound_path, sound.data(), nullptr));
+    ASSERT_TRUE(LoadFileBG(item_path, item.data(), nullptr));
+    EXPECT_EQ(PortMainCharaItemReadBuffer(), reinterpret_cast<unsigned char *>(item.data()));
+
+    InitReadBG();
+    char missing_sound[] = "snd2/chara/missing.sound.json";
+    EXPECT_FALSE(LoadFileBG(missing_sound, sound.data(), nullptr));
+    ASSERT_TRUE(LoadFileBG(item_path, item.data(), nullptr));
+    EXPECT_EQ(PortMainCharaItemReadBuffer(), reinterpret_cast<unsigned char *>(item.data()));
+
+    InitReadBG();
+    SetCurrentDir(previous_directory);
+    DataReadIndex(previous_root);
+    std::filesystem::remove_all(root);
+}
 
 TEST(MenuWorkspace, DirectoryMarkerDoesNotLimitAquariumStorageOrTextureReentry) {
     const auto root = std::filesystem::temp_directory_path() / ("menu_workspace_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));

@@ -9,8 +9,10 @@
 #include <cstring>
 #include <limits>
 #include <numbers>
+#include <string>
 
 #include "actionchara.hpp"
+#include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "dng_effect.hpp"
 #include "dng_event.hpp"
@@ -211,6 +213,21 @@ PORT_OVERRIDE void InitMainCharaBG(int chara_no, mgCMemory *stack, int mode) {
     }
 
     PortRetailInitMainCharaBG(chara_no, stack, mode);
+}
+
+unsigned char *PortMainCharaItemReadBuffer() {
+    constexpr std::string_view asset = "textures/img/allitem.json";
+    char                       directory[0x6C]{};
+    GetCurrentDir(directory);
+    std::string path(directory);
+    path += asset;
+    const auto *read = GetReadBGFile(path.data());
+    if (read != nullptr && read->buffer != nullptr) {
+        return reinterpret_cast<unsigned char *>(read->buffer);
+    }
+    CT_LOG_CRITICAL(Menu, "character change: required item texture read is missing: {}", path);
+    LogFlush();
+    std::exit(1);
 }
 
 /**

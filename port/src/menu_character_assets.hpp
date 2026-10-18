@@ -19,3 +19,8 @@ bool PrepareArena(mgCMemory &memory, const std::filesystem::path &model, std::st
  * Sizes a reset costume slot from the actual loaded character asset before construction.
  */
 void PortPrepareMenuCharacterArena(mgCMemory &memory, const void *model, const char *profile, int part);
+
+/**
+ * Finds the queued item texture by its native path during a character change.
+ */
+unsigned char *PortMainCharaItemReadBuffer();

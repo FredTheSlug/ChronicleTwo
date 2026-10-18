@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "charasetup.hpp"
 #include "config_bridges.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
@@ -18,6 +19,7 @@
 #include "mapselect.hpp"
 #include "platform/datapacks.hpp"
 #include "savedata.hpp"
+#include "userdata.hpp"
 
 int LoadGameDataAnalyze(char *name);
 
@@ -177,6 +179,18 @@ protected:
 };
 
 } // namespace
+
+TEST_F(NativeGame, RidepodCharacterSoundUsesConvertedArmAsset) {
+    WriteItemTables();
+    Index();
+    GameItemDataManage.LoadData();
+    auto user = std::make_unique<CUserDataManager>();
+    user->robo_data.parts[ROBO_PART_ARM].item_no = 250;
+    user->robo_data.parts[ROBO_PART_ARM].item_type = ITEM_DATA_ROBO_ARM;
+    char path[0x60]{};
+    GetCharacterSnd(user.get(), USER_CHARA_ROBO, path);
+    EXPECT_STREQ(path, "snd2/chara/CH_042.sound.json");
+}
 
 TEST_F(NativeGame, ItemTablesFillEveryRecordFamilyAndTheItemLookup) {
     WriteItemTables();

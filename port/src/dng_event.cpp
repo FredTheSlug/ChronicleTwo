@@ -22,6 +22,7 @@
 #include "mg_memory.hpp"
 #include "monster.hpp"
 #include "monster_memory.hpp"
+#include "platform/arena.hpp"
 #include "runscript.hpp"
 #include "scene.hpp"
 #include "snd_mngr.hpp"
@@ -31,14 +32,15 @@ PORT_OVERRIDE void CTreasureBoxManager::SetCollisionModel(u32 *model, mgCMemory 
     col_frame = path ? LoadCollisionModel(*path, memory, "tbox_a") : nullptr;
 }
 
-void PrepareMonsterMemory(CMonsterMan &manager, mgCMemory &memory) {
-    // Preserve the retail model budget and account for the two script arrays' wider entries.
-    constexpr int extra_bytes = 128 * (sizeof(RS_STACKDATA) - 8) + 512 * (sizeof(RS_CALLDATA) - 12);
-    constexpr int quadwords = 4000 + (extra_bytes + 15) / 16;
-    for (auto &slot : manager.memory) {
-        slot.stSetBuffer(memory.stAlloc64(quadwords), quadwords);
+void PrepareMonsterMemory(CMonsterMan &manager) {
+    // Model copies grow individual slots when their source character is known.
+    constexpr int quadwords = kMonsterScriptQuadwords + 4;
+    for (int index = 0; index < MONSTER_ACTIVE_MAX; ++index) {
+        auto &slot = manager.memory[index];
+        std::snprintf(slot.name, sizeof(slot.name), "monster slot %d", index);
+        auto *buffer = reinterpret_cast<u_long128 *>(ArenaBlock(&slot, static_cast<std::size_t>(quadwords) * sizeof(u_long128)));
+        slot.stSetBuffer(buffer, quadwords);
         slot.stReset();
-        slot.lock = 0;
     }
 }
 
@@ -53,7 +55,7 @@ PORT_OVERRIDE void LoadMonsterFile() {
     if (!memory) {
         return;
     }
-    PrepareMonsterMemory(*ActiveMonster, *memory);
+    PrepareMonsterMemory(*ActiveMonster);
     sndInitPort(5);
     auto &locate = ActiveMonster->locate;
     locate.num = locate.put_num = locate.put_flag = 0;
@@ -95,7 +97,7 @@ PORT_OVERRIDE void LoadMonsterFile(int monster_id, int initialize) {
 
     if (initialize != 0) {
         // Retail places these at +4 with a 0x30 stride; host pointers enlarge both fields.
-        PrepareMonsterMemory(*manager, *memory);
+        PrepareMonsterMemory(*manager);
         sndInitPort(5);
     }
 

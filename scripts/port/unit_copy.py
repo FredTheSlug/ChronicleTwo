@@ -147,6 +147,14 @@ def prepare_menu_character_arena(text: str) -> str:
     return f'#include "{bridge_header.as_posix()}"\n' + text
 
 
+def resolve_main_character_item_read(text: str) -> str:
+    """Select the queued item texture by path instead of its variable background slot."""
+    original = "GetReadBGFile(1)->buffer"
+    if text.count("int ReadMainCharaBG() {") != 1 or text.count(original) != 1:
+        raise ValueError("expected one item texture background read in ReadMainCharaBG")
+    return text.replace(original, "PortMainCharaItemReadBuffer()")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--port-override", required=True, type=Path)
@@ -170,6 +178,7 @@ def main() -> None:
     text = config_seams(text, args.source.name)
     if args.source.name == "menuchr.cpp":
         text = prepare_menu_character_arena(text)
+        text = resolve_main_character_item_read(text)
     if args.source.name == "dng_main.cpp":
         start = text.index("    char pack_path[64];", text.index("void InitDungeonMain("))
         end = text.index("    ActionScriptEnv.item_chara = ItemBaseData;", start)

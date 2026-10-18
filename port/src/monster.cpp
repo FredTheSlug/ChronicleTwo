@@ -5,12 +5,15 @@
 
 #include "common.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <vector>
 
 #include "dataread.hpp"
+#include "dng_main.hpp"
 #include "gamedata.hpp"
 #include "log/log.hpp"
 #include "mainloop.hpp"
@@ -20,10 +23,48 @@
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "monster.hpp"
+#include "monster_memory.hpp"
+#include "platform/arena.hpp"
 #include "platform/model_assets.hpp"
 #include "snd_mngr.hpp"
 #include "sound_port.hpp"
 #include "swordeffect.hpp"
+
+namespace {
+
+/**
+ *
+ * Identifies arena owners whose storage can be resized before a dungeon monster is copied.
+ */
+bool IsActiveMonsterSlot(const mgCMemory *memory) {
+    if (ActiveMonster == nullptr) {
+        return false;
+    }
+    for (const auto &slot : ActiveMonster->memory) {
+        if (&slot == memory) {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+PORT_OVERRIDE void CActiveMonster::Copy(CActiveMonster &dest, mgCMemory *memory) {
+    if (memory != nullptr && memory->stack_used == 0 && IsActiveMonsterSlot(memory)) {
+        const auto copy_quadwords = static_cast<std::size_t>(std::max(0, GetCopySize()));
+        const auto capacity = copy_quadwords * kArenaHeadroom + kMonsterScriptQuadwords + 4;
+        if (capacity > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+            ArenaOverflow(memory->name, std::numeric_limits<int>::max(), memory->stack_size);
+        }
+        auto *buffer = reinterpret_cast<u_long128 *>(ArenaBlock(memory, capacity * sizeof(u_long128)));
+        memory->stSetBuffer(buffer, static_cast<int>(capacity));
+    }
+    dest = *this;
+    if (memory != nullptr) {
+        CActionChara::Copy(dest, memory);
+    }
+}
 
 PORT_OVERRIDE int CMonsterMan::LoadReferMonsterFile(int id, BASE_MONSTER_TBL *table, mgCMemory *memory) {
     const int slot = SearchReferBlock();
@@ -47,7 +88,8 @@ PORT_OVERRIDE int CMonsterMan::LoadReferMonsterFile(int id, BASE_MONSTER_TBL *ta
         return false;
     }
     entry.chara.tbl = table;
-    int sound = -1;
+    const int model_end = memory->stack_used;
+    int       sound = -1;
     if (table->sound_no > 0) {
         char path[64];
         std::snprintf(path, sizeof(path), "snd2/mon/en_%03d.sound.json", table->sound_no);
@@ -59,6 +101,7 @@ PORT_OVERRIDE int CMonsterMan::LoadReferMonsterFile(int id, BASE_MONSTER_TBL *ta
         entry.chara.sword_effect[index]->Initialize(memory, 0xC, 8);
         entry.chara.sword_effect[index]->SetTexture(0x4A, TEX_SystemEffectSw, 0, 0x20, 0x40, 0x20);
     }
+    entry.chara.load_size += memory->stack_used - model_end;
     std::string script_path = "dungeon/monster/" + std::string(table->script) + ".stb";
     int         size = 0;
     if (!LoadFile2(script_path.data(), nullptr, &size, LOAD_FILE_SIZE) || size <= 0) {

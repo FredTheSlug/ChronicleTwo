@@ -113,6 +113,15 @@ The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA
 
 Each texture variant is a full-colour RGBA PNG. When retail animation scripts copy colours between textures, extraction bakes the finite source-colour variants into separate destination PNGs and records their selectors in the texture document. Source palettes are used only during extraction; runtime textures and generated render targets use RGBA pixels without palette files or palette uploads. `data.json` carries the current `data_version`, and the game rejects an older extraction so the launcher can rebuild it.
 
+To upgrade an existing extraction after updating `tools/kazarov`:
+
+1. Reconfigure and rebuild, so `darkchronicle` and `dc2data` share the pinned data version. A build directory re-runs CMake when `tools/kazarov/data_version.json` changes; `tools/windows/configure.ps1` also reconfigures it.
+2. Extract again with `dc2data extract <iso-or-directory> <game-root>/data`, or start the game in a window and let setup re-extract when it rejects the older data version.
+
+Help movie extraction first appears in Kazarov `2e6ef96` (data version 14). The fix did not bump the version, so if a version-14 extraction predates that commit, rerun `dc2data extract` explicitly; setup may already consider it current.
+
+Never edit `data.json` to claim the new version: the marker would pass, but the older `data.zip` still lacks the newly extracted assets.
+
 `run.sh` and `run.bat` pass `--run-dir <checkout>/port/run`, giving them the data root `port/run/data`, whose parent holds `data.zip`, and `port/run/saves`. A direct executable launch defaults to the per-user `chronicletwo` application data root with the same layout. They also set `DC2_LOG=debug` when it is unset, so the console shows debug lines ([logging](LOGGING.md)).
 
 The game reads its data through a read-only file system of mounts (`platform/vfs.hpp`). The base asset mount is `<game-root>/data.zip` when it exists; otherwise the unified `data/` directory is mounted, so directory fixtures and hand-edited data keep working. Gameplay documents use the same root-relative paths in either mount; directory fixtures supply their own documents. All names match ignoring ASCII case. The archive's central directory is read once at startup and its entries are read in place: Zstandard entries are decompressed on demand, and stored PNG and MP4 entries are copied from, or for movies streamed from, their offsets in the archive through FFmpeg custom I/O. Reads are thread-safe. Explicit `--run-dir DIR` selects a different root.
@@ -606,6 +615,8 @@ Open **Options**, then press **SELECT** (Backspace with the default keyboard bin
 
 The PC page uses the game's font and Options artwork. L1/R1 changes tabs, Up/Down selects a row, Left/Right changes a value, and confirm advances a choice or opens binding capture. Cancel returns to Options; Japanese retains its reversed confirm/cancel layout. The mouse can click tabs and value arrows, scroll rows, restore a binding, and return to Options. Hit targets follow aspect ratio, UI scale and window DPI.
 
+The **PC SETTINGS** entry and the page are drawn at the UI scale, or smaller when that scale would push them past the window (`options::FitView`, about 113% for the page and 124% for the entry at 16:9 and 4:3), so every offered scale leaves them whole, readable and clickable. Their hit targets use the same view. The rest of the game keeps the chosen scale.
+
 | Page | Settings |
 |---|---|
 | Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, FPS counter |
@@ -716,9 +727,15 @@ Continue, a file-row click and its confirmation using a copied flat-save fixture
 `title-mouse-newgame.input` clicks New Game and reaches costume selection.
 File-list clicks wait through the retail cursor-settling delay before confirming.
 
-Shops support hovering and clicking the goods list and bag grid. The wheel moves
-through goods or bag rows; in a buy/sell quantity prompt it changes the quantity
-within the game's limits. The quantity arrows, number panel, and localized Quit
+Shops support hovering and clicking the goods list and bag grid. The wheel acts
+on the pane under the pointer: a goods list or bag longer than its window scrolls
+one row a notch with the retail eased scroll, stopping at its ends, and the cursor
+takes the entry that settles under the pointer, or stays in view; a list that
+fits moves its cursor a row. An empty goods list ignores the wheel and the bag
+keeps the cursor, as it does for the D-pad. Rows still sliding out of the window
+cannot be hovered; `tools/input/shop-mouse-wheel.input` replays both panes at 1920x1080.
+In a buy/sell quantity prompt the wheel changes the quantity within the game's
+limits. The quantity arrows, number panel, and localized Quit
 button accept clicks, and right click cancels. Item popups, stat grids, the ITEM
 page and PC SETTINGS use the shared pointer adapters described below. Some
 secondary destination screens still retain only their existing controls.
@@ -730,6 +747,22 @@ replaces only its own retail cursor, and releasing capture restores the native
 pointer immediately. Ordinary dialogue choices share the message adapter;
 the rendered confirmation replays and drawn-message unit tests cover that input
 path, but campaign dialogue choices still need a dedicated replay.
+
+Hover and the wheel play the menu's retail cursor-move sound once for each
+change of its cursor, never while the target stays the same. Where the mouse
+moves a cursor through the retail key step (`MenuMouseMove`, a synthesized
+D-pad press, or a cursor the step compares after the hook: the root menu, file
+lists, Options rows, Help, the floor map, message choices and the ITEM page's
+bag and panels), that step plays it. Adapters that set a cursor themselves call
+`MenuMouseCursorSound`, which plays at most once a tick: shops, item popups,
+the title menu, the world map's area marks, Make, Monster Transform, Character
+portraits and Cedric's board, Options choices, the ITEM page's command and
+build-up lists, and a move to the same index on another ITEM panel. A shop
+wheel notch or arrow click that changes the pane or leaves Quit also presses Up
+or Down. The retail step sounds that press only if it moves, so at a list end
+or quantity limit the shop adapter sounds the change instead. Fishing rod stats
+are the ITEM cursor, so only the retail check sounds them. PC SETTINGS rows
+stay silent, as they are with keys.
 
 ### Character, Options and Help mouse
 
@@ -760,8 +793,9 @@ is unchanged on all three pages.
 The wheel follows one rule on these pages: in a list longer than its window,
 each notch scrolls the list one row and the cursor takes the row that comes under
 the pointer, or stays in view (`MenuMouseScroll`; the ITEM page's bag scrolls the
-same way). Elsewhere it moves the cursor, as in shops and the root menu; the
-Character page's portrait map is not a list, so the wheel does nothing there.
+same way, as do the shop's goods list and bag). Elsewhere it moves the cursor,
+as in the root menu; the Character page's portrait map is not a list, so the
+wheel does nothing there.
 Options and Help rows are hit where they are drawn while the list eases to a new scroll, and
 only inside the list's scissor (`clip0`): a row sliding under the footer cannot
 be clicked, and a visible row above the new scroll still can.
@@ -970,16 +1004,50 @@ retain their retail actions, including R3's dungeon unit switch.
 Zoom only starts after a wheel request. Pad-only play keeps the retail camera
 path even when the option is enabled. Menus, events, lock-on, first-person,
 fixed cameras, photo mode and Georama retain ownership and do not queue wheel
-or reset input. A map or camera-parameter change clears the selected zoom.
+or reset input. Dungeon attacks and carrying keep the selected distance but do
+not take wheel or reset input. A map or camera-parameter change clears the
+selected zoom.
 
-Each zoom update collects the generated follow destination and ground query,
-runs the retail floor/wall correction, then validates the entire eased corridor
-with four-unit clearance. Eye and target may ease at different rates; both are
-covered. Uncertain geometry, a full collection or a blocked path falls back to
-retail camera movement for that frame, keeping the target following the player.
-The caller's retail collision polygons and automatic obstacle avoidance remain
-active while zooming. No retail parameter set is retained by zoom. This conservative check may shorten motion sooner than
-the retail endpoint checks.
+Each zoom update generates the retail follow destination at an allowed
+distance and runs retail's floor, ceiling and wall correction and obstacle
+avoidance on it, with the geometry gathered along that view. A view through
+dense geometry is gathered in shorter pieces. The look-at point always follows
+the player as in retail; only the eye is shortened, and it keeps six units from
+geometry so mouse turning can move it away from a wall.
+When the request is beyond retail's follow range, the characters' walking
+collision also blocks the view, because the camera's own collision data leaves
+out some facades seen from far away; the nearest wall from either source wins.
+A walking wall counts only where the view crosses it farther from the look-at
+point than retail's maximum follow distance; nearer, the camera's data decides
+as in retail. This is an occlusion trade-off: pulling in to the railings,
+ledges and invisible bounds retail's eye looks across would put the eye at the
+character, but a nearer walking-only wall that retail's shorter view clears can
+still hide the player from a longer zoomed view. Decorations without any
+collision, such as awnings, can also come between.
+
+Within retail's own follow distance (or a nearer request), walls shorten the
+eye on each tick as retail's correction does and release it as soon as
+retail's would. Beyond it, the allowed distance drops at once when a wall cuts
+the view, then holds for three quarters of a second, doubled for each recent
+pull-in up to three seconds. It returns 4% of the remaining gap per tick (at
+least one unit) only after a view 32 units farther has stayed clear for 20
+ticks, both where the camera points and where it will point over the next
+second if it keeps turning as it is. Walking through rocks therefore keeps a
+shorter distance instead of returning toward each next rock. When the eased
+eye would be drawn behind a wall, it is placed in front of that wall on the
+drawn view, on the same side of the look-at point, and presentation
+interpolation is cut, so display frames do not pass through it; from there it
+eases at the camera's own speed again. Interpolation is also cut when a wall
+from the camera's collision crosses any view a display frame blends between
+the drawn pose and the next, with the eye and look-at point each moving
+linearly, such as a post both views pass on either side. Walls only the
+walking collision knows are not part of that check: they limit each tick's own
+view beyond retail's maximum follow distance, so one can show only in the
+display frames blending between two ticks whose views clear it, never in a
+tick's own view. The same check follows direct mouse
+turning. A wheel request takes the requested distance at once, still limited
+by the same correction. Only a pose that cannot be gathered even in pieces
+falls back to retail movement. No retail parameter set is retained by zoom.
 
 `tools/input/town-mouse-zoom.input` and `tools/input/dungeon-mouse-zoom.input`
 exercise both limits, walking, reset and menu interruptions with the respective
@@ -988,6 +1056,8 @@ comments list capture frames; `--screenshot-display` also captures eased
 presentation frames. Enable the option in each replay's save-root config.
 `tools/input/dungeon-mouse-zoom-wall.input` adds a sideways wall approach,
 distance clamping, an inward reversal and reset in the same corridor.
+`tools/input/dungeon-mouse-zoom-walk.input` zooms fully out there and walks
+along, around and toward the corridor walls; the player stays in view throughout.
 
 ### Floor monster list
 
@@ -1041,6 +1111,8 @@ Retail buffers that lie inside no mapped block become blocks. `MainLoop` maps `m
 A buffer inside a block is a child view, and it stays exactly where retail carves it. Dark Chronicle carves sub-arenas from a parent's top (`stGetTop`, `stGetRest`), often through local `mgCMemory` objects whose allocations outlive them, and re-carves overlapping regions by design (`menuchr`, `menusys`, `inventmn`, `dng_main`, `editloop`). Per-object blocks, as in Dark Cloud 1, would break that. An audit of every `stSetBuffer` and `SetHeapMem` site found more than 20 that depend on it. Headroom reaches a child through its parent, since most children take the parent's rest.
 
 `stAlloc` and `Alloc` past an arena's end abort, naming `mgCMemory::name` or, when it has none, the arena's address, where retail printed and returned NULL. `stAllocTest` keeps retail's probe.
+
+Headroom does not reach a stack carved with an explicit size. `charasetup.cpp`'s `mem_table` carves each character's stacks that way, and host model and metadata records outgrow its counts: with a datapack, Max's body exceeds human stack 0's 68500 quadwords on entering a dungeon. A unit fixup adds 12000 quadwords (`CHARA_MODEL_STACK_EXTRA` in `scripts/port/header_fixups.py`) to every model stack: human 0 and 1, ridepod 0 to 2, edit 0 and monster 0. `GetCharaMemAllocSize` sums the table, so the parent buffers grow with it. `chara_mem_budget_test.cpp` covers the carved sizes.
 
 Retail's `LoadMapData` reads a map's `.map`, `.cfg`, `.mpk` and `.sky` one after another into the caller's fixed load buffer (the dungeon's `BuffReadData`, the town's read buffer) with no bound, so a large map or a datapack's replacement ran into the objects carved after it. A unit fixup makes it read into `PortMapLoadBuffer` (`port/src/sceneload.cpp`) instead: host memory outside the arenas, 64-byte aligned and sized to the files' 64-byte-rounded sizes plus the last read's sector tail. It grows when a map needs more and keeps the buffer it replaced for a deferred map build still reading it. `sceneload_map_buffer_test.cpp` covers it.
 
@@ -1209,11 +1281,12 @@ Draws are recorded into display lists (see "Ticks and display frames").
 - Logical space stays 512x480 (`mgScreenWidth`/`mgScreenHeight`); `mgScreenOffx`/`mgScreenOffy` are the 2048-centred offsets. Nothing in `port/src` outside `platform/` and `mglib.cpp` reads the window's pixel size. The check `grep -rnE "SDL_GetWindowSize|SDL_GetWindowSizeInPixels|\bWindowSize\(|WindowCurrentMode|DisplayShownMode|SDL_GetCurrentDisplayMode" port/src --include=*.cpp --include=*.hpp | grep -vE "^port/src/(platform/|mglib\.cpp)"` prints nothing.
 - `video.aspect` `auto` is `gfx::AspectMode::Fill`. `mgPortEyeToClip` maps retail's projection through the target's logical mapping, so the frame's 480 rows fill the window's height at retail's vertical field of view. A wider window shows more at the sides; a narrower one keeps the width and shows more above and below. `4:3` is `gfx::AspectMode::Letterbox`: it clips every main-target draw and clear to the frame, so the bars stay black. `video.ui_scale` (0.25 to 4) scales depthless 2D about the centre and reaches `gfx::SetFrameLayout`.
 - HUD anchoring: `gfx::UiAnchor::Side(x, y, true)` anchors a piece to a frame side, and its third argument moves the piece's scissor with it. The human dungeon status board (`port/src/dng_status.cpp`, `DrawStatusBord`) anchors HP/items top-left and both weapons top-right, including numbers, bars, charge icons and warnings. The mini map (`port/src/automap.cpp`, `CMiniMapSymbol::Draw`, `DrawSymbolOpen`..`DrawSymbolClose`, `DrawSymbol_Chara`) is anchored top-right and clips to its own rect. DC2 has no town clock HUD. Menus, message windows and help bars stay in the frame.
+- Parked menu panels: retail moves unused menu forms just past its 512x480 screen (the item description at x = 570 after the Make menu, the Make menu's invention cards at x = -262, the character page's 513-wide backdrop at x = -512), which a wider or taller window would show at its sides. `CMenuPosDataForm::MenuFormDraw` (`port/src/menudraw.cpp`) measures part forms and the invention card list against the screen whenever the window shows past it in either the target's logical units (`mgPortVisibleExtent`, where depth-tested fills draw) or its UI units (`mgPortVisibleUiExtent`, where menu sprites draw at `video.ui_scale`), allowing 2 pixels of overlap. A part form wholly outside it is skipped; one that leaves retail's sliver inside, a part form with a full-screen part and the card list are drawn under `mgPortScreenClipScope`, which clips their 2D draws to the screen without extending the scissor. A message form's window is classified once `StepMsg` has laid it out and `SetPutPos` has put it, in `CDC2Mes::DrawMsg` (`port/src/menucls1.cpp`, which wraps retail's draw through the `PortRetailDrawMsg` bridge): `MenuMessageParked` reads every laid-out character's pen from the window's table, so anything that moved the pen while laying out (number padding, spacing codes, indents, lines placed by themselves) is included, and adds the reach of each other draw of `DrawMesWin`: the frame, a floating window's 13-pixel tail, the choice cursor where it is easing to, and placed marks. Only plain, floating and the two other versatile windows put past the screen's right edge park; a window put at a negative position sits at its default place, and message windows never park vertically. A form that overlaps the screen draws whole, so slides still cross the sides, and the 4:3 picture is unchanged (`MglibAspect.MenuForms*`).
 - The full-frame rule that fills the flanks samples with clamped wrap, so a repeating texture shows no seam line at the frame's edges.
 - Copies of the frame (`mgSetPkMoveImage`: the heat haze in `sceneevent.cpp`, `map.cpp`'s screen, menu grabs) go to frame targets as 1:1 logical copies, so a grab is as wide as the window.
 - Culls: `mgPortVisibleExtent()` (`gfx::VisibleLogicalRect` of the current target, in screen units, with centred half extents and GS coordinates) replaces retail's 256/240 half extents in `mgCFrame::GetDrawRect` (`mg_frame_asm.cpp`). It also replaces them in `mgRENDER_INFO::screen_box_min`/`max`, which retail's `SetRenderInfo` sets from the screen size. `mgSetRenderInfo` is overridden to widen them, and `mgBeginFrame` refreshes them every game frame, since the window can change shape between scenes. `mgCFrame::Draw`'s `mgClipBoxW` reads them. A mesh at logical x = -40 is drawn at 16:9 and culled at 4:3 (`MglibAspect.*`). The GS guard band (2048) is unchanged.
 - The dungeon floor map (`CDngFreeMap::DrawRoot` and `DrawRoomOne`, `port/src/dngmenu.cpp`) culls its rooms and passages at `mgPortVisibleUiExtent`, the visible extent in the UI units its 2D is drawn in, so floors in a wide window's flanks, or uncovered by `video.ui_scale` below 1, are drawn. Retail strokes each passage with three 1-pixel GS lines a pixel apart; each is filled as the pixel-wide band the GS covers, so a passage stays one solid stroke above 512x480 (`MglibAspect.FloorMap*`).
-- A layout change (`video.aspect`, `video.ui_scale`) is applied from the pump outside a recording.
+- A layout change (`video.aspect`, `video.ui_scale`) is applied from the pump outside a recording, through `mgPortSetFrameLayout`. Letterboxing never draws or clears the bars, so a switch from `auto` to `4:3` first lets two ticks clear the main target outside the frame (one per main image, each also rendering the display image so presentation and display screenshots lose the art too) and then switches; otherwise the bars keep the last Fill frame's art (`MglibPresent.LetterboxSwitchClearsWhatFillDrewBesideTheFrame`).
 - `--window WxH` sets the window size (headless: the offscreen image's).
 - Config keys: `video.interpolation` (`true`), `video.max_fps` (`0`), `video.present_mode` (`fifo`, `mailbox` or `immediate`), `video.aspect` (`auto` or `4:3`), `video.ui_scale` (`1`), `video.show_fps`, `video.fps_detail`.
 
@@ -1332,8 +1405,12 @@ converted banks, sequences, and stream WAVs through the driver.
 leading separators and ISO version suffixes, and folding case. For example,
 the native logo reference is `movie/l5logo.mp4`. Datapacks may replace that file.
 A missing or unplayable MP4 logs a diagnostic; `IsStarted` still returns 1 so
-callers' busy-waits end, and `EndCheck` returns 1 at once (the PAL disc has no
-`TUTO`/`TUTO2` manual movies).
+callers' busy-waits end, and `EndCheck` returns 1 at once. The PAL disc holds
+the Help menu's 44 movies in `MOVIE/TUTO` and `MOVIE/TUTO2`, published as
+`movie/tuto/vtuto1.mp4` through `movie/tuto/vtuto22.mp4` and
+`movie/tuto2/vtuto23.mp4` through `movie/tuto2/vtuto44.mp4`. An extraction
+without them fades each Help movie entry to black and straight back to the list;
+see [Game data and first run](#game-data-and-first-run) to re-extract.
 
 The pipeline is in `port/src/video/`. Extraction copies the retail MPEG-2
 video into a standard MP4 container and converts the synchronized private
@@ -1474,6 +1551,7 @@ Each fixup's text must occur exactly once in its file, or the script stops befor
 - `nowload.cpp`: `SCElogoFade`'s fade loop also stops on `PortSkipIntro()` (`game.skip_intro`), keeping the language select and the title image load.
 - `menuop.cpp`: `CMenuOption::KeyStep` moves the cursor's `op_cursorlimmit` bottom (y 274) down to the selected row's place in the settled list through `PortOptionCursorBottom` (`port/src/menuop.cpp`). Retail PAL settles the ninth shown row at 288, so on the last shown row its cursor and frame stopped between the last two rows.
 - `inventmn.cpp`: the native copy removes `inline` from `CMenuInvent::CMenuInvent()` so callers in other units have one emitted constructor. Retail source retains its original spelling.
+- `charasetup.cpp`: `mem_table`'s character model stacks take 12000 more quadwords each (see "Arenas").
 - `dng_main.cpp` and `editloop.cpp`: the frame work stacks `BuffWorkData` and `WorkBuffer` hold 10000 `mgSORT_PACKET`s rather than 10000 quadwords, since each sorted packet and its draw-table slot grow with pointer width. The town's total data buffer gives up the difference.
 
 Each unit fixup's text must also occur exactly once; missing, duplicate and already-transformed constructor text is rejected by `NativeUnitFixups`.

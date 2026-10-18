@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <limits>
 #include <optional>
 #include <string>
@@ -17,7 +18,9 @@
 #include "log/log.hpp"
 #include "menu_mouse_item.hpp"
 #include "menu_world.hpp"
+#include "menuaqua.hpp"
 #include "menuchr.hpp"
+#include "menucls1.hpp"
 #include "menudraw.hpp"
 #include "menudraw_port.hpp"
 #include "menumain.hpp"
@@ -28,6 +31,7 @@
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "nd_meswin.hpp"
 #include "platform/model_assets.hpp"
 #include "platform/texture_bundle.hpp"
 #include "stubs/menudraw.hpp"
@@ -224,29 +228,78 @@ PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float
 
 namespace {
 
-bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
-    if (form.dtype != MENUFORM_DTYPE_NORMAL && form.dtype != MENUFORM_DTYPE_LIST) {
-        return false;
-    }
-    const auto extent = mgPortVisibleExtent();
-    if (extent.left >= 0 && extent.right <= mgScreenWidth) {
-        return false;
-    }
+// Retail's parked positions can leave a pixel or two inside its screen: the character page's
+// backdrop rests at x=-512 with a 513-wide image.
+constexpr float kParkedOverlap = 2.0f;
 
+// Width of the invention card rows MenuInventCreateCardDraw draws from the form's place
+// (inventmn.cpp:5657).
+constexpr float kInventCardWidth = 231.0f;
+
+// How far left of a message window's put position or laid-out pen its draws reach, by
+// DrawMesWin (nd_meswin.cpp:4379-4594) for the window modes MessageLeft reads:
+// - a frame's right corner pieces are 23 wide (DrawVersatileWin_1/3/4, drawwin.cpp:216, 278,
+//   314), so they start left of the frame only when it is under 46 wide, scaled about its centre
+//   by its fade (CalcRectScale, nd_meswin.cpp:3651). Its shadow and the push button
+//   (DrawPushButton, nd_meswin.cpp:4269-4271, 40 left of the frame's right edge) lie right of
+//   its left edge then too.
+constexpr int kFrameCorner = 23;
+// - a floating window's tail is 13 left of its frame (MyMenuFloatingWinDraw, drawwin.cpp:200-202);
+//   its other tails start at or right of the frame's left edge, less 10, and its corners are 7.
+constexpr int kFloatingTail = 13;
+// - a character is drawn from its pen (DrawFont, nd_meswin.cpp:3830-3962): gaiji 0xFD21 starts 6
+//   left of it (DrawGaiji_sub, font.cpp:1181, 1197), and outlines and sharp text reach 2
+//   (set2DSprite_Fuchi, port/src/font.cpp DrawSharp).
+constexpr int kGlyphReach = 6;
+// - the choice cursor's goal is 40 and half a character left of the text (ClsMes::SetGoalCursorXY,
+//   nd_meswin.cpp:3984), and it sways 6 more (ClsMes::DrawSelectCursor, nd_meswin.cpp:4075); its
+//   shadow is 5 right of it.
+constexpr int kCursorLead = 40;
+constexpr int kCursorSway = 6;
+// DrawMsg moves a hidden cursor here before it steps (menucls1.cpp:870-874).
+constexpr int kHiddenCursor = -1000;
+
+// What a form draws over on one axis, in screen units; unbounded where it is not known.
+struct MenuSpan {
+    float low = -std::numeric_limits<float>::infinity();
+    float high = std::numeric_limits<float>::infinity();
+};
+
+// The message window of the message form being drawn, which CDC2Mes::DrawMsg classifies once
+// StepMsg has laid it out and SetPutPos has put it.
+const CDC2Mes *form_message = nullptr;
+
+// Whether the current target shows past retail's screen sideways or vertically. Menu sprites are
+// drawn in UI units, which video.ui_scale scales, but depth-tested fills (SetSpriteEnv's
+// MENU_SPRITE_ENV_COLOR) in the target's logical units, so either can show past it.
+bool ShowsPastScreen(bool &wide, bool &tall) {
+    const auto target = mgPortCurrentTarget();
+    wide = false;
+    tall = false;
+    for (const auto &extent : {mgPortVisibleExtent(target), mgPortVisibleUiExtent(target)}) {
+        wide = wide || extent.left < 0 || extent.right > mgScreenWidth;
+        tall = tall || extent.top < 0 || extent.bottom > mgScreenHeight;
+    }
+    return wide || tall;
+}
+
+// A part form's spans relative to its position. A part that covers the screen may be a
+// compositor without panel bounds, so full_screen asks for its drawing and side effects to run.
+bool PartsSpans(const CMenuPosDataForm &form, MenuSpan &xs, MenuSpan &ys, bool &full_screen) {
     float left = std::numeric_limits<float>::infinity();
     float right = -left;
+    float top = left;
+    float bottom = -left;
     for (int i = 0; i < form.parts_num; ++i) {
         const auto &part = form.parts[i];
         if (!part.active || !part.draw_flag || part.dtype == MENUFORMPARTS_DTYPE_FUNCINFO) {
             continue;
         }
-        // Compositors and special drawing routines do not have panel bounds.
-        // Preserve their drawing and side effects when an extent is unknown.
-        if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) {
-            return false;
-        }
+        full_screen = full_screen || (part.w >= mgScreenWidth && part.h >= mgScreenHeight);
         float x0 = part.x;
         float x1 = part.x + part.w;
+        float y0 = part.y;
+        float y1 = part.y + part.h;
         switch (part.dtype) {
             case MENUFORMPARTS_DTYPE_NORMAL:
             case MENUFORMPARTS_DTYPE_SQ_BETA:
@@ -276,6 +329,9 @@ bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
                 const float span = digits * std::abs(info->rect.right + part.w) + info->rect.right;
                 x0 -= span;
                 x1 = part.x + span;
+                const float height = std::abs(info->rect.bottom) + std::abs(part.h);
+                y0 = part.y - height;
+                y1 = part.y + height;
                 break;
             }
             default:
@@ -290,17 +346,168 @@ bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
                 }
             }
         }
-        const float sway = part.vibe_cnt[0] ? part.viber[0] + 1.0f : 0.0f;
+        const float sway_x = part.vibe_cnt[0] ? part.viber[0] + 1.0f : 0.0f;
+        const float sway_y = part.vibe_cnt[1] ? part.viber[1] + 1.0f : 0.0f;
         const float shadow = part.shadow ? std::abs(static_cast<int>(part.shadow_offset)) : 0;
-        left = std::min(left, std::min(x0, x1) - sway - shadow);
-        right = std::max(right, std::max(x0, x1) + sway + shadow);
+        left = std::min(left, std::min(x0, x1) - sway_x - shadow);
+        right = std::max(right, std::max(x0, x1) + sway_x + shadow);
+        top = std::min(top, std::min(y0, y1) - sway_y - shadow);
+        bottom = std::max(bottom, std::max(y0, y1) + sway_y + shadow);
     }
-    const float sway = form.vibe_cnt[0] ? 10.0f : 0.0f;
-    return std::isfinite(left) && (fptosi(form.x) + right + sway <= 0 ||
-                                   fptosi(form.x) + left - sway >= mgScreenWidth);
+    if (!std::isfinite(left)) {
+        return false;
+    }
+    xs = {.low = left, .high = right};
+    ys = {.low = top, .high = bottom};
+    return true;
+}
+
+// The leftmost x a menu message window draws at this frame, read from its current layout: each
+// character's pen in its laid-out table already holds whatever moved it while laying out (number
+// padding, spacing, indents). False where that is not bounded here.
+bool MessageLeft(CDC2Mes &mes, int &left) {
+    if (!mes.buff || mes.ClsMes::mes_no == -1 || mes.font_h <= 0) {
+        return false;
+    }
+    const int mode = mes.window_mode;
+    switch (mode) {
+        case MES_WIN_FLOATING:
+        case MES_WIN_VERSATILE_1:
+        case MES_WIN_VERSATILE_3:
+        case MES_WIN_VERSATILE_4:
+            break;
+        default:
+            return false;
+    }
+    // A window put at a negative position sits at its default place (ClsMes::SetAbsWinData).
+    if (mes.abs_win.x < 0) {
+        return false;
+    }
+    const int width = mes.abs_win.width > 0 ? mes.abs_win.width : mes.text_w + waku_data[mode][0] + waku_data[mode][2];
+    if (width < 2 * kFrameCorner) {
+        return false;
+    }
+    left = mes.abs_win.x - (mode == MES_WIN_FLOATING ? kFloatingTail : 0);
+
+    // DrawMesWin's text origin (nd_meswin.cpp:4521-4527) and DrawFont's place for each character.
+    int dx = 0;
+    int dy = 0;
+    mes.CalcCenteringXY(&dx, &dy);
+    const int text_x = mes.abs_win.x + (mes.abs_text_off_x >= 0 ? mes.abs_text_off_x : waku_data[mode][0]);
+    for (int i = std::max(0, mes.page_top); i < std::min<int>(mes.tbl_num, MES_WIN_TBL_MAX); ++i) {
+        const int line = mes.tbl[i].y / mes.font_h;
+        if (line < 0 || line >= MES_LINE_MAX) {
+            return false;
+        }
+        int x = mes.tbl[i].x;
+        if (mes.line_pos_on[line]) {
+            x += mes.line_pos[line][0];
+        } else {
+            x += text_x + dx + (mes.line_indent_on ? mes.line_indent[line] : 0);
+        }
+        left = std::min(left, x - kGlyphReach);
+    }
+
+    // ClsMes::StepSelectCursor (menu_mouse_message.cpp) moves the cursor halfway to its goal.
+    if (mes.select >= 0) {
+        int goal = text_x - kCursorLead - mes.font_w / 2 + dx;
+        if (mes.line_indent_on && mes.cursor_centering) {
+            int lines = 0;
+            while (lines < MES_LINE_MAX && mes.line_w[lines] >= 0) {
+                ++lines;
+            }
+            int widest = 0;
+            for (int line = std::max(0, mes.select_top); line < lines; ++line) {
+                widest = std::max(widest, mes.line_w[line]);
+            }
+            goal += (mes.text_w - widest) / 2;
+        }
+        const int from = mes.cursor_on ? mes.cursor_x : kHiddenCursor;
+        left = std::min(left, (mes.cursor_time <= 0 ? goal : (from + goal) / 2) - kCursorSway);
+    }
+
+    // Marks at their lines' places (ClsMes::DrawEquipment, DrawCross, DrawRightDelta,
+    // nd_meswin.cpp:4098-4174).
+    for (int line = 0; line < MES_LINE_MAX; ++line) {
+        const int at = mes.line_pos[line][0];
+        if (mes.equip_on[line]) {
+            left = std::min(left, at + mes.equip_x[line]);
+        }
+        if (mes.cross_on[line]) {
+            left = std::min(left, at + mes.cross_x[line]);
+        }
+        if (mes.delta_on[line]) {
+            left = std::min(left, at + mes.delta_x[line]);
+        }
+    }
+    return true;
+}
+
+enum class FormPlace {
+    Shown,   // overlaps retail's screen, or is not known not to
+    Parked,  // outside it but for retail's sliver: drawn clipped to it
+    Outside, // a part form wholly outside it: not drawn
+};
+
+FormPlace PlaceForm(const CMenuPosDataForm &form) {
+    bool     wide = false;
+    bool     tall = false;
+    bool     full_screen = false;
+    MenuSpan xs;
+    MenuSpan ys;
+    if (!ShowsPastScreen(wide, tall)) {
+        return FormPlace::Shown;
+    }
+    switch (form.dtype) {
+        case MENUFORM_DTYPE_NORMAL:
+        case MENUFORM_DTYPE_LIST:
+            if (!PartsSpans(form, xs, ys, full_screen)) {
+                return FormPlace::Shown;
+            }
+            break;
+        case MENUFORM_DTYPE_INV_CARD:
+            xs = {.low = 0.0f, .high = kInventCardWidth};
+            full_screen = true;
+            break;
+        default:
+            return FormPlace::Shown;
+    }
+    // MenuFormDraw's sway of the whole form.
+    const float sway_x = form.vibe_cnt[0] ? 10.0f : 0.0f;
+    const float sway_y = form.vibe_cnt[1] ? 8.0f : 0.0f;
+    const int   x = fptosi(form.x);
+    const int   y = fptosi(form.y);
+    xs = {.low = x + xs.low - sway_x, .high = x + xs.high + sway_x};
+    ys = {.low = y + ys.low - sway_y, .high = y + ys.high + sway_y};
+    const auto beyond = [](const MenuSpan &span, int size, float overlap) {
+        return span.high <= overlap || span.low >= size - overlap;
+    };
+    if (!(wide && beyond(xs, mgScreenWidth, kParkedOverlap)) && !(tall && beyond(ys, mgScreenHeight, kParkedOverlap))) {
+        return FormPlace::Shown;
+    }
+    return wide && !full_screen && beyond(xs, mgScreenWidth, 0.0f) ? FormPlace::Outside : FormPlace::Parked;
 }
 
 } // namespace
+
+bool MenuFormParked(const CMenuPosDataForm &form) {
+    return PlaceForm(form) != FormPlace::Shown;
+}
+
+bool MenuMessageParked(CDC2Mes &mes) {
+    bool wide = false;
+    bool tall = false;
+    int  left = 0;
+    if (!ShowsPastScreen(wide, tall) || !wide || !MessageLeft(mes, left)) {
+        return false;
+    }
+    // Each draw adds the window's drawing offset and rounds toward zero.
+    return left + mes.draw_off_x - 1.0f >= mgScreenWidth - kParkedOverlap;
+}
+
+bool MenuFormDrawsMessage(const CDC2Mes &mes) {
+    return form_message == &mes;
+}
 
 void MenuAlignCharacterSlot(CMenuPosDataForm &form) {
     if (form.name == nullptr || std::strcmp(form.name, "chr_bg") != 0) {
@@ -320,10 +527,13 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
     if (MenuCommonInfo != nullptr && MenuCommonInfo->now_mode == MENU_MODE_CHARA_CHANGE) {
         MenuAlignCharacterSlot(*this);
     }
-    // Retail parks unused panels wholly outside its logical frame (SPECHECK,
-    // for example, at x=-260). Hide that panel, not the entire page's flanks.
-    // As soon as it overlaps the frame, draw its complete entering geometry.
-    if (MenuPanelOutsideFrame(*this) || menuworld::HidesForm(*this)) {
+    // Retail parks unused panels outside its screen (SPECHECK at x=-260, the item description at
+    // x=570, the invention card list at x=-262), which a wider window would show at its sides. A
+    // part form wholly outside it is hidden; one with retail's sliver inside, the card list and a
+    // parked message window (CDC2Mes::DrawMsg) draw clipped to it. A form that overlaps the
+    // screen draws whole, so slides still cross the sides.
+    const FormPlace place = PlaceForm(*this);
+    if (place == FormPlace::Outside || menuworld::HidesForm(*this)) {
         return;
     }
     // An item the mouse carries is drawn at the pointer, unmoved by the spread panels.
@@ -343,9 +553,13 @@ PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
     if (const auto spread = menuworld::FormAnchor(*this)) {
         anchor.emplace(*spread);
     }
+    const mgPortScreenClipScope clip(place == FormPlace::Parked);
+    const CDC2Mes *const        saved_message = form_message;
+    form_message = dtype == MENUFORM_DTYPE_MSGFORM && sub_no < std::size(MenuDCMsg) ? MenuDCMsg[sub_no] : nullptr;
     int draw_x = fptosi(x);
     int draw_y = fptosi(y);
     MenuFormDraw(draw_x, draw_y, state);
+    form_message = saved_message;
 }
 
 PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float rotation,

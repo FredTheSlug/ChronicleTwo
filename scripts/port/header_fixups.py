@@ -39,6 +39,10 @@ FIXUPS = [
      "    int FadeInOutMenu();\n"
      "    int PortRetailStep();\n"
      "    void PortRetailDraw();"),
+    # A menu message window parked past the screen is clipped to it around retail's draw, which stays under this name.
+    ("menucls1.hpp", "    void DrawMsg();",
+     "    void DrawMsg();\n"
+     "    void PortRetailDrawMsg();"),
     ("nd_meswin.hpp", "#ifndef MES_WINDOW_OUT_OF_LINE_INIT", "#if 1"),
     ("collision.hpp", "memset(&bbox, 0, sizeof(bbox));", "memset(static_cast<void *>(&bbox), 0, sizeof(bbox));"),
     # kernel32 exports these three names on Windows; the PS2 kernel's versions take their own link names so they never bind to kernel32.
@@ -53,6 +57,10 @@ FIXUPS = [
 # Each packet a frame sorts takes one mgSORT_PACKET (one quadword on the PS2) from the scene's work stack, along with
 # its slot in the draw manager's pointer tables. Both grow with pointer width, so the work stacks scale with them.
 WORK_STACK_QUADWORDS = "10000 * (int) sizeof(mgSORT_PACKET) / 16"
+
+# Quadwords added to each character model stack. Host model and metadata records outgrow retail's counts: with a
+# datapack, Max's body exceeds the 68500 quadwords of human stack 0 on entering a dungeon.
+CHARA_MODEL_STACK_EXTRA = 12000
 
 # The leading newline anchors each match to its line start: a copy already rewritten fails the exactly-once check
 # instead of gaining a second `inline`.
@@ -127,6 +135,14 @@ UNIT_FIXUPS = [
     printf("data memory size = %d kbyte", (data_size - 210128) * 16 / 1024);""",
      f"""    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - (260128 + {WORK_STACK_QUADWORDS}));
     printf("data memory size = %d kbyte", (data_size - (260128 + {WORK_STACK_QUADWORDS})) * 16 / 1024);"""),
+    # The model stacks of every character layout: human 0-1, ridepod 0-2, edit 0 and monster 0.
+    ("charasetup.cpp", "    {68500,  40000, 7000,",
+     f"    {{68500 + {CHARA_MODEL_STACK_EXTRA},  40000 + {CHARA_MODEL_STACK_EXTRA}, 7000,"),
+    ("charasetup.cpp", "    {30000,  30000, 60000, 10000,",
+     f"    {{30000 + {CHARA_MODEL_STACK_EXTRA},  30000 + {CHARA_MODEL_STACK_EXTRA}, "
+     f"60000 + {CHARA_MODEL_STACK_EXTRA}, 10000,"),
+    ("charasetup.cpp", "    {75000,  40000,", f"    {{75000 + {CHARA_MODEL_STACK_EXTRA},  40000,"),
+    ("charasetup.cpp", "    {120000, 0,", f"    {{120000 + {CHARA_MODEL_STACK_EXTRA}, 0,"),
     # Geostone announcement updates and draws reserve eight nullable message slots.
     ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
     # A Georama list that fits on one page has no scroll range: the EE FPU's 0/0 is finite, IEEE's is NaN.

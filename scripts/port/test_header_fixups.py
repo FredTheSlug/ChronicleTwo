@@ -85,6 +85,15 @@ class UnitFixups(unittest.TestCase):
             self.assertEqual(result.count(header_fixups.WORK_STACK_QUADWORDS), 2 if unit == "dng_main.cpp" else 5)
             self.assertEqual(result.count("\n"), source.count("\n"))
 
+    def test_character_model_stacks_grow(self):
+        source = (Path(__file__).resolve().parents[2] / "ps2/src/charasetup.cpp").read_text()
+        result = header_fixups.fixup_unit_text("charasetup.cpp", source)
+        extra = f" + {header_fixups.CHARA_MODEL_STACK_EXTRA}"
+        for size in ("68500", "40000", "30000", "60000", "75000", "120000"):
+            self.assertIn(size + extra, result)
+        self.assertEqual(result.count(extra), 7)
+        self.assertEqual(result.count("\n"), source.count("\n"))
+
     def test_map_files_read_into_a_measured_buffer(self):
         source = (Path(__file__).resolve().parents[2] / "ps2/src/sceneload.cpp").read_text()
         result = header_fixups.fixup_unit_text("sceneload.cpp", source)

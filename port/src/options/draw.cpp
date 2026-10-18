@@ -1,6 +1,8 @@
 #include <algorithm>
+#include <cmath>
 #include <format>
 #include <string>
+#include <utility>
 
 #include "font.hpp"
 #include "mainloop.hpp"
@@ -11,6 +13,25 @@
 
 namespace options {
 namespace {
+
+// The fitted view this frame's entry or page draws through. Layout and text measurement stay in
+// page units; DrawScaledText and DrawScaledFill apply the view, once, as they draw.
+View g_view;
+
+// Font sizes round down, so scaled text stays inside the width it was measured against.
+int FontSize(int size) { return std::max(1, static_cast<int>(size * g_view.scale)); }
+
+void DrawScaledText(CFont &font, std::string &text, int x, int y, int size) {
+    font.SetDrawSize(FontSize(size), FontSize(size + 4));
+    font.SetClearance(FontSize(size), FontSize(size + 5));
+    const Point at = g_view.ToUi({.x = static_cast<float>(x), .y = static_cast<float>(y)});
+    font.DrawDirect(text.data(), static_cast<int>(std::lround(at.x)), static_cast<int>(std::lround(at.y)));
+}
+
+void DrawScaledFill(int x, int y, int w, int h, int alpha, int r, int g, int b) {
+    const Point at = g_view.ToUi({.x = static_cast<float>(x), .y = static_cast<float>(y)});
+    DrawMenuFillBox(at.x, at.y, w * g_view.scale, h * g_view.scale, alpha, r, g, b);
+}
 
 void Text(std::string text, int x, int y, int width, bool gold = false, int size = 16) {
     CFont font;
@@ -30,13 +51,10 @@ void Text(std::string text, int x, int y, int width, bool gold = false, int size
         }
         text += "...";
     }
-    font.DrawDirect(text.data(), x, y);
+    DrawScaledText(font, text, x, y, size);
 }
 
-void Fill(int x, int y, int w, int h, int r, int g, int b) {
-    DrawMenuFillBox(static_cast<float>(x), static_cast<float>(y), static_cast<float>(w), static_cast<float>(h),
-                    128, r, g, b);
-}
+void Fill(int x, int y, int w, int h, int r, int g, int b) { DrawScaledFill(x, y, w, h, 128, r, g, b); }
 
 void Plate(int x, int y, int width, int height, bool selected) {
     Fill(x, y, width, height, selected ? 108 : 65, selected ? 83 : 48, selected ? 38 : 28);
@@ -44,6 +62,12 @@ void Plate(int x, int y, int width, int height, bool selected) {
     if (selected) {
         Fill(x + 2, y + height - 2, width - 4, 1, 124, 106, 66);
     }
+}
+
+// The page's ground over retail's Options contents.
+void Backdrop() {
+    Fill(72, 90, 366, 236, 18, 17, 16);
+    Fill(48, 386, 420, 60, 18, 17, 16);
 }
 
 void Help(const std::string &help) {
@@ -63,11 +87,18 @@ void Draw() {
     const auto &config = ConfigGet();
     const auto  point = PointerPosition();
     const auto  hit = Pointing() ? HitTest(g_screen, point.x, point.y) : Hit{};
+    g_view = CurrentView(g_screen);
+    if (g_screen.open && g_view.scale < 1) {
+        // Drawn smaller than the UI scale, the page still covers retail's contents at the UI's size.
+        const View page = std::exchange(g_view, View{});
+        Backdrop();
+        g_view = page;
+    }
     if (!g_screen.open) {
         Plate(284, 51, 160, 25, hit.kind == HitKind::Entry);
         Text(ButtonName("select", config) + ": PC SETTINGS", 291, 54, 147, true, 13);
     } else {
-        Fill(72, 90, 366, 236, 18, 17, 16);
+        Backdrop();
         // The original scrollbar remains a useful track, with this page's own thumb and count.
         Fill(446, 98, 5, 225, 16, 13, 9);
         const auto &page = Pages()[g_screen.page];
@@ -110,7 +141,6 @@ void Draw() {
             Plate(272, 343, kRight - 272, 27, hit.kind == HitKind::ResetBinding);
             Text(ButtonName("square", config) + ": Restore binding", 278, 348, kRight - 284, false, 12);
         }
-        Fill(48, 386, 420, 60, 18, 17, 16);
         if (g_screen.save_failed) {
             Help("Could not save config.json. Settings work this session.\nCheck the save folder; change a setting to retry.");
         } else if (DisplayGetWarning() != DisplayWarning::None) {

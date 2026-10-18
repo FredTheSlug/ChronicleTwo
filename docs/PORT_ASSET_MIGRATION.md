@@ -7,6 +7,9 @@ publishes native assets and the retained retail files together in one archive,
 `data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), and leaves out their substituted
 originals. The PS2 source and include trees remain unchanged.
 
+The current data version is in `tools/kazarov/data_version.json`. To upgrade an
+existing extraction, see [Game data and first run](PC.md#game-data-and-first-run).
+
 | Retail asset | Published representation |
 | --- | --- |
 | Sound banks and sequences | Versioned semantic JSON and PCM WAV samples |

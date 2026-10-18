@@ -212,11 +212,7 @@ void PumpHost() {
 
     // SetFrameLayout recreates frame targets; it must not run inside a tick's recording.
     if (!gfx::InFrame()) {
-        const gfx::FrameLayout layout = Layout(ConfigGet());
-        const gfx::FrameLayout current = gfx::CurrentFrameLayout();
-        if (layout.aspect != current.aspect || layout.ui_scale != current.ui_scale) {
-            gfx::SetFrameLayout(layout);
-        }
+        mgPortSetFrameLayout(Layout(ConfigGet()));
     }
 }
 

@@ -2,14 +2,29 @@
 
 #include <algorithm>
 
+#include "mainloop.hpp"
 #include "menu_mouse.hpp"
+#include "menucommon.hpp"
 #include "menusys.hpp"
 #include "mglib_port.hpp"
+#include "snd_mngr.hpp"
 
 namespace {
 int *pending_cursor = nullptr;
 int  pending_selection = 0, pending_frame = -1;
+int  sound_frame = -1, sounds = 0;
 } // namespace
+
+void MenuMouseCursorSound() {
+    if (sound_frame == mgPortFrameCount()) {
+        return;
+    }
+    sound_frame = mgPortFrameCount();
+    ++sounds;
+    MenuSePlay(SYSTEM_SE_CURSOR);
+}
+
+int MenuMouseCursorSounds() { return sounds; }
 
 void MenuMouseMove(int *cursor, int selected) {
     pending_cursor = cursor;

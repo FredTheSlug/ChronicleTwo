@@ -139,6 +139,7 @@ void MouseFixedDisplayList(const gfx::DisplayList &source, gfx::DisplayList &out
     out.cameras = source.cameras;
     out.scenes = source.scenes;
     out.prog0_blocks = source.prog0_blocks;
+    out.palettes = source.palettes;
     out.cut = source.cut;
     out.camera_cut = source.camera_cut;
     out.cut_generation = source.cut_generation;

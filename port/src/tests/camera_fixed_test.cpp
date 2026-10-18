@@ -128,10 +128,15 @@ TEST(CameraFixedMouse, DisplayRotationKeepsEyePositionGameplayListUiAndOtherView
     gfx::detail::MeshEntry mesh{};
     mesh.record = 0;
     mesh.prog0 = 0;
+    mesh.palette = 0;
     source.entries.emplace_back(mesh);
     gfx::Prog0Constants block;
     std::ranges::copy(view, block.clip_or_view);
     source.prog0_blocks.push_back(block);
+    // A skinned draw's palette must travel with the list, or interpolating the turned list reads past it.
+    gfx::Prog0Palette palette{};
+    palette.bones[0][0][3] = 7;
+    source.palettes.push_back(palette);
     gfx::detail::Draw2DEntry ui;
     ui.vertices.resize(1);
     ui.vertices[0].x = 123;
@@ -148,6 +153,8 @@ TEST(CameraFixedMouse, DisplayRotationKeepsEyePositionGameplayListUiAndOtherView
     EXPECT_FLOAT_EQ(std::get<gfx::detail::Draw2DEntry>(turned.entries[1]).vertices[0].x, 123);
     EXPECT_NE(std::get<gfx::detail::MeshEntry>(turned.entries[0]).constants.mvp[0], mesh.constants.mvp[0]);
     EXPECT_NEAR(turned.prog0_blocks[0].clip_or_view[0], turned.cameras[0][0], 1e-6);
+    ASSERT_EQ(turned.palettes.size(), 1u);
+    EXPECT_FLOAT_EQ(turned.palettes[0].bones[0][0][3], 7);
     MouseFixedDisplayList(source, turned, 0, 0);
     EXPECT_EQ(turned.cameras, source.cameras);
     EXPECT_FLOAT_EQ(std::get<gfx::detail::MeshEntry>(turned.entries[0]).constants.mvp[0], mesh.constants.mvp[0]);

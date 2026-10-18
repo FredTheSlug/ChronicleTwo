@@ -91,7 +91,7 @@ Not done: item 7 (frustum cull) was skipped by decision; items 8-9 are not start
 
 ### Item 10: render thread
 
-- What it is: Kazarov `RendererConfig::render_thread` is `Off` (default, today's single-threaded path and the kill switch), `Lockstep` (a worker thread runs all device work while the caller waits; byte-identical to `Off`) or `Async` (the worker renders and presents display frames from the port's idle hook while the game thread runs the next tick; the game thread takes a `RenderLease` for its canonical render and per-tick device work). Selected by the config key `video.render_thread` (`off`, `lockstep` or `async`), `DC2_RENDER_THREAD`, or `KZ_RENDER_THREAD` (read by the renderer, wins). Headless and screenshot runs are forced `Off`; Android is always `Off`.
+- What it is: Kazarov `RendererConfig::render_thread` is `Off` (the library default, the single-threaded path and the kill switch), `Lockstep` (a worker thread runs all device work while the caller waits; byte-identical to `Off`) or `Async` (the worker renders and presents display frames from the port's idle hook while the game thread runs the next tick; the game thread takes a `RenderLease` for its canonical render and per-tick device work). The port selects `Async` by default through the config key `video.render_thread` (`off`, `lockstep` or `async`), `DC2_RENDER_THREAD`, or `KZ_RENDER_THREAD` (read by the renderer, wins). Headless and screenshot runs are forced `Off`; Android is always `Off`.
 
 | Check | Result |
 |---|---|
@@ -111,10 +111,21 @@ FPS from `fps.sh`, two runs each:
 
 The median is unchanged because display frames are GPU-bound here (fence wait about 0.86 ms). The minimum rises because tick work no longer delays display frames.
 
+Frame pacing, from present-to-present gaps in Tracy captures (RTX 4090, 1080p):
+
+| Scenario | Off | Async |
+|---|---|---|
+| Ocean's Roar repro, immediate: p99 / p99.9 / frames over 4 ms | 5.51 / 6.27 ms / 448 | 5.01 / 5.81 ms / 371 |
+| Georama river replay (`perf-georama-river.input`), immediate: p99 / frames over 4 ms | 4.16 ms / 1311 | 3.69 ms / 617 |
+| Ocean's Roar repro, FIFO at 240 Hz: gaps over 16 ms | 33 | 0 |
+
+The Georama menu's synchronous load still stalls display frames in both modes (84 ms Off, 65 ms Async), because it runs under the render lease.
+
+Regression runs: 16 windowed replays (town, dungeon, menus, mouse camera, fixed camera, mouse menus, saving, shopping, Georama, and the fullscreen/resize smoke check in `pc-settings-display.input`) with Vulkan validation, in both modes. Exit codes and run times match, with no validation messages, errors or crash reports. They found one crash in both modes, from item 3: `MouseFixedDisplayList` did not copy the list's skinned palettes, so the fixed-camera look crashed interpolating a skinned draw in Morton's Sundries. It now copies them (`CameraFixed` test).
+
 Behaviour differences in Async:
 
-- SDL events and input are pumped once per tick by the game thread rather than between display frames.
-- The mouse-fixed camera ease advances once per tick, so its display frames interpolate a per-tick look.
+- SDL events and input are pumped by the game thread: once per tick, and also about once a millisecond between ticks while the menu pointer or the fixed-camera look is active, so both move at the display rate as in Off.
 - Depth-query answers may arrive up to one tick later than in Off.
 - The "Kazarov uploads" GPU zone is only recorded in Off (Tracy needs a GPU zone to begin and end on one thread).
 

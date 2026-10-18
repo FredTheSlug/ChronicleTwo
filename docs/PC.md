@@ -625,7 +625,7 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `game.more_monsters` | bool | false | | a dungeon floor holds up to 60 monsters instead of 24, and every monster in range shows and acts; see "Dungeon monster limit" |
 | `video.present_mode` | string | fifo | fifo, mailbox, immediate | Vulkan present mode |
 | `video.interpolation` | bool | true | | interpolate display frames between ticks |
-| `video.render_thread` | string | off | off, lockstep, async | `off` (default); `lockstep` runs device work on a worker while the caller waits; `async` renders display frames on a separate render thread while the game ticks; `DC2_RENDER_THREAD` overrides it; headless and screenshot runs always use `off`; applies at startup |
+| `video.render_thread` | string | async | off, lockstep, async | `async` (default) renders and presents display frames on a separate render thread while the game ticks, and follows the mouse between ticks so the menu pointer and the fixed-camera look move at the display rate; `off` runs everything on the game thread; `lockstep` runs device work on a worker while the caller waits; `DC2_RENDER_THREAD` overrides it; headless and screenshot runs always use `off`; applies at startup |
 | `video.max_fps` | number | 0 | 0 or more | display frame cap; 0 is unlimited |
 | `video.width` | int | 0 | 0 or more | window width; 0 is the monitor's |
 | `video.height` | int | 0 | 0 or more | window height; 0 is the monitor's |

@@ -205,6 +205,16 @@ TEST_F(PlatformConfig, DebugModeInvalidValuesKeepTheDefault) {
     }
 }
 
+TEST_F(PlatformConfig, RenderThreadDefaultsToAsyncAndRoundTrips) {
+    ASSERT_TRUE(Config{}.render_thread == ConfigRenderThread::Async);
+    ASSERT_TRUE(ConfigParse(R"({"video": {"render_thread": "sideways"}})").render_thread == ConfigRenderThread::Async);
+    Config config;
+    config.render_thread = ConfigRenderThread::Off;
+    const Config parsed = ConfigParse(ConfigSerialize(config));
+    ASSERT_TRUE(parsed.render_thread == ConfigRenderThread::Off);
+    ASSERT_TRUE(parsed == config);
+}
+
 TEST_F(PlatformConfig, SkipIntroDefaultsToOffAndRoundTrips) {
     ASSERT_FALSE(Config{}.skip_intro);
     ASSERT_FALSE(ConfigParse(R"({"game": {"skip_intro": "yes"}})").skip_intro);

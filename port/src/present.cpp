@@ -200,11 +200,48 @@ bool PresentCanonicalFrame() {
     return shown;
 }
 
+// Async, between ticks: follows the mouse at the display's pace, as DisplayOverlayList does in Off, so the menu
+// pointer and the fixed-camera look move with the display frames rather than once a tick.
+void RepublishMouse() {
+    CT_PROFILE_ZONE("Republish mouse");
+    if (!WindowPollEvents()) {
+        std::exit(kExitOk);
+    }
+    InputPoll();
+    const bool pointer = MenuMousePointerVisible();
+    MouseSetPointerCursor(pointer);
+    gfx::DisplayListRef overlay_list;
+    if (overlay.on || pointer) {
+        // Recording shares the renderer's state with the worker's display frames.
+        gfx::RenderLease lease;
+        overlay_list = RecordHostOverlay(overlay.on);
+    }
+    const bool fixed = MouseFixedActive(DisplaySeconds());
+    float      yaw = 0.0f;
+    float      pitch = 0.0f;
+    MouseFixedLook(yaw, pitch);
+    {
+        std::lock_guard lock(publish_mutex);
+        published.overlay = std::move(overlay_list);
+        published.look_yaw = yaw;
+        published.look_pitch = pitch;
+        published.mouse_fixed = fixed;
+        published.mouse_pointer = pointer;
+    }
+    gfx::WakeRenderThread();
+}
+
 bool BetweenTicks(double fraction, Clock::time_point next_tick) {
-    // The render thread presents while the game thread waits; the wait's pump still runs once per tick.
+    // The render thread presents while the game thread waits. While the mouse drives the pointer or the
+    // fixed-camera look, the game thread polls it about once a millisecond; otherwise it sleeps until the tick.
     if (PresentAsync()) {
         PollFpsToggle();
-        return false;
+        if (!PresentMouseActive() || ClockUnbounded() || mgPortLastList() == nullptr || Clock::now() >= next_tick) {
+            return false;
+        }
+        RepublishMouse();
+        std::this_thread::sleep_until(std::min(next_tick, Clock::now() + std::chrono::milliseconds(1)));
+        return true;
     }
 
     if (mgPortLastList() == nullptr) {

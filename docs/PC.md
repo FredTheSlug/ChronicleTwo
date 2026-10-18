@@ -103,6 +103,15 @@ The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA
 
 Each texture variant is a full-colour RGBA PNG. When retail animation scripts copy colours between textures, extraction bakes the finite source-colour variants into separate destination PNGs and records their selectors in the texture document. Source palettes are used only during extraction; runtime textures and generated render targets use RGBA pixels without palette files or palette uploads. `data.json` carries the current `data_version`, and the game rejects an older extraction so the launcher can rebuild it.
 
+To upgrade an existing extraction after updating `tools/kazarov`:
+
+1. Reconfigure and rebuild, so `darkchronicle` and `dc2data` share the pinned data version. A build directory re-runs CMake when `tools/kazarov/data_version.json` changes; `tools/windows/configure.ps1` also reconfigures it.
+2. Extract again with `dc2data extract <iso-or-directory> <game-root>/data`, or start the game in a window and let setup re-extract when it rejects the older data version.
+
+Help movie extraction first appears in Kazarov `2e6ef96` (data version 14). The fix did not bump the version, so if a version-14 extraction predates that commit, rerun `dc2data extract` explicitly; setup may already consider it current.
+
+Never edit `data.json` to claim the new version: the marker would pass, but the older `data.zip` still lacks the newly extracted assets.
+
 `run.sh` and `run.bat` pass `--run-dir <checkout>/port/run`, giving them the data root `port/run/data`, whose parent holds `data.zip`, and `port/run/saves`. A direct executable launch defaults to the per-user `chronicletwo` application data root with the same layout.
 
 The game reads its data through a read-only file system of mounts (`platform/vfs.hpp`). The base mount is `<game-root>/data.zip` when it exists; otherwise the `data/` and `port_data/` directories of an older layout are mounted together as one tree, so directory fixtures and hand-edited data keep working. Both namespaces match names ignoring ASCII case. The archive's central directory is read once at startup and its entries are read in place: Zstandard entries are decompressed on demand, and stored PNG and MP4 entries are copied from, or for movies streamed from, their offsets in the archive through FFmpeg custom I/O. Reads are thread-safe. Explicit `--run-dir DIR` selects a different root.
@@ -1306,8 +1315,13 @@ converted banks, sequences, and stream WAVs through the driver.
 leading separators and ISO version suffixes, and folding case. For example,
 the native logo reference is `movie/l5logo.mp4`. Datapacks may replace that file.
 A missing or unplayable MP4 logs a diagnostic; `IsStarted` still returns 1 so
-callers' busy-waits end, and `EndCheck` returns 1 at once (the PAL disc has no
-`TUTO`/`TUTO2` manual movies).
+callers' busy-waits end, and `EndCheck` returns 1 at once. The PAL disc holds
+the Help menu's 44 movies in `MOVIE/TUTO` and `MOVIE/TUTO2`, published as
+`movie/tuto/vtuto1.mp4` through `movie/tuto/vtuto22.mp4` and
+`movie/tuto2/vtuto23.mp4` through `movie/tuto2/vtuto44.mp4`. Older extractors
+skipped those subdirectories, so each Help movie entry faded to black and
+straight back to the list. See [Game data and first run](#game-data-and-first-run)
+for re-extraction instructions.
 
 The pipeline is in `port/src/video/`. Extraction copies the retail MPEG-2
 video into a standard MP4 container and converts the synchronized private

@@ -1,24 +1,24 @@
 # Native model and character assets
 
-The PC runtime reads root-relative glTF paths, such as `chara/c01_base.gltf`, through datapack priority. Each glTF has an archived, compact `c01_base.game.json` asset companion; character settings live separately in pretty-printed `port/gameplay/<stem>.character.json` (installed as `gameplay/`). There is no runtime model catalog, source-alias registry, CHR archive, or extension translation in this loader. Assets originally nested in archives use explicit `.assets` directories.
+The PC runtime reads root-relative glTF paths, such as `chara/c01_base.gltf`, through datapack priority. Each glTF has an archived, compact `c01_base.game.json` asset companion; character settings are tracked in pretty-printed `port/gameplay/<stem>.character.json` and published compact at the same path in `data.zip`. There is no runtime model catalog, source-alias registry, CHR archive, or extension translation in this loader. Assets originally nested in archives use explicit `.assets` directories.
 
 glTF contains standard nodes, meshes, materials, images, binary buffers, skins, and animations. External buffers use adjacent `.gltf.bin` files. Character bundles expose their component models as named scenes. Asset semantics live in the adjacent `.game.json` rather than glTF extras. It uses `schema_version: 1` and `kind: "character"`, `"model"`, or `"animation"`.
 
 ## Asset and gameplay JSON
 
-Archived character `.game.json` contains `models`, a `resources` object and image references. Each model records its standard scene, first node offset, stable native frame identities, primitive flags and original stream identities needed by CPU deformation. Standalone model JSON contains these model fields directly. Loose `.character.json` contains `profiles` keyed by semantic names such as `info`, `game_names`, `default_profile`, and indexed `cloth_commands` rows. The runtime overlays these gameplay fields on the archived asset metadata.
+Archived character `.game.json` contains `models`, a `resources` object and image references. Each model records its standard scene, first node offset, stable native frame identities, primitive flags and original stream identities needed by CPU deformation. Standalone model JSON contains these model fields directly. Archived `.character.json` contains `profiles` keyed by semantic names such as `info`, `game_names`, `default_profile`, and indexed `cloth_commands` rows. The runtime combines these gameplay fields with the asset metadata.
 
 | Resource | Required native meaning |
 | --- | --- |
 | `animations` | Named actions with their lengths and auxiliary material, visibility, camera or vertex keys, and the glTF clip of each action for every model it drives. |
 | `bind_poses` | Frame matrices used by native deformation and replacement skins. |
 | `weights` | CPU deformation channels, including shadow meshes with more than 32 joints. |
-| `cloths` | Asset cloth entries; their typed commands are indexed in loose gameplay JSON. |
+| `cloths` | Asset cloth entries; their typed commands are indexed in gameplay JSON. |
 | `scripts` | Actual script paths and effect texture dependencies. |
 | `children` | Actual child glTF paths. |
 | `texture_sets` | glTF image references, mip chains, variants and typed texture animation commands. |
 
-Loose profiles retain ordered commands so model selection, motion slots, keys, sequences, sounds, cloth, outlines, attachment frames, effects and LOD settings preserve their native order. Scalar arguments use the typed configuration representation. Resource arguments contain `type: "resource"`, a resource `kind`, and an integer `index`; a null index represents an optional absent resource. No proprietary resource filename is resolved by the profile dispatcher. Unknown named commands have the same skip behavior as the game interpreter.
+Character profiles retain ordered commands so model selection, motion slots, keys, sequences, sounds, cloth, outlines, attachment frames, effects and LOD settings preserve their native order. Scalar arguments use the typed configuration representation. Resource arguments contain `type: "resource"`, a resource `kind`, and an integer `index`; a null index represents an optional absent resource. No proprietary resource filename is resolved by the profile dispatcher. Unknown named commands have the same skip behavior as the game interpreter.
 
 Base rigs can contain authored proxy triangles rather than a complete character.
 For example, `mainchr/c01_base.gltf` supplies Max's base rig, while

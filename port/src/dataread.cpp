@@ -51,24 +51,6 @@ constexpr std::size_t kExpectedFiles = 10240;
 // are converted data that their own subsystems read, not dataread.
 constexpr std::array<std::string_view, 4> kExcludedRootNames = {"manifest.txt", "manifest.json", "movie", "sound"};
 
-/**
- * Locates loose gameplay settings in a checkout or beside an installed executable.
- */
-fs::path GameplayRoot() {
-    const auto      executable_directory = PathsExecutable().parent_path();
-    std::error_code error;
-    for (auto directory = executable_directory; !directory.empty(); directory = directory.parent_path()) {
-        const auto candidate = directory / "port/gameplay";
-        if (fs::is_directory(candidate, error)) {
-            return candidate;
-        }
-        if (directory == directory.parent_path()) {
-            break;
-        }
-    }
-    return executable_directory / "gameplay";
-}
-
 struct IndexedFile {
     vfs::Ref    file;             /**< Data file supplying the bytes. */
     bool        replaced = false; /**< A datapack file stands in for the extracted one. */
@@ -395,7 +377,6 @@ void DataReadIndex(const fs::path &root) {
         base = vfs::OpenDirectory(data_root);
     }
     if (base) {
-        base = vfs::Overlay({vfs::OpenDirectory(GameplayRoot()), std::move(base)});
         texture_catalog::Load(base);
     } else {
         texture_catalog::Clear();

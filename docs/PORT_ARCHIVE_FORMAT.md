@@ -1,6 +1,6 @@
 # Asset archive format
 
-The extractor publishes assets other than loose game configuration in `<game-root>/data.zip`, with the
+The extractor publishes all converted assets and gameplay configuration in `<game-root>/data.zip`, with the
 marker `<game-root>/data.json` beside it. Datapacks use the same container. Kazarov's
 `zip_archive` module (`tools/kazarov/src/rust/zip_archive.rs`) writes and reads it, and the C++
 bridge (`kazarov_bridge/rust/lib.h`, namespace `kazarov`) exposes the reader and the directory
@@ -8,8 +8,9 @@ packer to the game and `dc2data`.
 
 ## Namespace
 
-Entries form a single namespace for retained retail files, converted textures, models, audio
-and movies. Tracked gameplay JSON stays loose in `port/gameplay/` and is not archived. Conversion
+Entries form a single namespace for retained retail files, converted textures, models, audio,
+movies and gameplay JSON. The tracked, pretty-printed documents in `port/gameplay/` are compiled
+into the extractor and published as compact JSON at the same relative paths. Conversion
 submits final assets directly to the ZIP writer; it creates no intermediate asset tree. Entry
 names are relative to the asset namespace and must not collide, even ignoring case.
 
@@ -72,7 +73,7 @@ for each entry, in name order:
 | Key | Meaning |
 | --- | --- |
 | `schema_version` | 1 |
-| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); 16 introduces the streamed asset/gameplay split |
+| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 17 includes gameplay JSON in the archive |
 | `layout` | `"zip"` |
 | `archive_size` | Size of `data.zip` in bytes |
 | `archive_entries` | Number of entries |
@@ -81,6 +82,7 @@ for each entry, in name order:
 | `source_sha256` | Content hash of the disc source |
 | `texture_sources` | Number of converted retail texture sources |
 | `gameplay_plan_sha256` | Fingerprint of the checked-in gameplay plan that affects generated assets |
+| `gameplay_source_fingerprint` | Fingerprint of all checked-in gameplay source paths and bytes bundled with this extractor |
 
 A marker with another data version or layout is not current, so data extracted into the earlier
 `data/` and `port_data/` directories is extracted again. Publishing an archive removes those
@@ -124,8 +126,8 @@ also applies the rules that need only one entry:
 
 After all conversion finishes, cross-file audits read the completed archive: texture documents
 and PNG levels, glTF buffers and image references, audio documents and media, and retained scripts
-recomputed from the source. References to loose gameplay documents are checked against the
-compiled `port/gameplay/` path index. A separate explicit gameplay audit compares those documents
+recomputed from the source. Gameplay documents and their cross-file references are checked in
+the completed archive. A separate explicit gameplay audit compares the tracked source documents
 with their retail sources. The script audit checks targets of migrated resource operands; retail
 actor-load literals that name no source asset remain unchanged and do not require archive targets.
 The content digest ties the archive to the audited bytes.

@@ -72,6 +72,7 @@ int main() {
     {
         const auto archive = kazarov::open_archive(Utf8(root / "run/data.zip"));
         bool       found = false;
+        bool       gameplay_found = false;
         for (std::size_t index = 0; index < kazarov::archive_entry_count(*archive); ++index) {
             const std::string name(kazarov::archive_entry_name(*archive, index));
             Require(name != "catalog.json" && name != "manifest.json", "obsolete asset index published");
@@ -84,8 +85,19 @@ int main() {
                 Require(bytes == std::vector<std::uint8_t>{'D', 'A', 'T', 'A'}, "extracted entry contents mismatch");
                 found = true;
             }
+            if (name == "menu/cfg7/wepdat.cfg.json") {
+                std::vector<std::uint8_t> bytes(kazarov::archive_entry_size(*archive, index));
+                kazarov::archive_read_entry(*archive, index, rust::Slice<std::uint8_t>(bytes.data(), bytes.size()));
+                const std::string document(bytes.begin(), bytes.end());
+                Require(document.find("\"schema_version\":2") != std::string::npos,
+                        "tracked gameplay document missing its semantic schema");
+                Require(document.find('\n') == std::string::npos,
+                        "archived gameplay document was not compacted");
+                gameplay_found = true;
+            }
         }
         Require(found, "extracted file missing");
+        Require(gameplay_found, "tracked gameplay document missing from extraction");
         Require(std::string(kazarov::archive_path(*archive)) == Utf8(root / "run/data.zip"), "archive path mismatch");
     }
     Require(kazarov::current(Utf8(disc), Utf8(data)), "fresh extraction is not current");

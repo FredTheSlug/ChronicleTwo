@@ -1,3 +1,4 @@
+#include <SDL3/SDL.h>
 #include <gtest/gtest.h>
 
 #include <array>

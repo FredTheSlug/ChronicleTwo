@@ -26,7 +26,7 @@ protected:
     std::filesystem::path base = std::filesystem::temp_directory_path() /
                                  ("texture_pack_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())); /**< Isolated fixture root. */
     std::filesystem::path data = base / "data";                                                                                   /**< Existing disc-data directory. */
-    std::filesystem::path native = base / "port_data";                                                                            /**< Direct native asset directory. */
+    std::filesystem::path native = base / "data";                                                                                 /**< Direct native asset directory. */
 
     void SetUp() override {
         std::filesystem::create_directories(data);

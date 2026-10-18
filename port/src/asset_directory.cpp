@@ -51,24 +51,7 @@ bool Relative(const fs::path &path) {
     if (path.empty() || path.is_absolute() || path.has_root_name() || path.has_root_directory() || name.contains(':') || name.contains('\0')) {
         return false;
     }
-    for (const auto &part : path) {
-        if (part == "." || part == ".." || part.empty()) {
-            return false;
-        }
-    }
-    return true;
-}
-
-/**
- * Lists actual direct native files and child directories without gameplay sidecars.
- */
-std::vector<fs::path> Members(const std::string &directory) {
-    auto members = datapacks::DirectoryMembers(directory);
-    std::erase_if(members, [](const auto &path) {
-        const auto name = Key(path.filename().generic_string());
-        return name == "pack.json" || name.ends_with(".game.json");
-    });
-    return members;
+    return std::ranges::all_of(path, [](const auto &part) { return part != "." && part != ".." && !part.empty(); });
 }
 
 constexpr std::string_view kAssetDirectory = "asset_directory";
@@ -97,14 +80,38 @@ bool Valid(const Json &data, std::string_view kind) {
         // Configurations are native semantic documents of a named kind.
         return version == 2 && data.contains("kind") && data["kind"].is_string();
     }
-    return version == 1 && data.contains("kind") && data["kind"] == "asset_directory";
+    if (version != 1 || !data.contains("kind") || data["kind"] != "asset_directory" ||
+        std::ranges::any_of(data.items(), [](const auto &item) { return item.key() != "schema_version" && item.key() != "kind" && item.key() != "texture_members"; })) {
+        return false;
+    }
+    if (!data.contains("texture_members")) {
+        return true;
+    }
+    if (!data["texture_members"].is_array()) {
+        return false;
+    }
+    std::map<std::string, bool> names;
+    for (const auto &member : data["texture_members"]) {
+        if (!member.is_object() || member.size() != 2 || !member.contains("name") || !member["name"].is_string() ||
+            !member.contains("path") || !member["path"].is_string()) {
+            return false;
+        }
+        const fs::path name(member["name"].get<std::string>());
+        const fs::path path(member["path"].get<std::string>());
+        if (!Relative(name) || name.has_parent_path() || Key(name.extension().generic_string()) != ".json" ||
+            !Relative(path) || !path.generic_string().starts_with("textures/") || Key(path.extension().generic_string()) != ".json" ||
+            !names.emplace(Key(name.generic_string()), true).second) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /**
- * Reads a directly selected actual file, recording its physical relative path and byte extent.
+ * Reads a selected asset, recording its logical lookup path and byte extent.
  */
 File *Read(fs::path relative, std::string_view kind = {}) {
-    auto candidates = datapacks::Candidates(relative);
+    auto candidates = Key(relative.extension().generic_string()) == ".json" ? datapacks::GameplayCandidates(relative) : datapacks::Candidates(relative);
     if (candidates.empty()) {
         relative /= "pack.json";
         candidates = datapacks::Candidates(relative);
@@ -139,6 +146,50 @@ File *Read(fs::path relative, std::string_view kind = {}) {
         return file.get();
     }
     return nullptr;
+}
+
+/**
+ * Identifies a logical PACK member and its native asset lookup path.
+ */
+struct Member {
+    fs::path    path; /**< Logical native file or child-directory lookup path. */
+    std::string name; /**< Logical name returned to PACK consumers. */
+};
+
+/**
+ * Merges texture membership, gameplay documents and native files in deterministic name order.
+ */
+std::vector<Member> Members(const std::string &directory) {
+    std::map<std::string, Member> members;
+    if (auto *marker = Read(fs::path(directory) / "pack.json", kAssetDirectory)) {
+        const auto data = Parse(*marker, marker->size);
+        if (data.contains("texture_members")) {
+            for (const auto &member : data["texture_members"]) {
+                auto name = member["name"].get<std::string>();
+                members.emplace(Key(name), Member{.path = fs::path(member["path"].get<std::string>()), .name = name});
+            }
+        }
+    }
+    for (const auto &path : datapacks::DirectoryMembers(directory)) {
+        const auto name = path.filename().generic_string();
+        const auto key = Key(name);
+        if (key != "pack.json" && !key.ends_with(".game.json")) {
+            members.insert_or_assign(key, Member{.path = path, .name = name});
+        }
+    }
+    for (const auto &path : datapacks::DirectoryMembers(fs::path("gameplay") / directory)) {
+        const auto name = path.filename().generic_string();
+        const auto key = Key(name);
+        if (key.ends_with(".json")) {
+            members.insert_or_assign(key, Member{.path = fs::path(directory) / name, .name = name});
+        }
+    }
+    std::vector<Member> result;
+    result.reserve(members.size());
+    for (auto &[key, member] : members) {
+        result.push_back(std::move(member));
+    }
+    return result;
 }
 
 /**
@@ -206,8 +257,8 @@ u_int *AssetDirectoryRead(const void *directory, const char *name, int *out_size
     if (!member.has_parent_path()) {
         const auto requested = Key(member.generic_string());
         for (const auto &candidate : Members(*parent)) {
-            if (Key(candidate.filename().generic_string()) == requested) {
-                path = candidate;
+            if (Key(candidate.name) == requested) {
+                path = candidate.path;
                 break;
             }
         }
@@ -237,7 +288,10 @@ u_int *AssetDirectoryRead(const void *directory, int index, char **out_name, int
     if (static_cast<std::size_t>(index) >= members.size()) {
         return nullptr;
     }
-    auto *file = Read(members[index]);
+    auto *file = Read(members[index].path);
+    if (file) {
+        file->name = members[index].name;
+    }
     if (!file) {
         return nullptr;
     }
@@ -259,15 +313,16 @@ int AssetDirectoryReadExtension(const void *directory, const char *kind, u_int *
     int        count = 0;
     for (const auto &member : Members(*parent)) {
         File *file = nullptr;
-        if (!Kind(member, selected, file)) {
+        if (!Kind(member.path, selected, file)) {
             continue;
         }
         if (!file) {
-            file = Read(member);
+            file = Read(member.path);
         }
         if (!file) {
             continue;
         }
+        file->name = member.name;
         if (outputs) {
             outputs[count] = reinterpret_cast<u_int *>(file->bytes.data());
         }

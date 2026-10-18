@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "arena_root.hpp"
+#include "crash/crash.hpp"
 #include "dataread.hpp"
 #include "debug_mode.hpp"
 #include "dng_main.hpp"
@@ -24,6 +25,7 @@
 #include "helpmes.hpp"
 #include "inventmn.hpp"
 #include "item_icon3d.hpp"
+#include "log/log.hpp"
 #include "main.hpp"
 #include "mainloop.hpp"
 #include "mainloop3.hpp"
@@ -73,7 +75,7 @@ bool AutosaveEnabled() {
 
 void WriteAutosave(int program_loop_no, AutosaveSpawn *spawn = nullptr) {
     if (!SaveSlotWriteAutosave(program_loop_no, spawn)) {
-        std::println(stderr, "autosave: could not write {}", PathsDisplay(SaveSlotAutosavePath()));
+        CT_LOG_ERROR(Save, "autosave: could not write {}", PathsDisplay(SaveSlotAutosavePath()));
     }
 }
 
@@ -128,6 +130,28 @@ void AutosaveTown() {
         camera->GetRef(spawn.camera_ref);
         WriteAutosave(LOOP_EDIT, &spawn);
     }
+}
+
+// Names the mode being entered and its entry arguments in a crash report.
+void RecordCrashContext(int mode, const INIT_LOOP_ARG &arg) {
+    static constexpr std::string_view kModeNames[LOOP_MODE_NUM] = {
+        "menu",
+        "edit",
+        "dungeon",
+        "title",
+        "chara viewer",
+        "texture viewer",
+        "map viewer",
+        "sound viewer",
+        "movie viewer",
+        "save conversion",
+    };
+    CT_LOG_DEBUG(Main, "mainloop: mode {} (map {}, floor {}, event {})", kModeNames[mode], arg.map_no, arg.floor_no,
+                 arg.event_no);
+    CrashContextSet(CrashKey::Loop, kModeNames[mode]);
+    CrashContextSetInt(CrashKey::Map, arg.map_no);
+    CrashContextSetInt(CrashKey::Floor, arg.floor_no);
+    CrashContextSetInt(CrashKey::Event, arg.event_no);
 }
 
 } // namespace
@@ -213,6 +237,7 @@ PORT_OVERRIDE void MainLoop() {
     PortPlayTimeCountFlag = false;
     mgInitVSyncCallBack(PortPlayTimeVSyncCallback);
     LanguageCode = GameHasJump() ? LANG_ENGLISH : LANG_FRENCH;
+    CrashContextSet(CrashKey::Loop, "boot");
     if (!GameHasJump()) {
         SCElogoFade(0, memory);
     }
@@ -375,6 +400,7 @@ PORT_OVERRIDE void MainLoop() {
         PortCancelQuickChangeBanner();
         PortQuickLoadoutReset();
         ItemIcons3DReset();
+        RecordCrashContext(PortLoopNo, InitArg);
         LoopInit[PortLoopNo](InitArg);
         GameGiveOnArrival(PortLoopNo);
         PortAutosaveResetArrival();

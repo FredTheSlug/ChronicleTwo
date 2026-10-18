@@ -10,14 +10,17 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <ranges>
 #include <string>
 #include <thread>
 #include <vector>
 
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "gfx/gfx.hpp"
 #include "kazarov/data_version.hpp"
 #include "platform/archive_mount.hpp"
+#include "platform/config_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/firstrun.hpp"
 #include "platform/vfs.hpp"
@@ -274,7 +277,52 @@ TEST_F(DataArchive, OverrideIndexMergesZipAndFolderPacksByLoadOrder) {
     EXPECT_EQ(datapacks::Resolve("chara/hero.bin")->Display(), "low.zip!chara/HERO.BIN");
 }
 
+TEST_F(DataArchive, TextureOverrideZipUsesItsContentsWithoutPackManifest) {
+    const std::string document = "textures/menu/0/save.json";
+    const std::string png = "textures/menu/0/save_0.png";
+    Write(tree / document,
+          R"({"schema_version":3,"groups":[0],"entries":[{"name":"blank","pictures":[{"canvas":{"width":2,"height":2}}]}]})");
+    Pack(tree, root / "data.zip");
+    const auto staging = root / "staging/detail";
+    Write(staging / document,
+          R"({"schema_version":3,"groups":[0],"entries":[{"name":"added","pictures":[{"levels":["save_0.png"]}]}]})");
+    fs::create_directories((staging / png).parent_path());
+    const std::array<uint8_t, 16> pixels{80, 80, 80, 255, 80, 80, 80, 255,
+                                         80, 80, 80, 255, 80, 80, 80, 255};
+    ASSERT_TRUE(gfx::WritePng(staging / png, pixels.data(), 2, 2));
+    Write(staging / "textures/pack-only/image.png", Bytes(1, 7));
+    Write(staging / "pack.json", R"({"schema_version":1,"texture_members":[]})");
+    Pack(staging, root / "datapacks/detail.zip");
+    Write(root / "datapacks/datapacks.json", R"({"schema_version":1,"load_order":["detail"]})");
+
+    const auto base = ArchiveMountOpen(root / "data.zip");
+    texture_catalog::Load(base);
+    datapacks::Load(base, root / "data.zip");
+    texture_catalog::SetCandidateResolver(datapacks::Candidates);
+    const auto members = datapacks::DirectoryMembers("textures");
+    EXPECT_NE(std::ranges::find(members, fs::path("textures/pack-only")), members.end());
+    const auto *source = texture_catalog::Find(document);
+    ASSERT_NE(source, nullptr);
+    ASSERT_EQ(source->entries.size(), 1u);
+    EXPECT_EQ(source->entries[0].name, "added");
+    ASSERT_EQ(source->entries[0].variants[0].levels.size(), 1u);
+    const auto &level = source->entries[0].variants[0].levels[0];
+    EXPECT_EQ(level.path, png);
+    EXPECT_EQ(level.file.Display(), "detail.zip!" + png);
+    const auto override = datapacks::Resolve(png);
+    ASSERT_TRUE(override);
+    EXPECT_EQ(override.value().Display(), level.file.Display());
+    datapacks::DecodedTexture decoded;
+    std::string               error;
+    ASSERT_TRUE(datapacks::Decode(source->entries[0], 0, decoded, error)) << error;
+    ASSERT_EQ(decoded.levels.size(), 1u);
+    EXPECT_EQ(decoded.levels[0][0], 80);
+    texture_catalog::Clear();
+}
+
 TEST_F(DataArchive, DataReadLoadsFromDataZipWithoutDirectories) {
+    const std::string gameplay = R"({"schema_version":2,"kind":"weapon","records":[]})";
+    Write(tree / "gameplay/menu/cfg7/wepdat.cfg.json", gameplay);
     Pack(tree, root / "data.zip");
     Write(root / "data.json", R"({"schema_version":1,"data_version":)" + std::to_string(KAZAROV_DATA_VERSION) + "}");
     EXPECT_FALSE(FirstRunDataMissing(root / "data"));
@@ -293,6 +341,51 @@ TEST_F(DataArchive, DataReadLoadsFromDataZipWithoutDirectories) {
     EXPECT_TRUE(std::all_of(buffer.begin() + 5000, buffer.begin() + 6144, [](std::uint8_t value) { return value == 0; }));
     EXPECT_EQ(DataReadScriptKeys().size(), 0u);
     EXPECT_FALSE(DataReadFind("missing.bin"));
+    const auto settings = DataReadFind("menu/cfg7/wepdat.cfg.json");
+    if (!settings) {
+        FAIL() << "archived gameplay document is missing";
+    }
+    EXPECT_EQ(settings->Display(), "data.zip!gameplay/menu/cfg7/wepdat.cfg.json");
+    EXPECT_FALSE(datapacks::Asset("menu/cfg7/wepdat.cfg.json"));
+    EXPECT_FALSE(vfs::HostPath(*settings));
+    EXPECT_EQ(Read(*settings), (std::vector<std::uint8_t>(gameplay.begin(), gameplay.end())));
+    char gameplay_name[] = "menu/cfg7/wepdat.cfg.json";
+    ASSERT_EQ(LoadFile2(gameplay_name, buffer.data(), &size, LOAD_FILE_READ), 1);
+    EXPECT_EQ(size, gameplay.size());
+    EXPECT_EQ(std::memcmp(buffer.data(), gameplay.data(), gameplay.size()), 0);
+    EXPECT_EQ(DataReadBufferPath(buffer.data()), gameplay_name);
+    EXPECT_EQ(DataReadAssetPath(gameplay_name), gameplay_name);
+    EXPECT_EQ(DataReadNativeKeys("menu/cfg7"), (std::vector<std::string>{gameplay_name}));
+    EXPECT_FALSE(DataReadFind("character_clips.json"));
+}
+
+TEST_F(DataArchive, GameplayDocumentsPreservePackPriorityAcrossNamespacedAndLegacyPaths) {
+    const std::string relative = "menu/cfg7/wepdat.cfg.json";
+    Write(tree / "gameplay" / relative, "base");
+    Pack(tree, root / "data.zip");
+    Write(root / "datapacks/low/gameplay" / relative, "low");
+    Write(root / "datapacks/high" / relative, "legacy high");
+    Write(root / "datapacks/datapacks.json", std::string(R"({"schema_version":1,"load_order":["low","high"]})"));
+    DataReadIndex(root / "data");
+
+    const auto candidates = config_catalog::Paths(relative);
+    ASSERT_EQ(candidates.size(), 3u);
+    EXPECT_TRUE(candidates[0].Display().ends_with("high/" + relative));
+    EXPECT_TRUE(candidates[1].Display().ends_with("low/gameplay/" + relative));
+    EXPECT_EQ(candidates[2].Display(), "data.zip!gameplay/" + relative);
+    const auto legacy = DataReadFind(relative.c_str());
+    if (!legacy) {
+        FAIL() << "legacy gameplay replacement is missing";
+    }
+    EXPECT_EQ(legacy->Display(), candidates[0].Display());
+
+    Write(root / "datapacks/high/gameplay" / relative, "namespaced high");
+    DataReadIndex(root / "data");
+    const auto selected = DataReadFind(relative.c_str());
+    if (!selected) {
+        FAIL() << "namespaced gameplay replacement is missing";
+    }
+    EXPECT_TRUE(selected->Display().ends_with("high/gameplay/" + relative));
 }
 
 TEST_F(DataArchive, MoviePlaysIdenticallyFromAStoredArchiveEntry) {

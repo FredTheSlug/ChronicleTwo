@@ -15,6 +15,7 @@
 #include "dng_main.hpp"
 #include "mg_memory.hpp"
 #include "monster.hpp"
+#include "native_document_fixture.hpp"
 #include "platform/model_assets.hpp"
 #include "platform/paths.hpp"
 
@@ -34,7 +35,7 @@ protected:
 
     void SetUp() override {
         using Json = nlohmann::json;
-        std::filesystem::create_directories(root / "port_data/dungeon/monster");
+        std::filesystem::create_directories(root / "data/dungeon/monster");
         std::filesystem::create_directories(root / "data");
         const Json gltf = {
             {"asset",  {{"version", "2.0"}}             },
@@ -42,7 +43,7 @@ protected:
             {"scenes", Json::array({{{"nodes", {0}}}})  },
             {"nodes",  Json::array({{{"name", "root"}}})}
         };
-        std::ofstream model(root / "port_data/dungeon/monster/p00_23a.gltf", std::ios::binary);
+        std::ofstream model(root / "data/dungeon/monster/p00_23a.gltf", std::ios::binary);
         model << gltf.dump(2) << std::string(8 * 1024 * 1024, ' ');
         model.close();
         const Json metadata = {
@@ -69,7 +70,7 @@ protected:
             {"args",    Json::array({resource})}
         };
         game["profiles"]["p00_23a"]["commands"] = Json::array({command});
-        std::ofstream(root / "port_data/dungeon/monster/p00_23a.game.json") << game.dump(2);
+        dc::test::WriteNativeDocument(root / "data/dungeon/monster/p00_23a.game.json", game);
         std::array<unsigned char, 132> script{};
         std::memcpy(script.data(), "SB2", 4);
         const auto put = [&](int offset, int value) { std::memcpy(script.data() + offset, &value, sizeof(value)); };
@@ -102,7 +103,7 @@ protected:
 } // namespace
 
 TEST_F(NativeMonsterLoad, LoadsOversizedGltfWithoutWritingOriginalReadScratch) {
-    ASSERT_GT(std::filesystem::file_size(root / "port_data/dungeon/monster/p00_23a.gltf"), 4160000u);
+    ASSERT_GT(std::filesystem::file_size(root / "data/dungeon/monster/p00_23a.gltf"), 4160000u);
     const auto       before = scratch;
     BASE_MONSTER_TBL table{};
     std::strcpy(table.model, "p00_23a");

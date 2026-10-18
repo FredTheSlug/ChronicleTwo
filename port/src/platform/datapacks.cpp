@@ -13,7 +13,6 @@
 #include <list>
 #include <map>
 #include <mutex>
-#include <print>
 #include <ranges>
 #include <stdexcept>
 #include <thread>
@@ -26,6 +25,7 @@
 #include "kazarov_bridge/rust/lib.h"
 #include "stb_image.h"
 
+#include "log/log.hpp"
 #include "platform/archive_mount.hpp"
 
 namespace datapacks {
@@ -88,7 +88,7 @@ std::unordered_map<std::string, std::string> stamp_memo;
 unsigned stamp_scopes = 0;
 
 /**
- * Accumulates named load counters and prints them to stderr at exit.
+ * Accumulates named load counters and logs them at exit.
  */
 struct TraceCounters {
     std::mutex                                         mutex;  /**< Guards totals. */
@@ -97,7 +97,7 @@ struct TraceCounters {
     ~TraceCounters() {
         const std::scoped_lock lock(mutex);
         for (const auto &[name, total] : totals) {
-            std::println(stderr, "texture-trace: {} = {}", name, static_cast<unsigned long long>(total));
+            CT_LOG_INFO(Data, "texture-trace: {} = {}", name, static_cast<unsigned long long>(total));
         }
     }
 };
@@ -256,7 +256,7 @@ std::optional<Pack> OpenPack(const std::filesystem::path &directory, const std::
  * Reports a rejected configuration or asset with its path.
  */
 void Diagnostic(const std::filesystem::path &path, const std::string &message) {
-    std::println(stderr, "datapacks: {}: {}", Display(path), message);
+    CT_LOG_WARN(Data, "datapacks: {}: {}", Display(path), message);
 }
 
 /**
@@ -549,6 +549,28 @@ std::vector<vfs::Ref> Candidates(const std::filesystem::path &relative) {
     return candidates;
 }
 
+std::vector<vfs::Ref> GameplayCandidates(const std::filesystem::path &relative) {
+    const auto name = vfs::RelativeName(relative);
+    if (!name) {
+        return {};
+    }
+    const std::string     logical = name->starts_with("gameplay/") ? name->substr(9) : *name;
+    const std::string     physical = "gameplay/" + logical;
+    std::vector<vfs::Ref> candidates;
+    const auto            append = [&](const std::shared_ptr<const vfs::Mount> &mount) {
+        if (auto file = vfs::Find(mount, physical)) {
+            candidates.push_back(std::move(file));
+        } else if (auto file = vfs::Find(mount, logical)) {
+            candidates.push_back(std::move(file));
+        }
+    };
+    for (const auto &pack : std::views::reverse(packs)) {
+        append(pack.mount);
+    }
+    append(base);
+    return candidates;
+}
+
 std::optional<vfs::Ref> Asset(const std::filesystem::path &relative) {
     auto candidates = Candidates(relative);
     if (candidates.empty()) {
@@ -567,20 +589,20 @@ std::vector<std::filesystem::path> DirectoryMembers(const std::filesystem::path 
         return {};
     }
     std::unordered_map<std::string, std::string> members;
-    auto                                         collect = [&](const std::shared_ptr<const vfs::Mount> &mount) {
+    auto                                         collect = [&](const std::shared_ptr<const vfs::Mount> &mount, bool is_pack) {
         if (!mount) {
             return;
         }
         for (const auto &member : mount->List(*name)) {
             const auto path = *name + '/' + member.name;
-            if (!member.directory || mount->Find(path + "/pack.json")) {
+            if (!member.directory || is_pack || mount->Find(path + "/pack.json")) {
                 members.insert_or_assign(vfs::FoldKey(member.name), path);
             }
         }
     };
-    collect(base);
+    collect(base, false);
     for (const auto &pack : packs) {
-        collect(pack.mount);
+        collect(pack.mount, true);
     }
     std::vector<std::pair<std::string, std::filesystem::path> > sorted;
     sorted.reserve(members.size());

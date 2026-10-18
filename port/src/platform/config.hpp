@@ -3,6 +3,7 @@
 #include <string>
 #include <string_view>
 
+#include "log/log_config.hpp"
 #include "platform/settings.hpp"
 
 // Native gameplay always runs at the NTSC field rate, independently of configuration.
@@ -44,6 +45,8 @@ struct Config : HostSettings {
     ConfigHaptics dualsense_haptics = ConfigHaptics::Full;
     // input.haptics_strength: gain on the DualSense actuators.
     float haptics_strength = 1.0f;
+    // log.*: the logger's level, file, retention, console and per-category levels (docs/LOGGING.md).
+    LogConfig log;
 
     bool operator==(const Config &) const = default;
 };
@@ -62,6 +65,6 @@ void ConfigSetChangeHook(ConfigChangeHook hook);
 
 const Config &ConfigGet();
 
-// Unknown keys and values of the wrong type or range keep their defaults and are reported on stderr.
+// Unknown keys and values of the wrong type or range keep their defaults and are logged as warnings.
 Config      ConfigParse(std::string_view text);
 std::string ConfigSerialize(const Config &config);

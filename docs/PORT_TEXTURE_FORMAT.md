@@ -1,15 +1,18 @@
 # Converted texture format
 
-`dc2data` publishes textures under `port_data/` without a global texture catalog
-or runtime source-alias table. The current extraction is data version 8, recorded
-in the parent `data.json` marker. Standalone texture documents use
-`schema_version: 3`; adjacent model gameplay sidecars use `schema_version: 1`.
+`dc2data` publishes textures as entries in `data.zip` without a global texture
+catalog or runtime source-alias table. Data version 18 introduced the texture namespace;
+the adjacent `data.json` marker records the extraction's version. Standalone texture documents use
+`schema_version: 3`; adjacent model asset sidecars use `schema_version: 1`.
 
 ## Standalone texture documents
 
-A retail source such as `img/menu.img` becomes `port_data/img/menu.json` with
-PNG files beside it. A PACK member `bundle.pac/one.img` becomes
-`port_data/bundle.pac/one.json`. Each document has exactly `schema_version`,
+All PNG images and standalone texture documents live below `textures/`.
+Ordinary source directories remain, while extension-bearing container directory
+components such as `.chr`, `.pak`, `.pac`, `.ipk` and `.img` are removed.
+For example, `img/menu.img` becomes `textures/img/menu.json` and
+`map/room.pac/one.img` becomes `textures/map/one.json`, with numbered PNGs
+beside each document. Each document has exactly `schema_version`,
 `groups`, and `entries`. IMG, IM2, TIM2, and empty sources have `groups: [0]`.
 IMG3 sources list their distinct nonnegative block IDs in ascending order,
 retaining gaps such as `[0, 2, 4]`; an IMG3 source with only CFG entries has
@@ -43,45 +46,41 @@ because the runtime uses linear filtering after entering a texture. A
 consumer may express a nondefault `nearest` filter, although retail conversion
 does not emit it.
 
-Documents are UTF-8 JSON, indented by two spaces with a trailing newline.
+Documents are compact UTF-8 JSON.
 They omit source bytes, original archive metadata, picture indices, PS2
-register values, palettes, and redundant defaults. Physical paths cannot
-contain `.img` directories: an intermediate `.img` component becomes `-img`,
-`#entry:N` becomes `-entry-N.json`, and `#offset:N` becomes an
-`embedded-offset-N.json` child of the wrapper path. Components are escaped;
-long paths use a stable SHA-256 suffix. Conversion rejects path collisions.
-Retail names inside PACK tables remain unchanged.
-
-Some zero-entry PACK members keep historical embedded-offset PNG names. For
-example, `bundle.pac/frametex.json` can refer to a sibling
-`embedded-offset-N_0.png`; a nested document such as `map.json` can refer to
-the same image with a relative path. The JSON document path still follows the
-PACK member name. These PNG paths remain valid datapack override paths.
+register values, palettes, and redundant defaults. Physical texture paths cannot contain extension-bearing directory components.
+`#entry:N` becomes `-entry-N.json`, and offset sources use `offset-N` in
+their document name. Components are escaped; long paths use a stable SHA-256
+suffix. Flattened names are disambiguated deterministically and checked for
+collisions. PACK tables retain logical member names and record their physical
+texture document paths in `pack.json`.
 
 ## Character and model textures
 
 Texture sources consumed by a converted character are incorporated into its
-`<character>.game.json` gameplay sidecar. Each
+archived `<character>.game.json` asset sidecar. Each
 `resources.texture_sets[*].document` retains the version 3 `groups` and
 `entries` structure and picture metadata described above. The texture-set
 resource also has a `name`. In the embedded document, picture and variant
 `levels` contain `#/images/N` references to the companion glTF's standard
 `images` array instead of relative PNG filenames. Each referenced glTF image
-contains the base PNG raster in a standard `data:image/png;base64,...` URI.
-The consumed character source's temporary standalone JSON and PNG files are
-removed after model publication; a PNG shared with an unconsumed document is
-retained. A source's conversion-time alias, such as `model.chr#offset:80`, is
+resolves to a published external PNG entry below `textures/`. Images associated
+with a character use the nearest retail `.chr` basename, with one sequence
+across embedded documents, pictures, mips and variants. For example,
+`chara/hero.chr/body.img` publishes `textures/chara/hero_0.png`,
+`textures/chara/hero_1.png`, and so on. The `.game.json` stays beside its model;
+glTF image URIs point relatively to these texture paths. Character conversion plans the final
+texture and model artifacts from shared source bytes; no temporary standalone
+JSON or PNG files are written. A source's conversion-time alias, such as `model.chr#offset:80`, is
 not a runtime lookup path.
 
-The sidecar's top-level `images` array provides optional replacement paths as
+The sidecar's top-level `images` array provides replacement paths as
 `{"image": N, "png": "root/relative/name.png"}`. `image` indexes the glTF
-`images` array, and `png` is relative to `port_data/` or a datapack root. This
-mapping covers model material images and embedded texture-set levels; the PNG
-need not exist in the base published tree. A datapack can provide it at that
-path. The reader takes logical dimensions from the embedded glTF raster,
-then tries a valid datapack PNG for the physical pixels and falls back to the
-embedded raster if none decodes. When a datapack replaces the glTF document
-itself, its image data is used directly. Published glTF uses standard image
+`images` array, and `png` is relative to `data/` or a datapack root. This
+mapping covers model material images and embedded texture-set levels. The base
+PNG exists once at its archive path and can be overridden by a datapack. The
+reader takes logical dimensions from the base PNG and can use a larger valid
+datapack replacement for physical pixels. Published glTF uses standard image
 fields and has no custom `extras` metadata for these paths.
 
 The versioned `data.json` marker remains, while published trees contain no

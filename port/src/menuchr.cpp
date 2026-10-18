@@ -9,7 +9,6 @@
 #include <cstring>
 #include <limits>
 #include <numbers>
-#include <print>
 
 #include "actionchara.hpp"
 #include "dataread_port.hpp"
@@ -19,6 +18,7 @@
 #include "editctrl_port.hpp"
 #include "editloop.hpp"
 #include "gfx/gfx.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "menu_character_assets.hpp"
@@ -140,7 +140,8 @@ void PortPrepareMenuCharacterArena(mgCMemory &memory, const void *model, const c
     // Equipped melee weapons reserve the native twelve-point, eight-subdivision sword trail.
     const std::size_t trail = part == 2 ? (sizeof(CSWordAfterEffect) + 15) / 16 + 2 + 2 * (12 + 1) + 2 * (12 * (8 + 2) + 1) : 0;
     if (!path || !menu_character::PrepareArena(memory, *path, profile ? profile : "", error, trail)) {
-        std::println(stderr, "menu character {}: {}", path ? path->c_str() : "unknown asset", path ? error.c_str() : "actual glTF filename required");
+        CT_LOG_CRITICAL(Menu, "menu character {}: {}", path ? path->c_str() : "unknown asset", path ? error.c_str() : "actual glTF filename required");
+        LogFlush();
         std::exit(1);
     }
 }
@@ -169,8 +170,9 @@ PORT_OVERRIDE void MenuMemoryAdjust(mgCMemory *pool, mgCMemory *rest, mgCMemory 
     }
     const int remaining = pool->stack_size - pool->stack_used;
     if (partitions > remaining) {
-        std::println(stderr, "menu character partitions exceed aligned pool: {} of {} blocks",
-                     partitions, remaining);
+        CT_LOG_CRITICAL(Memory, "menu character partitions exceed aligned pool: {} of {} blocks",
+                        partitions, remaining);
+        LogFlush();
         std::abort();
     }
 
@@ -237,7 +239,7 @@ PORT_OVERRIDE int KeyMainCharaBG() {
         }
     }
 
-    std::println(stderr, "quick change: not finished after {} steps, continuing frame by frame", kQuickChangeMaxSteps);
+    CT_LOG_WARN(Menu, "quick change: not finished after {} steps, continuing frame by frame", kQuickChangeMaxSteps);
     quick_change_pending = false;
     return 0;
 }
@@ -461,7 +463,7 @@ void PortFinishQuickChange() {
     }
 
     const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started);
-    std::println(stderr, "quick change: {}, {:.1f} ms", dungeon ? "dungeon" : "town", static_cast<double>(elapsed.count()) / 1000.0);
+    CT_LOG_INFO(Menu, "quick change: {}, {:.1f} ms", dungeon ? "dungeon" : "town", static_cast<double>(elapsed.count()) / 1000.0);
 }
 
 // Starts on the first game frame after the menu closes. Instead of Dark Cloud's ambient pulse and ceffe_s model,

@@ -9,13 +9,13 @@
 #include <cstdio>
 #include <cstring>
 #include <optional>
-#include <print>
 #include <string>
 #include <vector>
 
 #include "asset_directory.hpp"
 #include "collision_assets.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "mdslist.hpp"
 #include "mg_dataset.hpp"
 #include "mglib.hpp"
@@ -96,7 +96,7 @@ PORT_OVERRIDE void CMdsList::LoadPCPFile(char *label, u_int *source, mgCMemory *
     const auto  files = datapacks::DirectoryMembers(*parent);
     const auto  capacity = std::count_if(files.begin(), files.end(), [](const auto &file) { return std::filesystem::path(file).extension() == ".gltf"; });
     if (capacity > MDS_PCP_ENTRY_MAX) {
-        std::println(stderr, "model list: too many native models");
+        CT_LOG_ERROR(Data, "model list: too many native models");
         return;
     }
     name = label ? CopyName(*memory, label) : nullptr;

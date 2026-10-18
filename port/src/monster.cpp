@@ -7,12 +7,12 @@
 
 #include <cstdio>
 #include <cstring>
-#include <print>
 #include <string>
 #include <vector>
 
 #include "dataread.hpp"
 #include "gamedata.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "maintex.hpp"
 #include "menucommon.hpp"
@@ -43,7 +43,7 @@ PORT_OVERRIDE int CMonsterMan::LoadReferMonsterFile(int id, BASE_MONSTER_TBL *ta
     const bool  loaded = model_assets::LoadCharacter(entry.chara, model_path, table->model, options, error);
     mgTexManager.name_suffix[0] = 0;
     if (!loaded) {
-        std::println(stderr, "monster: {}", error);
+        CT_LOG_ERROR(Data, "monster: {}", error);
         return false;
     }
     entry.chara.tbl = table;

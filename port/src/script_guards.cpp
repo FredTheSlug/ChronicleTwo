@@ -5,7 +5,6 @@
 #include <cstring>
 #include <initializer_list>
 #include <limits>
-#include <print>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -24,6 +23,7 @@
 #include "event.hpp"
 #include "event_func.hpp"
 #include "gyoracesim.hpp"
+#include "log/log.hpp"
 #include "mapsky.hpp"
 #include "menuaqua.hpp"
 #include "menucommon.hpp"
@@ -112,10 +112,10 @@ enum class RuleKind {
  *
  */
 struct Rule {
-    int      argument = 0;                               /**< Argument the rule checks. */
-    RuleKind kind = RuleKind::Index;                     /**< What the rule requires. */
-    int      first = 0;                                  /**< Smallest value or length accepted. */
-    int      end = 0;                                    /**< One past the largest value or length accepted, or the argument limit. */
+    int      argument = 0;                                 /**< Argument the rule checks. */
+    RuleKind kind = RuleKind::Index;                       /**< What the rule requires. */
+    int      first = 0;                                    /**< Smallest value or length accepted. */
+    int      end = 0;                                      /**< One past the largest value or length accepted, or the argument limit. */
     bool (*external_check)(RS_STACKDATA *, int) = nullptr; /**< Check of a Custom rule on a run-script external. */
     int (*tag_check)(SPI_STACK *, int) = nullptr;          /**< Check of a Custom rule on a tag, giving the argument count to call with or -1. */
 };
@@ -234,7 +234,7 @@ bool CaptionFits(RS_STACKDATA *args, int argc) {
         return true;
     }
     const char *text = ExternalText(args, argc, 3);
-    return text != nullptr && LengthInRange(text, 0, Extent<std::remove_reference_t<decltype(ED_EVENT_INFO::caption_text[0])>>);
+    return text != nullptr && LengthInRange(text, 0, Extent<std::remove_reference_t<decltype(ED_EVENT_INFO::caption_text[0])> >);
 }
 
 /**
@@ -363,46 +363,46 @@ std::unordered_map<RunScriptFunction, std::vector<Rule> > &ExternalRules() {
  *
  */
 const std::unordered_map<SPI_TAG_FUNCTION, std::vector<Rule> > &TagRules() {
-    constexpr int sky_name_end = Extent<decltype(MAP_SKY_INFO::bg_mds_name)>;
-    constexpr int part_name_end = 0x40;
+    constexpr int                                                         sky_name_end = Extent<decltype(MAP_SKY_INFO::bg_mds_name)>;
+    constexpr int                                                         part_name_end = 0x40;
     static const std::unordered_map<SPI_TAG_FUNCTION, std::vector<Rule> > rules{
-        {_ROOM_LINK,                 {{.argument = 0, .kind = RuleKind::MaxArguments, .end = Extent<decltype(DNGMAP_ROOM_INFO::link)>}}},
+        {_ROOM_LINK,                 {{.argument = 0, .kind = RuleKind::MaxArguments, .end = Extent<decltype(DNGMAP_ROOM_INFO::link)>}}                                                                                   },
         // The entry name precedes its values, of which the entry holds four.
-        {_MENU_ETCINFO2,             {{.argument = 0, .kind = RuleKind::Text, .end = kUnbounded}, {.kind = RuleKind::MaxArguments, .end = 1 + Extent<decltype(MENU_ETCINFO2::value)>}}},
-        {_MENU_TEXNAME,              {{.argument = 0, .kind = RuleKind::TextIfString, .end = 0x20}, {.argument = 1, .kind = RuleKind::Index, .end = Extent<decltype(CBaseMenuClass::tex_block)>}}},
-        {_MENU_PART_ETCINFO,         {{.kind = RuleKind::Custom, .tag_check = PartValueIndicesFit}}},
-        {_MENU_PART_DTYPE,           {{.kind = RuleKind::Custom, .tag_check = PartTypeValuesFit}}},
+        {_MENU_ETCINFO2,             {{.argument = 0, .kind = RuleKind::Text, .end = kUnbounded}, {.kind = RuleKind::MaxArguments, .end = 1 + Extent<decltype(MENU_ETCINFO2::value)>}}                                    },
+        {_MENU_TEXNAME,              {{.argument = 0, .kind = RuleKind::TextIfString, .end = 0x20}, {.argument = 1, .kind = RuleKind::Index, .end = Extent<decltype(CBaseMenuClass::tex_block)>}}                         },
+        {_MENU_PART_ETCINFO,         {{.kind = RuleKind::Custom, .tag_check = PartValueIndicesFit}}                                                                                                                       },
+        {_MENU_PART_DTYPE,           {{.kind = RuleKind::Custom, .tag_check = PartTypeValuesFit}}                                                                                                                         },
         // The fill box's effect kind indexes its four effect counts.
-        {_MENU_FILLBOX,              {{.argument = 6, .kind = RuleKind::Index, .end = 4}}},
-        {_MENU_EXE_MSGENV,           {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}},
-        {_MENU_EXE_MAKEMSG,          {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}},
-        {_MENU_EXE_SETABSPOS,        {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}},
-        {_MENU_EXE_MSGSETSYSTEMBUFF, {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}, {.argument = 1, .kind = RuleKind::Index, .end = Extent<decltype(MENU_COMMAND_ANALYZE_INFO::system_mes_buff)>}}},
-        {_MENU_EXE_MSGSETBUFF,       {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}, {.argument = 1, .kind = RuleKind::Index, .end = Extent<decltype(MENU_COMMAND_ANALYZE_INFO::mes_buff)>}}},
-        {_MENU_EXE_MSGSETFUCHI,      {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}},
-        {_MENU_EXE_MSGSETCURSOR,     {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}},
-        {_MENU_SET_QUESTIONGYOU,     {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}},
-        {_MENU_SET_OPENSPEED,        {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}},
-        {_SKY_IMG,                   {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}},
-        {_SKY_MDS,                   {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}},
-        {_SUN_MDS,                   {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}},
-        {_SKYB_MDS,                  {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}},
-        {_SKY_BG,                    {{.argument = 0, .kind = RuleKind::TextIfString, .end = sky_name_end}}},
-        {_SKY_ANIME,                 {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}},
-        {_SKYB_ANIME,                {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}},
+        {_MENU_FILLBOX,              {{.argument = 6, .kind = RuleKind::Index, .end = 4}}                                                                                                                                 },
+        {_MENU_EXE_MSGENV,           {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}                                                                                                                         },
+        {_MENU_EXE_MAKEMSG,          {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}                                                                                                                         },
+        {_MENU_EXE_SETABSPOS,        {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}                                                                                                                         },
+        {_MENU_EXE_MSGSETSYSTEMBUFF, {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}, {.argument = 1, .kind = RuleKind::Index, .end = Extent<decltype(MENU_COMMAND_ANALYZE_INFO::system_mes_buff)>}}          },
+        {_MENU_EXE_MSGSETBUFF,       {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}, {.argument = 1, .kind = RuleKind::Index, .end = Extent<decltype(MENU_COMMAND_ANALYZE_INFO::mes_buff)>}}                 },
+        {_MENU_EXE_MSGSETFUCHI,      {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}                                                                                                                         },
+        {_MENU_EXE_MSGSETCURSOR,     {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}                                                                                                                         },
+        {_MENU_SET_QUESTIONGYOU,     {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}                                                                                                                         },
+        {_MENU_SET_OPENSPEED,        {{.kind = RuleKind::Custom, .tag_check = MenuMessageExists}}                                                                                                                         },
+        {_SKY_IMG,                   {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}                                                                                                               },
+        {_SKY_MDS,                   {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}                                                                                                               },
+        {_SUN_MDS,                   {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}                                                                                                               },
+        {_SKYB_MDS,                  {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}                                                                                                               },
+        {_SKY_BG,                    {{.argument = 0, .kind = RuleKind::TextIfString, .end = sky_name_end}}                                                                                                               },
+        {_SKY_ANIME,                 {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}                                                                                                               },
+        {_SKYB_ANIME,                {{.argument = 1, .kind = RuleKind::TextIfString, .end = sky_name_end}}                                                                                                               },
         // A race class indexes the four classes and its count sizes the class's fish array.
         {_GYORACE_LISTNUM,           {{.argument = 0, .kind = RuleKind::Index, .end = Extent<decltype(CGyoraceFishData::fish_num)>}, {.argument = 1, .kind = RuleKind::Index, .end = std::numeric_limits<s16>::max() + 1}}},
-        {_OUTLINE,                   {{.argument = 0, .kind = RuleKind::TextIfString, .end = part_name_end}}},
-        {_OBJECT_NAME,               {{.kind = RuleKind::AllText, .end = part_name_end}}},
-        {_OBJECT_NAME2,              {{.kind = RuleKind::AllText, .end = part_name_end}}},
-        {_VERTEX_ANIME,              {{.kind = RuleKind::AllText, .end = 16}}},
-        {_KEY,                       {{.argument = 0, .kind = RuleKind::TextIfString, .end = Extent<decltype(CHRINFO_KEY_SET::name)>}}},
-        {_SEQ_START,                 {{.argument = 0, .kind = RuleKind::TextIfString, .end = Extent<decltype(CHRINFO_SEQ_HEADER::name)>}}},
-        {_SEQ,                       {{.argument = 0, .kind = RuleKind::TextIfString, .end = Extent<decltype(CHRINFO_SEQ::name)>}}},
-        {_SKIN_MODEL,                {{.argument = 0, .kind = RuleKind::TextIfString, .end = 64}}},
+        {_OUTLINE,                   {{.argument = 0, .kind = RuleKind::TextIfString, .end = part_name_end}}                                                                                                              },
+        {_OBJECT_NAME,               {{.kind = RuleKind::AllText, .end = part_name_end}}                                                                                                                                  },
+        {_OBJECT_NAME2,              {{.kind = RuleKind::AllText, .end = part_name_end}}                                                                                                                                  },
+        {_VERTEX_ANIME,              {{.kind = RuleKind::AllText, .end = 16}}                                                                                                                                             },
+        {_KEY,                       {{.argument = 0, .kind = RuleKind::TextIfString, .end = Extent<decltype(CHRINFO_KEY_SET::name)>}}                                                                                    },
+        {_SEQ_START,                 {{.argument = 0, .kind = RuleKind::TextIfString, .end = Extent<decltype(CHRINFO_SEQ_HEADER::name)>}}                                                                                 },
+        {_SEQ,                       {{.argument = 0, .kind = RuleKind::TextIfString, .end = Extent<decltype(CHRINFO_SEQ::name)>}}                                                                                        },
+        {_SKIN_MODEL,                {{.argument = 0, .kind = RuleKind::TextIfString, .end = 64}}                                                                                                                         },
         // The weight file's name is the model's up to its '.', followed by ".wgt", in 64 bytes.
-        {_MODEL,                     {{.argument = 0, .kind = RuleKind::TextIfString, .end = 64 - 4}}},
-        {_EFFECT,                    {{.kind = RuleKind::AllText, .end = Extent<decltype(CHRINFO_EFFECT::name)>}}},
+        {_MODEL,                     {{.argument = 0, .kind = RuleKind::TextIfString, .end = 64 - 4}}                                                                                                                     },
+        {_EFFECT,                    {{.kind = RuleKind::AllText, .end = Extent<decltype(CHRINFO_EFFECT::name)>}}                                                                                                         },
     };
     return rules;
 }
@@ -419,9 +419,9 @@ void Report(const void *function, const char *kind, const char *name, int index,
     }
     const std::string handler = name != nullptr ? std::string(name) : std::to_string(index);
     if (rule.kind == RuleKind::Custom) {
-        std::println(stderr, "script guard: {} {} arguments are outside its tables; call skipped", kind, handler);
+        CT_LOG_WARN(Script, "script guard: {} {} arguments are outside its tables; call skipped", kind, handler);
     } else {
-        std::println(stderr, "script guard: {} {} argument {} is outside [{}, {}); call skipped", kind, handler, rule.argument, rule.first, rule.end);
+        CT_LOG_WARN(Script, "script guard: {} {} argument {} is outside [{}, {}); call skipped", kind, handler, rule.argument, rule.first, rule.end);
     }
 }
 
@@ -539,7 +539,7 @@ int TagArguments(SPI_TAG_FUNCTION function, SPI_STACK *args, int argc, const cha
 void GuardEventExternals(std::span<RunScriptFunction> table) {
     struct EventRule {
         int  slot{}; /**< EVENT_EXT slot of the external. */
-        Rule rule; /**< Requirement on its arguments. */
+        Rule rule;   /**< Requirement on its arguments. */
     };
 
     constexpr int   jump_name_end = Extent<decltype(ED_EVENT_INFO::jump_map_name)>;

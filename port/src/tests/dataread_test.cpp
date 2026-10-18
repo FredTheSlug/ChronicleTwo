@@ -24,6 +24,7 @@
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "gamedata.hpp"
+#include "log_capture.hpp"
 #include "mainloop.hpp"
 #include "platform/config_catalog.hpp"
 #include "platform/paths.hpp"
@@ -163,9 +164,9 @@ using DataReadDeathTest = DataRead;
 } // namespace
 
 TEST_F(DataRead, IndexLogsItsCountAndRoot) {
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     DataReadIndex(base / "absent");
-    const auto        config_log = testing::internal::GetCapturedStderr();
+    const auto        config_log = GetLoggedStderr();
     const std::string prefix = "dataread: indexed ";
     const auto        count_start = config_log.find(prefix);
     ASSERT_NE(count_start, std::string::npos) << config_log;
@@ -173,9 +174,9 @@ TEST_F(DataRead, IndexLogsItsCountAndRoot) {
     const auto  parsed = std::from_chars(config_log.data() + count_start + prefix.size(),
                                          config_log.data() + config_log.size(), config_count);
     ASSERT_EQ(parsed.ec, std::errc{});
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     DataReadIndex(root);
-    std::string log = testing::internal::GetCapturedStderr();
+    std::string log = GetLoggedStderr();
     EXPECT_NE(log.find(prefix + std::to_string(config_count + 5) + " files under " + PathsDisplay(root)), std::string::npos) << log;
 }
 
@@ -191,9 +192,9 @@ TEST_F(DataRead, RootExclusionsKeepDiscOnlyFilesOutOfTheIndex) {
     WriteBytes(root / "DIR" / "one.bin", MakeBytes(10, 7));
     WriteBytes(root / "map" / "movie" / "b.bin", MakeBytes(10, 8));
 
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     DataReadIndex(root);
-    std::string log = testing::internal::GetCapturedStderr();
+    std::string log = GetLoggedStderr();
     EXPECT_NE(log.find(" files under " + PathsDisplay(root)), std::string::npos) << log;
 
     for (const char *name : {"manifest.txt", "manifest.json", ".kazarov-data", "movie/a.pss", "sound/sound.dat", "x.dc2tmp"}) {
@@ -533,12 +534,12 @@ TEST_F(DataRead, HostNameAbsentFromTheSaveTreeLoadsFromData) {
     EXPECT_EQ(size, 258);
 }
 
-TEST_F(DataRead, MissingAssetRootKeepsLooseConfigsAndDoesNotAbort) {
-    testing::internal::CaptureStderr();
+TEST_F(DataRead, MissingAssetRootDoesNotLoadRepositoryGameplayOrAbort) {
+    CaptureLoggedStderr();
     DataReadIndex(base / "absent");
-    std::string log = testing::internal::GetCapturedStderr();
+    std::string log = GetLoggedStderr();
     EXPECT_NE(log.find("dataread: indexed "), std::string::npos) << log;
-    EXPECT_TRUE(DataReadFind("/menu/cfg7/atdat.cfg.json").has_value());
+    EXPECT_FALSE(DataReadFind("/menu/cfg7/atdat.cfg.json").has_value());
 
     EXPECT_FALSE(DataReadFind("small.txt").has_value());
     int size = 0;
@@ -551,9 +552,9 @@ TEST_F(DataRead, RealDataIndexesTheDiscFiles) {
         GTEST_SKIP() << "no extracted data/ above the test executable";
     }
 
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     DataReadIndex(*data);
-    std::string log = testing::internal::GetCapturedStderr();
+    std::string log = GetLoggedStderr();
     const auto  archive = data->parent_path() / "data.zip";
     const auto  location = fs::is_regular_file(archive) ? archive : *data;
     EXPECT_NE(log.find(" files under " + PathsDisplay(location)), std::string::npos) << log;

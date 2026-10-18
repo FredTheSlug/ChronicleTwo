@@ -6,10 +6,10 @@
 #include <cstdio>
 #include <filesystem>
 #include <map>
-#include <print>
 #include <vector>
 
 #include "font_port.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mglib_port.hpp"
@@ -47,12 +47,12 @@ bool Ready() {
                 loaded = ttffont::Load(file);
             }
             if (loaded) {
-                std::println(stderr, "font: sharp ASCII text from {}", PathsDisplay(file));
+                CT_LOG_INFO(Gfx, "font: sharp ASCII text from {}", PathsDisplay(file));
             }
             break; // A present save override wins, including when it cannot be loaded.
         }
         if (!loaded) {
-            std::println(stderr, "font: no usable lang/font.ttf; keeping original text (docs/PC.md)");
+            CT_LOG_INFO(Gfx, "font: no usable lang/font.ttf; keeping original text (docs/PC.md)");
         }
     }
     return loaded;

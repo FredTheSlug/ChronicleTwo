@@ -21,6 +21,7 @@
 #include "gamepad.hpp"
 #include "gfx/gfx.hpp"
 #include "item_icon3d.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "maintex.hpp"
@@ -174,7 +175,7 @@ void LoadSlots() {
 void SaveSlots() {
     std::FILE *file = std::fopen(SlotsPath().string().c_str(), "w");
     if (file == nullptr) {
-        std::println(stderr, "quick loadout: cannot write {}", SlotsPath().string());
+        CT_LOG_ERROR(Save, "quick loadout: cannot write {}", SlotsPath().string());
         return;
     }
     for (int chara = 0; chara < kCharas; chara++) {
@@ -298,8 +299,8 @@ void Open() {
 
 // Whether the Ridepod has the capacity for a part in place of the one fitted in its slot, as the menu asks.
 bool RidepodTakes(CGameDataUsed *part, CGameDataUsed *fitted) {
-    int        capacity = 0;
-    const int  used = CheckNowRoboUseCapacity(&DngUserData->robo_data, &capacity) - fitted->GetUseCapacity();
+    int         capacity = 0;
+    const int   used = CheckNowRoboUseCapacity(&DngUserData->robo_data, &capacity) - fitted->GetUseCapacity();
     auto *const data = GameItemDataManage.GetRoboData(part->item_no);
     return data != nullptr && capacity - used >= data->use_capacity;
 }

@@ -127,8 +127,8 @@ TEST_F(AudioAssetsTest, DirectBundleLoadsExplicitDependenciesAndInvalidOverlayFa
         {"entries",        nlohmann::json::array({{{"index", 0}, {"volume", 91}}})},
         {"reverb",         nlohmann::json::array()                                }
     };
-    Document("snd2/test.sound/config.json", config, 0);
-    Document("snd2/test.sound/volume.json", volume, 1);
+    Document("gameplay/snd2/test.sound/config.json", config, 0);
+    Document("gameplay/snd2/test.sound/volume.json", volume, 1);
     const nlohmann::json bundle = {
         {"schema_version",   1                            },
         {"kind",             "sound_bundle"               },

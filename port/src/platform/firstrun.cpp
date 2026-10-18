@@ -8,12 +8,13 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
-#include <print>
 #include <string>
+#include <string_view>
 #include <system_error>
 
 #include "exitcodes.hpp"
 #include "kazarov/data_version.hpp"
+#include "log/log.hpp"
 #include "platform/firstrun.hpp"
 #include "platform/paths.hpp"
 
@@ -64,7 +65,8 @@ void FirstRunRequireData(const fs::path &root, bool headless) {
         return;
     }
     const std::string text = FirstRunDataMessage(root);
-    std::fputs(text.c_str(), stderr);
+    // The logger ends each line itself.
+    CT_LOG_ERROR(Main, "{}", std::string_view(text).substr(0, text.ends_with('\n') ? text.size() - 1 : text.size()));
     if (!headless) {
         try {
             const auto path = root.u8string();
@@ -74,9 +76,10 @@ void FirstRunRequireData(const fs::path &root, bool headless) {
                 return;
             }
         } catch (const std::exception &error) {
-            std::println(stderr, "Game data setup: {}", error.what());
+            CT_LOG_ERROR(Main, "Game data setup: {}", error.what());
             SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Dark Chronicle", error.what(), nullptr);
         }
     }
+    LogFlush();
     std::exit(kExitNoData);
 }

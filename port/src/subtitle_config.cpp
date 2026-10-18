@@ -2,8 +2,8 @@
 
 #include <cstdio>
 #include <cstring>
-#include <print>
 
+#include "log/log.hpp"
 #include "nd_meswin.hpp"
 #include "platform/subtitle_config.hpp"
 
@@ -23,10 +23,11 @@ PORT_OVERRIDE void MovieCCAnalyze(char *text, int size, int id) {
     std::string                       error;
     if (!subtitle_config::Decode(std::string_view(text, static_cast<std::size_t>(size)), chapter, cues, error)) {
         if (!error.empty()) {
-            std::println(stderr, "subtitles: {}", error);
+            CT_LOG_WARN(Movie, "subtitles: {}", error);
         }
         return;
     }
+    CT_LOG_DEBUG(Movie, "subtitles: movie {}: {} cues", id, cues.size());
     InitMovieCC();
     for (std::size_t index = 0; index < cues.size(); ++index) {
         MovieCCStart[index] = cues[index].start_frame;

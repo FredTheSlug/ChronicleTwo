@@ -45,11 +45,10 @@ protected:
             {"groups",         {0}                                                                                                                                      },
             {"entries",        nlohmann::json::array({{{"name", "reserved"}, {"pictures", nlohmann::json::array({{{"canvas", {{"width", size}, {"height", size}}}}})}}})}
         };
-        std::ofstream(root / "port_data/reserved.json") << document.dump(2);
+        std::ofstream(root / "data/reserved.json") << document.dump(2);
     }
 
     void SetUp() override {
-        std::filesystem::create_directories(root / "port_data");
         std::filesystem::create_directories(root / "data");
         Write(4);
         DataReadIndex(root / "data");
@@ -94,7 +93,7 @@ TEST_F(NativeReservedTexture, OpcodesRetainParsedResourcesAfterDocumentChanges) 
     Write(8);
     texture_catalog::Clear();
     std::string error;
-    ASSERT_TRUE(texture_catalog::Load(root / "port_data", error)) << error;
+    ASSERT_TRUE(texture_catalog::Load(root / "data", error)) << error;
     ASSERT_EQ(_TRANS_RESERV_IMG(arguments, 1), 1);
     char  name[] = "reserved";
     auto *texture = mgTexManager.GetTexture(name, 20);

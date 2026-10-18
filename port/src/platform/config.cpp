@@ -7,17 +7,16 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <limits>
 #include <optional>
-#include <print>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "log/log.hpp"
 #include "platform/config_io.hpp"
 #include "platform/display.hpp"
 #include "platform/files.hpp"
@@ -103,8 +102,7 @@ double Shortest(float value) {
 }
 
 void Ignore(std::string_view name, const Json &value) {
-    std::println(stderr, "config.json: ignoring {:.{}} = {}", name.data(), static_cast<int>(name.size()),
-                 value.dump());
+    CT_LOG_WARN(Config, "config.json: ignoring {} = {}", name, value.dump());
 }
 
 template <class T, class Valid>
@@ -197,6 +195,45 @@ bool ApplyBindings(Config &config, const Json &bindings) {
             config.key_bindings.push_back(std::move(binding));
         } else {
             Ignore("input.bindings." + action, keys);
+        }
+    }
+    return true;
+}
+
+bool ReadLogLevel(const Json &value, std::optional<LogLevel> &out) {
+    if (!value.is_string()) {
+        return false;
+    }
+    const std::string name = value.get<std::string>();
+    if (Lower(name) == "auto") {
+        out.reset();
+        return true;
+    }
+    const std::optional<LogLevel> level = LogLevelFromName(name);
+    if (!level) {
+        return false;
+    }
+    out = level;
+    return true;
+}
+
+bool ApplyLogCategories(Config &config, const Json &categories) {
+    if (!categories.is_object()) {
+        return false;
+    }
+    for (const auto &[name, value] : categories.items()) {
+        const std::optional<LogCategory> category = LogCategoryFromName(name);
+        std::optional<LogLevel>          level;
+        if (!category || !ReadLogLevel(value, level) || !level) {
+            Ignore("log.categories." + name, value);
+            continue;
+        }
+        auto      &levels = config.log.categories;
+        const auto it = std::ranges::find_if(levels, [&](const auto &entry) { return entry.first == *category; });
+        if (it != levels.end()) {
+            it->second = *level;
+        } else {
+            levels.emplace_back(*category, *level);
         }
     }
     return true;
@@ -347,6 +384,26 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     if (name == "input.bindings") {
         return ApplyBindings(config, value);
     }
+    if (name == "log.level") {
+        return ReadLogLevel(value, config.log.level);
+    }
+    if (name == "log.file") {
+        return ReadBool(value, config.log.file);
+    }
+    if (name == "log.keep") {
+        int keep = 0;
+        if (!ReadInt(value, keep) || keep < 1 || keep > kLogKeepMax) {
+            return false;
+        }
+        config.log.keep = keep;
+        return true;
+    }
+    if (name == "log.console") {
+        return ReadBool(value, config.log.console);
+    }
+    if (name == "log.categories") {
+        return ApplyLogCategories(config, value);
+    }
     return false;
 }
 
@@ -423,8 +480,8 @@ Config ConfigParse(std::string_view text) {
     }
     Json root = Json::parse(text, nullptr, false, true);
     if (!root.is_object()) {
-        std::println(stderr, "config.json: {}; using the defaults",
-                     root.is_discarded() ? "not valid JSON" : "expected an object");
+        CT_LOG_WARN(Config, "config.json: {}; using the defaults",
+                    root.is_discarded() ? "not valid JSON" : "expected an object");
         return config;
     }
     for (const auto &[section, keys] : root.items()) {
@@ -493,6 +550,15 @@ std::string ConfigSerialize(const Config &config) {
     root["input"]["glyph_device"] = kGlyphDeviceNames[static_cast<std::size_t>(s.glyph_device)];
     root["input"]["mouse_release"] = s.mouse_release_keys;
     root["input"]["bindings"] = std::move(bindings);
+    Json log_categories = Json::object();
+    for (const auto &[category, level] : config.log.categories) {
+        log_categories[std::string(LogCategoryName(category))] = LogLevelName(level);
+    }
+    root["log"]["level"] = config.log.level ? LogLevelName(*config.log.level) : "auto";
+    root["log"]["file"] = config.log.file;
+    root["log"]["keep"] = config.log.keep;
+    root["log"]["console"] = config.log.console;
+    root["log"]["categories"] = std::move(log_categories);
     return root.dump(4) + "\n";
 }
 
@@ -548,7 +614,7 @@ bool ConfigSave() {
     if (g_saved) {
         g_persisted = g_config;
     } else {
-        std::println(stderr, "config: could not save {}", PathsDisplay(path));
+        CT_LOG_ERROR(Config, "config: could not save {}", PathsDisplay(path));
     }
     return g_saved;
 }
@@ -566,7 +632,7 @@ bool ConfigLoad() {
     }
     std::string text;
     if (error || !std::filesystem::is_regular_file(status) || !ReadConfig(path, text)) {
-        std::println(stderr, "config: could not read {}; using defaults and leaving it untouched",
+        CT_LOG_ERROR(Config, "config: could not read {}; using defaults and leaving it untouched",
                      PathsDisplay(path));
         g_config = Config{};
         g_saved = false;

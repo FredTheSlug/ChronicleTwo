@@ -5,12 +5,12 @@
 #include <cstdlib>
 #include <limits>
 #include <optional>
-#include <print>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "gamedata.hpp"
+#include "log/log.hpp"
 #include "main.hpp"
 #include "mapselect.hpp"
 #include "platform/config.hpp"
@@ -38,13 +38,15 @@ bool Number(std::string_view text, int &value, int maximum) {
 }
 
 [[noreturn]] void BadTarget() {
-    std::println(stderr, "bad --jump: target is absent from the game tables");
+    CT_LOG_ERROR(Main, "bad --jump: target is absent from the game tables");
+    LogFlush();
     std::exit(2);
 }
 
 void RequireKnownItem(int item) {
     if (GetCommonItemData(item) == nullptr) {
-        std::println(stderr, "bad --give: unknown item {}", item);
+        CT_LOG_ERROR(Main, "bad --give: unknown item {}", item);
+        LogFlush();
         std::exit(2);
     }
 }

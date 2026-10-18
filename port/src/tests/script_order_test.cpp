@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "event_func.hpp"
+#include "log_capture.hpp"
 #include "runscript.hpp"
 
 TEST(ScriptOrder, VoiceClipUsesItsOwnArgumentAndDirectWavePath) {
@@ -13,9 +14,9 @@ TEST(ScriptOrder, VoiceClipUsesItsOwnArgumentAndDirectWavePath) {
     args[1].val.s = const_cast<char *>("abc123");
     args[2].type = RS_STR;
     args[2].val.s = const_cast<char *>("clip456");
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     script.ext_func_table[EVENT_EXT_STREAM_OPEN](args, 3);
-    const std::string output = testing::internal::GetCapturedStderr();
+    const std::string output = GetLoggedStderr();
     EXPECT_NE(output.find("sound/clip456.wav"), std::string::npos);
     EXPECT_EQ(output.find("abc123"), std::string::npos);
     EXPECT_EQ(output.find(".VPK"), std::string::npos);

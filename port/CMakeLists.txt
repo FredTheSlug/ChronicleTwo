@@ -45,6 +45,27 @@ file(CONFIGURE OUTPUT ${CMAKE_BINARY_DIR}/generated/include/icon/chronicletwo.hp
 
 include(${KZ_ROOT}/cmake/KazarovPort.cmake)
 
+option(CT_ENABLE_TRACY "Build Tracy support into the native port" ON)
+if(CT_ENABLE_TRACY)
+    include(FetchContent)
+    FetchContent_Declare(tracy
+        URL https://codeload.github.com/wolfpld/tracy/tar.gz/30997d5ca6bb632cc10807a1da8a6d3de0aeeb3c
+        URL_HASH SHA256=e9d527343623435de954a72ad211a1ae4b205cb877d5cc81b8bd505aac0a2cde
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+    set(TRACY_STATIC ON CACHE BOOL "" FORCE)
+    set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
+    set(TRACY_ON_DEMAND ON CACHE BOOL "" FORCE)
+    set(TRACY_ONLY_LOCALHOST ON CACHE BOOL "" FORCE)
+    set(TRACY_NO_SAMPLING ON CACHE BOOL "" FORCE)
+    set(TRACY_NO_CONTEXT_SWITCH ON CACHE BOOL "" FORCE)
+    set(TRACY_NO_SYSTEM_TRACING ON CACHE BOOL "" FORCE)
+    set(TRACY_NO_CRASH_HANDLER ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(tracy)
+    # The game links the client; its SDK headers and libraries are not installed with the game.
+    set_property(DIRECTORY ${tracy_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL TRUE)
+    configure_file(${tracy_SOURCE_DIR}/LICENSE ${CMAKE_BINARY_DIR}/Tracy-LICENSE.txt COPYONLY)
+endif()
+
 # Retail textures are converted offline; the native executable only loads PNG assets.
 set(KZ_PORT_BUILD_TIM2 OFF CACHE BOOL "Build legacy TIM2 decoding into the native runtime" FORCE)
 
@@ -193,7 +214,7 @@ endif()
 
 add_library(ct_ps2 OBJECT ${PS2_UNITS} ${PORT_OVERRIDES_CHECKED})
 target_link_libraries(ct_ps2 PRIVATE ct_options)
-target_compile_definitions(ct_ps2 PRIVATE CT_PS2_TEXTURE_COPY)
+target_compile_definitions(ct_ps2 PRIVATE CT_PS2_TEXTURE_COPY CT_PS2_UNIT)
 add_dependencies(ct_ps2 ps2_include)
 # The game reads locals it never sets and falls off the end of functions that return a value, and
 # ps2/src keeps both because the match depends on them. MWCC gave each a defined if arbitrary result;
@@ -249,6 +270,12 @@ foreach(target IN ITEMS ct_port ct_port_bridge)
     target_compile_options(${target} PRIVATE -Wall -Wno-mismatched-tags -Wno-unused-label
         -Wno-overloaded-virtual -Wno-unused-function)
 endforeach()
+if(CT_ENABLE_TRACY)
+    foreach(target IN ITEMS ct_port ct_port_bridge)
+        target_link_libraries(${target} PRIVATE Tracy::TracyClient)
+        target_compile_definitions(${target} PRIVATE CT_ENABLE_TRACY)
+    endforeach()
+endif()
 
 # Opt in for faster replay and test runs while retaining Debug's symbols. Keep the usual
 # unoptimised Debug build available for stepping through every local and statement.
@@ -277,6 +304,10 @@ function(ct_link_game target)
     target_sources(${target} PRIVATE $<TARGET_OBJECTS:ct_port> $<TARGET_OBJECTS:ct_port_bridge> $<TARGET_OBJECTS:ct_host> $<TARGET_OBJECTS:ct_ps2>)
     add_dependencies(${target} ps2_include)
     target_link_libraries(${target} PRIVATE ct_options kz_port_headers SDL3::SDL3 Vulkan::Vulkan kazarov_bridge kazarov_core fastgltf::fastgltf)
+    if(CT_ENABLE_TRACY)
+        target_link_libraries(${target} PRIVATE Tracy::TracyClient)
+        target_compile_definitions(${target} PRIVATE CT_ENABLE_TRACY)
+    endif()
     if(NOT WIN32)
         target_link_libraries(${target} PRIVATE Iconv::Iconv)
     endif()
@@ -301,6 +332,10 @@ endif()
 
 include(GNUInstallDirs)
 install(TARGETS darkchronicle RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(CT_ENABLE_TRACY)
+    install(FILES ${CMAKE_BINARY_DIR}/Tracy-LICENSE.txt
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/chronicletwo)
+endif()
 
 # The button symbols (docs/GLYPHS.md): port/assets/glyphs, copied to glyphs/ beside the executable, the art of
 # TheMoonPeople/Chronicle's port/glyphs.

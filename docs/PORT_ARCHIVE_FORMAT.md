@@ -1,6 +1,6 @@
 # Asset archive format
 
-The extractor publishes every converted asset in one ZIP archive, `<game-root>/data.zip`, with the
+The extractor publishes all converted assets and gameplay configuration in `<game-root>/data.zip`, with the
 marker `<game-root>/data.json` beside it. Datapacks use the same container. Kazarov's
 `zip_archive` module (`tools/kazarov/src/rust/zip_archive.rs`) writes and reads it, and the C++
 bridge (`kazarov_bridge/rust/lib.h`, namespace `kazarov`) exposes the reader and the directory
@@ -8,10 +8,13 @@ packer to the game and `dc2data`.
 
 ## Namespace
 
-Entries form a single namespace. The files the extractor previously wrote to `data/` (retained
-retail files such as scripts and text) and `port_data/` (converted textures, models, audio, movies
-and configuration) are merged, each named by its path relative to its former directory. The two
-sets never collide, even ignoring case.
+Entries form a single namespace for retained retail files, converted textures, models, audio,
+movies and gameplay JSON. The tracked, pretty-printed documents in `port/gameplay/` are packaged
+as compact JSON under `gameplay/` in a gameplay-only seed `data.zip`. The executable contains only
+the document paths and SHA-256 hashes used to validate that seed. Extraction copies the validated
+documents into the same `gameplay/` paths in the completed archive. Conversion
+submits final assets directly to the ZIP writer; it creates no intermediate asset tree. Entry
+names are relative to the asset namespace and must not collide, even ignoring case.
 
 Entry names:
 
@@ -19,16 +22,20 @@ Entry names:
 - are relative, with no empty, `.` or `..` component, and no `\`, `:`, NUL or control character;
 - are unique ignoring ASCII case. Original case is preserved.
 
-Directories have no entries of their own.
+Directories have no entries of their own. All PNGs and standalone texture JSON
+are under `textures/`, preserving ordinary source directories and removing
+extension-bearing container directory components. Character PNGs use the nearest
+`.chr` basename with sequential suffixes. Models and their `.game.json` sidecars
+keep their model locations and refer to the relocated images.
 
 ## Container
 
-The archive is a standard ZIP file (APPNOTE 6.3.10), always written in ZIP64 form:
+The completed archive is a standard ZIP file (APPNOTE 6.3.10), always written in ZIP64 form:
 
 | Field | Value |
 | --- | --- |
-| Entry order | Names sorted by byte value |
-| Compression | Method 0 (stored) for names ending `.png` or `.mp4` (ASCII case-insensitive); method 93 (Zstandard, level 9, one frame with its content size) for everything else |
+| Entry order | Final assets in producer-completion order; names sorted in the central directory. Standalone datapacks use globally sorted names. |
+| Compression | Method 0 (stored) for names ending `.png` or `.mp4` (ASCII case-insensitive); method 93 (Zstandard, level 1, one frame with its content size) for everything else |
 | Flags | Bit 11 (UTF-8 names) only; no encryption and no data descriptors |
 | Timestamps | MS-DOS 1980-01-01 00:00:00 (`time = 0x0000`, `date = 0x0021`); no extended time fields |
 | Version needed | 63 for Zstandard entries, 45 for stored entries |
@@ -44,7 +51,15 @@ padding is omitted when the data is already aligned. Readers ignore the field.
 PNG and MP4 files are already compressed. Storing them lets the game read a stored entry's bytes
 straight from the file: an MP4 entry can be streamed by file range starting at its data offset.
 
-Writing the same files always produces the same bytes, given the same Zstandard library version.
+Standalone directory packing produces identical bytes for identical files with the same Zstandard
+library version. Progressive extraction may arrange local entries by completion order; its content
+digest is independent of that order.
+
+The smaller build-generated gameplay seed uses classic ZIP size and offset fields, with the
+same Zstandard compression, timestamps, CRCs and 64-byte payload alignment. It is built into
+`assets/data.zip` and installed or packaged as `data.zip` beside the executable. It has no
+`data.json` marker and cannot substitute for a completed extraction. Rebuilding the seed does
+not modify an existing completed archive.
 
 ## Integrity
 
@@ -70,7 +85,7 @@ for each entry, in name order:
 | Key | Meaning |
 | --- | --- |
 | `schema_version` | 1 |
-| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); 9 is the first archive layout |
+| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 19 places gameplay documents under `gameplay/`; version 18 introduced `textures/` and relocated PACK members |
 | `layout` | `"zip"` |
 | `archive_size` | Size of `data.zip` in bytes |
 | `archive_entries` | Number of entries |
@@ -78,6 +93,8 @@ for each entry, in name order:
 | `source_state` | Path and metadata fingerprint of the disc source |
 | `source_sha256` | Content hash of the disc source |
 | `texture_sources` | Number of converted retail texture sources |
+| `gameplay_plan_sha256` | Fingerprint of the checked-in gameplay plan that affects generated assets |
+| `gameplay_source_fingerprint` | Fingerprint of all checked-in gameplay source paths and bytes bundled with this extractor |
 
 A marker with another data version or layout is not current, so data extracted into the earlier
 `data/` and `port_data/` directories is extracted again. Publishing an archive removes those
@@ -85,17 +102,22 @@ directories.
 
 ## Extraction and publication
 
-The pipeline converts and verifies the assets as directory trees inside a stage directory
-(`<game-root>/.dc2data-stage-*`). After full verification, it deletes the raw disc files, then
-packs `published/data` and `published/port_data` into `published/data.zip`. It deletes each source
-file once its entry is written, so packing needs little more space than the trees themselves. The
-archive is written to `data.zip.partial` and renamed when complete. The marker is then written,
-the archive is verified again from disk, and both are moved into the game root. Earlier data
-(`data.zip`, `data.json`, `data/`, `port_data/`) is moved aside first and restored if publication
-fails.
+The extractor reads the ISO once into shared memory, indexes checked byte ranges for top-level
+files and nested PACK members, and hashes that same buffer for the source identity. Directory
+sources cache each source file once. A single worker pool runs texture, model, audio, movie,
+script and retained-asset jobs concurrently. Jobs submit only final immutable bytes or borrowed
+source ranges. Separate byte budgets bound conversion and queued ZIP preparation; once other
+asset categories finish, the conversion budget can grow using current physical-memory headroom
+while the ZIP queue stays bounded. A dedicated writer appends prepared entries as they finish.
+No extracted disc tree, PACK scratch files, or
+staged asset files are created on the normal path.
 
-A stage that holds a complete archive for the same source is verified and published without
-converting again. A stage that was interrupted while packing is discarded and rebuilt.
+The writer keeps `data.zip.partial` private until it writes the sorted central directory, then
+records the archive identity in `data.json`. All payload and cross-file checks run after conversion
+completes, reading the finished ZIP and the shared source memory. The archive and marker are moved
+into the game root only after verification. Earlier data is moved aside first and restored if
+publication fails. A retry discards the private partial stage and rebuilds the archive before
+verification and publication.
 
 ## Verification
 
@@ -110,13 +132,19 @@ also applies the rules that need only one entry:
 - no `.img` path component, `.chr` file, binary PACK container or obsolete root index
   (`manifest.json`, `catalog.json`, `audio_catalog.json`, `model_catalog.json`,
   `cfg_catalog.json`);
-- `pack.json` markers are exactly `{"schema_version":1,"kind":"asset_directory"}`;
+- `pack.json` markers have `schema_version: 1`, `kind: "asset_directory"`, and an
+  optional `texture_members` array of `{"name":"one.json","path":"textures/map/one.json"}`
+  records linking logical members to physical texture documents;
 - no proprietary scene audio table (`snd2/rev.bin`, `snd2/map_index.txt`);
 - files other than PNG, MP4, WAV, glTF and JSON contain no TIM2 or IMG texture payload.
 
-The cross-file audits (texture documents and their PNG levels, models and the PNGs their image
-URIs name, audio and configuration references, retained scripts) run on the staged trees before
-packing. The content digest then ties the archive to that verified output.
+After all conversion finishes, cross-file audits read the completed archive: texture documents
+and PNG levels, glTF buffers and image references, audio documents and media, and retained scripts
+recomputed from the source. Gameplay documents and their cross-file references are checked in
+the completed archive. A separate explicit gameplay audit compares the tracked source documents
+with their retail sources. The script audit checks targets of migrated resource operands; retail
+actor-load literals that name no source asset remain unchanged and do not require archive targets.
+The content digest ties the archive to the audited bytes.
 
 ## Datapacks
 

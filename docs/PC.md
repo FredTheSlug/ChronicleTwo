@@ -48,7 +48,7 @@ ctest --test-dir port/build/windows-x64-tests --output-on-failure -j4
 
 Windows builds include the SDL, FFmpeg, C++/Rust runtime DLLs and the pinned redistributable Vulkan loader beside the executables. Acquisition includes the loader by default. CMake restores the runtime files on every build, including direct `cmake --build` calls; `cmake --install` also installs them. Running the built game requires no separate application runtime installation. A compatible graphics driver is still required.
 
-`tools/windows/package.ps1 -BuildDirectory port/build/windows-x64-tests -Destination chronicletwo-windows-x64.zip` packages CMake's explicit list of executables and runtime DLLs together with the loose `config/` JSON files. It audits each binary's imports and fails if a non-Windows dependency is missing. Packaging and installation exclude extracted assets, saves and disc images. First-run setup extracts the user's disc data after launch.
+`tools/windows/package.ps1 -BuildDirectory port/build/windows-x64-tests -Destination chronicletwo-windows-x64.zip` packages CMake's explicit list of executables and runtime DLLs together with a gameplay-only `data.zip`. It audits each binary's imports and fails if a non-Windows dependency is missing. Packaging and installation exclude extracted disc assets, saves and disc images. First-run setup combines the shipped gameplay JSON with the user's disc data after launch.
 
 ### macOS
 
@@ -64,6 +64,16 @@ export SDL_VULKAN_LIBRARY="$(brew --prefix vulkan-loader)/lib/libvulkan.1.dylib"
 export VK_DRIVER_FILES="$(brew --prefix)/etc/vulkan/icd.d/MoltenVK_icd.json"
 ```
 
+### Profiling
+
+Native builds include [Tracy 0.14.1](https://github.com/wolfpld/tracy/releases/tag/v0.14.1) from a pinned source archive. Tracy records game zones, frame marks and plots only while `game.debug_mode=true` or a `--jump` debug session is active. Start the matching Tracy profiler and connect to localhost while the game runs; recording begins on connection. Normal sessions leave the local listener idle, and sampling and system tracing are disabled. `-DCT_ENABLE_TRACY=OFF` removes the dependency and instrumentation from a build entirely.
+
+The default and `Game` frame tracks mark completed game frames; `Display` marks frames actually presented. CPU zones separate canonical scene rendering, display rendering, pacing and readbacks. Loading zones cover archive indexing and reads, script checks, model documents and instances, and texture decoding and uploads. Plots show scene draw counts, visual face table size, retained CPU geometry, resident GPU faces, failed mesh uploads and immediate face draws. The last two plots describe work since the preceding visual-face sweep. These zones do not cross the game's cooperative thread switches. The renderer itself has no Vulkan GPU timestamp zones yet. The Flatpak grants network access so a local Tracy profiler outside its sandbox can connect during a debug session. Distributed builds include Tracy's license notice.
+
+### Debug information
+
+Every configuration keeps DWARF line tables in `darkchronicle`, so crash reports name `file:line`: Release and MinSizeRel build with `-gline-tables-only`, and Debug and RelWithDebInfo keep `-g`. Linux and Windows links write a build id, and Mach-O has its `LC_UUID`. On macOS, non-Debug builds run `dsymutil` after the link, and `darkchronicle.dSYM` must travel with the binary. `-DCT_SYMBOLS=split` also writes `darkchronicle.pdb` (Windows) or `darkchronicle.debug` (Linux), and a Debug dSYM on macOS. `-DCT_SYMBOLS=off` adds nothing. [SYMBOLS.md](SYMBOLS.md) describes the symbol artifacts CI uploads and `tools/crash/symbolize.py`, which re-resolves a report's raw frames.
+
 ### The PS2 build
 
 ```sh
@@ -77,10 +87,10 @@ BUILD_DIR=build/pal python3 scripts/build/verify.py -c
 
 `.github/workflows/pc.yml` runs on pushes to `master` and on pull requests, in four jobs:
 
-- Linux (`ubuntu-26.04`): configures `linux-x64` with `-DCT_TEST_TIMEOUT=60` (lavapipe renders on the CPU), builds it in the Kazarov container, checks that the clang Python bindings import, runs the full `ctest`, runs `scripts/port/native_gate.py` on the binary, and checks that `darkchronicle` is position-independent. Without the bindings, `Truncations.Check` and `Records.Check` skip, and a skip counts as a pass.
-- macOS (`macos-26`, Homebrew libraries): builds `macos-arm64`, runs `ctest --preset macos-arm64`, and uploads the packaged binary and a `vulkaninfo` summary. The pinned shared code carries the executable bit for `tools/kazarov/scripts/build/kz-ffmpeg`.
-- Windows (`windows-2025`): fetches the toolchain and the Vulkan runtime with `acquire.ps1 -VulkanLoader`, configures the test build with `configure.ps1 -Tests -VulkanLibrary`, builds it, runs `ctest -LE gpu`, and uploads the zipped build.
-- Flatpak (Flathub's `freedesktop-26.08` image): checks that `port/flatpak/cargo-sources.json` matches Kazarov's `Cargo.lock`, builds `chronicletwo.flatpak` from the commit under test (`docs/FLATPAK.md`), uploads it, and checks that the packaged `darkchronicle` reaches its data check.
+- Linux (`ubuntu-26.04`): configures `linux-x64` with `-DCT_TEST_TIMEOUT=60` (lavapipe renders on the CPU), builds it in the Kazarov container, checks that the clang Python bindings import, runs the full `ctest`, runs `scripts/port/native_gate.py` on the binary, and checks that `darkchronicle` is position-independent. It configures `CT_SYMBOLS=split`, runs the `tools/crash` tests, checks the build id and debuglink, and resolves a frame through `darkchronicle.debug`. Without the bindings, `Truncations.Check` and `Records.Check` skip, and a skip counts as a pass.
+- macOS (`macos-26`, Homebrew libraries): builds `macos-arm64` with `CT_SYMBOLS=split`, runs `ctest --preset macos-arm64`, and uploads the packaged binary and a `vulkaninfo` summary. It also resolves a frame through the dSYM and uploads `darkchronicle` with its dSYM as the symbol artifact. The pinned shared code carries the executable bit for `tools/kazarov/scripts/build/kz-ffmpeg`.
+- Windows (`windows-2025`): fetches the toolchain and the Vulkan runtime with `acquire.ps1 -VulkanLoader`, configures the test build with `configure.ps1 -Tests -VulkanLibrary`, builds it, runs `ctest -LE gpu`, and uploads the zipped build. It then resolves a frame at `wmain` with `symbolize.py` and uploads `package-symbols.ps1`'s symbol zip.
+- Flatpak (Flathub's `freedesktop-26.08` image): checks that `port/flatpak/cargo-sources.json` matches Kazarov's `Cargo.lock`, builds `chronicletwo.flatpak` from the commit under test (`docs/FLATPAK.md`), uploads it and the packaged `darkchronicle` as the symbol artifact, and checks that the packaged `darkchronicle` reaches its data check.
 
 Cases default to a 5-second timeout. Slow GPU cases use the larger of 30 seconds and `CT_TEST_TIMEOUT`, so the Linux job gives them 60 seconds. Cases that need a Vulkan device carry the CTest label `gpu`. The hosted Windows runner has no device, so its job excludes them with `-LE gpu`. `ctest -L gpu -N` lists them. Local runs run every case.
 
@@ -100,12 +110,12 @@ dc2data current <iso-or-directory> <data-directory>
 
 Progress uses fixed stage budgets and weighted conversion work. The ETA waits for a stable sample,
 limits corrections across stage changes, and displays “estimating time left” while work provides
-insufficient progress samples. Temporary-file cleanup has its own progress phase.
+insufficient progress samples. The ZIP writer reports completed producer work as entries are written.
 
-`dc2data configs <iso-or-directory> port/config` explicitly refreshes the repository native configuration JSON from the disc. Ordinary extraction reads the existing loose JSON and does not regenerate or put it in `data.zip`. Installed builds ship the same files under `config/` beside the executables.
+`dc2data gameplay <iso-or-directory> port/gameplay` explicitly refreshes the repository gameplay JSON from the disc; `configs` remains an alias. The build compacts and compresses this corpus into a gameplay-only `assets/data.zip` beside the build executables; packages and installations ship that seed as `data.zip` beside the executable. Only document paths and content hashes are compiled into the executable. Normal extraction validates the seed against those hashes and copies its documents into `gameplay/` in the completed archive without reading or regenerating repository JSON. Build seeds stay separate from completed archives, so rebuilding does not overwrite extracted disc assets. The extractor searches beside its executable before checking the output root, supporting a separate `--run-dir`.
 `current` compares the source path and file metadata with the versioned marker and checks the archive size; it returns 0 only when extraction can be skipped. `check` performs the full hash and payload audit.
 
-The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and `MOVIE`. Give it `<game-root>/data` as the output. The C++ command-line program calls the Rust extractor through a `cxx` bridge; conversion runs in process. The archive layout writes every retained and converted asset except the loose native configurations into one Zstandard ZIP archive, `<game-root>/data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), with a version marker at `<game-root>/data.json`. Textures use JSON and PNG; sound uses semantic JSON and PCM WAV; models and complete characters use glTF with embedded images and minimal gameplay JSON sidecars; configurations and textual maps use native semantic JSON documents kept loose in the tracked `port/config/` corpus; movies use self-contained MP4 with copied MPEG-2 video and embedded lossless ALAC audio. Ordinary PACK archives become folders with a minimal versioned `pack.json` containing no contents listing. Substituted originals are removed. Native game code references actual asset paths directly, without catalogs or manifests. See the [migration](PORT_ASSET_MIGRATION.md), [texture](PORT_TEXTURE_FORMAT.md), [audio](PORT_AUDIO_FORMAT.md), [model](PORT_MODEL_FORMAT.md), and [configuration](PORT_CONFIG_FORMAT.md) documents. `dc2data check <game-root>/data` validates native payloads and the whole-output SHA-256 digest. Extraction reads indexed disc extents directly from the ISO or source files, converts into one staged `data/` namespace, and progressively appends immutable outputs to `data.zip` while conversion continues. Verification follows completed conversion. Publication restores the previous output on failure. Exit status: 0 on success, 1 on an error or failed check, 2 on usage error.
+The source of `extract` is a Dark Chronicle disc image or a folder holding `DATA.HD4`, `DATA.DAT`, `SOUND.HD3`, `SOUND.DAT` and `MOVIE`. Give it `<game-root>/data` as the output. The C++ command-line program calls the Rust extractor through a `cxx` bridge; conversion runs in process. The archive holds every retained and converted asset plus compact gameplay documents under `gameplay/` in `<game-root>/data.zip` ([format](PORT_ARCHIVE_FORMAT.md)), with a version marker at `<game-root>/data.json`. Textures use compact JSON and PNG; sound uses compact semantic JSON and PCM WAV; models and complete characters use glTF, external buffers and compact asset sidecars. Configuration, map, character and audio gameplay settings remain pretty-printed native JSON in the tracked `port/gameplay/` corpus for review. Movies are self-contained MP4 with copied MPEG-2 video and embedded lossless ALAC audio. Ordinary PACK archives become directories marked by `pack.json`, which records physical paths for relocated texture members. Native game code references physical asset paths directly, without catalogs or manifests. See the [migration](PORT_ASSET_MIGRATION.md), [texture](PORT_TEXTURE_FORMAT.md), [audio](PORT_AUDIO_FORMAT.md), [model](PORT_MODEL_FORMAT.md), and [configuration](PORT_CONFIG_FORMAT.md) documents. `dc2data check <game-root>/data` validates native payloads and the whole-output SHA-256 digest. Normal extraction reads the ISO once into shared memory and converts all asset categories on one worker pool into a bounded ZIP stream. It creates no staged asset files; verification reads the complete ZIP before transactional publication. Exit status: 0 on success, 1 on an error or failed check, 2 on usage error.
 
 Each texture variant is a full-colour RGBA PNG. When retail animation scripts copy colours between textures, extraction bakes the finite source-colour variants into separate destination PNGs and records their selectors in the texture document. Source palettes are used only during extraction; runtime textures and generated render targets use RGBA pixels without palette files or palette uploads. `data.json` carries the current `data_version`, and the game rejects an older extraction so the launcher can rebuild it.
 
@@ -118,16 +128,16 @@ Help movie extraction first appears in Kazarov `2e6ef96` (data version 14). The 
 
 Never edit `data.json` to claim the new version: the marker would pass, but the older `data.zip` still lacks the newly extracted assets.
 
-`run.sh` and `run.bat` pass `--run-dir <checkout>/port/run`, giving them the data root `port/run/data`, whose parent holds `data.zip`, and `port/run/saves`. A direct executable launch defaults to the per-user `chronicletwo` application data root with the same layout.
+`run.sh` and `run.bat` pass `--run-dir <checkout>/port/run`, giving them the data root `port/run/data`, whose parent holds `data.zip`, and `port/run/saves`. A direct executable launch defaults to the per-user `chronicletwo` application data root with the same layout. They also set `DC2_LOG=debug` when it is unset, so the console shows debug lines ([logging](LOGGING.md)).
 
-The game reads its data through a read-only file system of mounts (`platform/vfs.hpp`). The base asset mount is `<game-root>/data.zip` when it exists; otherwise the unified `data/` directory is mounted, so directory fixtures and hand-edited data keep working. Loose game configurations are read from `port/config/` in a checkout or `config/` beside an installed executable and share the asset namespace. All names match ignoring ASCII case. The archive's central directory is read once at startup and its entries are read in place: Zstandard entries are decompressed on demand, and stored PNG and MP4 entries are copied from, or for movies streamed from, their offsets in the archive through FFmpeg custom I/O. Reads are thread-safe. Explicit `--run-dir DIR` selects a different root.
+The game reads its data through a read-only file system of mounts (`platform/vfs.hpp`). The base asset mount is `<game-root>/data.zip` when it exists; otherwise the unified `data/` directory is mounted, so directory fixtures and hand-edited data keep working. Gameplay documents live under `gameplay/` in either mount; directory fixtures supply their own documents. All names match ignoring ASCII case. The archive's central directory is read once at startup and its entries are read in place: Zstandard entries are decompressed on demand, and stored PNG and MP4 entries are copied from, or for movies streamed from, their offsets in the archive through FFmpeg custom I/O. Reads are thread-safe. Explicit `--run-dir DIR` selects a different root.
 
 ### Datapacks and replacement textures
 
 Put datapacks in a `datapacks/` directory beside `data.zip`. The launch scripts
 therefore use `port/run/datapacks/`; `--data DIR` uses `DIR/../datapacks/`. A
 pack is a ZIP archive, `datapacks/<name>.zip`, holding files at their entry
-names in `data.zip`, such as `menu/example_0.png` for a texture or
+names in `data.zip`, such as `textures/menu/example_0.png` for a texture or
 `event/view_pal.txt` for a retained retail file. Build one from a folder with
 `dc2data pack <folder> <name>.zip`; PNG and MP4 entries are stored and other
 entries use Zstandard. A plain folder `datapacks/<name>/` with the same layout
@@ -137,14 +147,14 @@ exist, the archive is used. Names may contain spaces or Unicode characters:
 ```text
 <game-root>/
   data.zip
-    menu/example.json
-    menu/example_0.png
+    textures/menu/example.json
+    textures/menu/example_0.png
   datapacks/
     datapacks.json
     My texture pack.zip
-      menu/example_0.png
+      textures/menu/example_0.png
     Menu tweaks/
-      menu/example_0.png
+      textures/menu/example_0.png
 ```
 
 Activate packs and set their priority in `datapacks/datapacks.json`. Each
@@ -166,7 +176,11 @@ central directory or a walk of each folder, are merged into one override index
 keyed by lower-cased path, with each path's replacements resolved in
 `load_order` priority once. A lookup is then a single hash lookup: a hit names
 the winning pack file and any lower-priority replacements behind it, and a miss
-goes to `data.zip`. Pack files are trusted as found: symlinks in folder packs
+goes to `data.zip`. A pack's `pack.json` does not limit this inventory; files
+and child directories present in the pack are found even when it is absent or
+lists no members. A replacement texture JSON can reference a PNG present only
+in the same pack, using a path relative to the JSON under `textures/`. Pack
+files are trusted as found: symlinks in folder packs
 are followed and pack files are neither hashed nor checked against the pack. A
 pack holding paths that differ only by ASCII case disables the packs. Missing
 configuration leaves the retail assets active; invalid configuration disables
@@ -208,8 +222,11 @@ PNG inputs are limited to 256 MiB each, padded canvases to 16,384 pixels per
 dimension, and decoded mip chains to 256 MiB. GPU texture dimensions must also
 fit the active device's limits.
 
-The texture PNG paths are stable across the compact image-document update, so
-packs using the current numbered PNG names keep working. The same pack folders
+Data version 18 moves PNGs and standalone texture JSON below `textures/`,
+retaining ordinary directories and removing extension-bearing container
+directories. Character PNGs use the character basename and sequential suffixes,
+such as `textures/chara/hero_0.png`. Re-extract after upgrading, and update older
+datapack paths to match the new archive entries. The same pack folders
 can replace PCM WAV files, bank or sequence JSON, converted
 configuration JSON, self-contained movie MP4 files, glTF models, and model
 metadata at their entry names in `data.zip`.
@@ -244,9 +261,9 @@ The save root is the first of these that applies. It is created when first resol
 3. `DC2_SAVE`
 4. the per-user save directory: `%LOCALAPPDATA%\chronicletwo\saves` on Windows, `$XDG_DATA_HOME/chronicletwo/saves` or `~/.local/share/chronicletwo/saves` elsewhere
 
-A data root is missing when its parent has no current `data.json` marker, or has neither `data.zip` nor the unified `data/` directory. A windowed run opens Kazarov's Rust setup window before creating the game window. The editable path accepts a disc image or a disc folder; **Choose image** and **Choose folder** open the operating system's file and folder pickers. A folder with no `DATA.DAT` and a single `.iso` file stands for that image. **Okay** starts extraction on a worker thread. The progress bar tracks completed raw files and texture conversions, reserving 100% for successful publication. The setup window then closes automatically and normal game startup continues. Existing current data skips setup on subsequent launches. Extraction errors remain visible for correction and retry; closing setup before extraction exits with status 3. During extraction the window stays open until the worker finishes. Headless runs still print the `dc2data extract` command and exit with status 3.
+A data root is missing when its parent has no current `data.json` marker, or has neither `data.zip` nor the unified `data/` directory. A windowed run opens Kazarov's Rust setup window before creating the game window. The editable path accepts a disc image or a disc folder; **Choose image** and **Choose folder** open the operating system's file and folder pickers. A folder with no `DATA.DAT` and a single `.iso` file stands for that image. **Okay** starts extraction on a worker thread. The progress bar weights the ISO read, planning, concurrent asset categories, ZIP stream and final archive verification by planned work; model publication receives the largest share because it determines the conversion tail. The displayed ETA is withheld while critical model work makes no measurable progress, and 100% is reserved for successful publication. The setup window then closes automatically and normal game startup continues. Existing current data skips setup on subsequent launches. Extraction errors remain visible for correction and retry; closing setup before extraction exits with status 3. During extraction the window stays open until the worker finishes. Headless runs still print the `dc2data extract` command and exit with status 3.
 
-The setup uses an eframe desktop window and rfd native dialogs on Windows, Linux and macOS. Linux file and folder selection requires an XDG desktop portal and its desktop backend. Extraction uses the same staged publication and integrity checks as `dc2data`; the output must be outside the selected source folder. A typed ISO path is supported without mounting the image.
+The setup uses an eframe desktop window and rfd native dialogs on Windows, Linux and macOS. Linux file and folder selection requires an XDG desktop portal and its desktop backend. Extraction uses the same bounded ZIP stream, final archive checks and transactional publication as `dc2data`; the output must be outside the selected source folder. A typed ISO path is supported without mounting the image.
 
 `run.sh` with no configuration boots the PS2 build in PCSX2 on Linux, and runs `macos-arm64-release` on macOS. `run.bat` with no configuration runs `windows-x64-release`. A PC configuration name extracts the data first, as described above, and then runs the port.
 
@@ -406,6 +423,7 @@ darkchronicle [options]
 | `--display-per-tick N` | also render N interpolated display frames per clock tick, discarded. N is a positive integer |
 | `--show-fps` | draw the FPS counter on presented frames, headless too |
 | `--log-fps` | print the FPS counter's text on stderr once a second |
+| `--log-level SPEC` | the log level: `trace`, `debug`, `info`, `warning`, `error`, `critical` or `off`, and/or `CATEGORY=LEVEL` pairs, comma-separated (for example `info,gfx=trace`). Outranks `DC2_LOG` and `log.level`; see [LOGGING.md](LOGGING.md) |
 
 There is no `--help`. An unknown argument, an option without its value (other than `--data` and `--save`), or a bad value prints the usage on stderr and exits with status 2. `--data` and `--save` without a directory print `--data needs a directory` (or `--save needs a directory`) and exit with status 2, without the usage.
 
@@ -415,6 +433,9 @@ Environment, with the `DC2` prefix that `GameSetIdentity` sets:
 - `DC2_AUDIO=off`: no audio device. `DC2_AUDIO_WAV` outranks it.
 - `DC2_AUDIO_WAV=PATH`: write the mix to a WAV file in place of the device.
 - `DC2_AUDIO_TRACE`: any value other than empty or `0` traces the audio calls on stderr.
+- `DC2_LOG=SPEC`: the log level, as `--log-level` takes it; `--log-level` outranks it, and it outranks `config.json`. An invalid value is logged and ignored.
+- `DC2_LOG_FILE=0`: no session log file, whatever `log.file` says.
+- `DC2_CRASH_TEST=MODE[:early]`: as `--crash-test` (see "Test hooks"); the option outranks it.
 - `DC2_VULKAN_VALIDATION`: has no effect. `main` ORs its presence into `gfx::RendererConfig::validation`, which is already on in a Debug build, and a Release build never requests the layer.
 
 Debug builds request the validation layer (`gfx::RendererConfig::validation`, on unless `NDEBUG` is defined). Release builds never request it. Without the layer installed, the renderer prints `gfx: validation requested but VK_LAYER_KHRONOS_validation is not installed` and goes on.
@@ -428,7 +449,9 @@ Exit statuses (`port/src/exitcodes.hpp`, and `port/src/mglib.cpp` for the screen
 - 4: a game assertion (retail's `__assert`).
 - 5: startup script validation rejected the data; desktop runs also show an error dialog.
 
-A `PS2_UNIMPLEMENTED` stub aborts instead of exiting, so a debugger or a core dump stops at it: SIGABRT on Linux (status 134 from a shell) and `0xC0000409` on Windows. Other internal aborts stop the same way.
+A `PS2_UNIMPLEMENTED` stub aborts instead of exiting, so a debugger or a core dump stops at it: SIGABRT on Linux (status 134 from a shell) and `0xC0000409` on Windows. Other internal aborts stop the same way. A crash ends with its exception code on Windows (`0xC0000005` for an access violation) or its signal elsewhere.
+
+A game assertion (4), a renderer or window fatal error (1), an abort and a crash first write a crash bundle under `<save root>/crashes/` (see [CRASH_REPORTS.md](CRASH_REPORTS.md)); the status stays the same.
 
 The test `Smoke.HeadlessFramesScreenshot` (`port/src/tests/CMakeLists.txt`) runs `darkchronicle --headless --offscreen --frames 3 --screenshot` on a unified `data/` directory with a current parent `data.json`. It passes when the run exits 0, prints `dataread: indexed` and `mglib: frame 3 written to`, and writes a PNG. It is labelled `gpu`. It runs under a generated CMake script, because ctest counts a process killed by `abort()` as failed even when `PASS_REGULAR_EXPRESSION` matches its output; the script checks the exit status and the file.
 
@@ -472,6 +495,8 @@ The runner accepts a fixture with `saves/`, `mc0/` or `mc1/`, copies it to a tem
 save root, starts at ordinary boot, and removes only that temporary copy after
 the process ends. The screenshot remains at the requested path. Ambient
 `DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` are removed from the child environment.
+
+- `--crash-test MODE[:early]` (`DC2_CRASH_TEST`), not in the usage text, fails on purpose to exercise the crash reports: `segv`, `abort`, `assert`, `unimplemented`, `terminate`, `stackoverflow` or `audio-thread`. It fires at the end of the first game frame, or with `:early` right after `config.json` is read, before the data check and the window. See [CRASH_REPORTS.md](CRASH_REPORTS.md).
 Fixtures and extracted game data stay outside the repository.
 
 ## Startup
@@ -480,10 +505,12 @@ Fixtures and extracted game data stay outside the repository.
 
 1. `GameSetIdentity` (`port/src/identity.cpp`) sets the `DC2` environment prefix, the game's directory names and the window title. `PathsConsumeArgs` takes `--data` and `--save` out of the arguments.
 2. `ParseOptions` reads the other options. A usage error exits with status 2. `--input` loads its script here, and a bad script exits with status 2.
-3. `ConfigLoad` reads `config.json` from the save root (see "config.json").
+2a. `LogInit` starts the logger with stderr only, at the level of `--log-level` or `DC2_LOG`, and routes Kazarov's diagnostics into it. `LogShutdown` is registered with `atexit` before anything else that `main` registers, so it runs last. The session header goes to the log (see [LOGGING.md](LOGGING.md)).
+2b. `CrashInit` installs the crash handlers and starts the crash report writer; runs with `--headless`, `--frames` or `--input` never show a crash dialog (see [CRASH_REPORTS.md](CRASH_REPORTS.md)). `--crash-test` (or `DC2_CRASH_TEST`) is parsed here.
+3. `ConfigLoad` reads `config.json` from the save root (see "config.json"). `LogAttachFile` then applies its `log` section and opens `<save root>/logs/darkchronicle-<session>.log`, which starts with every line logged since `LogInit`. `CrashSetBundleRoot` then puts crash bundles under `<save root>/crashes/<session>/`, and an early `--crash-test` fires.
 4. `FirstRunRequireData` checks the data root and opens setup when extraction is needed, or exits with status 3 in headless mode (see "Game data and first run").
 4a. `InitCDFile` indexes the data root, printing `dataread: indexed N files under <dir>`. NTSC script validation runs before the window, renderer, audio and clock. Incompatible scripts are named in the log and startup exits with status 5; desktop runs also show an error dialog.
-5. The window opens, or the offscreen surface with `--headless`. Input initialises, and the input script is installed.
+5. The window opens, or the offscreen surface with `--headless`. A windowed run then shows the notice of a crash in an earlier session, if there is one not yet shown. Input initialises, and the input script is installed.
 6. The renderer starts (`gfx::RendererInit`) with a logical size of 512x480 at a 4:3 display aspect. It builds every pipeline, uses `<save root>/pipeline_cache.bin` as its pipeline cache, and prints `compiling shaders n/total` as it goes.
 7. `AudioInit(options.headless)` selects device-driven or tick-driven mixer ownership (see "Audio"). `AudioShutdown` is registered with `atexit`.
 8. The clock starts at a fixed 60 Hz; headless runs use an unbounded clock. In that mode, frame-field measurements use logic ticks instead of wall elapsed time, including the sound sequencer's frame budget. Interactive runs retain the measured wall cadence. A pump hook runs once per clock pump, after the tick callback has run for each elapsed tick, and polls the window, the input and the input script. The config change hook is installed.
@@ -506,7 +533,7 @@ Launch hooks prepare an explicit scene jump and give requested items on arrival.
 
 ## config.json
 
-The configuration is `<save root>/config.json`, with the sections `game`, `video`, `audio` and `input`. They fill Kazarov's `HostSettings` (`tools/kazarov/include/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
+The configuration is `<save root>/config.json`, with the sections `game`, `video`, `audio`, `input` and `log`. They fill Kazarov's `HostSettings` (`tools/kazarov/include/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
 
 - Missing: the file is written with the defaults.
 - Unreadable (it exists but cannot be read, or is not a regular file): the defaults are used, `config: could not read <path>; using defaults and leaving it untouched` goes to stderr, and the file is not written in that session.
@@ -561,13 +588,18 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.glyph_device` | string | auto | auto, ps3, ps4, ps5, ps5color, xbox, switch, steamdeck, steamcontroller, keyboard | whose button symbols are drawn |
 | `input.mouse_release` | string or array of strings | empty | key names | keys that release the captured mouse |
 | `input.bindings` | object: action to string or array of strings | empty | key names | rebinds actions; action names are lowercased |
+| `log.level` | string | auto | auto, trace, debug, info, warning, error, critical, off | the lowest level logged; `auto` is `debug` in a Debug build and `info` otherwise. `--log-level` and `DC2_LOG` outrank it; applies live |
+| `log.file` | bool | true | | write the session log under `<save root>/logs/`; `DC2_LOG_FILE=0` turns it off; applies live |
+| `log.keep` | int | 10 | 1 to 1000 | session logs kept in `logs/`, this session's included; older ones are deleted when the file opens |
+| `log.console` | bool | true | | copy log lines to stderr and the game's `printf` to stdout; applies live |
+| `log.categories` | object: category to level | empty | category names, levels as `log.level` without `auto` | levels for single categories, over `log.level`; see [LOGGING.md](LOGGING.md) |
 
 Opening PC SETTINGS does not write `config.json`. `ConfigChange` stores changed
 settings and merges only those edits into the current file, preserving unknown
 keys and unrelated values edited externally. Binding action names are merged
 case-insensitively, so editing or restoring `cross` also replaces or removes a
 hand-written `Cross` override without leaving a duplicate. It calls `DisplayChanged` and a
-change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
+change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the log settings, present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
 
 ### Gameplay timing
 
@@ -1417,7 +1449,7 @@ The retail movie threads are not used. The game calls `SwitchThread` once per ga
 
 The picture is uploaded into the texture the game names in `Play` (`"moviework"`), found with `mgTexManager.GetTexture(name, -1)` and `mgPortFindTexture`, with `gfx::UpdateTexture` (recorded into the tick's display list when one is open). That is what the PS2 did: `setImageTag` uploaded into the same texture and the game draws it itself as a 2D quad (the copyright screen's `L5LOGO.PSS`, `RUSH.PSS`, the movie viewer, the event script's `_LOAD_MOVIE`, the manual), so its fades, stretch and letterbox stay the game's, tick-exact.
 
-The soundtrack starts in the mixer at `Play` and runs in real time, so the real-time movie clock starts there too. `Load` runs after the frame's clock pump and decodes the whole audio track: 0.3 s for the retail `OPEN1` and `RUSH`, about 0.5 s for a 4x replacement. A clock started at the last tick put the pictures that far ahead of the sound; timed from `Play`, a picture is shown about one game frame after its time.
+The soundtrack and real-time movie clock start at `Play`. `Load` decodes the whole audio track before playback, so loading time does not advance the movie clock. Pictures are presented when the game's next movie pump observes that their timestamps are due.
 
 A packet or picture the decoder rejects as invalid is skipped (`movie: skipping an undecodable picture`, once a movie) and the next good picture replaces it; more than 250 in a row with no picture decoded stop the pictures. Any other failure (reading the file, decoding, a picture's size or conversion) ends the pictures at the last one shown and logs `movie: STAGE stopped the pictures after N (error)`. If the pictures stall while the game keeps pumping the movie, `EndCheck` ends it once its clock is 2 s (`kMoviePortOverrun`) past a known container duration, logging `movie: NAME still has pictures to show ...`; a container without a duration gets no such bound.
 

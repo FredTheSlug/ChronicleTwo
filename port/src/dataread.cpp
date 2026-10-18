@@ -25,14 +25,17 @@
 #include <vector>
 
 #include "bounded_text.hpp"
+#include "crash/crash.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "platform/archive_mount.hpp"
 #include "platform/config_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/paths.hpp"
 #include "platform/texture_catalog.hpp"
 #include "platform/vfs.hpp"
+#include "profile.hpp"
 #include "script_timing.hpp"
 #include "texture_copy.hpp"
 #include "texture_source.hpp"
@@ -51,28 +54,10 @@ constexpr std::size_t kExpectedFiles = 10240;
 // are converted data that their own subsystems read, not dataread.
 constexpr std::array<std::string_view, 4> kExcludedRootNames = {"manifest.txt", "manifest.json", "movie", "sound"};
 
-/**
- * Locates the loose game configuration in a checkout or beside an installed executable.
- */
-fs::path GameplayRoot() {
-    const auto      executable_directory = PathsExecutable().parent_path();
-    std::error_code error;
-    for (auto directory = executable_directory; !directory.empty(); directory = directory.parent_path()) {
-        const auto candidate = directory / "port/gameplay";
-        if (fs::is_directory(candidate, error)) {
-            return candidate;
-        }
-        if (directory == directory.parent_path()) {
-            break;
-        }
-    }
-    return executable_directory / "gameplay";
-}
-
 struct IndexedFile {
     vfs::Ref    file;             /**< Data file supplying the bytes. */
     bool        replaced = false; /**< A datapack file stands in for the extracted one. */
-    std::string relative;         /**< Actual root-relative filename, including directory metadata files. */
+    std::string relative;         /**< Logical asset filename, including directory metadata files. */
 };
 
 std::unordered_map<std::string, IndexedFile> file_index;
@@ -186,6 +171,11 @@ const IndexedFile *Lookup(const std::string &key) {
         found = file_index.find(key + "/pack.json");
     }
     if (found == file_index.end()) {
+        if (const auto candidates = config_catalog::Paths(key); !candidates.empty()) {
+            const auto &candidate = candidates.front();
+            const auto  relative = key.starts_with("gameplay/") ? key.substr(9) : key;
+            return &file_index.emplace(key, IndexedFile{.file = candidate, .replaced = datapacks::IsReplacement(candidate), .relative = relative}).first->second;
+        }
         for (const auto &relative : {key, key + "/pack.json"}) {
             if (const auto replacement = datapacks::Resolve(relative)) {
                 return &file_index.emplace(relative, IndexedFile{.file = *replacement, .replaced = true, .relative = relative}).first->second;
@@ -218,6 +208,8 @@ std::optional<int> FileSize(const IndexedFile &file) {
 
 // Reads a whole file into a sector-padded buffer without recording the buffer, so it is safe off the main thread.
 int ReadUnregistered(const IndexedFile &file, void *buffer) {
+    CT_PROFILE_ZONE("Read asset");
+    CT_PROFILE_TEXT(file.relative.data(), file.relative.size());
     const std::optional<int> size = FileSize(file);
     if (!size) {
         return -1;
@@ -351,7 +343,7 @@ void BuildIndex(const std::shared_ptr<const vfs::Mount> &base, const fs::path &r
     file_index.clear();
     index_built = true;
     if (!base) {
-        std::println(stderr, "dataread: indexed 0 files under {} (no data)", PathsDisplay(root));
+        CT_LOG_INFO(Data, "dataread: indexed 0 files under {} (no data)", PathsDisplay(root));
         return;
     }
 
@@ -363,17 +355,28 @@ void BuildIndex(const std::shared_ptr<const vfs::Mount> &base, const fs::path &r
         if (IsExcludedRootName(std::string_view(relative).substr(0, relative.find('/')))) {
             continue;
         }
+        if (relative.starts_with("gameplay/")) {
+            relative.erase(0, 9);
+            auto candidates = config_catalog::Paths(relative);
+            if (!candidates.empty()) {
+                const bool replaced = datapacks::IsReplacement(candidates.front());
+                auto       key = vfs::FoldKey(relative);
+                file_index.insert_or_assign(std::move(key), IndexedFile{.file = std::move(candidates.front()), .replaced = replaced, .relative = std::move(relative)});
+            }
+            continue;
+        }
         std::string key = vfs::FoldKey(relative);
         auto        replacement = datapacks::Resolve(fs::path(std::u8string(relative.begin(), relative.end())));
         const bool  replaced = replacement.has_value();
         file_index.insert_or_assign(std::move(key), IndexedFile{.file = replaced ? std::move(*replacement) : vfs::Ref(base, index), .replaced = replaced, .relative = std::move(relative)});
     }
-    std::println(stderr, "dataread: indexed {} files under {}", file_index.size(), PathsDisplay(root));
+    CT_LOG_INFO(Data, "dataread: indexed {} files under {}", file_index.size(), PathsDisplay(root));
 }
 
 } // namespace
 
 void DataReadIndex(const fs::path &root) {
+    CT_PROFILE_ZONE("Index game assets");
     const auto start = std::chrono::steady_clock::now();
     TextureSourceClear();
     loaded_buffers.clear();
@@ -389,13 +392,12 @@ void DataReadIndex(const fs::path &root) {
         try {
             base = ArchiveMountOpen(archive);
         } catch (const std::exception &exception) {
-            std::println(stderr, "dataread: {}: {}", PathsDisplay(archive), exception.what());
+            CT_LOG_ERROR(Data, "dataread: {}: {}", PathsDisplay(archive), exception.what());
         }
     } else {
         base = vfs::OpenDirectory(data_root);
     }
     if (base) {
-        base = vfs::Overlay({vfs::OpenDirectory(GameplayRoot()), std::move(base)});
         texture_catalog::Load(base);
     } else {
         texture_catalog::Clear();
@@ -403,8 +405,8 @@ void DataReadIndex(const fs::path &root) {
     datapacks::Load(base, data_root);
     texture_catalog::SetCandidateResolver(datapacks::Candidates);
     BuildIndex(base, location);
-    std::println(stderr, "dataread: index ready in {:.3f} seconds",
-                 std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
+    CT_LOG_INFO(Data, "dataread: index ready in {:.3f} seconds",
+                std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
 }
 
 std::size_t DataReadBufferSize(const void *buffer) {
@@ -538,6 +540,7 @@ ScriptTimingOutcome CheckScriptTiming(const std::string &key, const IndexedFile 
 } // namespace
 
 ScriptTimingValidation DataReadValidateScriptTiming() {
+    CT_PROFILE_ZONE("Validate script timing");
     ScriptTimingValidation report;
     const auto             start = std::chrono::steady_clock::now();
     const auto             keys = DataReadScriptKeys();
@@ -572,8 +575,8 @@ ScriptTimingValidation DataReadValidateScriptTiming() {
         const ScriptTimingOutcome &outcome = outcomes[i];
         report.files++;
         if (outcome.undecoded && undecoded_script_warnings.insert(key).second) {
-            std::println(stderr, "script timing startup: warning: {} is an unlisted, undecodable script; leaving it unchanged ({})",
-                         key, outcome.reason);
+            CT_LOG_WARN(Script, "script timing startup: warning: {} is an unlisted, undecodable script; leaving it unchanged ({})",
+                        key, outcome.reason);
         }
         if (!outcome.error.empty()) {
             report.errors.push_back(key + (files[i]->replaced ? " [datapack]: " : ": ") + outcome.error);
@@ -585,14 +588,14 @@ ScriptTimingValidation DataReadValidateScriptTiming() {
 
 bool DataReadPrepareScriptTiming(bool headless) {
     const auto report = DataReadValidateScriptTiming();
-    std::println(stderr, "script timing startup: {} scripts, {} mismatches, {:.3f} seconds",
-                 report.files, report.errors.size(), report.seconds);
+    CT_LOG_INFO(Script, "script timing startup: {} scripts, {} mismatches, {:.3f} seconds",
+                report.files, report.errors.size(), report.seconds);
     if (report.errors.empty()) {
         return true;
     }
     std::string message = "These scripts cannot use NTSC gameplay timing:\n\n";
     for (std::size_t i = 0; i < report.errors.size(); ++i) {
-        std::println(stderr, "script timing startup: {}", report.errors[i]);
+        CT_LOG_ERROR(Script, "script timing startup: {}", report.errors[i]);
         if (i < 8) {
             message += report.errors[i] + "\n";
         }
@@ -600,7 +603,7 @@ bool DataReadPrepareScriptTiming(bool headless) {
     if (report.errors.size() > 8) {
         message += "\nAdditional mismatches are listed in the log.\n";
     }
-    std::println(stderr, "script timing startup: NTSC timing unavailable; refusing startup");
+    CT_LOG_ERROR(Script, "script timing startup: NTSC timing unavailable; refusing startup");
     if (!headless) {
         message += "\nThe game cannot start with this script data. See the log for details.";
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Dark Chronicle - Script timing", message.c_str(), nullptr);
@@ -631,7 +634,7 @@ PORT_OVERRIDE void SetCurrentDir(char *dir) {
     }
     const std::string_view directory(dir);
     if (directory.size() > directory_limit) {
-        std::println(stderr, "dataread: current directory longer than {} bytes ignored: {}", directory_limit, dir);
+        CT_LOG_WARN(Data, "dataread: current directory longer than {} bytes ignored: {}", directory_limit, dir);
         return;
     }
     current_dir = directory;
@@ -655,6 +658,7 @@ PORT_OVERRIDE void InitReadBG() {
 // The copy happens now, but the slot stays pending so callers polling ReadBGSync see retail's issue and
 // complete states.
 PORT_OVERRIDE int LoadFileBG(char *name, u_long128 *buffer, int *out_size) {
+    CT_PROFILE_ZONE("Load background asset");
     if (out_size) {
         *out_size = 0;
     }
@@ -754,19 +758,22 @@ PORT_OVERRIDE void BreakReadBG() {
 // the load that needs it.
 PORT_OVERRIDE int LoadFile(char *path, void *buffer, int *out_size) {
     if (!LoadFile2(path, buffer, out_size, LOAD_FILE_READ)) {
-        std::println(stderr, "File open error \"{}\"\n \n ", path);
+        CT_LOG_CRITICAL(Data, "File open error \"{}\"\n \n ", path);
         Exit(0);
     }
     return 1;
 }
 
 PORT_OVERRIDE int LoadFile2(char *path, void *buffer, int *out_size, int mode) {
+    CT_PROFILE_ZONE("Load asset");
     if (out_size) {
         *out_size = 0;
     }
     if (!path || *path == '\0' || (mode != LOAD_FILE_SIZE && !buffer)) {
         return 0;
     }
+    CrashContextSet(CrashKey::LastAsset, path);
+    CT_LOG_TRACE(Data, "dataread: load {} (mode {})", path, mode);
     if (mode != LOAD_FILE_SIZE) {
         TextureSourceForget(buffer);
         loaded_buffers.erase(buffer);
@@ -868,7 +875,7 @@ PORT_OVERRIDE int WriteFile(char *path, void *buffer, int size) {
         return 0;
     }
     if (std::string_view(path).starts_with("net:")) {
-        std::println(stderr, "dataread: no network socket on the host, not writing {}", path);
+        CT_LOG_WARN(Data, "dataread: no network socket on the host, not writing {}", path);
         return 0;
     }
 

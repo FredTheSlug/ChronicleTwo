@@ -37,11 +37,11 @@ PORT_OVERRIDE void MenuChapterInit(mgCMemory *stack, int *tex_block, int /*open_
     std::copy_n(tex_block, 2, chapter_info->tex_block);
     chapter_memory.Align64();
     char name[32];
-    std::snprintf(name, sizeof(name), "chap%d.json", chapter);
+    std::snprintf(name, sizeof(name), "textures/chap%d.json", chapter);
     auto *image = chapter_memory.stGetTop();
     int   size = LoadFileMenu(name, image, MENU_FILE_LOAD_DIRECT);
     if (size <= 0) {
-        char fallback[] = "chap0.json";
+        char fallback[] = "textures/chap0.json";
         size = LoadFileMenu(fallback, image, MENU_FILE_LOAD_DIRECT);
     }
     background = logo = nullptr;

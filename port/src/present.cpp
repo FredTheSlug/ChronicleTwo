@@ -5,13 +5,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <print>
 #include <string>
 #include <thread>
 
 #include "camera_fixed.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
+#include "log/log.hpp"
 #include "menu_mouse.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
@@ -20,6 +20,7 @@
 #include "platform/overlay.hpp"
 #include "platform/window.hpp"
 #include "present_timing.hpp"
+#include "profile.hpp"
 #include "stubs/mglib.hpp"
 
 namespace {
@@ -81,12 +82,13 @@ const gfx::DisplayList *DisplayOverlayList() {
 
 void NotePresented() {
     ++stats.presented;
+    CT_PROFILE_FRAME("Display");
     const Clock::time_point now = Clock::now();
     overlay.frames.Count(now);
 
     if (settings.log_fps && now - last_log >= std::chrono::seconds(1)) {
         last_log = now;
-        std::println(stderr, "present: {}", PresentFpsText());
+        CT_LOG_INFO(Gfx, "present: {}", PresentFpsText());
     }
 }
 
@@ -103,6 +105,7 @@ double DisplaySeconds(bool intermediate = false) {
 }
 
 bool DisplayFrame(float alpha, bool present) {
+    CT_PROFILE_ZONE("Display frame render");
     const gfx::DisplayList *list = mgPortLastList();
 
     if (list == nullptr) {
@@ -128,6 +131,7 @@ bool DisplayFrame(float alpha, bool present) {
 }
 
 bool PresentCanonicalFrame() {
+    CT_PROFILE_ZONE("Canonical image present");
     const gfx::DisplayList *overlay_list = DisplayOverlayList();
     const double            seconds = ClockUnbounded() && settings.display_per_tick > 0 ? 0 : DisplaySeconds();
     const bool              fixed = MouseFixedActive(seconds);
@@ -182,6 +186,7 @@ bool BetweenTicks(double fraction, Clock::time_point next_tick) {
         return false;
     }
     if (decision.action == PresentPacer::Action::Wait) {
+        CT_PROFILE_ZONE("Display pace wait");
         std::this_thread::sleep_until(decision.deadline);
         return true;
     }
@@ -230,6 +235,8 @@ void PresentTickRendered() {
     ++stats.ticks;
     const gfx::DisplayListStats draws = gfx::ListStats(*list);
     stats.last_draws = draws.mesh_draws + draws.draws_2d;
+    CT_PROFILE_PLOT("Scene mesh draws", static_cast<std::int64_t>(draws.mesh_draws));
+    CT_PROFILE_PLOT("Scene 2D draws", static_cast<std::int64_t>(draws.draws_2d));
 
     // Capped so a long stall does not replay an unbounded number of ticks into the rate window.
     const Clock::time_point now = Clock::now();
@@ -250,6 +257,7 @@ void PresentWaitFrame(int start, int frames) {
 }
 
 void PresentTickEnd() {
+    CT_PROFILE_ZONE("Present tick end");
     if (tick_shown || mgPortLastList() == nullptr) {
         return;
     }

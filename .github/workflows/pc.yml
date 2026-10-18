@@ -37,11 +37,11 @@ jobs:
           git cat-file -e "$base^{commit}" || { echo "Missing PAL_TIMING baseline: $base" >&2; exit 1; }
           echo "CT_PAL_TIMING_BASE=$base" >> "$GITHUB_ENV"
 
-      # Every library comes from Ubuntu's packages; FFmpeg and cxxbridge-cmd are Kazarov's prebuilt release assets.
+      # FFmpeg uses Kazarov's pinned build configuration; cxxbridge-cmd is a prebuilt release asset.
       - name: Install the toolchain and libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-22 lld-22 llvm-22 libclang1-22 python3-clang-22 cmake ninja-build glslang-tools \
+          sudo apt-get install -y build-essential clang-22 lld-22 llvm-22 libclang1-22 python3-clang-22 cmake ninja-build glslang-tools \
             mesa-vulkan-drivers vulkan-validationlayers libsdl3-dev libvulkan-dev libgtest-dev nlohmann-json3-dev
           # clang++, ld.lld and llvm-readobj under their plain names.
           echo "/usr/lib/llvm-22/bin" >> "$GITHUB_PATH"
@@ -50,8 +50,9 @@ jobs:
           tools/ci/prebuilt-deps.sh linux-x64
 
       # Lavapipe renders on the CPU, so the unit tests' per-case limit is widened from its 5 second default.
+      # CT_SYMBOLS=split also writes darkchronicle.debug with objcopy, which the symboliser check reads.
       - name: Configure
-        run: cmake --preset linux-x64 -DCT_TEST_TIMEOUT=60 -DCT_PAL_TIMING_BASE="$CT_PAL_TIMING_BASE"
+        run: cmake --preset linux-x64 -DCT_TEST_TIMEOUT=60 -DCT_PAL_TIMING_BASE="$CT_PAL_TIMING_BASE" -DCT_SYMBOLS=split
 
       - name: Build
         run: cmake --build --preset linux-x64
@@ -65,6 +66,20 @@ jobs:
 
       - name: Test Rust data publisher
         run: cargo test --locked --manifest-path tools/kazarov/Cargo.toml
+
+      # docs/SYMBOLS.md: the report symboliser, end to end against a small clang-built probe.
+      - name: Test the crash report symboliser
+        run: python3 -m unittest discover -s tools/crash -p "test_*.py" -v
+
+      # A raw frame at main resolves to main.cpp through the build id'd binary's split debug file.
+      - name: Check the build id and the split symbols
+        run: |
+          llvm-readelf --notes port/build/pc/darkchronicle | grep -q 'Build ID'
+          llvm-readelf --sections port/build/pc/darkchronicle | grep -q '.gnu_debuglink'
+          offset=$(llvm-nm port/build/pc/darkchronicle | awk '$3 == "main" { print $1 }')
+          printf '#0  darkchronicle+0x%s\n' "$offset" > report.txt
+          python3 tools/crash/symbolize.py report.txt --binary port/build/pc/darkchronicle.debug | tee symbolized.txt
+          grep -q 'main.cpp:' symbolized.txt
 
       # The VU1 programs are native: their packed CPU halves live only in the test oracles.
       - name: Check that no PS2 packing or VU1 layout helper is in the runtime
@@ -109,8 +124,9 @@ jobs:
           vulkaninfo --summary > artifacts/vulkaninfo.txt 2>&1 || true
           cat artifacts/vulkaninfo.txt
 
+      # CT_SYMBOLS=split runs dsymutil after the link, for the symbol artifact.
       - name: Configure
-        run: cmake --preset macos-arm64 -DCT_TEST_TIMEOUT=60
+        run: cmake --preset macos-arm64 -DCT_TEST_TIMEOUT=60 -DCT_SYMBOLS=split
 
       - name: Build
         run: cmake --build --preset macos-arm64
@@ -126,13 +142,32 @@ jobs:
         run: cargo test --locked --manifest-path tools/kazarov/Cargo.toml
 
       - name: Package the macOS build
-        run: tar -czf artifacts/chronicletwo-macos-arm64.tar.gz -C port/build/macos-arm64 darkchronicle
+        run: tar -czf artifacts/chronicletwo-macos-arm64.tar.gz -C port/build/macos-arm64 darkchronicle -C assets data.zip
 
       - name: Upload the macOS build
         uses: actions/upload-artifact@v7
         with:
           name: chronicletwo-macos-arm64
           path: artifacts/chronicletwo-macos-arm64.tar.gz
+          if-no-files-found: error
+
+      # Without Homebrew's llvm on PATH the symboliser falls back to atos, against the dSYM.
+      - name: Check the dSYM resolves a frame
+        run: |
+          address=$(nm port/build/macos-arm64/darkchronicle | awk '$3 == "_main" { print $1 }')
+          printf '#0  darkchronicle+0x%x\n' $((0x$address - 0x100000000)) > report.txt
+          python3 tools/crash/symbolize.py report.txt --binary port/build/macos-arm64/darkchronicle.dSYM | tee symbolized.txt
+          grep -q 'main.cpp:' symbolized.txt
+
+      # docs/SYMBOLS.md: tools/crash/symbolize.py resolves a report from this build with the dSYM.
+      - name: Package the macOS symbols
+        run: tar -czf artifacts/chronicletwo-macos-arm64-symbols.tar.gz -C port/build/macos-arm64 darkchronicle darkchronicle.dSYM
+
+      - name: Upload the macOS symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: chronicletwo-macos-arm64-symbols-${{ github.sha }}
+          path: artifacts/chronicletwo-macos-arm64-symbols.tar.gz
           if-no-files-found: error
 
       - name: Upload the Vulkan description
@@ -192,6 +227,27 @@ jobs:
           path: chronicletwo-windows-x64.zip
           if-no-files-found: error
 
+      - name: Check the executable resolves a frame
+        run: |
+          $llvm = "$env:RUNNER_TEMP/deps/llvm/llvm-mingw-20260922-ucrt-x86_64/bin"
+          $exe = 'port/build/windows-x64-tests/darkchronicle.exe'
+          $address = (& "$llvm/llvm-nm.exe" $exe | Where-Object { $_ -match ' T wmain$' }).Split(' ')[0]
+          '#0  darkchronicle.exe+0x{0:x}' -f ([Convert]::ToUInt64($address, 16) - 0x140000000) | Set-Content report.txt
+          python tools/crash/symbolize.py report.txt --binary $exe --llvm-symbolizer "$llvm/llvm-symbolizer.exe" | Tee-Object symbolized.txt
+          if (!(Select-String -Quiet -Path symbolized.txt -Pattern 'main.cpp:')) { exit 1 }
+
+      # docs/SYMBOLS.md: the executables (their DWARF), any PDBs and their build ids, for tools/crash/symbolize.py.
+      - name: Package the Windows symbols
+        run: |
+          ./tools/windows/package-symbols.ps1 -Root $env:RUNNER_TEMP -BuildDirectory port/build/windows-x64-tests -Destination chronicletwo-windows-x64-symbols.zip
+
+      - name: Upload the Windows symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: chronicletwo-windows-x64-symbols-${{ github.sha }}
+          path: chronicletwo-windows-x64-symbols.zip
+          if-no-files-found: error
+
   # docs/FLATPAK.md: the Linux build packaged in Flathub's freedesktop 26.08 image. The manifest uses the
   # commit under test as a git source, and the smoke run checks that the packaged binary reaches its data check.
   flatpak:
@@ -245,3 +301,12 @@ jobs:
           cat run.txt
           echo "darkchronicle exited $status"
           [ "$status" -eq 3 ] && grep -q 'No current Dark Chronicle data at /tmp/xdg/chronicletwo/data' run.txt
+
+      # The packaged darkchronicle keeps its line tables (the manifest sets no-debuginfo), so it is its own
+      # symbol file for tools/crash/symbolize.py.
+      - name: Upload the Flatpak symbols
+        uses: actions/upload-artifact@v7
+        with:
+          name: chronicletwo-flatpak-x86_64-symbols-${{ github.sha }}
+          path: flatpak_app/files/bin/darkchronicle
+          if-no-files-found: error

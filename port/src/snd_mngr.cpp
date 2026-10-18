@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <cstring>
 #include <new>
-#include <print>
 #include <utility>
 #include <vector>
 
@@ -14,6 +13,7 @@
 #include "audio_assets.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "mg_memory.hpp"
 #include "snd_mngr.hpp"
 #include "snd_seseq.hpp"
@@ -296,9 +296,11 @@ unsigned SoundLoadBundleData(int port_no, std::span<const std::byte> bytes, mgCM
         }
         info->LoadSeInfoTxt(bank_no, const_cast<char *>(config.data()), static_cast<int>(config.size()), memory);
         info->LoadVolInfoTxt(bank_no, const_cast<char *>(volume.data()), static_cast<int>(volume.size()));
+        CT_LOG_TRACE(Audio, "sound bundle: port {} bank {} loaded ({} sequences, {} effects)", port_no, bank_no, sequences.size(),
+                     effects.size());
         return ((port_no & 255) << 24) | ((bank_no & 255) << 16);
     } catch (const std::exception &error) {
-        std::println(stderr, "sound bundle: {}", error.what());
+        CT_LOG_ERROR(Audio, "sound bundle: {}", error.what());
         return -1;
     }
 }
@@ -306,7 +308,7 @@ unsigned SoundLoadBundleData(int port_no, std::span<const std::byte> bytes, mgCM
 unsigned SoundLoadBundlePath(int port_no, std::string_view path, mgCMemory *memory) {
     for (const auto &document : AudioDocuments(path)) {
         const auto result = SoundLoadBundleData(port_no, std::as_bytes(std::span(document.data(), document.size())), memory);
-        if (std::cmp_not_equal(result, -1)) {
+        if (result != static_cast<unsigned>(-1)) {
             return result;
         }
     }
@@ -338,7 +340,7 @@ PORT_OVERRIDE void sndPortInfo::LoadSeInfoTxt(int bank_no, char *source, int siz
                 return;
             }
             std::vector<sndSeInfo>            effects;
-            std::vector<std::pair<int, int>> reverbs;
+            std::vector<std::pair<int, int> > reverbs;
             for (const auto &r : root.at("reverb")) {
                 reverbs.emplace_back(r.at("type").get<int>(), r.at("depth").get<int>());
             }
@@ -371,7 +373,7 @@ PORT_OVERRIDE void sndPortInfo::LoadSeInfoTxt(int bank_no, char *source, int siz
         } catch (const nlohmann::json::exception &) {
         }
     }
-    std::println(stderr, "sound: missing or invalid sound config JSON");
+    CT_LOG_ERROR(Audio, "sound: missing or invalid sound config JSON");
 }
 
 PORT_OVERRIDE void sndPortInfo::LoadVolInfoTxt(int bank_no, char *source, int size) {
@@ -410,5 +412,5 @@ PORT_OVERRIDE void sndPortInfo::LoadVolInfoTxt(int bank_no, char *source, int si
         } catch (const nlohmann::json::exception &) {
         }
     }
-    std::println(stderr, "sound: missing or invalid volume JSON");
+    CT_LOG_ERROR(Audio, "sound: missing or invalid volume JSON");
 }

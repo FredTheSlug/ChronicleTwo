@@ -1,24 +1,24 @@
 # Native model and character assets
 
-The PC runtime reads actual root-relative glTF paths, such as `chara/c01_base.gltf`, through datapack priority. Each glTF has an adjacent pretty-printed `c01_base.game.json` containing the additional semantics required by gameplay. There is no runtime model catalog, source-alias registry, CHR archive, or extension translation in this loader. Assets originally nested in archives use explicit `.assets` directories.
+The PC runtime reads root-relative glTF paths, such as `chara/c01_base.gltf`, through datapack priority. Each glTF has an archived, compact `c01_base.game.json` asset companion; character settings are tracked in pretty-printed `port/gameplay/<stem>.character.json` and published compact at the same path in `data.zip`. There is no runtime model catalog, source-alias registry, CHR archive, or extension translation in this loader. Assets originally nested in archives use explicit `.assets` directories.
 
-glTF contains standard nodes, meshes, materials, images, embedded buffers, skins, and animations. Character bundles expose their component models as named scenes. Custom game semantics live in the adjacent JSON rather than glTF extras. The JSON uses `schema_version: 1` and `kind: "character"`, `"model"`, or `"animation"`.
+glTF contains standard nodes, meshes, materials, images, binary buffers, skins, and animations. External buffers use adjacent `.gltf.bin` files. Character bundles expose their component models as named scenes. Asset semantics live in the adjacent `.game.json` rather than glTF extras. It uses `schema_version: 1` and `kind: "character"`, `"model"`, or `"animation"`.
 
-## Gameplay JSON
+## Asset and gameplay JSON
 
-Character JSON contains `models`, a `profiles` object keyed by semantic names such as `info`, and a `resources` object. Each model records its standard scene, first node offset, stable native frame identities, primitive flags and original stream identities needed by CPU deformation. Standalone model JSON contains these model fields directly.
+Archived character `.game.json` contains `models`, a `resources` object and image references. Each model records its standard scene, first node offset, stable native frame identities, primitive flags and original stream identities needed by CPU deformation. Standalone model JSON contains these model fields directly. Archived `.character.json` contains `profiles` keyed by semantic names such as `info`, `game_names`, `default_profile`, and indexed `cloth_commands` rows. The runtime combines these gameplay fields with the asset metadata.
 
 | Resource | Required native meaning |
 | --- | --- |
 | `animations` | Named actions with their lengths and auxiliary material, visibility, camera or vertex keys, and the glTF clip of each action for every model it drives. |
 | `bind_poses` | Frame matrices used by native deformation and replacement skins. |
 | `weights` | CPU deformation channels, including shadow meshes with more than 32 joints. |
-| `cloths` | Typed native cloth commands. |
+| `cloths` | Asset cloth entries; their typed commands are indexed in gameplay JSON. |
 | `scripts` | Actual script paths and effect texture dependencies. |
 | `children` | Actual child glTF paths. |
 | `texture_sets` | glTF image references, mip chains, variants and typed texture animation commands. |
 
-Profiles retain ordered commands so model selection, motion slots, keys, sequences, sounds, cloth, outlines, attachment frames, effects and LOD settings preserve their native order. Scalar arguments use the typed configuration representation. Resource arguments contain `type: "resource"`, a resource `kind`, and an integer `index`; a null index represents an optional absent resource. No proprietary resource filename is resolved by the profile dispatcher. Unknown named commands have the same skip behavior as the game interpreter.
+Character profiles retain ordered commands so model selection, motion slots, keys, sequences, sounds, cloth, outlines, attachment frames, effects and LOD settings preserve their native order. Scalar arguments use the typed configuration representation. Resource arguments contain `type: "resource"`, a resource `kind`, and an integer `index`; a null index represents an optional absent resource. No proprietary resource filename is resolved by the profile dispatcher. Unknown named commands have the same skip behavior as the game interpreter.
 
 Base rigs can contain authored proxy triangles rather than a complete character.
 For example, `mainchr/c01_base.gltf` supplies Max's base rig, while
@@ -123,7 +123,7 @@ Primitive stream maps restore original vertex and normal identities from expande
 
 glTF images are external PNG files, never `data:` URIs. Each image `uri` is a relative URI reference resolved against the glTF file's own directory, as the glTF specification requires. Segments are separated by `/`, `..` segments climb toward the archive root, and every byte outside the unreserved set (`A-Z a-z 0-9 - . _ ~`) is percent-encoded, so `tex/stone 0.png` is written `tex/stone%200.png`. A URI never contains a scheme, query, fragment, leading `/`, or encoded `/` or `..`, and never resolves above the archive root. Several images can name the same PNG; the file exists once in the archive.
 
-The referenced PNG is the standalone converted texture level, such as `map/d01/tex/stone_0.png` referenced from `map/d01/room.gltf` as `tex/stone_0.png` or from `map/d01/floor/room.gltf` as `../tex/stone_0.png`. Texture levels consumed by models remain published when a glTF references them, even after their texture document is folded into the gameplay JSON. Memory-card icons have no texture document; the extractor writes the icon's PNG beside its glTF with the same stem (`icon.gltf` references `icon.png`).
+The referenced PNG is the standalone converted texture level, such as `map/d01/tex/stone_0.png` referenced from `map/d01/room.gltf` as `tex/stone_0.png` or from `map/d01/floor/room.gltf` as `../tex/stone_0.png`. Texture levels consumed by models remain published when a glTF references them, even after their texture document is folded into archived asset JSON. Memory-card icons have no texture document; the extractor publishes the icon's PNG beside its glTF with the same stem (`icon.gltf` references `icon.png`).
 
 Image rows contain `image`, the standard image index, and `png`, the archive path that image's URI resolves to. Datapack replacements of that PNG path take precedence. The PNG dimensions define the game's logical texture size. Datapack PNG replacements can have larger physical canvases while logical dimensions stay fixed. A replaced glTF supplies its own images. Texture sets use `#/images/N` references and retain picture, mip, animation and variant behavior without separate texture documents.
 

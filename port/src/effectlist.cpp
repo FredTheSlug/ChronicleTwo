@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "asset_directory.hpp"
 #include "bounded_text.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
@@ -98,11 +99,12 @@ PORT_OVERRIDE void CEffectList::LoadEFPFile(char *name, u_int *pack, int block, 
     this->name = reinterpret_cast<char *>(stack->Alloc(Quadwords(strlen(name) + 1)));
     strcpy(this->name, name);
 
-    if (const auto assets = AssetDirectoryPath(pack)) {
-        for (const auto &document : DataReadNativeKeys(*assets)) {
-            if (texture_catalog::Find(document)) {
-                MgTextureEnterDocument(&mgTexManager, document, block, nullptr, nullptr);
-            }
+    std::vector<u_int *> texture_documents(AssetDirectoryCount(pack));
+    const int            texture_count = AssetDirectoryReadExtension(pack, "texture", texture_documents.data(),
+                                                                     static_cast<int>(texture_documents.size()), nullptr, nullptr);
+    for (int index = 0; index < texture_count; ++index) {
+        if (const auto path = DataReadBufferPath(texture_documents[index])) {
+            MgTextureEnterDocument(&mgTexManager, *path, block, nullptr, nullptr);
         }
     }
 

@@ -3,17 +3,17 @@
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
+#include <format>
 #include <print>
 
+#include "crash/crash.hpp"
 #include "exitcodes.hpp"
 
 // stdout is flushed first so the game's own context (LoadFile names the file) precedes the message.
-// _Exit skips static destructors, which would tear the renderer down under a frame still in progress.
+// The exit skips static destructors, which would tear the renderer down under a frame still in progress.
 extern "C" [[noreturn]] void __assert(const char *file, int line, const char *expression) {
     std::fflush(stdout);
-    std::println(stderr, "{}:{}: assertion failed: {}", file, line, expression);
-    std::fflush(nullptr);
-    std::_Exit(kExitGameAssert);
+    CrashReportAndExit(CrashKind::Assert, std::format("{}:{}: assertion failed: {}", file, line, expression), kExitGameAssert);
 }
 
 // glibc declares these noexcept; Apple's libc and the Windows CRT do not.

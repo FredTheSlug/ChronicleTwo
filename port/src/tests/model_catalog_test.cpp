@@ -1056,6 +1056,8 @@ TEST_F(NativeModel, CollapsesStandardScaleRotationHelpersWithoutChangingGameplay
     std::memcpy(bytes.data(), values.data(), bytes.size());
     gltf["buffers"][0]["uri"] = "data:application/octet-stream;base64," + Base64(bytes);
     Write(directory / "data/models/model.gltf", gltf);
+    // Reload the independent pose fixture even when both writes share a timestamp.
+    model_assets::Clear();
     root = Instantiate();
     motion = Motion();
     SetMotionTime(root, &motion, 14, nullptr);

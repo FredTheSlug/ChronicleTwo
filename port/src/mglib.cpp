@@ -17,9 +17,11 @@
 #include <utility>
 #include <vector>
 
+#include "crash/crash.hpp"
 #include "dng_main.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "menu_mouse.hpp"
 #include "mg_drawprim_port.hpp"
@@ -31,6 +33,7 @@
 #include "platform/clock.hpp"
 #include "platform/paths.hpp"
 #include "present.hpp"
+#include "profile.hpp"
 #include "scenesnd.hpp"
 #include "stubs/mglib.hpp"
 
@@ -323,7 +326,7 @@ bool ReadNow(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &wi
 
 bool WriteScreenshotDisplayFrames() {
     if (PresentGetSettings().interpolation && mgPortPreviousList() == nullptr) {
-        std::println(stderr, "mglib: frame {} has no previous list, display frames skipped", frame_count);
+        CT_LOG_WARN(Gfx, "mglib: frame {} has no previous list, display frames skipped", frame_count);
         return true;
     }
 
@@ -341,10 +344,10 @@ bool WriteScreenshotDisplayFrames() {
         written = PresentScreenshotDisplay(alpha, rgba, width, height) && gfx::WritePng(path, rgba.data(), width, height);
 
         if (written) {
-            std::println(stderr, "mglib: display frame {} of frame {} written to {}", k, frame_count,
-                         PathsDisplay(path));
+            CT_LOG_INFO(Gfx, "mglib: display frame {} of frame {} written to {}", k, frame_count,
+                        PathsDisplay(path));
         } else {
-            std::println(stderr, "mglib: display frame {} of frame {} could not be written to {}", k, frame_count,
+            CT_LOG_ERROR(Gfx, "mglib: display frame {} of frame {} could not be written to {}", k, frame_count,
                          PathsDisplay(path));
         }
     }
@@ -1353,6 +1356,7 @@ PORT_OVERRIDE void mgSetRenderInfo(float fov, float clip_near, float clip_far) {
 }
 
 PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
+    CT_PROFILE_REFRESH();
     if (manager == nullptr) {
         manager = &mgDrawManager;
     }
@@ -1465,6 +1469,7 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
         recording = false;
 
         if (list) {
+            CT_PROFILE_ZONE("Canonical scene render");
             gfx::RenderList(*list, 1.0f, gfx::RenderOptions{.canonical = true});
         }
 
@@ -1472,12 +1477,16 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
         last_list = std::move(list);
         // The display image keeps its own bars, and no display frame need run before letterboxing.
         if (clear_bars && last_list) {
+            CT_PROFILE_ZONE("Letterbox display render");
             gfx::RenderList(*last_list, 1.0f, gfx::RenderOptions{});
         }
         PresentTickRendered();
 
-        CacheMarkedColors();
-        AnswerDepthQueries();
+        {
+            CT_PROFILE_ZONE("Canonical readbacks");
+            CacheMarkedColors();
+            AnswerDepthQueries();
+        }
     }
 
     gfx_open = false;
@@ -1494,6 +1503,9 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
     depth_next = kFirstAllocatedDepthSlot;
     frame_open = false;
     ++frame_count;
+    CT_PROFILE_FRAME("Game");
+    CT_PROFILE_MAIN_FRAME();
+    CrashFrameEnd(frame_count);
 
     if (exit_frames > 0 && frame_count == exit_frames) {
         int status = kExitOk;
@@ -1507,10 +1519,10 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
             written = written && gfx::WritePng(screenshot_path, rgba.data(), width, height);
 
             if (written) {
-                std::println(stderr, "mglib: frame {} written to {}", frame_count,
-                             PathsDisplay(screenshot_path));
+                CT_LOG_INFO(Gfx, "mglib: frame {} written to {}", frame_count,
+                            PathsDisplay(screenshot_path));
             } else {
-                std::println(stderr, "mglib: frame {} could not be written to {}", frame_count,
+                CT_LOG_ERROR(Gfx, "mglib: frame {} could not be written to {}", frame_count,
                              PathsDisplay(screenshot_path));
                 status = kExitScreenshotFailed;
             }

@@ -8,13 +8,13 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
-#include <print>
 #include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "log/log.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_texture_port.hpp"
@@ -396,7 +396,7 @@ PORT_OVERRIDE void mgCDrawPrim::Data(int *data) {
 
     if (!reported) {
         reported = true;
-        std::println(stderr, "mg_drawprim: packed GIF data ignored; its caller needs a port override");
+        CT_LOG_WARN(Gfx, "mg_drawprim: packed GIF data ignored; its caller needs a port override");
     }
 }
 
@@ -483,7 +483,7 @@ PORT_OVERRIDE void mgCDrawPrim::Direct(unsigned long long reg, unsigned long lon
             break;
         default:
             if (ignored_direct_registers.insert(reg).second) {
-                std::println(stderr, "mg_drawprim: Direct register 0x{:x} ignored", static_cast<unsigned>(reg));
+                CT_LOG_WARN(Gfx, "mg_drawprim: Direct register 0x{:x} ignored", static_cast<unsigned>(reg));
             }
 
             break;

@@ -11,6 +11,7 @@
 
 #include "arena_root.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "mg_memory_port.hpp"
 #include "platform/arena.hpp"
 #include "texture_source.hpp"
@@ -269,7 +270,8 @@ PORT_OVERRIDE void mgCMemory::Free(u_long128 *data) {
 
     if (found == nullptr) {
         // Retail halts here. A host process that spins would hang the test run, so it aborts instead.
-        std::println(stderr, "Illegal Free Memory {}", static_cast<void *>(data));
+        CT_LOG_CRITICAL(Memory, "Illegal Free Memory {}", static_cast<void *>(data));
+        LogFlush();
         std::abort();
     }
 
@@ -397,11 +399,12 @@ mgMemoryUsage MemoryUsage(const mgCMemory &memory) {
 void MemoryLogPeaks() {
     for (const PeakEntry &entry : PeakTable()) {
         if (entry.name[0] == '\0') {
-            std::println("mg_memory: ? [{}] peak {} of {} quadwords ({} free)", static_cast<const void *>(entry.memory),
-                         entry.peak, entry.capacity, entry.capacity - entry.peak);
+            CT_LOG_INFO(Memory, "mg_memory: ? [{}] peak {} of {} quadwords ({} free)",
+                        static_cast<const void *>(entry.memory), entry.peak, entry.capacity,
+                        entry.capacity - entry.peak);
         } else {
-            std::println("mg_memory: {:.16} peak {} of {} quadwords ({} free)", entry.name.data(), entry.peak,
-                         entry.capacity, entry.capacity - entry.peak);
+            CT_LOG_INFO(Memory, "mg_memory: {:.16} peak {} of {} quadwords ({} free)", entry.name.data(), entry.peak,
+                        entry.capacity, entry.capacity - entry.peak);
         }
     }
 }

@@ -16,6 +16,7 @@
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
+#include "native_document_fixture.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/model_assets.hpp"
 #include "texture_source.hpp"
@@ -40,8 +41,7 @@ protected:
     std::string            folder;
 
     static void Write(const std::filesystem::path &path, const Json &document) {
-        std::filesystem::create_directories(path.parent_path());
-        std::ofstream(path, std::ios::binary) << document.dump(2);
+        dc::test::WriteNativeDocument(path, document);
     }
 
     static Json Texture(const char *name) {
@@ -61,12 +61,13 @@ protected:
         };
         bundle = gltf.dump(2);
         folder = Json({
-                          {"schema_version", 1                },
-                          {"kind",           "asset_directory"}
+                          {"schema_version",  1                                                                                                  },
+                          {"kind",            "asset_directory"                                                                                  },
+                          {"texture_members", Json::array({{{"name", "repair_powder2d.json"}, {"path", "textures/menu/1/repair_powder2d.json"}}})}
         })
                      .dump(2);
-        Write(root / "port_data/menu/eff/repair.gltf", gltf);
-        Write(root / "port_data/menu/eff/repair.assets/repair_powder.gltf", gltf);
+        Write(root / "data/menu/eff/repair.gltf", gltf);
+        Write(root / "data/menu/eff/repair.assets/repair_powder.gltf", gltf);
         const Json model = {
             {"schema_version",  1                                                                             },
             {"frames",          Json::array({{{"id", 0}, {"name", "root"}, {"parent", -1}, {"mdt", nullptr}}})},
@@ -96,7 +97,7 @@ protected:
             {{"command", "IMG_END"}, {"args", Json::array()}                                        },
             {{"command", "MODEL"},   {"args", Json::array({geometry})}                              }
         });
-        Write(root / "port_data/menu/eff/repair.assets/repair_powder.game.json", child);
+        Write(root / "data/menu/eff/repair.assets/repair_powder.game.json", child);
         Json game = {
             {"schema_version", 1             },
             {"kind",           "character"   },
@@ -104,9 +105,9 @@ protected:
             {"profiles",       Json::object()}
         };
         game["resources"]["texture_sets"] = Json::array({{{"document", Texture("menueff0")}}});
-        Write(root / "port_data/menu/eff/repair.game.json", game);
-        Write(root / "port_data/menu/1/chrchg0.pac/pack.json", Json::parse(folder));
-        Write(root / "port_data/menu/1/chrchg0.pac/repair_powder2d.json", Texture("menueff0"));
+        Write(root / "data/menu/eff/repair.game.json", game);
+        Write(root / "data/menu/1/chrchg0.pac/pack.json", Json::parse(folder));
+        Write(root / "data/textures/menu/1/repair_powder2d.json", Texture("menueff0"));
         std::filesystem::create_directories(root / "data");
         DataReadIndex(root / "data");
         DataReadRegisterAsset(bundle.data(), "menu/eff/repair.gltf", bundle.size());

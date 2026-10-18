@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <print>
 #include <string>
 #include <vector>
 
@@ -12,6 +11,7 @@
 #include "event_background.hpp"
 #include "event_func.hpp"
 #include "gamedata.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "runscript.hpp"
 
@@ -51,7 +51,7 @@ bool CanReadEventFiles() {
     if (EdEventInfo.stream_reading != 1) {
         return true;
     }
-    std::println(stderr, "event: file access requested while a stream is open");
+    CT_LOG_WARN(Event, "event: file access requested while a stream is open");
     return false;
 }
 } // namespace

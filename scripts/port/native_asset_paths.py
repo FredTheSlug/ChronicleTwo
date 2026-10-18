@@ -46,10 +46,32 @@ DIRECTORY_MEMBER_PATHS = {
         "etc/g_edit.img", "etc/cone.mds", "etc/hake.chr", "etc/a_mu.chr", "etc/sukkopu.chr",
     },
 }
+TEXTURE_MEMBER_LITERALS = {
+    "menushop.cpp": {"allitem.img", "spectre.img", "img.img"},
+    "menusys.cpp": {"img.img", "allitem.img", "edmenu.img"},
+}
+TEXTURE_MEMBER_FORMAT_TARGETS = {"dngmenu.cpp": {"map_name"}, "mainloop.cpp": {"file_name"}}
+TEXTURE_DIRECTORY_FORMATS = {
+    "nowload.cpp": {"img/%d/": "textures/img/%d/"},
+    "mainloop.cpp": {"meswin/%s": "textures/meswin/%s"},
+}
+
+
+def texture_path(path: str) -> str:
+    """Place a direct texture path below textures without container directories."""
+    components = path.split("/")
+    owners = [part for part in components[:-1] if part.lower().endswith((".chr", ".chr_"))]
+    if owners:
+        owner = owners[-1]
+        stem = owner.rsplit(".", 1)[0] + ("_" if owner.lower().endswith(".chr_") else "")
+        components[-1] = stem + "-" + components[-1]
+    return "textures/" + "/".join([part for part in components[:-1] if "." not in part] + components[-1:])
 
 
 def rewrite(text: str, unit: str | None = None) -> str:
     """Rewrite direct asset paths and character profile literals in C++ tokens."""
+    if unit == "gyorace.cpp":
+        text = re.sub(r"\bchar\s+image_path\[0x20\]", "char image_path[0x40]", text)
     frames = []
     previous = ""
     replacements = []
@@ -82,6 +104,8 @@ def rewrite(text: str, unit: str | None = None) -> str:
             directory_kind = frames and frames[-1][0] == "GetPackFileExt" and frames[-1][1] == 1
             if directory_kind:
                 migrated = DIRECTORY_KINDS.get(literal.lower(), literal)
+            elif literal in TEXTURE_DIRECTORY_FORMATS.get(unit, {}):
+                migrated = TEXTURE_DIRECTORY_FORMATS[unit][literal]
             elif literal.lower() in SCENE_AUDIO_PATHS:
                 migrated = SCENE_AUDIO_PATHS[literal.lower()]
             elif literal.lower() in DISTINCT_MODEL_PATHS:
@@ -90,7 +114,17 @@ def rewrite(text: str, unit: str | None = None) -> str:
                 migrated = literal[:-4]
             else:
                 migrated = re.sub(r"\.chr_$", "_.gltf", literal, flags=re.IGNORECASE)
+                texture = re.search(r"[^/]+\.(img|tm2)(?:;1)?$", literal, re.IGNORECASE)
                 migrated = EXTENSION.sub(lambda match: "." + SUFFIXES[match[1].lower()], migrated)
+                member = frames and frames[-1][0] in ("GetPackFile", "AssetDirectoryRead") and frames[-1][1] == 1
+                member = member or literal.lower() in TEXTURE_MEMBER_LITERALS.get(unit, ())
+                member = member or (unit == "nowload.cpp" and frames and frames[-1] == ["strcat", 1])
+                if frames and frames[-1] == ["sprintf", 1]:
+                    member = member or target in TEXTURE_MEMBER_FORMAT_TARGETS.get(unit, ())
+                if texture and not literal.startswith(".") and not member:
+                    migrated = texture_path(migrated)
+                    if unit == "gyorace.cpp" and literal.startswith("grttex_new6"):
+                        migrated = "/textures/sg/gyo/" + migrated.removeprefix("textures/")
                 if "/" not in migrated and "\\" not in migrated:
                     if len(migrated) > len(".wav") and migrated.lower().endswith(".wav"):
                         migrated = "sound/" + migrated

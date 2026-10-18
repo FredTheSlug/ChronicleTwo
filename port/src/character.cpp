@@ -1,11 +1,11 @@
 #include "common.h"
 
 #include <cstdio>
-#include <print>
 
 #include "character.hpp"
 #include "character_motion.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "platform/model_assets.hpp"
@@ -16,12 +16,12 @@ PORT_OVERRIDE void CCharacter2::LoadChrFile(u32 *data, char *profile, mgCMemory 
     std::string                        error;
     const auto                         path = DataReadBufferPath(data);
     if (!path) {
-        std::println(stderr, "character: direct glTF path required");
+        CT_LOG_ERROR(Data, "character: direct glTF path required");
         return;
     }
     const bool loaded = model_assets::LoadCharacter(*this, std::filesystem::path(*path), profile ? profile : "", options, error);
     if (!loaded) {
-        std::println(stderr, "character: {}", error);
+        CT_LOG_ERROR(Data, "character: {}", error);
     }
 }
 
@@ -30,12 +30,12 @@ PORT_OVERRIDE void CCharacter2::LoadSkin(u32 *data, char *profile, char *name, m
     std::string                        error;
     const auto                         path = DataReadBufferPath(data);
     if (!path) {
-        std::println(stderr, "character skin: direct glTF path required");
+        CT_LOG_ERROR(Data, "character skin: direct glTF path required");
         return;
     }
     const bool loaded = model_assets::LoadSkin(*this, std::filesystem::path(*path), profile ? profile : "", name ? name : "", options, error);
     if (!loaded) {
-        std::println(stderr, "character skin: {}", error);
+        CT_LOG_ERROR(Data, "character skin: {}", error);
     }
 }
 

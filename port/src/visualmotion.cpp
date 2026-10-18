@@ -1,12 +1,12 @@
 #include "common.h"
 
 #include <cstdio>
-#include <print>
 #include <stdexcept>
 #include <utility>
 
 #include "dataread_port.hpp"
 #include "gameutil.hpp"
+#include "log/log.hpp"
 #include "mg_dataset.hpp"
 #include "mg_math.hpp"
 #include "mg_visual_port.hpp"
@@ -18,7 +18,7 @@ PORT_OVERRIDE int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mg
                                                           mgCMemory         *memory, mgCMemory         */*work*/,
                                                           mgCTextureManager *textures) {
     if (!header || !memory) {
-        std::println(stderr, "animation: native glTF source required for skinned visual assignment");
+        CT_LOG_ERROR(Gfx, "animation: native glTF source required for skinned visual assignment");
         return 0;
     }
     char               empty[] = "";
@@ -33,13 +33,13 @@ PORT_OVERRIDE int mgCVisualMotionMDT::DataAssignMotionMDT(MDT_HEADER *header, mg
     std::string error;
     const auto  path = DataReadBufferPath(header);
     if (!path) {
-        std::println(stderr, "animation: direct glTF visual path required");
+        CT_LOG_ERROR(Gfx, "animation: direct glTF visual path required");
         return 0;
     }
     auto *root = model_assets::LoadModel(std::filesystem::path(*path), load, error);
     auto *selected = root && motion && motion->frame_id >= 0 && motion->frame_id < root->frame_num ? root->GetFrame(motion->frame_id) : root;
     if (!selected || !selected->visual || selected->visual->Iam() != MG_VISUAL_KIND_MOTION_MDT) {
-        std::println(stderr, "animation: {}", error.empty() ? "native skinned visual absent" : error.c_str());
+        CT_LOG_ERROR(Gfx, "animation: {}", error.empty() ? "native skinned visual absent" : error.c_str());
         return 0;
     }
     *this = *static_cast<mgCVisualMotionMDT *>(selected->visual);
@@ -62,7 +62,7 @@ PORT_OVERRIDE void mgCVisualMotionMDT::CreateVertexWeight(u_int *data, int selec
         slot = -1;
     }
     if (!data || !memory) {
-        std::println(stderr, "animation: native weight source identity required");
+        CT_LOG_ERROR(Gfx, "animation: native weight source identity required");
         return;
     }
     try {
@@ -73,7 +73,7 @@ PORT_OVERRIDE void mgCVisualMotionMDT::CreateVertexWeight(u_int *data, int selec
         std::string    error;
         const auto     path = DataReadBufferPath(data);
         if (!path) {
-            std::println(stderr, "animation: direct glTF weight path required");
+            CT_LOG_ERROR(Gfx, "animation: direct glTF weight path required");
             return;
         }
         const bool loaded = model_assets::LoadAnimation(std::filesystem::path(*path), resource, *memory, std::nullopt, std::nullopt, 0, std::nullopt, error);
@@ -124,7 +124,7 @@ PORT_OVERRIDE void mgCVisualMotionMDT::CreateVertexWeight(u_int *data, int selec
     } catch (const std::exception &error) {
         weight = nullptr;
         weight_num = 0;
-        std::println(stderr, "animation: {}", error.what());
+        CT_LOG_ERROR(Gfx, "animation: {}", error.what());
     }
 }
 

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "options/rows.hpp"
 #include "options/screen.hpp"
@@ -320,4 +321,149 @@ TEST(PcOptions, TimingRowIsAbsentAndOtherSettingsRemain) {
     EXPECT_TRUE(options::StepRow(Find("video.fullscreen"), config, 1));
     EXPECT_TRUE(config.fullscreen);
     EXPECT_DOUBLE_EQ(config.tick_rate, 60);
+}
+
+namespace {
+// The UI scales the PC page offers, smallest first.
+std::vector<float> OfferedUiScales() {
+    const auto        &row = Find("video.ui_scale");
+    Config             config;
+    std::vector<float> scales;
+    while (options::StepRow(row, config, -1)) {
+    }
+    do {
+        scales.push_back(config.ui_scale);
+    } while (options::StepRow(row, config, 1));
+    return scales;
+}
+
+// Where a page point lands in logical units once the UI scale scales the view's output.
+options::Point Logical(const options::View &view, options::Point page, float ui_scale) {
+    const auto ui = view.ToUi(page);
+    return {.x = view.centre_x + (ui.x - view.centre_x) * ui_scale, .y = view.centre_y + (ui.y - view.centre_y) * ui_scale};
+}
+} // namespace
+
+TEST(PcOptions, EntryAndPageFitAtEveryOfferedUiScaleAndWindowShape) {
+    const auto scales = OfferedUiScales();
+    ASSERT_EQ(scales.front(), 0.5f);
+    ASSERT_EQ(scales.back(), 1.5f);
+    const gfx::LogicalRect frame{.x = 0, .y = 0, .w = 512, .h = 480};
+    // 4:3 (letterboxed or not), 16:9 and 5:4 windows.
+    const gfx::LogicalRect windows[] = {
+        {.x = 0,         .y = 0,   .w = 512,       .h = 480},
+        {.x = -85.3333f, .y = 0,   .w = 682.6667f, .h = 480},
+        {.x = 0,         .y = -16, .w = 512,       .h = 512},
+    };
+    for (const auto &visible : windows) {
+        for (const auto &bounds : {options::kEntryBounds, options::kPageBounds}) {
+            for (const float scale : scales) {
+                const auto view = options::FitView(bounds, visible, frame, scale);
+                EXPECT_LE(view.scale, 1.0f);
+                if (scale <= 1.1f) {
+                    EXPECT_EQ(view.scale, 1.0f) << scale;
+                }
+                for (const float x : {bounds.x, bounds.x + bounds.w}) {
+                    for (const float y : {bounds.y, bounds.y + bounds.h}) {
+                        const auto at = Logical(view, {.x = x, .y = y}, scale);
+                        EXPECT_GE(at.x, visible.x - 1e-3f) << scale;
+                        EXPECT_LE(at.x, visible.x + visible.w + 1e-3f) << scale;
+                        EXPECT_GE(at.y, visible.y - 1e-3f) << scale;
+                        EXPECT_LE(at.y, visible.y + visible.h + 1e-3f) << scale;
+                    }
+                }
+                // Shrunk no further than the window needs.
+                const float drawn = view.scale * scale;
+                EXPECT_NEAR(options::FitView(bounds, visible, frame, drawn).scale, 1.0f, 1e-5f);
+                if (view.scale < 1.0f) {
+                    EXPECT_LT(options::FitView(bounds, visible, frame, drawn * 1.01f).scale, 1.0f);
+                }
+            }
+        }
+    }
+}
+
+TEST(PcOptions, FittedEntryAndBackStayClickableAtTheLargestUiScale) {
+    // 1920x1080 at 4:3, UI 150%: the UI mapping of the letterboxed 512x480 frame.
+    const gfx::LogicalMapping ui{.scale_x = 2.8125f * 1.5f,
+                                 .scale_y = 2.25f * 1.5f,
+                                 .offset_x = -120,
+                                 .offset_y = -270,
+                                 .pixel_width = 1920,
+                                 .pixel_height = 1080};
+    const gfx::LogicalRect    frame{.x = 0, .y = 0, .w = 512, .h = 480};
+    const auto                in_window = [&](options::Point at) {
+        const float x = at.x * ui.scale_x + ui.offset_x;
+        const float y = at.y * ui.scale_y + ui.offset_y;
+        return x >= 0 && x < 1920 && y >= 0 && y < 1080;
+    };
+    options::State       state;
+    const options::Point entry{.x = 364, .y = 63};
+    ASSERT_EQ(options::HitTest(state, entry.x, entry.y).kind, options::HitKind::Entry);
+    // Unfitted, the entry lies above the window.
+    EXPECT_FALSE(in_window(entry));
+    auto view = options::FitView(options::kEntryBounds, frame, frame, 1.5f);
+    EXPECT_LT(view.scale, 1.0f);
+    auto at = view.ToUi(entry);
+    ASSERT_TRUE(in_window(at));
+    // A click there, mapped back through the window and the view, is on the entry.
+    auto ui_point = options::PointerToUi(at.x * ui.scale_x + ui.offset_x, at.y * ui.scale_y + ui.offset_y, 1920, 1080, ui);
+    auto page = view.ToPage(ui_point);
+    EXPECT_EQ(options::HitTest(state, page.x, page.y).kind, options::HitKind::Entry);
+
+    state.open = true;
+    const options::Point back{.x = options::kLeft + 50, .y = 356};
+    ASSERT_EQ(options::HitTest(state, back.x, back.y).kind, options::HitKind::Back);
+    view = options::FitView(options::kPageBounds, frame, frame, 1.5f);
+    at = view.ToUi(back);
+    ASSERT_TRUE(in_window(at));
+    ui_point = options::PointerToUi(at.x * ui.scale_x + ui.offset_x, at.y * ui.scale_y + ui.offset_y, 1920, 1080, ui);
+    page = view.ToPage(ui_point);
+    EXPECT_EQ(options::HitTest(state, page.x, page.y).kind, options::HitKind::Back);
+}
+
+TEST(PcOptions, FittedTabsLandInsideTheWindowAtTheLargestUiScale) {
+    const float            scale = OfferedUiScales().back();
+    const gfx::LogicalRect frame{.x = 0, .y = 0, .w = 512, .h = 480};
+    // Unfitted, the outer tabs cross a 4:3 window's sides.
+    const options::View unfitted{.centre_x = 256, .centre_y = 240, .scale = 1};
+    ASSERT_LT(Logical(unfitted, {.x = options::kLeft, .y = 91}, scale).x, frame.x);
+    ASSERT_GT(Logical(unfitted, {.x = options::kRight, .y = 91}, scale).x, frame.x + frame.w);
+    // 1920x1080 at 4:3 and 16:9, whose UI mapping is the same, in a 960x540 window as on a high-DPI display.
+    const gfx::LogicalMapping ui{.scale_x = 2.8125f * scale,
+                                 .scale_y = 2.25f * scale,
+                                 .offset_x = 960 - 256 * 2.8125f * scale,
+                                 .offset_y = 540 - 240 * 2.25f * scale,
+                                 .pixel_width = 1920,
+                                 .pixel_height = 1080};
+    const gfx::LogicalRect    windows[] = {
+        frame,
+        {.x = -85.3333f, .y = 0, .w = 682.6667f, .h = 480},
+    };
+    options::State state;
+    state.open = true;
+    for (const auto &visible : windows) {
+        SCOPED_TRACE(visible.w);
+        const auto view = options::FitView(options::kPageBounds, visible, frame, scale);
+        for (int tab = 0; tab < options::kPages; ++tab) {
+            SCOPED_TRACE(tab);
+            const float left = options::kLeft + tab * options::kTabStep;
+            for (const float x : {left, left + options::kTabStep}) {
+                for (const float y : {91.0f, 114.0f}) {
+                    const auto at = Logical(view, {.x = x, .y = y}, scale);
+                    EXPECT_GE(at.x, visible.x);
+                    EXPECT_LE(at.x, visible.x + visible.w);
+                    EXPECT_GE(at.y, visible.y);
+                    EXPECT_LE(at.y, visible.y + visible.h);
+                }
+            }
+            // A click on the drawn tab, mapped back through the window and the view, is on that tab.
+            const auto at = view.ToUi({.x = left + options::kTabStep / 2.0f, .y = 102});
+            const auto page = view.ToPage(options::PointerToUi((at.x * ui.scale_x + ui.offset_x) / 2,
+                                                               (at.y * ui.scale_y + ui.offset_y) / 2, 960, 540, ui));
+            const auto hit = options::HitTest(state, page.x, page.y);
+            EXPECT_EQ(hit.kind, options::HitKind::Tab);
+            EXPECT_EQ(hit.index, tab);
+        }
+    }
 }

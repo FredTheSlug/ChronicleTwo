@@ -20,6 +20,9 @@ class mgCDrawEnv;
 
 // Frame
 
+// Applies a frame layout between ticks. A switch from Fill to Letterbox first lets two ticks clear the
+// main target outside the logical frame: letterboxed, nothing reaches the bars to replace Fill's art.
+void mgPortSetFrameLayout(const gfx::FrameLayout &layout);
 // False until mgInit has run on an initialised renderer. Code that can draw from the now-loading
 // fiber checks it before drawing.
 bool mgPortRendererReady();
@@ -84,6 +87,19 @@ mgPortExtent mgPortVisibleExtent(gfx::TextureHandle target);
 // The visible extent of `target` in the UI units its depthless 2D is drawn in, which video.ui_scale
 // scales about the centre.
 mgPortExtent mgPortVisibleUiExtent(gfx::TextureHandle target);
+
+// While enabled, 2D draws keep to retail's screen (0..mgScreenWidth, 0..mgScreenHeight): a menu panel
+// parked off that screen stays out of a wider window's sides. Scopes nest.
+class mgPortScreenClipScope {
+public:
+    explicit mgPortScreenClipScope(bool enabled);
+    ~mgPortScreenClipScope();
+    mgPortScreenClipScope(const mgPortScreenClipScope &) = delete;
+    mgPortScreenClipScope &operator=(const mgPortScreenClipScope &) = delete;
+
+private:
+    bool saved_;
+};
 
 // GS state (context 1) for draws whose packets are replaced
 

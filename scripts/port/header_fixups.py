@@ -39,6 +39,10 @@ FIXUPS = [
      "    int FadeInOutMenu();\n"
      "    int PortRetailStep();\n"
      "    void PortRetailDraw();"),
+    # A menu message window parked past the screen is clipped to it around retail's draw, which stays under this name.
+    ("menucls1.hpp", "    void DrawMsg();",
+     "    void DrawMsg();\n"
+     "    void PortRetailDrawMsg();"),
     ("nd_meswin.hpp", "#ifndef MES_WINDOW_OUT_OF_LINE_INIT", "#if 1"),
     ("collision.hpp", "memset(&bbox, 0, sizeof(bbox));", "memset(static_cast<void *>(&bbox), 0, sizeof(bbox));"),
     # kernel32 exports these three names on Windows; the PS2 kernel's versions take their own link names so they never bind to kernel32.

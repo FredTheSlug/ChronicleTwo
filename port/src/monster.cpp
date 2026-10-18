@@ -20,6 +20,8 @@
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "monster.hpp"
+#include "monster_memory.hpp"
+#include "platform/config.hpp"
 #include "platform/model_assets.hpp"
 #include "snd_mngr.hpp"
 #include "sound_port.hpp"
@@ -130,6 +132,24 @@ void ApplyMonsterName(const MonsterName &entry) {
 }
 
 } // namespace
+
+namespace {
+
+// Retail's active monster slots, and how many of the nearest monsters show and act.
+constexpr int kRetailActiveMonsters = 24;
+constexpr int kRetailPriorityLimit = 5;
+
+int active_monsters = kRetailActiveMonsters;
+
+} // namespace
+
+int PortMonsterLatchLimits() {
+    const bool more = ConfigGet().more_monsters;
+    active_monsters = more ? MONSTER_ACTIVE_MAX : kRetailActiveMonsters;
+    return more ? MONSTER_ACTIVE_MAX : kRetailPriorityLimit;
+}
+
+int PortMonsterActiveLimit() { return active_monsters; }
 
 PORT_OVERRIDE void LoadMonsterLanguage(int language) {
     const std::string path = "dungeon/cfg_file/mosdata" + std::to_string(language) + ".cfg.json";

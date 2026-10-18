@@ -1,9 +1,12 @@
 #include "common.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 
 #include "bounded_text.hpp"
+#include "editparts.hpp"
+#include "save_json.hpp"
 #include "savedata.hpp"
 
 // Retail copies the 28-byte round name into the 20-byte record name, so a full 20-character name
@@ -33,4 +36,17 @@ PORT_OVERRIDE int CSphidaData::EnterScore() {
     }
 
     return 0x64;
+}
+
+// Counts the parts placed in every town's layout, which the save keeps beside the town records.
+PORT_OVERRIDE int CSaveData::GetPlaceEditPartsNum(int parts_id) {
+    int total = 0;
+    for (const CEditData &data : edit_data) {
+        if (const TownLayout *layout = PortFindTownLayout(data)) {
+            total += static_cast<int>(std::ranges::count_if(layout->parts, [&](const TownPart &part) {
+                return part.id != 0 && part.id == parts_id && part.state != EDIT_PARTS_STATE_NONE;
+            }));
+        }
+    }
+    return total;
 }

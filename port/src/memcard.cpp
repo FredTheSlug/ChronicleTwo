@@ -6,7 +6,6 @@
 #include <memory>
 #include <utility>
 
-#include "inventmn.hpp"
 #include "mainloop.hpp"
 #include "platform/files.hpp"
 #include "platform/paths.hpp"
@@ -69,9 +68,22 @@ void BuildImage(SAVEDATA_FORMAT &image, int program_loop_no, unsigned long long 
 u64 NewestCounter() {
     return MaxUniqueCounter(SaveSlotScan(true));
 }
+
+// The game as it stands: the retail image and the layouts the towns keep beside their records.
+std::unique_ptr<SaveDocument> BuildDocument(int program_loop_no, unsigned long long newest) {
+    auto document = std::make_unique<SaveDocument>();
+    BuildImage(document->image, program_loop_no, newest);
+    const auto &save = *GetSaveData();
+    for (std::size_t i = 0; i < document->towns.size(); ++i) {
+        if (const TownLayout *town = PortFindTownLayout(save.edit_data[i])) {
+            document->towns[i] = *town;
+        }
+    }
+    return document;
+}
 } // namespace
 
-bool SaveSlotWriteAutosave(int program_loop_no, AutosaveSpawn *spawn) {
+bool SaveSlotWriteAutosave(int program_loop_no, const AutosaveSpawn *spawn) {
     if ((program_loop_no != LOOP_EDIT && program_loop_no != LOOP_DUNGEON) ||
         FilesCreateDirectory(SaveSlotsRoot()) == FilesResult::kFailed) {
         return false;
@@ -81,24 +93,18 @@ bool SaveSlotWriteAutosave(int program_loop_no, AutosaveSpawn *spawn) {
     if (list.read_failed || newest == std::numeric_limits<u64>::max()) {
         return false;
     }
-    auto image = std::make_unique<SAVEDATA_FORMAT>();
-    BuildImage(*image, program_loop_no, newest);
-    const bool has_spawn = program_loop_no == LOOP_EDIT && spawn;
-    if (has_spawn) {
-        spawn->counter = image->unique_counter;
-        if (spawn->map_no != image->map_no || !SaveSlotWriteSpawn(*spawn)) {
+    auto document = BuildDocument(program_loop_no, newest);
+    if (program_loop_no == LOOP_EDIT && spawn != nullptr) {
+        if (spawn->map_no != document->image.map_no) {
             return false;
         }
+        document->spawn = *spawn;
+        document->spawn->counter = document->image.unique_counter;
     }
     if (program_loop_no == LOOP_DUNGEON) {
-        image->dng_tree_flag = 0;
+        document->image.dng_tree_flag = 0;
     }
-    if (SaveSlotWrite(SaveSlotAutosavePath(), *image, true) != FilesResult::kWritten) {
-        // A failed directory sync can still leave the new image published; retain both possible matching sidecars.
-        return false;
-    }
-    SaveSlotPruneSpawns(has_spawn ? std::optional<u64>(image->unique_counter) : std::nullopt);
-    return true;
+    return SaveSlotWrite(SaveSlotAutosavePath(), *document, true) == FilesResult::kWritten;
 }
 
 CMemoryCardManager *SaveSlotManager() { return active_manager; }
@@ -194,14 +200,14 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
         return MC_STEP_DONE;
     }
 
-    auto &image = *save_buffer;
     // A confirmed overwrite stays valid even when an unrelated legacy-card root is unreadable.
     const auto newest = std::max(CheckMaxUniqueCounter(), NewestCounter());
     if (newest == std::numeric_limits<u64>::max()) {
         error.code = MC_ERROR_FILE;
         return MC_STEP_DONE;
     }
-    BuildImage(image, NowProgramLoopNo, newest);
+    const auto document = BuildDocument(NowProgramLoopNo, newest);
+    std::memcpy(static_cast<void *>(save_buffer), &document->image, sizeof(*save_buffer));
 
     std::filesystem::path path;
     FilesResult           result = FilesResult::kFailed;
@@ -218,7 +224,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
                 break;
             }
             path = SaveSlotPath(number);
-            result = SaveSlotWrite(path, image, false);
+            result = SaveSlotWrite(path, *document, false);
             if (result != FilesResult::kExists) {
                 break;
             }
@@ -226,8 +232,8 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
     } else {
         const auto &slot = SaveSlots.saves[row];
         path = SaveSlotPath(slot.number, slot.second_card);
-        // A failed import can still be replaced, but the original card payload is never modified.
-        result = SaveSlotWrite(slot, image);
+        // A legacy row can still be replaced, but the original image is never modified.
+        result = SaveSlotWrite(slot, *document);
     }
     SaveSlotNew = false;
     if (result != FilesResult::kWritten) {
@@ -242,7 +248,7 @@ PORT_OVERRIDE int CMemoryCardManager::SaveToMc(int row) {
             file_no = static_cast<int>(i);
         }
     }
-    total_transferred = transferred = sizeof(image);
+    total_transferred = transferred = sizeof(*save_buffer);
     return MC_STEP_DONE;
 }
 
@@ -250,31 +256,32 @@ PORT_OVERRIDE int CMemoryCardManager::LoadFromMc(int row) {
     InitError();
     total_transferred = transferred = 0;
     SaveSlotSetPendingSpawn(std::nullopt);
-    auto image = std::make_unique<SAVEDATA_FORMAT>();
+    auto document = std::make_unique<SaveDocument>();
     if (row < 0 || std::cmp_greater_equal(row, SaveSlots.saves.size()) ||
-        SaveSlotRead(SaveSlots.saves[row].path, *image) != SaveSlotState::Ready) {
+        SaveSlotRead(SaveSlots.saves[row].path, *document) != SaveSlotState::Ready) {
         error.code = MC_ERROR_LOAD;
         return MC_STEP_DONE;
     }
-    // SaveSlotRead has validated the image; the retail photo address rebinding runs when its menu opens.
-    auto *save = GetSaveData();
-    std::memcpy(save, &image->save_data, sizeof(*save));
-    if (std::memcmp(image->version, "dc2Ver2", 8) == 0) {
-        TranslateInventUserData(image->save_data.GetUserDataManager()->GetInventUserData(),
-                                save->GetUserDataManager()->GetInventUserData());
+    // SaveSlotRead has validated and converted the save; the retail photo address rebinding runs when its menu opens.
+    const auto &image = document->image;
+    auto       *save = GetSaveData();
+    std::memcpy(static_cast<void *>(save), &image.save_data, sizeof(*save));
+    for (std::size_t i = 0; i < document->towns.size(); ++i) {
+        PortTownLayout(save->edit_data[i]) = std::move(document->towns[i]);
     }
-    load_program_loop_no = image->program_loop_no;
-    load_map_no = image->map_no;
-    load_dungeon_no = image->dungeon_no;
-    load_floor_id = image->floor_id;
-    load_dng_tree_flag = image->dng_tree_flag;
-    if (SaveSlots.saves[row].autosave && image->program_loop_no == LOOP_EDIT) {
-        SaveSlotSetPendingSpawn(SaveSlotReadSpawn(image->unique_counter, image->map_no));
+    load_program_loop_no = image.program_loop_no;
+    load_map_no = image.map_no;
+    load_dungeon_no = image.dungeon_no;
+    load_floor_id = image.floor_id;
+    load_dng_tree_flag = image.dng_tree_flag;
+    if (SaveSlots.saves[row].autosave && image.program_loop_no == LOOP_EDIT && document->spawn &&
+        document->spawn->map_no == image.map_no) {
+        SaveSlotSetPendingSpawn(document->spawn);
     }
     if (save->tour.base_day <= 0 && save->GetBitFlag(SAVE_FLAG_FISHING_CONTEST_UNLOCKED)) {
         save->tour.base_day = 7;
     }
     PlayTimeReset();
-    total_transferred = transferred = sizeof(*image);
+    total_transferred = transferred = sizeof(image);
     return MC_STEP_DONE;
 }

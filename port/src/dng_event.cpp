@@ -11,6 +11,7 @@
 #include <format>
 #include <iterator>
 #include <ranges>
+#include <span>
 #include <vector>
 
 #include "collision_assets.hpp"
@@ -35,7 +36,7 @@ void PrepareMonsterMemory(CMonsterMan &manager, mgCMemory &memory) {
     // Preserve the retail model budget and account for the two script arrays' wider entries.
     constexpr int extra_bytes = 128 * (sizeof(RS_STACKDATA) - 8) + 512 * (sizeof(RS_CALLDATA) - 12);
     constexpr int quadwords = 4000 + (extra_bytes + 15) / 16;
-    for (auto &slot : manager.memory) {
+    for (auto &slot : std::span(manager.memory).first(PortMonsterActiveLimit())) {
         slot.stSetBuffer(memory.stAlloc64(quadwords), quadwords);
         slot.stReset();
         slot.lock = 0;

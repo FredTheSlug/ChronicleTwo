@@ -221,7 +221,6 @@ TEST(CtArenaPlacement, RetailRunsAgainstHostSizes) {
         "editeff.cpp:554 CMapParts[1]",
         "editexception.cpp:390 mgC3DSprite[1]",
         "editexception.cpp:696 CGeyserEffect[4]",
-        "editmenu.cpp:1162 CMenuGeorama[1]",
         "editmenu.cpp:5763 CRemovalMenu[1]",
         "editmode.cpp:676 CCharacter2[1]",
         "editmode.cpp:695 CCharacter2[1]",

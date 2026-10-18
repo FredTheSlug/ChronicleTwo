@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <memory>
 
 #include "gamepad.hpp"
@@ -129,7 +130,8 @@ protected:
         const int lr = keys.CheckLRKey();
         switch (menu.key_arg_no) {
             case SHOP_MENU_MODE_BUY_LIST: {
-                const int old_pos = menu.list_pos, old_top = menu.list_top;
+                const int old_pos = menu.list_pos;
+                const int old_top = menu.list_top;
                 const int moved = MenuListKeyCheck(lr, &menu.list_pos, &menu.list_top, stock.item_num, SHOP_LIST_LINE, 0, 0);
                 if (moved || old_pos != menu.list_pos || old_top != menu.list_top) {
                     MenuSePlay(SYSTEM_SE_CURSOR);
@@ -141,21 +143,22 @@ protected:
                 break;
             case SHOP_MENU_MODE_BUY_NUM:
             case SHOP_MENU_MODE_SELL_NUM: {
-                const int old_cursor = menu.num_cursor, old_num = menu.num;
+                const int old_cursor = menu.num_cursor;
+                const int old_num = menu.num;
                 if (menu.num_cursor == 0) {
                     menu.num += (lr & MENU_SELECT_KEY_UP ? 1 : 0) - (lr & MENU_SELECT_KEY_DOWN ? 1 : 0);
                 }
                 if (menu.num <= 0) {
                     menu.num = 1;
                 }
-                if (menu.num > menu.num_max) {
-                    menu.num = menu.num_max;
-                }
+                menu.num = std::min(menu.num, menu.num_max);
                 if (old_cursor != menu.num_cursor || old_num != menu.num) {
                     MenuSePlay(SYSTEM_SE_CURSOR);
                 }
                 break;
             }
+            default:
+                break;
         }
     }
 };
@@ -212,7 +215,7 @@ TEST_F(ShopMouse, WheelScrollsTheBagARowAndTakesTheCellThatSettlesUnderThePointe
     At(300, 80);
     EXPECT_EQ(menu.key_arg_no, SHOP_MENU_MODE_BAG);
     EXPECT_EQ(menu.bag_pos, 1);
-    // The playtest case: the pointer stays on the top row while the wheel turns.
+    // The pointer stays on the top row while the wheel turns.
     At(300, 80, 0, -1);
     EXPECT_EQ(menu.bag_top, 1);
     EXPECT_EQ(menu.bag_pos, 7);

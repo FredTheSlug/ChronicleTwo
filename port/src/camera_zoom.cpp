@@ -43,24 +43,24 @@ public:
     static constexpr int capacity = 2048;
 
     Collector(CScene &scene, CCPoly *retail, int retail_count)
-        : scene_(scene), retail_(retail), retail_count_(retail_count) {}
+        : scene(scene), retail(retail), retail_count(retail_count) {}
 
-    void Clear(bool walking) {
-        polys_.clear();
-        walls_.clear();
-        walking_ = walking;
-        ok_ = retail_count_ >= 0 && retail_count_ < 512 && (!retail_count_ || retail_);
-        if (ok_) {
-            polys_.insert(polys_.end(), retail_, retail_ + retail_count_);
+    void Clear(bool is_walking) {
+        polys.clear();
+        walls.clear();
+        walking = is_walking;
+        ok = retail_count >= 0 && retail_count < 512 && (!retail_count || retail);
+        if (ok) {
+            polys.insert(polys.end(), retail, retail + retail_count);
         }
     }
 
     void Add(const float *a, const float *b, float pad = 8, int depth = 0) {
-        if (!ok_) {
+        if (!ok) {
             return;
         }
         if (!Finite(a) || !Finite(b)) {
-            ok_ = false;
+            ok = false;
             return;
         }
         mgVu0FBOX bounds{};
@@ -70,19 +70,19 @@ public:
         }
         bounds.min[3] = bounds.max[3] = 1;
         static CCPoly piece[512];
-        static CCPoly walls[512];
-        const int     found = MouseCameraCollectPolys(scene_, bounds, piece, 512);
-        const int     walled = walking_ && found >= 0 && found < 512
-                                   ? MouseCameraCollectPolys(scene_, bounds, walls, 512, true)
+        static CCPoly wall_piece[512];
+        const int     found = MouseCameraCollectPolys(scene, bounds, piece, 512);
+        const int     walled = walking && found >= 0 && found < 512
+                                   ? MouseCameraCollectPolys(scene, bounds, wall_piece, 512, true)
                                    : 0;
         if (found >= 0 && found < 512 && walled >= 0 && walled < 512) {
-            ok_ = Insert(polys_, piece, found) && Insert(walls_, walls, walled);
+            ok = Insert(polys, piece, found) && Insert(walls, wall_piece, walled);
             return;
         }
         const float length = std::sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) +
                                        (a[2] - b[2]) * (a[2] - b[2]));
         if (length < 16 || depth >= 12) {
-            ok_ = false;
+            ok = false;
             return;
         }
         const float middle[4] = {(a[0] + b[0]) * 0.5f, (a[1] + b[1]) * 0.5f, (a[2] + b[2]) * 0.5f, 1};
@@ -93,30 +93,30 @@ public:
     // Returns the unique camera polygons, or -1 when the geometry could not be
     // gathered. View() then also holds the characters' collision when walking.
     int Finish() {
-        if (!ok_) {
+        if (!ok) {
             return -1;
         }
-        Merge(polys_);
-        walls_.insert(walls_.end(), polys_.begin(), polys_.end());
-        Merge(walls_);
-        if (walls_.size() > capacity) {
+        Merge(polys);
+        walls.insert(walls.end(), polys.begin(), polys.end());
+        Merge(walls);
+        if (walls.size() > capacity) {
             return -1;
         }
-        return static_cast<int>(polys_.size());
+        return static_cast<int>(polys.size());
     }
 
-    CCPoly *Data() { return polys_.data(); }
+    CCPoly *Data() { return polys.data(); }
 
-    CCPoly *View() { return walls_.data(); }
+    CCPoly *View() { return walls.data(); }
 
-    int ViewCount() const { return static_cast<int>(walls_.size()); }
+    [[nodiscard]] int ViewCount() const { return static_cast<int>(walls.size()); }
 
 private:
     static void Merge(std::vector<CCPoly> &polys) {
         auto less = [](const CCPoly &x, const CCPoly &y) { return std::memcmp(&x, &y, kPolyBytes) < 0; };
         auto same = [](const CCPoly &x, const CCPoly &y) { return std::memcmp(&x, &y, kPolyBytes) == 0; };
-        std::sort(polys.begin(), polys.end(), less);
-        polys.erase(std::unique(polys.begin(), polys.end(), same), polys.end());
+        std::ranges::sort(polys, less);
+        polys.erase(std::ranges::unique(polys, same).begin(), polys.end());
     }
 
     // Neighbouring queries overlap; merge them before giving up.
@@ -131,12 +131,13 @@ private:
         return true;
     }
 
-    CScene             &scene_;
-    CCPoly             *retail_;
-    int                 retail_count_;
-    std::vector<CCPoly> polys_, walls_;
-    bool                walking_ = false;
-    bool                ok_ = true;
+    CScene             &scene;
+    CCPoly             *retail;
+    int                 retail_count;
+    std::vector<CCPoly> polys;
+    std::vector<CCPoly> walls;
+    bool                walking = false;
+    bool                ok = true;
 };
 
 // Retail's wall correction places the eye five units in front of a hit along
@@ -190,13 +191,14 @@ bool FirstHit(Collector &collector, int count, bool walking, float reach, const 
     const float length = Distance(to, from);
     auto        distance = [&](const float *point) {
         return std::sqrt((point[0] - from[0]) * (point[0] - from[0]) + (point[1] - from[1]) * (point[1] - from[1]) +
-                                (point[2] - from[2]) * (point[2] - from[2]));
+                         (point[2] - from[2]) * (point[2] - from[2]));
     };
     bool found = count > 0 && CheckHit(collector.Data(), count, from, to, hit, 1, 0) >= 0;
     if (!walking || collector.ViewCount() <= 0 || !(reach >= 0) || !(length > reach)) {
         return found;
     }
-    float start[4], near_hit[4];
+    float start[4];
+    float near_hit[4];
     Reach(from, to, reach, start);
     if (CheckHit(collector.View(), collector.ViewCount(), start, to, near_hit, 1, 0) >= 0 &&
         (!found || distance(near_hit) < distance(hit))) {
@@ -234,20 +236,20 @@ class Sweep {
 public:
     Sweep(const float *target_a, const float *eye_a, const float *target_b, const float *eye_b) {
         for (int i = 0; i < 3; ++i) {
-            origin_[i] = eye_a[i];
-            across_[i] = static_cast<double>(eye_b[i]) - eye_a[i];
-            along_[i] = static_cast<double>(target_a[i]) - eye_a[i];
-            twist_[i] = static_cast<double>(target_b[i]) - target_a[i] - across_[i];
+            origin[i] = eye_a[i];
+            across[i] = static_cast<double>(eye_b[i]) - eye_a[i];
+            along[i] = static_cast<double>(target_a[i]) - eye_a[i];
+            twist[i] = static_cast<double>(target_b[i]) - target_a[i] - across[i];
             // The patch lies within its corners' convex hull, so within their box.
-            min_[i] = std::min({target_a[i], eye_a[i], target_b[i], eye_b[i]});
-            max_[i] = std::max({target_a[i], eye_a[i], target_b[i], eye_b[i]});
+            box_min[i] = std::min({target_a[i], eye_a[i], target_b[i], eye_b[i]});
+            box_max[i] = std::max({target_a[i], eye_a[i], target_b[i], eye_b[i]});
         }
     }
 
-    bool Overlaps(const CCPoly &poly) const {
+    [[nodiscard]] bool Overlaps(const CCPoly &poly) const {
         for (int i = 0; i < 3; ++i) {
-            if (std::max({poly.vertex[0][i], poly.vertex[1][i], poly.vertex[2][i]}) < min_[i] ||
-                std::min({poly.vertex[0][i], poly.vertex[1][i], poly.vertex[2][i]}) > max_[i]) {
+            if (std::max({poly.vertex[0][i], poly.vertex[1][i], poly.vertex[2][i]}) < box_min[i] ||
+                std::min({poly.vertex[0][i], poly.vertex[1][i], poly.vertex[2][i]}) > box_max[i]) {
                 return false;
             }
         }
@@ -269,14 +271,12 @@ public:
             return false;
         }
         // Two directions across the segment, scaled to unit length below.
-        const int axis = std::fabs(d[0]) <= std::fabs(d[1]) && std::fabs(d[0]) <= std::fabs(d[2]) ? 0
-                         : std::fabs(d[1]) <= std::fabs(d[2])                                     ? 1
-                                                                                                  : 2;
-        double    unit[3] = {0, 0, 0}, n[2][3];
-        unit[axis] = 1;
+        double unit[3] = {0, 0, 0};
+        double n[2][3];
+        unit[SmallestAxis(d)] = 1;
         Cross(d, unit, n[0]);
         Cross(d, n[0], n[1]);
-        const double offset[3] = {origin_[0] - a[0], origin_[1] - a[1], origin_[2] - a[2]};
+        const double offset[3] = {origin[0] - a[0], origin[1] - a[1], origin[2] - a[2]};
         double       c[2];
         double       du[2];
         double       dv[2];
@@ -284,15 +284,15 @@ public:
         for (int k = 0; k < 2; ++k) {
             const double norm = std::sqrt(Dot(n[k], n[k]));
             c[k] = Dot(offset, n[k]) / norm;
-            du[k] = Dot(across_, n[k]) / norm;
-            dv[k] = Dot(along_, n[k]) / norm;
-            duv[k] = Dot(twist_, n[k]) / norm;
+            du[k] = Dot(across, n[k]) / norm;
+            dv[k] = Dot(along, n[k]) / norm;
+            duv[k] = Dot(twist, n[k]) / norm;
         }
         const double q2 = du[0] * duv[1] - du[1] * duv[0];
         const double q1 = c[0] * duv[1] + du[0] * dv[1] - c[1] * duv[0] - du[1] * dv[0];
         const double q0 = c[0] * dv[1] - c[1] * dv[0];
         double       scale = length2;
-        for (const double *v : {offset, across_, along_, twist_}) {
+        for (const double *v : {offset, across, along, twist}) {
             scale = std::max(scale, Dot(v, v));
         }
         const double tiny = 1e-12 * scale;
@@ -319,14 +319,15 @@ public:
             const double den[2] = {dv[0] + u * duv[0], dv[1] + u * duv[1]};
             const int    k = std::fabs(den[0]) >= std::fabs(den[1]) ? 0 : 1;
             // A view along the segment's line only touches it, as above.
-            if (!(u >= -slack && u <= 1 + slack) || std::fabs(den[k]) <= 1e-9 * std::sqrt(scale)) {
+            const bool within = u >= -slack && u <= 1 + slack;
+            if (!within || std::fabs(den[k]) <= 1e-9 * std::sqrt(scale)) {
                 continue;
             }
             const double v = -(c[k] + u * du[k]) / den[k];
             // Where along the segment the patch point at (u, v) lies.
             double w = 0;
             for (int i = 0; i < 3; ++i) {
-                w += (offset[i] + u * across_[i] + v * (along_[i] + u * twist_[i])) * d[i];
+                w += (offset[i] + u * across[i] + v * (along[i] + u * twist[i])) * d[i];
             }
             w /= length2;
             if (v >= -slack && v <= 1 + slack && w >= -slack && w <= 1 + slack) {
@@ -337,6 +338,13 @@ public:
     }
 
 private:
+    static int SmallestAxis(const double *d) {
+        if (std::fabs(d[0]) <= std::fabs(d[1]) && std::fabs(d[0]) <= std::fabs(d[2])) {
+            return 0;
+        }
+        return std::fabs(d[1]) <= std::fabs(d[2]) ? 1 : 2;
+    }
+
     static double Dot(const double *x, const double *y) { return x[0] * y[0] + x[1] * y[1] + x[2] * y[2]; }
 
     static void Cross(const double *x, const double *y, double *out) {
@@ -345,8 +353,12 @@ private:
         out[2] = x[0] * y[1] - x[1] * y[0];
     }
 
-    double origin_[3], across_[3], along_[3], twist_[3];
-    float  min_[3], max_[3];
+    double origin[3]{};
+    double across[3]{};
+    double along[3]{};
+    double twist[3]{};
+    float  box_min[3]{};
+    float  box_max[3]{};
 };
 
 // Whether a wall crosses the surface a view sweeps from one drawn pose to the
@@ -487,7 +499,8 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
         // that line, which ground correction can select.
         auto gather = [&] {
             collector.Clear(walking);
-            float low[4], high[4];
+            float low[4];
+            float high[4];
             for (int i = 0; i < 4; ++i) {
                 low[i] = high[i] = candidate.next_pos[i];
             }
@@ -545,7 +558,12 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     CCameraControl chosen = camera;
     float          reached = evaluate(allowed, chosen);
     // Geometry too dense to gather even piecewise: try shorter views first.
-    for (float shorter = allowed * 0.5f; reached < 0 && shorter >= min_distance; shorter *= 0.5f) {
+    const float first = allowed;
+    for (int halvings = 1; reached < 0; ++halvings) {
+        const float shorter = std::ldexp(first, -halvings);
+        if (!(shorter >= min_distance)) {
+            break;
+        }
         reached = evaluate(shorter, chosen);
         if (reached >= 0) {
             allowed = shorter;
@@ -656,7 +674,8 @@ void CameraZoom::KeepVisible(CCameraControl &camera, CScene &scene, CCPoly *reta
 
 bool CameraZoom::Swept(CCameraControl &camera, CScene &scene, CCameraControl &rendered, CCPoly *retail_polys,
                        int retail_count) const {
-    float eye[4] = {0, 0, 0, 1}, target[4] = {0, 0, 0, 1};
+    float eye[4] = {0, 0, 0, 1};
+    float target[4] = {0, 0, 0, 1};
     for (int i = 0; i < 3; ++i) {
         eye[i] = std::isfinite(shown_pos[i]) ? shown_pos[i] : camera.pos[i];
         target[i] = std::isfinite(shown_ref[i]) ? shown_ref[i] : camera.ref[i];

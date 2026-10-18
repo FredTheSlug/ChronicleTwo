@@ -54,8 +54,8 @@ struct CameraZoom {
 
 private:
     // The distance below which walls limit the eye as in retail, without a hold.
-    float Floor(const CameraCtrlParam &retail) const;
-    void  Strike();
+    [[nodiscard]] float Floor(const CameraCtrlParam &retail) const;
+    void                Strike();
     // Whether a camera wall lies between the drawn views blending to the rendered one.
     bool Swept(CCameraControl &camera, CScene &scene, CCameraControl &rendered, CCPoly *retail_polys,
                int retail_count) const;

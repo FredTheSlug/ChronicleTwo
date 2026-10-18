@@ -58,8 +58,8 @@ FIXUPS = [
 # its slot in the draw manager's pointer tables. Both grow with pointer width, so the work stacks scale with them.
 WORK_STACK_QUADWORDS = "10000 * (int) sizeof(mgSORT_PACKET) / 16"
 
-# Quadwords added to each character model stack. Host model and metadata records outgrow retail's counts, so Max's
-# body overran the 68500 quadwords of human stack 0 on entering a dungeon with a datapack.
+# Quadwords added to each character model stack. Host model and metadata records outgrow retail's counts: with a
+# datapack, Max's body exceeds the 68500 quadwords of human stack 0 on entering a dungeon.
 CHARA_MODEL_STACK_EXTRA = 12000
 
 # The leading newline anchors each match to its line start: a copy already rewritten fails the exactly-once check

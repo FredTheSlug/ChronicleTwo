@@ -27,6 +27,7 @@
 #include "effectlist.hpp"
 #include "font.hpp"
 #include "mainloop.hpp"
+#include "menu_mouse.hpp"
 #include "menuaqua.hpp"
 #include "menucls1.hpp"
 #include "menucommon.hpp"
@@ -114,6 +115,22 @@ PORT_OVERRIDE void ConvertFontCode(char *source, char *destination) {
     }
     *destination = '\0';
 }
+
+namespace {
+int cursor_sounds = 0;
+} // namespace
+
+// Retail's body; it counts every menu cursor sound, retail or mouse, for tests.
+PORT_OVERRIDE void MenuSePlay(int sound_no) {
+    if (sound_no == SYSTEM_SE_CURSOR) {
+        ++cursor_sounds;
+    }
+    if (sound_no >= 0) {
+        MenuSePlay(SystemSND_ID, sound_no);
+    }
+}
+
+int MenuCursorSounds() { return cursor_sounds; }
 
 namespace {
 

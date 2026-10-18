@@ -98,7 +98,7 @@ public:
     mgPortScreenClipScope &operator=(const mgPortScreenClipScope &) = delete;
 
 private:
-    bool saved_;
+    bool saved;
 };
 
 // GS state (context 1) for draws whose packets are replaced

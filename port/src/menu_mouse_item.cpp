@@ -547,7 +547,7 @@ void MenuMouseUpdate(CMenuKeyFunc &keys) {
     if (menu.mode == MENU_ASK_MODE_ROD_POINTS && menu.step == 0) {
         const Target hit = Hit(menu, pointer.pos, 0);
         if (hit.panel == ITEM_MENU_PANEL_FISHING_ROD_STATS && take.moved) {
-            // select_pos[0] shares keys.cursor, whose change KeyStepLocal sounds; sounding it here played it twice.
+            // select_pos[0] shares keys.cursor, whose change KeyStepLocal already sounds.
             keys.cursor = hit.cursor;
             keys.select_pos[0] = hit.cursor;
             keys.key_input = true;

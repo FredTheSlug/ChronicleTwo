@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -553,18 +554,18 @@ bool MessageParkedAt(CDC2Mes &message, int x, int y = 200) {
 // Enters an opaque green "gaiji" texture, which message frames, cursors and gaiji draw from.
 class OpaqueGaiji {
 public:
-    OpaqueGaiji() : arena_(4096), pixels_(256 * 256 * 4 / 16) {
-        memory_.stSetBuffer(arena_.data(), static_cast<int>(arena_.size()));
-        mgTexManager.SetTableBuffer(16, 4, &memory_);
+    OpaqueGaiji() : arena(4096), pixels(256 * 256 * 4 / 16) {
+        memory.stSetBuffer(arena.data(), static_cast<int>(arena.size()));
+        mgTexManager.SetTableBuffer(16, 4, &memory);
         mgTexManager.Initialize(0x1000, -1);
-        auto *bytes = reinterpret_cast<uint8_t *>(pixels_.data());
+        auto *bytes = reinterpret_cast<uint8_t *>(pixels.data());
         for (int i = 0; i < 256 * 256; ++i) {
             bytes[i * 4 + 1] = 255;
             bytes[i * 4 + 3] = 255;
         }
-        u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels_.data()};
+        u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels.data()};
         char       gaiji[] = "gaiji";
-        entered_ = mgTexManager.EnterTexture(0, gaiji, levels, 256, 256, 32, nullptr, 0, 0) != nullptr;
+        texture_entered = mgTexManager.EnterTexture(0, gaiji, levels, 256, 256, 32, nullptr, 0, 0) != nullptr;
     }
 
     ~OpaqueGaiji() {
@@ -574,15 +575,15 @@ public:
     OpaqueGaiji(const OpaqueGaiji &) = delete;
     OpaqueGaiji &operator=(const OpaqueGaiji &) = delete;
 
-    bool entered() const {
-        return entered_;
+    [[nodiscard]] bool entered() const {
+        return texture_entered;
     }
 
 private:
-    std::vector<u_long128> arena_;
-    std::vector<u_long128> pixels_;
-    mgCMemory              memory_;
-    bool                   entered_ = false;
+    std::vector<u_long128> arena;
+    std::vector<u_long128> pixels;
+    mgCMemory              memory;
+    bool                   texture_entered = false;
 };
 
 // Lays out half-width ASCII through a synthetic font lookup table, which is game state, not disc
@@ -591,25 +592,26 @@ class AsciiFontTable {
 public:
     AsciiFontTable() {
         auto *header = reinterpret_cast<FONT_TBL_BIN *>(GetYoyakuTblTop() - 8);
-        std::memcpy(saved_.data(), header, saved_.size());
+        std::memcpy(saved.data(), header, saved.size());
         std::memset(header, 0, sizeof(*header));
         header->half_font_num = header->yoyaku_num = 94;
         header->kanji_top_no = 0xffff;
         for (int i = 0; i < 94; ++i) {
-            GetYoyakuTblTop()[i * 2] = static_cast<u8>(i + 0x20);
-            GetYoyakuTblTop()[i * 2 + 1] = 0x20;
+            const std::ptrdiff_t entry = static_cast<std::ptrdiff_t>(i) * 2;
+            GetYoyakuTblTop()[entry] = static_cast<u8>(i + 0x20);
+            GetYoyakuTblTop()[entry + 1] = 0x20;
         }
     }
 
     ~AsciiFontTable() {
-        std::memcpy(GetYoyakuTblTop() - 8, saved_.data(), saved_.size());
+        std::memcpy(GetYoyakuTblTop() - 8, saved.data(), saved.size());
     }
 
     AsciiFontTable(const AsciiFontTable &) = delete;
     AsciiFontTable &operator=(const AsciiFontTable &) = delete;
 
 private:
-    std::array<unsigned char, FONT_TBL_BIN_SIZE> saved_{};
+    std::array<unsigned char, FONT_TBL_BIN_SIZE> saved{};
 };
 
 // Draws one message form on a background of (200, 150, 100) and reads back the frame.
@@ -630,7 +632,7 @@ std::vector<uint8_t> DrawMessageForm(CMenuPosDataForm &form, CDC2Mes &message, u
 TEST(MglibAspect, MenuFormsParkMessageWindowsAndInventCards) {
     AspectRenderer   renderer(1920, 1080);
     CDC2Mes          message;
-    CMenuPosDataForm form;
+    CMenuPosDataForm form{};
     PrepareMessageForm(message, MENU_SCRIPT_MES_GENERAL, form);
     // The item description rests at x=570 off the main menu and slides in through x=477.
     EXPECT_TRUE(MessageParkedAt(message, 570, 354));
@@ -705,14 +707,14 @@ TEST(MglibAspect, MenuFormsKeepMessageCursorAndTailWhole) {
     // floating window's tail sits left of its frame, level with a pointer 20 pixels down. Both
     // are sampled between the screen's edge and the frame.
     for (const Case c : {
-             Case{MENU_SCRIPT_MES_GENERAL, 520, 0,  0,   0,  515, 12, true },
-             Case{MENU_SCRIPT_MES_GENERAL, 560, 0,  0,   0,  550, 12, false},
-             Case{MENU_SCRIPT_MES_ITEMCMD, 520, -1, -30, 20, 515, 20, true },
-             Case{MENU_SCRIPT_MES_ITEMCMD, 560, -1, -30, 20, 550, 20, false},
+             Case{.preset = MENU_SCRIPT_MES_GENERAL, .x = 520, .cursor = 0,  .point_x = 0,   .point_y = 0,  .sample_x = 515, .sample_dy = 12, .drawn = true },
+             Case{.preset = MENU_SCRIPT_MES_GENERAL, .x = 560, .cursor = 0,  .point_x = 0,   .point_y = 0,  .sample_x = 550, .sample_dy = 12, .drawn = false},
+             Case{.preset = MENU_SCRIPT_MES_ITEMCMD, .x = 520, .cursor = -1, .point_x = -30, .point_y = 20, .sample_x = 515, .sample_dy = 20, .drawn = true },
+             Case{.preset = MENU_SCRIPT_MES_ITEMCMD, .x = 560, .cursor = -1, .point_x = -30, .point_y = 20, .sample_x = 550, .sample_dy = 20, .drawn = false},
     }) {
         SCOPED_TRACE(c.x);
         SCOPED_TRACE(c.preset);
-        CMenuPosDataForm form;
+        CMenuPosDataForm form{};
         PrepareMessageForm(message, c.preset, form);
         form.x = c.x;
         message.cursor = c.cursor;
@@ -760,9 +762,9 @@ TEST(MglibAspect, MenuFormsKeepLaidOutTextWhole) {
     };
 
     for (const Case c : {
-             Case{1920, 1080, 570, 200, 512, 300, 0,      0, "[bulb]",          508, 309, 515, 309, true },
-             Case{1920, 1080, 536, 200, -1,  0,   123456, 1, "[Number1][bulb]", 511, 224, 519, 224, false},
-             Case{800,  1200, 100, 500, 200, 480, 0,      0, "(L)",             210, 476, 210, 495, false},
+             Case{.window_width = 1920, .window_height = 1080, .x = 570, .y = 200, .line_x = 512, .line_y = 300, .number = 0,      .number_width = 0, .text = "[bulb]",          .inside_x = 508, .inside_y = 309, .outside_x = 515, .outside_y = 309, .parked_unplaced = true },
+             Case{.window_width = 1920, .window_height = 1080, .x = 536, .y = 200, .line_x = -1,  .line_y = 0,   .number = 123456, .number_width = 1, .text = "[Number1][bulb]", .inside_x = 511, .inside_y = 224, .outside_x = 519, .outside_y = 224, .parked_unplaced = false},
+             Case{.window_width = 800,  .window_height = 1200, .x = 100, .y = 500, .line_x = 200, .line_y = 480, .number = 0,      .number_width = 0, .text = "(L)",             .inside_x = 210, .inside_y = 476, .outside_x = 210, .outside_y = 495, .parked_unplaced = false},
     }) {
         SCOPED_TRACE(c.text);
         AspectRenderer renderer(c.window_width, c.window_height);
@@ -772,7 +774,7 @@ TEST(MglibAspect, MenuFormsKeepLaidOutTextWhole) {
         auto *const    saved_message = MenuDCMsg[0];
         CDC2Mes        message;
         MenuDCMsg[0] = &message;
-        CMenuPosDataForm form;
+        CMenuPosDataForm form{};
         PrepareMessageForm(message, MENU_SCRIPT_MES_GENERAL, form);
         EXPECT_EQ(message.font_h, 24);
         EXPECT_EQ(message.font_w, 15);
@@ -830,11 +832,11 @@ namespace {
 // target's logical units, as SetSpriteEnv's MENU_SPRITE_ENV_COLOR leaves it. Samples are in the
 // fill's units, the quad in UI units.
 struct PartFormCase {
-    float x, y;
-    int   w, h;
-    float sample_x, sample_y;
-    bool  drawn;
-    float quad_x, quad_y;
+    float x{}, y{};
+    int   w{}, h{};
+    float sample_x{}, sample_y{};
+    bool  drawn{};
+    float quad_x{}, quad_y{};
     float sliver_x = -1000.0f; // a point inside the screen the parked form still covers
 };
 

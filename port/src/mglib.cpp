@@ -566,11 +566,11 @@ void ClearBars() {
 
 void mgPortSetFrameLayout(const gfx::FrameLayout &layout) {
     // The two main images alternate between ticks, so letterboxing waits until a tick has cleared each.
-    constexpr int          kClears = 2;
+    constexpr int          required_clears = 2;
     const gfx::FrameLayout current = gfx::CurrentFrameLayout();
     gfx::FrameLayout       applied = layout;
     if (layout.aspect == gfx::AspectMode::Letterbox && current.aspect == gfx::AspectMode::Fill &&
-        letterbox_clears < kClears) {
+        letterbox_clears < required_clears) {
         letterbox_clears = std::max(letterbox_clears, 0);
         applied.aspect = gfx::AspectMode::Fill;
     } else {
@@ -712,12 +712,12 @@ mgPortExtent mgPortVisibleUiExtent(gfx::TextureHandle target) {
     return extent;
 }
 
-mgPortScreenClipScope::mgPortScreenClipScope(bool enabled) : saved_(screen_clip) {
+mgPortScreenClipScope::mgPortScreenClipScope(bool enabled) : saved(screen_clip) {
     screen_clip = screen_clip || enabled;
 }
 
 mgPortScreenClipScope::~mgPortScreenClipScope() {
-    screen_clip = saved_;
+    screen_clip = saved;
 }
 
 // GS state

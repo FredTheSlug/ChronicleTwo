@@ -293,11 +293,11 @@ void Pillar(float x, float z, CCPoly *out) {
 TEST(CameraZoom, IntermittentPillarsDoNotPumpTheDistance) {
     // Twelve pillars on a ring around the player while the camera orbits, so
     // the zoomed view keeps sweeping across them like a cave's rocks.
-    constexpr int kPillars = 12;
-    CCPoly        pillars[kPillars * 4];
-    for (int i = 0; i < kPillars; ++i) {
-        const float angle = (i + 0.5f) * 2 * std::numbers::pi_v<float> / kPillars;
-        Pillar(300 * std::sin(angle), 300 * std::cos(angle), pillars + i * 4);
+    constexpr int pillar_count = 12;
+    CCPoly        pillars[pillar_count * 4];
+    for (int i = 0; i < pillar_count; ++i) {
+        const float angle = (i + 0.5f) * 2 * std::numbers::pi_v<float> / pillar_count;
+        Pillar(300 * std::sin(angle), 300 * std::cos(angle), pillars + static_cast<std::ptrdiff_t>(i) * 4);
     }
     auto       camera = Camera();
     CameraZoom zoom;
@@ -313,7 +313,7 @@ TEST(CameraZoom, IntermittentPillarsDoNotPumpTheDistance) {
         control.rot = 0.01f;
         float      rotation[4]{};
         const auto generation = mgPortCameraGeneration();
-        zoom.Move(camera, scene, control, rotation, pillars, kPillars * 4);
+        zoom.Move(camera, scene, control, rotation, pillars, pillar_count * 4);
         camera.Step(1);
         const float distance = PendingDistance(camera);
         pull_ins += distance < previous - 20;
@@ -326,7 +326,7 @@ TEST(CameraZoom, IntermittentPillarsDoNotPumpTheDistance) {
         previous = distance;
         std::copy_n(camera.pos, 3, eye);
         float hit[4];
-        EXPECT_LT(CheckHit(pillars, kPillars * 4, camera.ref, camera.pos, hit, 1, 0), 0) << i;
+        EXPECT_LT(CheckHit(pillars, pillar_count * 4, camera.ref, camera.pos, hit, 1, 0), 0) << i;
     }
     // About thirty pillar crossings in thirty seconds. The distance comes back
     // only while the view it is turning toward stays clear, so it settles inside
@@ -463,8 +463,11 @@ TEST(CameraZoom, BackingIntoAWallThenAwayReturnsToRetailDistanceAtOnce) {
         CCameraControl::Control control{};
         float                   rotation[4]{};
         const auto              generation = mgPortCameraGeneration();
-        z = i < 29 ? 6.0f * i : i < 50 ? z
-                                       : z - 10;
+        if (i < 29) {
+            z = 6.0f * i;
+        } else if (i >= 50) {
+            z -= 10;
+        }
         camera.SetFollow(0, 10, z);
         zoom.Move(camera, scene, control, rotation, &wall, 1);
         camera.Step(1);
@@ -507,7 +510,9 @@ namespace {
 bool BlendHidden(const float *eye_a, const float *ref_a, CCameraControl &camera, CCPoly *walls, int count) {
     for (int k = 1; k < 64; ++k) {
         const float alpha = k / 64.0f;
-        float       eye[4] = {0, 0, 0, 1}, ref[4] = {0, 0, 0, 1}, hit[4];
+        float       eye[4] = {0, 0, 0, 1};
+        float       ref[4] = {0, 0, 0, 1};
+        float       hit[4];
         for (int i = 0; i < 3; ++i) {
             eye[i] = eye_a[i] + (camera.pos[i] - eye_a[i]) * alpha;
             ref[i] = ref_a[i] + (camera.ref[i] - ref_a[i]) * alpha;
@@ -583,7 +588,9 @@ TEST(CameraZoom, SettledEyeKeepsRoomToTurnAwayFromAWall) {
         Tick(camera, zoom, scene, walls, 2, 0);
     }
     EXPECT_LT(std::fabs(camera.pos[0]), 10 - CameraZoom::clearance + 0.01f);
-    auto        yaw_left = camera, yaw_right = camera, pitch = camera;
+    auto        yaw_left = camera;
+    auto        yaw_right = camera;
+    auto        pitch = camera;
     const float left = MouseCameraYaw(yaw_left, 0.1f, walls, 2);
     const float right = MouseCameraYaw(yaw_right, -0.1f, walls, 2);
     EXPECT_TRUE(left != 0 || right != 0);
@@ -592,7 +599,7 @@ TEST(CameraZoom, SettledEyeKeepsRoomToTurnAwayFromAWall) {
 
 namespace {
 // Separate camera and character collision, as town facades have.
-class WallMap : public CMap {
+class WallMap final : public CMap {
 public:
     WallMap() {
         place_parts = nullptr;
@@ -647,8 +654,8 @@ TEST(CameraZoom, WalkingCollisionBlocksOnlyTheZoomedOutView) {
     // view; at a retail-range zoom (148, inside the 160 retail maximum) the
     // camera's data alone decides, as in retail.
     for (const Case test : {
-             Case{300, -100, true },
-             Case{120, -6,   false}
+             Case{.wall = 300, .wheel = -100, .blocks = true },
+             Case{.wall = 120, .wheel = -6,   .blocks = false}
     }) {
         WallScene world;
         Quad(-2000, 2000, test.wall, world.map.walking);
@@ -697,12 +704,12 @@ TEST(CameraZoom, CharacterWallsCountWhereTheViewCrossesThemBeyondRetailReach) {
     // retail. Crossed farther out, it holds the eye in front, whether the drawn
     // eye starts inside or outside that reach.
     for (const Case test : {
-             Case{23,  600, false},
-             Case{120, 600, false},
-             Case{150, 600, false},
-             Case{170, 600, true },
-             Case{170, 150, true },
-             Case{300, 600, true }
+             Case{.wall = 23,  .start = 600, .counted = false},
+             Case{.wall = 120, .start = 600, .counted = false},
+             Case{.wall = 150, .start = 600, .counted = false},
+             Case{.wall = 170, .start = 600, .counted = true },
+             Case{.wall = 170, .start = 150, .counted = true },
+             Case{.wall = 300, .start = 600, .counted = true }
     }) {
         WallScene world;
         Quad(-2000, 2000, test.wall, world.map.walking);
@@ -732,7 +739,8 @@ TEST(CameraZoom, GrazingCharacterWallCountsWhereTheViewCrossesItHoweverTriangula
     layouts[0].push_back(Triangle({10, -2000, -2000}, {10, 2000, -2000}, {10, 0, 4000}, {1, 0, 0}));
     layouts[1].push_back(Triangle({10, -2000, -2000}, {10, 2000, -2000}, {10, 2000, 4000}, {1, 0, 0}));
     layouts[1].push_back(Triangle({10, -2000, -2000}, {10, 2000, 4000}, {10, -2000, 4000}, {1, 0, 0}));
-    for (float z = -100; z < 1000; z += 50) {
+    for (int strip = 0; strip < 22; ++strip) {
+        const float z = -100 + 50.0f * strip;
         layouts[2].push_back(Triangle({10, -1000, z}, {10, 1000, z}, {10, -1000, z + 50}, {1, 0, 0}));
         layouts[2].push_back(Triangle({10, 1000, z}, {10, 1000, z + 50}, {10, -1000, z + 50}, {1, 0, 0}));
     }
@@ -812,9 +820,9 @@ TEST(CameraZoom, TwistedViewSweepCutsExactlyWhenABlendedViewIsHidden) {
     };
 
     for (const Case test : {
-             Case{4.9f,  45.4f, 300, true },
-             Case{4.9f,  44.9f, 300, false},
-             Case{1.57f, 42.4f, 100, true }
+             Case{.x = 4.9f,  .y = 45.4f, .z = 300, .hidden = true },
+             Case{.x = 4.9f,  .y = 44.9f, .z = 300, .hidden = false},
+             Case{.x = 1.57f, .y = 42.4f, .z = 100, .hidden = true }
     }) {
         bool       hidden = false;
         const bool cut = SweepCuts({0, 50, 600}, {0, 40, 0}, {80, 50, 600}, {0, 46, 0}, Square(test.x, test.y, test.z),
@@ -952,7 +960,7 @@ TEST(CameraZoom, MouseTurnBehindACharacterWallIsCorrectedByTheWrapper) {
 }
 
 TEST(CameraZoom, DenseGeometryAfterSettlingKeepsTheZoomedDistance) {
-    class DenseMap : public CMap {
+    class DenseMap final : public CMap {
     public:
         DenseMap() {
             place_parts = nullptr;
@@ -960,7 +968,7 @@ TEST(CameraZoom, DenseGeometryAfterSettlingKeepsTheZoomedDistance) {
         }
 
         // Any query reaching farther than 260 units holds more than the collector.
-        int GetCameraPoly(CCPoly *, mgVu0FBOX &box, int capacity) override {
+        int GetCameraPoly(CCPoly * /*polys*/, mgVu0FBOX &box, int capacity) override {
             return box.max[2] - box.min[2] > 260 ? capacity : 0;
         }
     } map;

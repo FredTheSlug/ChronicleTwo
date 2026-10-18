@@ -59,8 +59,8 @@ struct View {
     float centre_y = 0;
     float scale = 1;
 
-    Point ToUi(Point page) const;
-    Point ToPage(Point ui) const;
+    [[nodiscard]] Point ToUi(Point page) const;
+    [[nodiscard]] Point ToPage(Point ui) const;
 };
 
 Point PointerToUi(float x, float y, int window_width, int window_height, const gfx::LogicalMapping &mapping);

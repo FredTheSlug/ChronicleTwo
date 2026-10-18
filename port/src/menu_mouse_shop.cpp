@@ -28,10 +28,10 @@ ShopList ListHit(const CShopMenu &menu, const MenuMouseSample &mouse, int goods)
     if (!menu.item_brd || !menu.item_brd->draw_flag || !menu.item_list || !menu.item_list->draw_flag) {
         return hit;
     }
-    float x;
-    float y;
-    float clip_x;
-    float clip_y;
+    float x = 0;
+    float y = 0;
+    float clip_x = 0;
+    float clip_y = 0;
     menu.item_list->GetPutPosXY(nullptr, x, y);
     menu.item_brd->GetPutPosXY(nullptr, clip_x, clip_y);
     const MenuMouseRect clip{.x = clip_x + 14, .y = clip_y + 44, .w = 184, .h = SHOP_LIST_LINE * 44};

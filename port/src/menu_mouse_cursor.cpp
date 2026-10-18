@@ -12,7 +12,7 @@
 namespace {
 int *pending_cursor = nullptr;
 int  pending_selection = 0, pending_frame = -1;
-int  sound_frame = -1, sounds = 0, all_sounds = 0;
+int  sound_frame = -1, sounds = 0;
 } // namespace
 
 void MenuMouseCursorSound() {
@@ -25,18 +25,6 @@ void MenuMouseCursorSound() {
 }
 
 int MenuMouseCursorSounds() { return sounds; }
-
-// Retail's body; it counts every menu cursor sound, retail or mouse, for tests.
-PORT_OVERRIDE void MenuSePlay(int sound_no) {
-    if (sound_no == SYSTEM_SE_CURSOR) {
-        ++all_sounds;
-    }
-    if (sound_no >= 0) {
-        MenuSePlay(SystemSND_ID, sound_no);
-    }
-}
-
-int MenuCursorSounds() { return all_sounds; }
 
 void MenuMouseMove(int *cursor, int selected) {
     pending_cursor = cursor;

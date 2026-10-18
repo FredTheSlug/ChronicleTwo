@@ -29,29 +29,30 @@ namespace {
 
 // The retail player is one set of file-scope statics, so one movie plays at a time.
 struct MovieState {
-    video::MoviePlayer    player;
-    std::filesystem::path path;
-    std::string           texture;
-    bool                  loaded = false;
-    bool                  opened = false;
-    bool                  playing = false;
-    bool                  started = false;
-    bool                  loop = false;
-    bool                  with_audio = false;
-    bool                  audio_on = false;
-    int64_t               start_tick = 0;
-    // A real-time clock times the movie from Play itself: Load runs between the last clock pump and Play, and the
-    // audio starts at Play.
-    std::chrono::steady_clock::time_point start_time;
-    int64_t                               elapsed = 0;
+    video::MoviePlayer                    player;
+    std::filesystem::path                 path;
+    std::string                           texture;
+    bool                                  loaded = false;
+    bool                                  opened = false;
+    bool                                  playing = false;
+    bool                                  started = false;
+    bool                                  loop = false;
+    bool                                  with_audio = false;
+    bool                                  audio_on = false;
+    int64_t                               start_tick = 0;
+    std::chrono::steady_clock::time_point start_time;  /**< Host time when playback starts. */
+    int64_t                               elapsed = 0; /**< Last playback time in 90 kHz units. */
     gfx::TextureHandle                    uploaded_to = gfx::kNullTexture;
     bool                                  dirty = false;
 };
 
 MovieState g_movie;
-// Tests replace the host time the real-time movie clock reads.
+/** Host clock override for deterministic playback tests. */
 MoviePortNow g_now = nullptr;
 
+/**
+ * Returns the host time used to synchronize movie pictures with audio.
+ */
 std::chrono::steady_clock::time_point Now() {
     return g_now != nullptr ? g_now() : std::chrono::steady_clock::now();
 }
@@ -64,10 +65,13 @@ void MovieStartAudio() {
     g_movie.audio_on = true;
 }
 
-// Starts the movie clock with the audio.
+/**
+ * Anchors the movie clock to the start of audio playback.
+ */
 void MovieStartClock() {
     g_movie.start_tick = ClockTickCount();
     g_movie.start_time = Now();
+    g_movie.elapsed = 0;
 }
 
 void MoviePump() {
@@ -81,16 +85,17 @@ void MoviePump() {
     }
 }
 
-// While the game keeps pumping it, a movie whose pictures stop coming ends a little after its container's known length;
-// its audio has ended by then.
+/**
+ * Reports playback that exceeds the container duration and stall allowance.
+ */
 bool MovieOverran() {
     const int64_t length = g_movie.player.Length();
     if (!MoviePortOverran(g_movie.elapsed, length)) {
         return false;
     }
-    std::println(stderr, "movie: {} still has pictures to show {:.1f} s past its {:.1f} s length; ending it",
-                 PathsDisplay(g_movie.path), static_cast<double>(kMoviePortOverrun) / 90000.0,
-                 static_cast<double>(length) / 90000.0);
+    CT_LOG_WARN(Movie, "movie: {} still has pictures to show {:.1f} s past its {:.1f} s length; ending it",
+                PathsDisplay(g_movie.path), static_cast<double>(kMoviePortOverrun) / 90000.0,
+                static_cast<double>(length) / 90000.0);
     return true;
 }
 
@@ -264,7 +269,7 @@ int64_t MoviePortClock() {
 }
 
 bool MoviePortOverran(int64_t elapsed, int64_t length) {
-    return length > 0 && elapsed > length + kMoviePortOverrun;
+    return length > 0 && elapsed > length && elapsed - length > kMoviePortOverrun;
 }
 
 void MoviePortSetNow(MoviePortNow now) {

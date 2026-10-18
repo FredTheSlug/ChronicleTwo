@@ -777,12 +777,19 @@ TEST(MoviePlayer, UndecodablePicturesAreSkippedUntilTooManyComeInARow) {
 
 namespace {
 
-std::chrono::steady_clock::time_point g_fake_now;
+/** Host time supplied to the movie playback clock. */
+constinit std::chrono::steady_clock::time_point g_fake_now{};
 
+/**
+ * Returns the controlled host time for movie tests.
+ */
 std::chrono::steady_clock::time_point FakeNow() {
     return g_fake_now;
 }
 
+/**
+ * Overrides the movie clock for the lifetime of a test.
+ */
 struct FakeMovieClock {
     FakeMovieClock() {
         g_fake_now = std::chrono::steady_clock::time_point{} + std::chrono::seconds(1000);
@@ -846,7 +853,7 @@ TEST(MovieGlue, EndCheckEndsAStalledMovieTwoSecondsPastItsLength) {
     ClockSetUnbounded(true);
     ClockSetTickRate(50.0);
     ClockReset();
-    constexpr int kDeadlineTicks = (10800 + kMoviePortOverrun) / 1800;
+    constexpr int deadline_ticks = (10800 + kMoviePortOverrun) / 1800;
     char          name[] = "FUTURE.MP4";
     char          texture[] = "moviework";
 
@@ -862,17 +869,20 @@ TEST(MovieGlue, EndCheckEndsAStalledMovieTwoSecondsPastItsLength) {
         }
     }
     // At the deadline itself the movie still waits; one tick past it, it ends.
-    EXPECT_EQ(ticks, kDeadlineTicks + 1);
+    EXPECT_EQ(ticks, deadline_ticks + 1);
     movie->Term();
 
     // A looping movie restarts there instead, its clock from zero.
     movie->Load(name, static_cast<mgCMemory **>(nullptr), 16, 16, false, true, false);
     movie->Play(texture);
-    for (int tick = 1; tick <= kDeadlineTicks + 1; tick++) {
+    for (int tick = 1; tick <= deadline_ticks + 1; tick++) {
         ClockPump();
         ASSERT_EQ(movie->EndCheck(), 0) << "tick " << tick;
-        if (tick == kDeadlineTicks) {
+        if (tick == deadline_ticks) {
             EXPECT_EQ(MoviePortClock(), 10800 + kMoviePortOverrun);
+        }
+        if (tick == deadline_ticks + 1) {
+            EXPECT_EQ(MoviePortClock(), 0);
         }
     }
     ClockPump();

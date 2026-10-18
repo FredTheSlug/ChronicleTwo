@@ -4,20 +4,32 @@
 #include <cstdint>
 #include <filesystem>
 
+/**
+ * Resolves a retail movie name to its native MP4 path.
+ */
 std::filesystem::path MoviePortPath(const char *name);
 
-// Driver port 5: GetCSndPortNo never maps a game port to it, so no sequence or sound effect plays there during a movie.
+/** Mixer port reserved for movie audio outside the game's sound-effect ports. */
 inline constexpr int kMoviePortAudioPort = 5;
 
-// The movie time the playing movie last advanced to, in 90 kHz units.
+/**
+ * Returns the most recent playback time in 90 kHz units.
+ */
 int64_t MoviePortClock();
 
-// How long past its container's length a movie may wait for pictures before it ends anyway: 2 s in 90 kHz units.
-inline constexpr int64_t kMoviePortOverrun = 2 * 90000;
+/** Two-second allowance for stalled pictures in 90 kHz units. */
+inline constexpr int64_t kMoviePortOverrun = 2 * int64_t{90000};
 
-// True once a movie of length (90 kHz units, 0 when unknown) has played kMoviePortOverrun past it.
+/**
+ * Reports playback beyond a known duration and the stall allowance in 90 kHz units.
+ */
 bool MoviePortOverran(int64_t elapsed, int64_t length);
 
-// The host time the real-time movie clock reads; null restores std::chrono::steady_clock::now. For tests.
+/**
+ * Supplies the host time for deterministic movie playback tests.
+ */
 using MoviePortNow = std::chrono::steady_clock::time_point (*)();
+/**
+ * Overrides the movie host clock or restores the steady clock when null.
+ */
 void MoviePortSetNow(MoviePortNow now);

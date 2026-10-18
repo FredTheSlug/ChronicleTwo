@@ -15,13 +15,13 @@ extern "C" {
 #include <fstream>
 #include <limits>
 #include <memory>
-#include <print>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <utility>
 
 #include "audio_assets.hpp"
+#include "log/log.hpp"
 #include "video/yuv.hpp"
 
 namespace video {
@@ -457,21 +457,25 @@ struct MoviePlayer::Impl {
         return std::nullopt;
     }
 
-    /** Passes over an undecodable packet or picture for the next good one; false when too many come in a row. */
+    /**
+     * Skips an undecodable packet or picture within the consecutive rejection limit.
+     */
     bool Skip() {
         if (rejections.Total() == 0) {
-            std::println(stderr, "movie: skipping an undecodable picture");
+            CT_LOG_WARN(Movie, "movie: skipping an undecodable picture");
         }
         return rejections.Skip();
     }
 
-    /** Stops decoding with its one diagnostic; the movie ends at the last picture shown. */
+    /**
+     * Stops picture decoding and reports the failing stage and decoder error.
+     */
     std::nullopt_t Fail(int code, std::string_view stage) {
         failed = true;
         std::array<char, AV_ERROR_MAX_STRING_SIZE> text{};
         av_strerror(code, text.data(), text.size());
-        std::println(stderr, "movie: {} stopped the pictures after {} ({}); the movie ends at the last one shown", stage,
-                     decoded, text.data());
+        CT_LOG_WARN(Movie, "movie: {} stopped the pictures after {} ({}); the movie ends at the last one shown", stage,
+                    decoded, text.data());
         return std::nullopt;
     }
 };

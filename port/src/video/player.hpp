@@ -33,10 +33,17 @@ PictureFit FitPicture(int retail_width, int retail_height, int width, int height
 class DecodeRejections {
 public:
     static constexpr int kMaxInARow = 250; /**< Ten seconds of 25 fps pictures. */
-    /** Counts one rejection; false once the run is longer than kMaxInARow. */
+    /**
+     * Counts a rejection and reports whether decoding may continue.
+     */
     bool Skip();
-    /** Ends the run: a picture decoded. */
-    void                  Decoded();
+    /**
+     * Resets consecutive rejections after a successfully decoded picture.
+     */
+    void Decoded();
+    /**
+     * Returns the total number of rejected packets and pictures.
+     */
     [[nodiscard]] int64_t Total() const;
 
 private:
@@ -67,10 +74,10 @@ public:
     /**
      * The container's duration on the 90 kHz movie clock, the longer of its tracks; 0 when closed or unknown.
      */
-    [[nodiscard]] int64_t                                Length() const;
-    [[nodiscard]] int                                    SourceWidth() const;
-    [[nodiscard]] int                                    SourceHeight() const;
-    [[nodiscard]] int                                    Scale() const;
+    [[nodiscard]] int64_t Length() const;
+    [[nodiscard]] int     SourceWidth() const;
+    [[nodiscard]] int     SourceHeight() const;
+    [[nodiscard]] int     Scale() const;
     /**
      * Fits the pictures of the next Open to this retail size (zero keeps each picture's size); a stream larger than
      * it decodes on FFmpeg's threads.

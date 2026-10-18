@@ -4,9 +4,9 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <print>
 #include <vector>
 
+#include "log/log.hpp"
 #include "platform/settings.hpp"
 
 namespace {
@@ -44,11 +44,11 @@ Sent &Known(SDL_JoystickID id, SDL_Gamepad *gamepad) {
     }
     const SDL_PropertiesID props = SDL_GetGamepadProperties(gamepad);
     const char            *name = SDL_GetGamepadName(gamepad);
-    std::println(stderr, "rumble: pad \"{}\" ({:04x}:{:04x}, {}, {}), rumble {}", name ? name : "?",
-                 SDL_GetGamepadVendor(gamepad), SDL_GetGamepadProduct(gamepad),
-                 SDL_GetGamepadStringForType(SDL_GetGamepadType(gamepad)),
-                 ConnectionName(SDL_GetGamepadConnectionState(gamepad)),
-                 SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no");
+    CT_LOG_INFO(Input, "rumble: pad \"{}\" ({:04x}:{:04x}, {}, {}), rumble {}", name ? name : "?",
+                SDL_GetGamepadVendor(gamepad), SDL_GetGamepadProduct(gamepad),
+                SDL_GetGamepadStringForType(SDL_GetGamepadType(gamepad)),
+                ConnectionName(SDL_GetGamepadConnectionState(gamepad)),
+                SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "yes" : "no");
     g_known.push_back({.id = id});
     return g_known.back();
 }
@@ -65,7 +65,7 @@ void Send(Uint16 low, Uint16 high) {
         Sent &sent = Known(ids[i], gamepad);
         if (!SDL_RumbleGamepad(gamepad, low, high, kRumbleMs) && !sent.failed) {
             sent.failed = true;
-            std::println(stderr, "rumble: \"{}\" refused rumble: {}", SDL_GetGamepadName(gamepad), SDL_GetError());
+            CT_LOG_WARN(Input, "rumble: \"{}\" refused rumble: {}", SDL_GetGamepadName(gamepad), SDL_GetError());
         }
     }
     SDL_free(ids);

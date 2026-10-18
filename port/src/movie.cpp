@@ -7,12 +7,12 @@
 #include <cstdio>
 #include <filesystem>
 #include <optional>
-#include <print>
 #include <string>
 
 #include "audio/mixer.hpp"
 #include "audio_assets.hpp"
 #include "gfx/gfx.hpp"
+#include "log/log.hpp"
 #include "mg_texture.hpp"
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
@@ -156,17 +156,18 @@ PORT_OVERRIDE void CMovie::Load(char *name, mgCMemory ** /*unused*/, int width, 
     g_movie.player.SetRetailSize(width, height);
     g_movie.opened = g_movie.player.Open(g_movie.path, with_audio);
     if (!g_movie.opened) {
-        std::println(stderr, "movie: {} not found or not a playable MP4 ({})", name,
-                     PathsDisplay(g_movie.path));
+        CT_LOG_WARN(Movie, "movie: {} not found or not a playable MP4 ({})", name,
+                    PathsDisplay(g_movie.path));
     } else if (g_movie.player.SourceWidth() != g_movie.player.Width() ||
                g_movie.player.SourceHeight() != g_movie.player.Height()) {
-        std::println(stderr, "movie: {} is {}x{}; a replacement should be 1, 2 or 4 times {}x{}, so it is resampled to {}x{}",
-                     name, g_movie.player.SourceWidth(), g_movie.player.SourceHeight(), width, height,
-                     g_movie.player.Width(), g_movie.player.Height());
+        CT_LOG_INFO(Movie, "movie: {} is {}x{}; a replacement should be 1, 2 or 4 times {}x{}, so it is resampled to {}x{}",
+                    name, g_movie.player.SourceWidth(), g_movie.player.SourceHeight(), width, height,
+                    g_movie.player.Width(), g_movie.player.Height());
     }
 }
 
 PORT_OVERRIDE void CMovie::Play(char *path) {
+    CT_LOG_DEBUG(Movie, "playing movie {}", path);
     g_movie.texture = path;
     g_movie.playing = true;
     g_movie.started = true;

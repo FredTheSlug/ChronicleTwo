@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
-#include <print>
 #include <span>
 #include <utility>
 #include <vector>
@@ -22,6 +21,7 @@
 #include "dualsense_haptics.hpp"
 #include "ezbgm.hpp"
 #include "ezmidi.hpp"
+#include "log/log.hpp"
 #include "platform/config.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/settings.hpp"
@@ -181,7 +181,7 @@ void DeletePort(audio::Mixer &mixer, int port) {
 }
 
 void RejectIntAddress(const char *function) {
-    std::println(stderr, "{} takes its bank or sequence address as int; the host loads through SoundLoad*", function);
+    CT_LOG_ERROR(Audio, "{} takes its bank or sequence address as int; the host loads through SoundLoad*", function);
 }
 
 // The treasure chests' opening (wood, iron and stone) is a sound-effect sequence of every base bank.

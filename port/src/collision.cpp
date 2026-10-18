@@ -3,13 +3,13 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
-#include <print>
 #include <string>
 #include <vector>
 
 #include "collision.hpp"
 #include "collision_assets.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "mg_math.hpp"
 #include "mg_visual.hpp"
 #include "mglib.hpp"
@@ -83,7 +83,7 @@ mgCFrame *LoadGeometry(const std::filesystem::path &path, mgCMemory *memory, std
     auto       *frames = scene.empty() ? model_assets::LoadModel(path, load, error)
                                        : model_assets::LoadModelScene(path, scene, load, error);
     if (!frames) {
-        std::println(stderr, "collision: {}", error);
+        CT_LOG_ERROR(Data, "collision: {}", error);
     }
     return frames;
 }

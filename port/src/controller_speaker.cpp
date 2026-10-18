@@ -6,13 +6,13 @@
 #include <cctype>
 #include <cstdio>
 #include <mutex>
-#include <print>
 #include <string>
 #include <vector>
 
 #include "audio/mixer.hpp"
 #include "audio/stream.hpp"
 #include "dualsense_haptics.hpp"
+#include "log/log.hpp"
 #include "platform/config.hpp"
 #include "platform/settings.hpp"
 
@@ -46,10 +46,10 @@ std::string Lower(const char *text) {
 }
 
 void SDLCALL Feed(void * /*unused*/, SDL_AudioStream *stream, int additional_amount, int /*unused*/) {
-    const int       stride = g_channels_out;
-    int             frames = additional_amount / static_cast<int>(sizeof(float) * stride);
+    const int        stride = g_channels_out;
+    int              frames = additional_amount / static_cast<int>(sizeof(float) * stride);
     std::scoped_lock lock(g_mutex);
-    const float     gain = SettingsGet().master_volume * ConfigGet().controller_volume;
+    const float      gain = SettingsGet().master_volume * ConfigGet().controller_volume;
     while (frames > 0) {
         const int count = std::min(frames, kChunkFrames);
         std::fill_n(g_mix.begin(), count * 2, 0.0f);
@@ -92,8 +92,8 @@ SDL_AudioDeviceID FindDevice(int &channels) {
                 SDL_AudioSpec native{};
                 int           frames = 0;
                 SDL_GetAudioDeviceFormat(devices[i], &native, &frames);
-                std::println(stderr, "controller speaker: using \"{}\" ({} channels, {} Hz){}", name, native.channels,
-                             native.freq, native.channels >= 4 ? ", haptics on channels 3-4" : "");
+                CT_LOG_INFO(Audio, "controller speaker: using \"{}\" ({} channels, {} Hz){}", name, native.channels,
+                            native.freq, native.channels >= 4 ? ", haptics on channels 3-4" : "");
                 channels = native.channels;
                 found = devices[i];
                 break;
@@ -122,7 +122,7 @@ bool EnsureOpen() {
     const SDL_AudioDeviceID device = FindDevice(channels);
     if (device == 0) {
         if (!g_tried) {
-            std::println(stderr, "controller speaker: no DualSense audio device; sounds stay on the main output");
+            CT_LOG_INFO(Audio, "controller speaker: no DualSense audio device; sounds stay on the main output");
         }
         g_tried = true;
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
@@ -137,7 +137,7 @@ bool EnsureOpen() {
     const SDL_AudioSpec spec{.format = SDL_AUDIO_F32, .channels = g_channels_out, .freq = audio::kSpuRate};
     g_stream = SDL_OpenAudioDeviceStream(device, &spec, Feed, nullptr);
     if (g_stream == nullptr) {
-        std::println(stderr, "controller speaker: cannot open the device: {}", SDL_GetError());
+        CT_LOG_WARN(Audio, "controller speaker: cannot open the device: {}", SDL_GetError());
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         return false;
     }

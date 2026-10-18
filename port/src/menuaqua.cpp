@@ -6,13 +6,13 @@
 #include "common.h"
 
 #include <cstdio>
-#include <print>
 #include <string>
 #include <vector>
 
 #include "character.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "menuaqua.hpp"
 #include "platform/model_assets.hpp"
@@ -34,7 +34,7 @@ PORT_OVERRIDE int FishIMGReplace(u_long128 *data, CCharacter2 *character, int it
     }
     std::string error;
     if (!model_assets::ReplaceCharacterTextureDocument(*character, *relative, error)) {
-        std::println(stderr, "fish texture: {}", error);
+        CT_LOG_ERROR(Data, "fish texture: {}", error);
     }
     return 0;
 }

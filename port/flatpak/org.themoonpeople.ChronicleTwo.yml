@@ -32,6 +32,20 @@ modules:
         url: https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
         sha256: 42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
 
+  # The logger, header only like nlohmann-json; port/cmake/logging.cmake finds it with find_package.
+  - name: quill
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DQUILL_BUILD_TESTS=OFF
+      - -DQUILL_BUILD_EXAMPLES=OFF
+    cleanup:
+      - '*'
+    sources:
+      - type: archive
+        archive-type: tar-gzip
+        url: https://codeload.github.com/odygrd/quill/tar.gz/refs/tags/v13.1.0
+        sha256: a08b93bafc7e712b28eb47e4a1ed9b60fc01ac7fad3ce269f1f100560a506a85
+
   # MP4 playback libraries and the lossless movie extraction command.
   - name: ffmpeg
     buildsystem: autotools
@@ -119,6 +133,9 @@ modules:
       cflags-override: true
       cxxflags: ''
       cxxflags-override: true
+      # flatpak-builder would otherwise move every debug section, line tables included, into the .Debug
+      # extension. The crash handler reads darkchronicle's own line tables (docs/SYMBOLS.md).
+      no-debuginfo: true
     config-opts:
       - -DPLATFORM=PC
       - -DCMAKE_BUILD_TYPE=Release
@@ -130,6 +147,8 @@ modules:
       - -DKZ_PORT_VENDOR_DIRS=/run/build/chronicletwo/vendor
       - -DFETCHCONTENT_SOURCE_DIR_FASTGLTF=/run/build/chronicletwo/fastgltf
       - -DFETCHCONTENT_SOURCE_DIR_SIMDJSON=/run/build/chronicletwo/simdjson
+      - -DFETCHCONTENT_SOURCE_DIR_CPPTRACE=/run/build/chronicletwo/cpptrace
+      - -DFETCHCONTENT_SOURCE_DIR_LIBDWARF=/run/build/chronicletwo/libdwarf
     # post-install runs in the build directory, not the source.
     post-install:
       - install -Dm644 -t ${FLATPAK_DEST}/share/applications ${FLATPAK_BUILDER_BUILDDIR}/port/flatpak/${FLATPAK_ID}.desktop
@@ -167,6 +186,15 @@ modules:
         url: https://codeload.github.com/simdjson/simdjson/tar.gz/refs/tags/v4.6.11
         sha256: 61d948fc24f0d793829ad658058e7597d064988a89b4607ea02e401a82df98ff
         dest: simdjson
+      # The crash handler's stack symboliser and the DWARF reader it builds on (port/cmake/crash.cmake).
+      - type: archive
+        url: https://github.com/jeremy-rifkin/cpptrace/archive/refs/tags/v1.0.4.tar.gz
+        sha256: 5c9f5b301e903714a4d01f1057b9543fa540f7bfcc5e3f8bd1748e652e24f9ea
+        dest: cpptrace
+      - type: archive
+        url: https://github.com/jeremy-rifkin/libdwarf-lite/archive/5dfb2cd2aacf2bf473e5bfea79e41289f88b3a5f.tar.gz
+        sha256: ba0f0325e671e5010acbff4a897cedfe29c7f71202a905ca4b10085cbb839e51
+        dest: libdwarf
       - type: archive
         url: https://github.com/corrosion-rs/corrosion/archive/refs/tags/v0.6.1.zip
         sha256: 5c1c5c6ab7196fe4466321c14e9698ec2d0a977c89fd9f1639a37fcffdf604f2

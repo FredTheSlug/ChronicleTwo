@@ -6,10 +6,11 @@
 #include <cstring>
 #include <map>
 #include <optional>
-#include <print>
 #include <set>
 #include <utility>
 #include <vector>
+
+#include "log/log.hpp"
 
 // The compiled script format is ps2/include/runscript.hpp's: an RS_PROG_HEADER, funcdata blocks of 0x38
 // bytes each followed by the function's code, and 12-byte vmcode_t {op, arg1, arg2} instructions with
@@ -739,12 +740,12 @@ bool Patch(const char *asset_path, unsigned char *bytes, std::size_t size) {
     Result            result = Apply(key, bytes, size);
     if (!result.ok) {
         if (logged_assets.insert(key).second) {
-            std::println(stderr, "script timing: {} does not match the PAL script the NTSC timing converts ({})", key, result.error);
+            CT_LOG_WARN(Script, "script timing: {} does not match the PAL script the NTSC timing converts ({})", key, result.error);
         }
         return false;
     }
     if (result.known && logged_assets.insert(key).second) {
-        std::println(stderr, "script timing: {}: {} instructions ({})", key, result.writes, Describe(result.counts));
+        CT_LOG_INFO(Script, "script timing: {}: {} instructions ({})", key, result.writes, Describe(result.counts));
     }
     return true;
 }

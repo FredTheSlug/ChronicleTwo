@@ -15,6 +15,7 @@
 #include "command_replay.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "log_capture.hpp"
 #include "platform/datapacks.hpp"
 #include "scriptinterpreter.hpp"
 #include "texture_source.hpp"
@@ -92,9 +93,9 @@ int CaptureInts(SPI_STACK *stack, int /*unused*/) {
 
 TEST_F(NativeConfigReader, ReadsTheConvertedDocumentByKind) {
     EXPECT_EQ(ShopId("configs/shop.cfg.json"), 7);
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_FALSE(native_config::Read<int>("configs/shop.cfg.json", "quests", [](const Json &) { return 0; }));
-    EXPECT_NE(testing::internal::GetCapturedStderr().find("not a quests document"), std::string::npos);
+    EXPECT_NE(GetLoggedStderr().find("not a quests document"), std::string::npos);
 }
 
 TEST_F(NativeConfigReader, DatapackOverlayWinsAndInvalidOverlaysFallBack) {
@@ -102,25 +103,25 @@ TEST_F(NativeConfigReader, DatapackOverlayWinsAndInvalidOverlaysFallBack) {
     EXPECT_EQ(ShopId("configs/shop.cfg.json"), 9);
     // A command-list document from an older converter is refused, and the converted original is read.
     Overlay("old", R"({"schema_version":1,"commands":[{"command":"SHOP","args":[]}]})");
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_EQ(ShopId("configs/shop.cfg.json"), 7);
-    EXPECT_NE(testing::internal::GetCapturedStderr().find("command-list"), std::string::npos);
+    EXPECT_NE(GetLoggedStderr().find("command-list"), std::string::npos);
     Overlay("broken", "{broken");
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_EQ(ShopId("configs/shop.cfg.json"), 7);
-    testing::internal::GetCapturedStderr();
+    GetLoggedStderr();
     // A document whose typed contents fail to parse also falls back.
     Overlay("typed", R"({"schema_version":2,"kind":"shop_lists","shops":"none","prices":[]})");
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_EQ(ShopId("configs/shop.cfg.json"), 7);
-    testing::internal::GetCapturedStderr();
+    GetLoggedStderr();
 }
 
 TEST_F(NativeConfigReader, RefusesPathsOutsideTheDataRoot) {
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_FALSE(ShopId("../outside.cfg.json"));
     EXPECT_FALSE(ShopId("C:/outside.cfg.json"));
-    testing::internal::GetCapturedStderr();
+    GetLoggedStderr();
 }
 
 TEST_F(NativeConfigReader, RecoversTheDocumentOfALoadedBuffer) {

@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <filesystem>
 #include <mutex>
-#include <print>
 #include <string>
 
 #include "audio/mixer.hpp"
@@ -16,6 +15,7 @@
 #include "controller_speaker.hpp"
 #include "dataread_port.hpp"
 #include "ezbgm.hpp"
+#include "log/log.hpp"
 #include "platform/audio.hpp"
 #include "platform/clock.hpp"
 #include "platform/config.hpp"
@@ -103,7 +103,7 @@ PORT_OVERRIDE int ezBgm(int command, int argument) {
         case EZBGM_OPEN:
         case EZBGM_OPEN_FROM_PACK:
         case EZBGM_UNK_8A00:
-            std::println(stderr, "ezbgm: open command 0x{:04x} carries an address, use EzBgmOpen", command & EZBGM_COMMAND_MASK);
+            CT_LOG_ERROR(Audio, "ezbgm: open command 0x{:04x} carries an address, use EzBgmOpen", command & EZBGM_COMMAND_MASK);
             return 0;
         case EZBGM_PRELOAD:
             return 0;
@@ -168,7 +168,7 @@ int EzBgmOpen(int channel, const char *name) {
     std::string error;
     auto        track = LoadAudioTrack(name, error);
     if (!track) {
-        std::println(stderr, "ezbgm: {}: {}", name, error);
+        CT_LOG_ERROR(Audio, "ezbgm: {}: {}", name, error);
         return 0;
     }
     const bool stereo = track->source_channels == 2;
@@ -182,7 +182,7 @@ int EzBgmOpen(int channel, const char *name) {
 
 int EzBgmOpenFromPack(int channel, const char *name, const char *pack_name) {
     CloseSlot(Slot(channel));
-    std::println(stderr, "ezbgm: {} (pack {}): voice packs are not on the disc", name, pack_name);
+    CT_LOG_WARN(Audio, "ezbgm: {} (pack {}): voice packs are not on the disc", name, pack_name);
     return 0;
 }
 

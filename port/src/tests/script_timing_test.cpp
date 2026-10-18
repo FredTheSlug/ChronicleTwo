@@ -18,6 +18,7 @@
 
 #include "dataread.hpp"
 #include "dataread_port.hpp"
+#include "log_capture.hpp"
 #include "runscript.hpp"
 #include "script_timing.hpp"
 
@@ -676,8 +677,8 @@ Built StartupScript() {
 
 class ScriptTimingStartup : public testing::Test {
 protected:
-    fs::path            base = fs::temp_directory_path() / ("script_timing_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    fs::path            root = base / "data";
+    fs::path base = fs::temp_directory_path() / ("script_timing_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::path root = base / "data";
 
     void SetUp() override {
         InitFileCache(nullptr, FILE_CACHE_NONE);
@@ -727,9 +728,9 @@ TEST_F(ScriptTimingStartup, HeadlessExtractedMismatchRefusesStartup) {
     EXPECT_EQ(report.files, 1u);
     ASSERT_EQ(report.errors.size(), 1u);
     EXPECT_NE(report.errors[0].find(kStartupScript), std::string::npos);
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_FALSE(DataReadPrepareScriptTiming(true));
-    const auto log = testing::internal::GetCapturedStderr();
+    const auto log = GetLoggedStderr();
     EXPECT_NE(log.find(kStartupScript), std::string::npos);
     EXPECT_NE(log.find("refusing startup"), std::string::npos);
 }
@@ -761,9 +762,9 @@ TEST_F(ScriptTimingStartup, HeadlessMismatchingDatapackRefusesStartup) {
     const auto report = DataReadValidateScriptTiming();
     ASSERT_EQ(report.errors.size(), 1u);
     EXPECT_NE(report.errors[0].find(std::string(kStartupScript) + " [datapack]"), std::string::npos);
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_FALSE(DataReadPrepareScriptTiming(true));
-    const auto log = testing::internal::GetCapturedStderr();
+    const auto log = GetLoggedStderr();
     EXPECT_NE(log.find(std::string(kStartupScript) + " [datapack]"), std::string::npos);
 }
 
@@ -771,11 +772,11 @@ TEST_F(ScriptTimingStartup, UnlistedUndecodableScriptStaysUnchangedAndWarnsOnce)
     const std::vector<unsigned char> bytes{'n', 'o', 't', ' ', 'S', 'B', '2'};
     Write(root / "unknown-undecodable.stb", bytes);
     DataReadIndex(root);
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_TRUE(DataReadValidateScriptTiming().errors.empty());
     EXPECT_TRUE(DataReadValidateScriptTiming().errors.empty());
     EXPECT_TRUE(DataReadPrepareScriptTiming(true));
-    const auto log = testing::internal::GetCapturedStderr();
+    const auto log = GetLoggedStderr();
     const auto first = log.find("warning: unknown-undecodable.stb");
     ASSERT_NE(first, std::string::npos);
     EXPECT_EQ(log.find("warning: unknown-undecodable.stb", first + 1), std::string::npos);
@@ -810,11 +811,11 @@ TEST_F(ScriptTimingStartup, UnlistedConversionsAreReportedOnEveryValidation) {
 TEST_F(ScriptTimingStartup, EachAssetLogsOnlyOnceAcrossReloads) {
     auto first = StartupScript().bytes;
     auto second = first;
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_TRUE(script_timing::Patch("dungeon/eff_script/m_curse_h.stb", first.data(), first.size()));
     EXPECT_TRUE(script_timing::Patch("DUNGEON/eff_script/m_curse_h.stb", second.data(), second.size()));
     EXPECT_TRUE(script_timing::Patch("dungeon/eff_script/m_curse_h.stb", second.data(), second.size()));
-    const auto log = testing::internal::GetCapturedStderr();
+    const auto log = GetLoggedStderr();
     EXPECT_EQ(std::count(log.begin(), log.end(), '\n'), 1);
     EXPECT_EQ(first, second);
 }
@@ -896,7 +897,7 @@ void CheckShard(const std::string &shard) {
         const auto original = ReadAll(scripts->root / key);
         auto       bytes = original;
         Options    options;
-        auto result = script_timing::Apply(key, bytes.data(), bytes.size(), options);
+        auto       result = script_timing::Apply(key, bytes.data(), bytes.size(), options);
         EXPECT_TRUE(result.decoded) << key << ": " << result.error;
         EXPECT_TRUE(result.ok) << key << ": " << result.error;
         ASSERT_EQ(bytes.size(), original.size());

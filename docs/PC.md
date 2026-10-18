@@ -64,6 +64,10 @@ export SDL_VULKAN_LIBRARY="$(brew --prefix vulkan-loader)/lib/libvulkan.1.dylib"
 export VK_DRIVER_FILES="$(brew --prefix)/etc/vulkan/icd.d/MoltenVK_icd.json"
 ```
 
+### Debug information
+
+Every configuration keeps DWARF line tables in `darkchronicle`, so crash reports name `file:line`: Release and MinSizeRel build with `-gline-tables-only`, and Debug and RelWithDebInfo keep `-g`. Linux and Windows links write a build id, and Mach-O has its `LC_UUID`. On macOS, non-Debug builds run `dsymutil` after the link, and `darkchronicle.dSYM` must travel with the binary. `-DCT_SYMBOLS=split` also writes `darkchronicle.pdb` (Windows) or `darkchronicle.debug` (Linux), and a Debug dSYM on macOS. `-DCT_SYMBOLS=off` adds nothing. [SYMBOLS.md](SYMBOLS.md) describes the symbol artifacts CI uploads and `tools/crash/symbolize.py`, which re-resolves a report's raw frames.
+
 ### The PS2 build
 
 ```sh
@@ -77,10 +81,10 @@ BUILD_DIR=build/pal python3 scripts/build/verify.py -c
 
 `.github/workflows/pc.yml` runs on pushes to `master` and on pull requests, in four jobs:
 
-- Linux (`ubuntu-26.04`): configures `linux-x64` with `-DCT_TEST_TIMEOUT=60` (lavapipe renders on the CPU), builds it in the Kazarov container, checks that the clang Python bindings import, runs the full `ctest`, runs `scripts/port/native_gate.py` on the binary, and checks that `darkchronicle` is position-independent. Without the bindings, `Truncations.Check` and `Records.Check` skip, and a skip counts as a pass.
-- macOS (`macos-26`, Homebrew libraries): builds `macos-arm64`, runs `ctest --preset macos-arm64`, and uploads the packaged binary and a `vulkaninfo` summary. The pinned shared code carries the executable bit for `tools/kazarov/scripts/build/kz-ffmpeg`.
-- Windows (`windows-2025`): fetches the toolchain and the Vulkan runtime with `acquire.ps1 -VulkanLoader`, configures the test build with `configure.ps1 -Tests -VulkanLibrary`, builds it, runs `ctest -LE gpu`, and uploads the zipped build.
-- Flatpak (Flathub's `freedesktop-26.08` image): checks that `port/flatpak/cargo-sources.json` matches Kazarov's `Cargo.lock`, builds `chronicletwo.flatpak` from the commit under test (`docs/FLATPAK.md`), uploads it, and checks that the packaged `darkchronicle` reaches its data check.
+- Linux (`ubuntu-26.04`): configures `linux-x64` with `-DCT_TEST_TIMEOUT=60` (lavapipe renders on the CPU), builds it in the Kazarov container, checks that the clang Python bindings import, runs the full `ctest`, runs `scripts/port/native_gate.py` on the binary, and checks that `darkchronicle` is position-independent. It configures `CT_SYMBOLS=split`, runs the `tools/crash` tests, checks the build id and debuglink, and resolves a frame through `darkchronicle.debug`. Without the bindings, `Truncations.Check` and `Records.Check` skip, and a skip counts as a pass.
+- macOS (`macos-26`, Homebrew libraries): builds `macos-arm64` with `CT_SYMBOLS=split`, runs `ctest --preset macos-arm64`, and uploads the packaged binary and a `vulkaninfo` summary. It also resolves a frame through the dSYM and uploads `darkchronicle` with its dSYM as the symbol artifact. The pinned shared code carries the executable bit for `tools/kazarov/scripts/build/kz-ffmpeg`.
+- Windows (`windows-2025`): fetches the toolchain and the Vulkan runtime with `acquire.ps1 -VulkanLoader`, configures the test build with `configure.ps1 -Tests -VulkanLibrary`, builds it, runs `ctest -LE gpu`, and uploads the zipped build. It then resolves a frame at `wmain` with `symbolize.py` and uploads `package-symbols.ps1`'s symbol zip.
+- Flatpak (Flathub's `freedesktop-26.08` image): checks that `port/flatpak/cargo-sources.json` matches Kazarov's `Cargo.lock`, builds `chronicletwo.flatpak` from the commit under test (`docs/FLATPAK.md`), uploads it and the packaged `darkchronicle` as the symbol artifact, and checks that the packaged `darkchronicle` reaches its data check.
 
 Cases default to a 5-second timeout. Slow GPU cases use the larger of 30 seconds and `CT_TEST_TIMEOUT`, so the Linux job gives them 60 seconds. Cases that need a Vulkan device carry the CTest label `gpu`. The hosted Windows runner has no device, so its job excludes them with `-LE gpu`. `ctest -L gpu -N` lists them. Local runs run every case.
 
@@ -397,6 +401,7 @@ darkchronicle [options]
 | `--display-per-tick N` | also render N interpolated display frames per clock tick, discarded. N is a positive integer |
 | `--show-fps` | draw the FPS counter on presented frames, headless too |
 | `--log-fps` | print the FPS counter's text on stderr once a second |
+| `--log-level SPEC` | the log level: `trace`, `debug`, `info`, `warning`, `error`, `critical` or `off`, and/or `CATEGORY=LEVEL` pairs, comma-separated (for example `info,gfx=trace`). Outranks `DC2_LOG` and `log.level`; see [LOGGING.md](LOGGING.md) |
 
 There is no `--help`. An unknown argument, an option without its value (other than `--data` and `--save`), or a bad value prints the usage on stderr and exits with status 2. `--data` and `--save` without a directory print `--data needs a directory` (or `--save needs a directory`) and exit with status 2, without the usage.
 
@@ -406,6 +411,9 @@ Environment, with the `DC2` prefix that `GameSetIdentity` sets:
 - `DC2_AUDIO=off`: no audio device. `DC2_AUDIO_WAV` outranks it.
 - `DC2_AUDIO_WAV=PATH`: write the mix to a WAV file in place of the device.
 - `DC2_AUDIO_TRACE`: any value other than empty or `0` traces the audio calls on stderr.
+- `DC2_LOG=SPEC`: the log level, as `--log-level` takes it; `--log-level` outranks it, and it outranks `config.json`. An invalid value is logged and ignored.
+- `DC2_LOG_FILE=0`: no session log file, whatever `log.file` says.
+- `DC2_CRASH_TEST=MODE[:early]`: as `--crash-test` (see "Test hooks"); the option outranks it.
 - `DC2_VULKAN_VALIDATION`: has no effect. `main` ORs its presence into `gfx::RendererConfig::validation`, which is already on in a Debug build, and a Release build never requests the layer.
 
 Debug builds request the validation layer (`gfx::RendererConfig::validation`, on unless `NDEBUG` is defined). Release builds never request it. Without the layer installed, the renderer prints `gfx: validation requested but VK_LAYER_KHRONOS_validation is not installed` and goes on.
@@ -419,7 +427,9 @@ Exit statuses (`port/src/exitcodes.hpp`, and `port/src/mglib.cpp` for the screen
 - 4: a game assertion (retail's `__assert`).
 - 5: startup script validation rejected the data; desktop runs also show an error dialog.
 
-A `PS2_UNIMPLEMENTED` stub aborts instead of exiting, so a debugger or a core dump stops at it: SIGABRT on Linux (status 134 from a shell) and `0xC0000409` on Windows. Other internal aborts stop the same way.
+A `PS2_UNIMPLEMENTED` stub aborts instead of exiting, so a debugger or a core dump stops at it: SIGABRT on Linux (status 134 from a shell) and `0xC0000409` on Windows. Other internal aborts stop the same way. A crash ends with its exception code on Windows (`0xC0000005` for an access violation) or its signal elsewhere.
+
+A game assertion (4), a renderer or window fatal error (1), an abort and a crash first write a crash bundle under `<save root>/crashes/` (see [CRASH_REPORTS.md](CRASH_REPORTS.md)); the status stays the same.
 
 The test `Smoke.HeadlessFramesScreenshot` (`port/src/tests/CMakeLists.txt`) runs `darkchronicle --headless --offscreen --frames 3 --screenshot` on a unified `data/` directory with a current parent `data.json`. It passes when the run exits 0, prints `dataread: indexed` and `mglib: frame 3 written to`, and writes a PNG. It is labelled `gpu`. It runs under a generated CMake script, because ctest counts a process killed by `abort()` as failed even when `PASS_REGULAR_EXPRESSION` matches its output; the script checks the exit status and the file.
 
@@ -463,6 +473,8 @@ The runner accepts a fixture with `saves/`, `mc0/` or `mc1/`, copies it to a tem
 save root, starts at ordinary boot, and removes only that temporary copy after
 the process ends. The screenshot remains at the requested path. Ambient
 `DC2_JUMP`, `DC2_GIVE` and `DC2_FAST_LOAD` are removed from the child environment.
+
+- `--crash-test MODE[:early]` (`DC2_CRASH_TEST`), not in the usage text, fails on purpose to exercise the crash reports: `segv`, `abort`, `assert`, `unimplemented`, `terminate`, `stackoverflow` or `audio-thread`. It fires at the end of the first game frame, or with `:early` right after `config.json` is read, before the data check and the window. See [CRASH_REPORTS.md](CRASH_REPORTS.md).
 Fixtures and extracted game data stay outside the repository.
 
 ## Startup
@@ -471,10 +483,12 @@ Fixtures and extracted game data stay outside the repository.
 
 1. `GameSetIdentity` (`port/src/identity.cpp`) sets the `DC2` environment prefix, the game's directory names and the window title. `PathsConsumeArgs` takes `--data` and `--save` out of the arguments.
 2. `ParseOptions` reads the other options. A usage error exits with status 2. `--input` loads its script here, and a bad script exits with status 2.
-3. `ConfigLoad` reads `config.json` from the save root (see "config.json").
+2a. `LogInit` starts the logger with stderr only, at the level of `--log-level` or `DC2_LOG`, and routes Kazarov's diagnostics into it. `LogShutdown` is registered with `atexit` before anything else that `main` registers, so it runs last. The session header goes to the log (see [LOGGING.md](LOGGING.md)).
+2b. `CrashInit` installs the crash handlers and starts the crash report writer; runs with `--headless`, `--frames` or `--input` never show a crash dialog (see [CRASH_REPORTS.md](CRASH_REPORTS.md)). `--crash-test` (or `DC2_CRASH_TEST`) is parsed here.
+3. `ConfigLoad` reads `config.json` from the save root (see "config.json"). `LogAttachFile` then applies its `log` section and opens `<save root>/logs/darkchronicle-<session>.log`, which starts with every line logged since `LogInit`. `CrashSetBundleRoot` then puts crash bundles under `<save root>/crashes/<session>/`, and an early `--crash-test` fires.
 4. `FirstRunRequireData` checks the data root and opens setup when extraction is needed, or exits with status 3 in headless mode (see "Game data and first run").
 4a. `InitCDFile` indexes the data root, printing `dataread: indexed N files under <dir>`. NTSC script validation runs before the window, renderer, audio and clock. Incompatible scripts are named in the log and startup exits with status 5; desktop runs also show an error dialog.
-5. The window opens, or the offscreen surface with `--headless`. Input initialises, and the input script is installed.
+5. The window opens, or the offscreen surface with `--headless`. A windowed run then shows the notice of a crash in an earlier session, if there is one not yet shown. Input initialises, and the input script is installed.
 6. The renderer starts (`gfx::RendererInit`) with a logical size of 512x480 at a 4:3 display aspect. It builds every pipeline, uses `<save root>/pipeline_cache.bin` as its pipeline cache, and prints `compiling shaders n/total` as it goes.
 7. `AudioInit(options.headless)` selects device-driven or tick-driven mixer ownership (see "Audio"). `AudioShutdown` is registered with `atexit`.
 8. The clock starts at a fixed 60 Hz; headless runs use an unbounded clock. In that mode, frame-field measurements use logic ticks instead of wall elapsed time, including the sound sequencer's frame budget. Interactive runs retain the measured wall cadence. A pump hook runs once per clock pump, after the tick callback has run for each elapsed tick, and polls the window, the input and the input script. The config change hook is installed.
@@ -497,7 +511,7 @@ Launch hooks prepare an explicit scene jump and give requested items on arrival.
 
 ## config.json
 
-The configuration is `<save root>/config.json`, with the sections `game`, `video`, `audio` and `input`. They fill Kazarov's `HostSettings` (`tools/kazarov/include/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
+The configuration is `<save root>/config.json`, with the sections `game`, `video`, `audio`, `input` and `log`. They fill Kazarov's `HostSettings` (`tools/kazarov/include/platform/settings.hpp`) and the port's `Config` (`port/src/platform/config.hpp`). Comments (`//` and `/* */`) are accepted. Enum and choice values are case-insensitive strings.
 
 - Missing: the file is written with the defaults.
 - Unreadable (it exists but cannot be read, or is not a regular file): the defaults are used, `config: could not read <path>; using defaults and leaving it untouched` goes to stderr, and the file is not written in that session.
@@ -552,13 +566,18 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.glyph_device` | string | auto | auto, ps3, ps4, ps5, ps5color, xbox, switch, steamdeck, steamcontroller, keyboard | whose button symbols are drawn |
 | `input.mouse_release` | string or array of strings | empty | key names | keys that release the captured mouse |
 | `input.bindings` | object: action to string or array of strings | empty | key names | rebinds actions; action names are lowercased |
+| `log.level` | string | auto | auto, trace, debug, info, warning, error, critical, off | the lowest level logged; `auto` is `debug` in a Debug build and `info` otherwise. `--log-level` and `DC2_LOG` outrank it; applies live |
+| `log.file` | bool | true | | write the session log under `<save root>/logs/`; `DC2_LOG_FILE=0` turns it off; applies live |
+| `log.keep` | int | 10 | 1 to 1000 | session logs kept in `logs/`, this session's included; older ones are deleted when the file opens |
+| `log.console` | bool | true | | copy log lines to stderr and the game's `printf` to stdout; applies live |
+| `log.categories` | object: category to level | empty | category names, levels as `log.level` without `auto` | levels for single categories, over `log.level`; see [LOGGING.md](LOGGING.md) |
 
 Opening PC SETTINGS does not write `config.json`. `ConfigChange` stores changed
 settings and merges only those edits into the current file, preserving unknown
 keys and unrelated values edited externally. Binding action names are merged
 case-insensitively, so editing or restoring `cross` also replaces or removes a
 hand-written `Cross` override without leaving a duplicate. It calls `DisplayChanged` and a
-change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
+change hook. `SettingsChange` changes the shared host fields while retaining interpolation, aspect and UI scale. Through the hook, `main` applies the log settings, present mode, input bindings and controls, master volume, and presentation settings. Aspect and UI scale are applied between frame recordings.
 
 ### Gameplay timing
 

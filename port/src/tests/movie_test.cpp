@@ -24,6 +24,7 @@
 #include "audio/mixer.hpp"
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
+#include "log_capture.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mg_texture_port.hpp"
@@ -625,11 +626,11 @@ void PlayHdMovies(int texture_size, std::initializer_list<int> retails, std::vec
         auto            movie = std::make_unique<CMovie>();
         MovieTermOnExit term_on_exit{movie.get()};
         char            name[] = "HD.MP4";
-        testing::internal::CaptureStderr();
+        CaptureLoggedStderr();
         movie->Load(name, static_cast<mgCMemory **>(nullptr), retail, retail, false, false, true);
         movie->Play(texture_name);
         movie->SwitchThread();
-        result.log = testing::internal::GetCapturedStderr();
+        result.log = GetLoggedStderr();
 
         mgBeginFrame(nullptr);
         movie->SwitchThread();

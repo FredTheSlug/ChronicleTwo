@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "button_glyphs.hpp"
+#include "log/log.hpp"
 #include "mg_texture.hpp"
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
@@ -353,7 +354,7 @@ void Rebuild(const mgCTexture *texture, Entry &entry) {
     }
 
     if (texture->image[0] != nullptr && !entry.catalog && texture->bpp != 32) {
-        std::println(stderr, "texture: {} has unsupported non-RGBA memory pixels", texture->name);
+        CT_LOG_WARN(Gfx, "texture: {} has unsupported non-RGBA memory pixels", texture->name);
         return;
     }
     entry.image = UploadPixels(texture);
@@ -667,7 +668,7 @@ mgCTexture *EnterCatalog(mgCTextureManager *manager, int block, const texture_ca
     datapacks::DecodedTexture decoded;
     datapacks::TraceTimer     decode_timer("mg_texture.decode_us");
     if (!DecodeWith(decoder, record, 0, decoded, error)) {
-        std::println(stderr, "texture: {}: {}", record.name, error);
+        CT_LOG_ERROR(Data, "texture: {}: {}", record.name, error);
         return nullptr;
     }
     auto original = std::make_shared<NativePicture>();
@@ -682,7 +683,7 @@ mgCTexture *EnterCatalog(mgCTextureManager *manager, int block, const texture_ca
         for (std::size_t variant = 1; variant < record.variants.size(); ++variant) {
             datapacks::DecodedTexture alternate;
             if (!DecodeWith(decoder, record, variant, alternate, error)) {
-                std::println(stderr, "texture: {}: {}", record.name, error);
+                CT_LOG_ERROR(Data, "texture: {}: {}", record.name, error);
                 return nullptr;
             }
             original->variants.push_back(std::move(alternate));
@@ -1554,7 +1555,7 @@ PORT_OVERRIDE mgCTexture *mgCTextureManager::EnterTexture(int id, char *name, TM
     const auto  source_name = TextureSourceLookup(head);
     const auto *source = source_name ? texture_catalog::Find(*source_name) : nullptr;
     if (!source) {
-        std::println(stderr, "texture: no catalog source for {}", name);
+        CT_LOG_ERROR(Data, "texture: no catalog source for {}", name);
         return nullptr;
     }
     for (const auto &entry : source->entries) {
@@ -1562,7 +1563,7 @@ PORT_OVERRIDE mgCTexture *mgCTextureManager::EnterTexture(int id, char *name, TM
             return EnterCatalog(this, id, entry);
         }
     }
-    std::println(stderr, "texture: {} has no entry in {}", name, *source_name);
+    CT_LOG_ERROR(Data, "texture: {} has no entry in {}", name, *source_name);
     return nullptr;
 }
 
@@ -1625,8 +1626,7 @@ int MgTextureEnterDocument(mgCTextureManager *manager, std::string_view relative
                            mgCMemory *stack, mgCEnterIMGInfo *info) {
     const auto *source = texture_catalog::Find(relative_json_path);
     if (!source) {
-        std::println(stderr, "texture: no native texture document for {:.{}}",
-                     relative_json_path.data(), static_cast<int>(relative_json_path.size()));
+        CT_LOG_ERROR(Data, "texture: no native texture document for {}", relative_json_path);
         return 0;
     }
     return EnterSource(manager, block, *source, stack, info, {}, [](const texture_catalog::Entry &entry, std::size_t variant) {

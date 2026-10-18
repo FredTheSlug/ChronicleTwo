@@ -1,11 +1,11 @@
 #include "common.h"
 
 #include <cstdio>
-#include <print>
 #include <string>
 
 #include "character.hpp"
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "monster.hpp"
 #include "platform/model_assets.hpp"
 #include "runscript.hpp"
@@ -60,7 +60,7 @@ PORT_OVERRIDE int _LOAD_RESERV_IMG(RS_STACKDATA *stack, int argc) {
     }
     std::string error;
     if (!model_assets::ReserveMonsterTextureDocument(*nowMonster, slot, *path, error)) {
-        std::println(stderr, "reserved monster texture: {}", error);
+        CT_LOG_ERROR(Gfx, "reserved monster texture: {}", error);
         return 0;
     }
     return 1;

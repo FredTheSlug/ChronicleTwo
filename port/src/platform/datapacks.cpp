@@ -13,7 +13,6 @@
 #include <list>
 #include <map>
 #include <mutex>
-#include <print>
 #include <ranges>
 #include <stdexcept>
 #include <thread>
@@ -26,6 +25,7 @@
 #include "kazarov_bridge/rust/lib.h"
 #include "stb_image.h"
 
+#include "log/log.hpp"
 #include "platform/archive_mount.hpp"
 
 namespace datapacks {
@@ -88,7 +88,7 @@ std::unordered_map<std::string, std::string> stamp_memo;
 unsigned stamp_scopes = 0;
 
 /**
- * Accumulates named load counters and prints them to stderr at exit.
+ * Accumulates named load counters and logs them at exit.
  */
 struct TraceCounters {
     std::mutex                                         mutex;  /**< Guards totals. */
@@ -97,7 +97,7 @@ struct TraceCounters {
     ~TraceCounters() {
         const std::scoped_lock lock(mutex);
         for (const auto &[name, total] : totals) {
-            std::println(stderr, "texture-trace: {} = {}", name, static_cast<unsigned long long>(total));
+            CT_LOG_INFO(Data, "texture-trace: {} = {}", name, static_cast<unsigned long long>(total));
         }
     }
 };
@@ -256,7 +256,7 @@ std::optional<Pack> OpenPack(const std::filesystem::path &directory, const std::
  * Reports a rejected configuration or asset with its path.
  */
 void Diagnostic(const std::filesystem::path &path, const std::string &message) {
-    std::println(stderr, "datapacks: {}: {}", Display(path), message);
+    CT_LOG_WARN(Data, "datapacks: {}: {}", Display(path), message);
 }
 
 /**

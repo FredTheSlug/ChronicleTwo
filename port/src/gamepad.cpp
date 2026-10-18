@@ -4,12 +4,12 @@
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <print>
 #include <vector>
 
 #include "dualsense_haptics.hpp"
 #include "gamepad.hpp"
 #include "gamepad_port.hpp"
+#include "log/log.hpp"
 #include "mainloop.hpp"
 #include "menu_mouse.hpp"
 #include "menu_mouse_item.hpp"
@@ -203,7 +203,7 @@ PORT_OVERRIDE void CGamePad::SaveCapture() {
         file.write(reinterpret_cast<const char *>(bytes), sizeof(bytes));
     }
     if (!file) {
-        std::println(stderr, "gamepad: could not save key_cap.bin");
+        CT_LOG_ERROR(Input, "gamepad: could not save key_cap.bin");
     }
 }
 
@@ -217,7 +217,7 @@ PORT_OVERRIDE void CGamePad::LoadCapture() {
     }
     const auto size = file.tellg();
     if (size < 0 || size > static_cast<std::streamoff>(PAD_CAPTURE_FRAME_MAX * 6) || size % 6 != 0) {
-        std::println(stderr, "gamepad: invalid key_cap.bin size");
+        CT_LOG_WARN(Input, "gamepad: invalid key_cap.bin size");
         return;
     }
     file.seekg(0);

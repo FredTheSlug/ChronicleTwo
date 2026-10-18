@@ -4,10 +4,10 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <print>
 #include <vector>
 
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "mg_memory.hpp"
 #include "snd_seseq.hpp"
 
@@ -54,5 +54,5 @@ PORT_OVERRIDE void sndCSeSeqData::LoadSMF(char *source, int size, mgCMemory *mem
             Initialize();
         }
     }
-    std::println(stderr, "sound: missing or invalid effect sequence JSON");
+    CT_LOG_ERROR(Audio, "sound: missing or invalid effect sequence JSON");
 }

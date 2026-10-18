@@ -1,10 +1,10 @@
 #include "common.h"
 
-#include <cstdio>
-#include <print>
-
 #include "runscript.hpp"
 #include "script_guards.hpp"
+
+// Retail's printf diagnostics, logged as the game's own (docs/LOGGING.md).
+#include "ps2_printf.hpp"
 
 PORT_OVERRIDE int CRunScript::check_program(int no) {
     // Town characters can be reset without an action program, as run() also allows.
@@ -25,7 +25,7 @@ PORT_OVERRIDE int CRunScript::check_program(int no) {
 PORT_OVERRIDE void CRunScript::ext(RS_STACKDATA *command, int arg_count) {
     const int index = command->val.i;
     if (index < 0 || index >= ext_func_num || ext_func_table[index] == nullptr) {
-        std::println("not found ext {}", index);
+        CtPs2Printf("not found ext %d\n", index);
         return;
     }
 
@@ -34,6 +34,6 @@ PORT_OVERRIDE void CRunScript::ext(RS_STACKDATA *command, int arg_count) {
         return;
     }
     if (function(command + 1, arg_count - 1) == 0) {
-        std::println("illegal function call ext {}", command->val.i);
+        CtPs2Printf("illegal function call ext %d\n", command->val.i);
     }
 }

@@ -5,13 +5,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <print>
 #include <string>
 #include <thread>
 
 #include "camera_fixed.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
+#include "log/log.hpp"
 #include "menu_mouse.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
@@ -86,7 +86,7 @@ void NotePresented() {
 
     if (settings.log_fps && now - last_log >= std::chrono::seconds(1)) {
         last_log = now;
-        std::println(stderr, "present: {}", PresentFpsText());
+        CT_LOG_INFO(Gfx, "present: {}", PresentFpsText());
     }
 }
 

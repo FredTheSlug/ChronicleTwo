@@ -3,20 +3,20 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
-#include <print>
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
 #include "gfx/gfx.hpp"
+#include "log/log.hpp"
 #include "platform/imagefile.hpp"
 #include "platform/paths.hpp"
 
 namespace {
 
-std::unordered_map<uint64_t, std::vector<uint8_t>> photos;
-std::unordered_set<uint64_t>                       missing;
+std::unordered_map<uint64_t, std::vector<uint8_t> > photos;
+std::unordered_set<uint64_t>                        missing;
 
 uint64_t Hash(const uint8_t *bytes, size_t size) {
     uint64_t hash = 0xCBF29CE484222325ull;
@@ -42,12 +42,12 @@ void PhotoHdRemember(const uint8_t *image16, size_t bytes, std::vector<uint8_t> 
     if (image16 == nullptr || rgba.size() != static_cast<size_t>(kPhotoHdSize) * kPhotoHdSize * 4) {
         return;
     }
-    const uint64_t hash = Hash(image16, bytes);
-    const auto     path = PhotoPath(hash);
+    const uint64_t  hash = Hash(image16, bytes);
+    const auto      path = PhotoPath(hash);
     std::error_code error;
     std::filesystem::create_directories(path.parent_path(), error);
     if (!gfx::WritePng(path, rgba.data(), kPhotoHdSize, kPhotoHdSize)) {
-        std::println(stderr, "photo: could not write {}", path.string());
+        CT_LOG_ERROR(Gfx, "photo: could not write {}", path.string());
     }
     missing.erase(hash);
     photos[hash] = std::move(rgba);

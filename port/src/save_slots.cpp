@@ -26,10 +26,10 @@
 #include <limits>
 #include <map>
 #include <memory>
-#include <print>
 #include <set>
 #include <utility>
 
+#include "log/log.hpp"
 #include "platform/files.hpp"
 #include "platform/paths.hpp"
 #include "save_slots.hpp"
@@ -288,8 +288,7 @@ bool Archive(const fs::path &dir, bool second_card) {
         synced = synced && source_synced && target_synced;
 #endif
         if (!synced) {
-            std::println(stderr, "save import: archive moved but directory sync failed: {}",
-                         PathsDisplay(target));
+            CT_LOG_WARN(Save, "save import: archive moved but directory sync failed: {}", PathsDisplay(target));
         }
         // A reported sync failure after publication cannot roll back the move.
         // Both a persisted move and its pre-move state are recoverable on scan.
@@ -462,7 +461,9 @@ const char *SaveSlotStatus(SaveSlotState state) {
     return "Unusable save";
 }
 
-SaveSlotState SaveSlotRead(const fs::path &path, SAVEDATA_FORMAT &image) {
+namespace {
+
+SaveSlotState ReadImage(const fs::path &path, SAVEDATA_FORMAT &image) {
     std::error_code error;
     if (!fs::is_regular_file(path, error)) {
         return SaveSlotState::Unreadable;
@@ -495,6 +496,15 @@ SaveSlotState SaveSlotRead(const fs::path &path, SAVEDATA_FORMAT &image) {
         return SaveSlotState::BadChecksum;
     }
     return SaveSlotState::Ready;
+}
+
+} // namespace
+
+SaveSlotState SaveSlotRead(const fs::path &path, SAVEDATA_FORMAT &image) {
+    const SaveSlotState state = ReadImage(path, image);
+    CT_LOG_DEBUG(Save, "save slots: read {}: {}", PathsDisplay(path),
+                 state == SaveSlotState::Ready ? "ready" : SaveSlotStatus(state));
+    return state;
 }
 
 SaveSlotList SaveSlotScan(bool include_autosave) {
@@ -630,6 +640,8 @@ FilesResult SaveSlotWrite(const fs::path &path, const SAVEDATA_FORMAT &image, bo
     if (result == FilesResult::kWritten) {
         header_cache.erase(path);
     }
+    CT_LOG_DEBUG(Save, "save slots: write {}: {}", PathsDisplay(path),
+                 result == FilesResult::kWritten ? "written" : "not written");
     return result;
 }
 

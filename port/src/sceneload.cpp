@@ -10,7 +10,6 @@
 #include <cstring>
 #include <format>
 #include <memory>
-#include <print>
 #include <string>
 #include <string_view>
 
@@ -19,6 +18,7 @@
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "editmap.hpp"
+#include "log/log.hpp"
 #include "map.hpp"
 #include "mapsky.hpp"
 #include "mg_texture.hpp"
@@ -29,6 +29,9 @@
 #include "sceneload.hpp"
 #include "sceneload_port.hpp"
 #include "scenesnd.hpp"
+
+// Retail's printf diagnostics, logged as the game's own (docs/LOGGING.md).
+#include "ps2_printf.hpp"
 
 PORT_OVERRIDE int CScene::LoadChara(int index, u_int *model, char *profile, mgCMemory *model_memory,
                                     mgCMemory *motion_memory, mgCMemory *image_memory, int texture_block, int no_outline) {
@@ -59,11 +62,12 @@ PORT_OVERRIDE int CScene::LoadChara(int index, u_int *model, char *profile, mgCM
     character->Initialize();
     model_assets::CharacterLoadOptions options{.model_memory = model_memory, .motion_memory = motion_memory, .image_memory = image_memory, .textures = &mgTexManager, .parent = nullptr, .texture_block = texture_block, .outline = no_outline == 0};
     if (!model_assets::LoadCharacter(*character, *path, profile, options, error)) {
-        std::println(stderr, "character: {}: {}", *path, error);
+        CT_LOG_ERROR(Data, "character: {}: {}", *path, error);
         DeleteChara(slot);
         return -1;
     }
     scene_character->status |= SCENE_DATA_LOADED;
+    CT_LOG_TRACE(Data, "sceneload: character {} slot {} from {} ({})", index, slot, *path, std::string_view(profile));
     SetCharaTexb(slot, texture_block);
     character->sound_info.foot_se_bank = se_base_id;
     character->sound_info.foot_sound_id = 0;
@@ -100,6 +104,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
         if (stack == nullptr || buf == nullptr) {
             return -1;
         }
+        CT_LOG_DEBUG(Data, "sceneload: map {} loading", map_no);
 
         edit_map = new (stack->Alloc(0x111)) CEditMap;
 
@@ -193,7 +198,7 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
         }
 
         map->CreateMap(&mds_list_set, stack);
-        std::println("5:{}", HostTimer0Count() - start_count);
+        CtPs2Printf("5:%u\n", static_cast<unsigned>(HostTimer0Count() - start_count));
         return SCN_LOADMAP_STEP_FUNC_POINT;
     }
 
@@ -217,7 +222,8 @@ PORT_OVERRIDE int CScene::LoadMapFromMemory(int map_no, int step, SCN_LOADMAP_IN
         slot->stack = stack;
         slot->status |= SCENE_DATA_LOADED;
         map->PlacePartsEnd();
-        std::println("remain {}kByte", stack->stGetRest() * 16 / 1024);
+        CT_LOG_DEBUG(Data, "sceneload: map {} loaded", map_no);
+        CtPs2Printf("remain %dkByte\n", stack->stGetRest() * 16 / 1024);
         return SCN_LOADMAP_STEP_CFG;
     }
 

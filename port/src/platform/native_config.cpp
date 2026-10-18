@@ -8,11 +8,11 @@
 #include <limits>
 #include <list>
 #include <mutex>
-#include <print>
 #include <string_view>
 #include <utility>
 
 #include "dataread_port.hpp"
+#include "log/log.hpp"
 #include "platform/config_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/legacy_encoding.hpp"
@@ -179,7 +179,7 @@ void CheckKind(const Json &document, std::string_view kind) {
 }
 
 void Report(std::string_view path, std::string_view error) {
-    std::println(stderr, "config: {:.{}}: {:.{}}", path.data(), static_cast<int>(path.size()), error.data(), static_cast<int>(error.size()));
+    CT_LOG_ERROR(Config, "config: {}: {}", path, error);
 }
 
 const Json &At(const Json &object, const char *key) {

@@ -9,3 +9,17 @@ extern float           PortMenuWakuPosition[2] asm("MenuDraw_WakuPosition");
 // Whole-tile grid phase and contiguous coverage in logical screen coordinates.
 float MenuTilePatternFirst(float phase, int size, float minimum);
 int   MenuTilePatternCount(float first, int size, float limit);
+
+class CDC2Mes;
+
+// Whether a form lies outside retail's screen, where retail parks unused panels, in a window that
+// shows past that screen. MenuFormDraw hides or clips such a form; a message form is classified
+// once it is laid out, by MenuMessageParked.
+bool MenuFormParked(const CMenuPosDataForm &form);
+
+// Whether a menu message window, laid out by StepMsg and put by SetPutPos for this frame, draws
+// only past the screen's right edge in a window that shows past it.
+bool MenuMessageParked(CDC2Mes &mes);
+
+// True while MenuFormDraw draws the message form that shows mes.
+bool MenuFormDrawsMessage(const CDC2Mes &mes);

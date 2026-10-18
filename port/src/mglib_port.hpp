@@ -88,6 +88,19 @@ mgPortExtent mgPortVisibleExtent(gfx::TextureHandle target);
 // scales about the centre.
 mgPortExtent mgPortVisibleUiExtent(gfx::TextureHandle target);
 
+// While enabled, 2D draws keep to retail's screen (0..mgScreenWidth, 0..mgScreenHeight): a menu panel
+// parked off that screen stays out of a wider window's sides. Scopes nest.
+class mgPortScreenClipScope {
+public:
+    explicit mgPortScreenClipScope(bool enabled);
+    ~mgPortScreenClipScope();
+    mgPortScreenClipScope(const mgPortScreenClipScope &) = delete;
+    mgPortScreenClipScope &operator=(const mgPortScreenClipScope &) = delete;
+
+private:
+    bool saved_;
+};
+
 // GS state (context 1) for draws whose packets are replaced
 
 struct mgPortGsState {

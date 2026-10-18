@@ -6,6 +6,7 @@
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <initializer_list>
 #include <memory>
@@ -17,7 +18,11 @@
 #include "gfx_fixture.hpp"
 #include "mainloop_port.hpp"
 #include "menu_mouse.hpp"
+#include "menuaqua.hpp"
+#include "menucls1.hpp"
+#include "menucommon.hpp"
 #include "menudraw.hpp"
+#include "menudraw_port.hpp"
 #include "menumain.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_drawprim_port.hpp"
@@ -30,10 +35,11 @@
 #include "platform/input.hpp"
 #include "platform/window.hpp"
 
-// dngmenu.hpp brings libgraph.h, whose register macros must follow the host and test headers.
+// dngmenu.hpp and font.hpp bring libgraph.h, whose register macros must follow the host and test headers.
 // clang-format off
 #include "dngfloor.hpp"
 #include "dngmenu.hpp"
+#include "font.hpp"
 // clang-format on
 
 using namespace dc::test;
@@ -458,6 +464,497 @@ TEST(MglibAspect, MenuFormsHideParkedStatsWithoutClippingEnteringPanel) {
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
     EXPECT_GT(rgba[(static_cast<size_t>(height / 2) * width + 100) * 4 + 1], 200);
     MenuPosData = saved_layout;
+}
+
+TEST(MglibAspect, MenuFormsKeepParkedBackdropSliverToScreen) {
+    AspectRenderer     renderer(1920, 1080);
+    CMenuPosDataManage layout{};
+    auto              *saved_layout = MenuPosData;
+    MenuPosData = &layout;
+    MENU_BASETEXINFO texture_info{};
+    layout.tex_info = &texture_info;
+    layout.tex_info_num = 1;
+    MENU_PARTS_EFFECT_STRUCT1 fill{};
+    fill.param[1] = 220;
+    fill.param[3] = 128;
+    MENUFORMPARTS_TYPE part{};
+    part.active = part.draw_flag = 1;
+    part.dtype = MENUFORMPARTS_DTYPE_SQ_BETA;
+    // The character page's backdrop is 513 wide and rests at x=-512 until it slides in.
+    part.w = 513;
+    part.h = 480;
+    part.effect = &fill;
+    CMenuPosDataForm form{};
+    form.active = form.draw_flag = 1;
+    form.rgba[3] = 128;
+    form.dtype = MENUFORM_DTYPE_NORMAL;
+    form.parts = &part;
+    form.parts_num = 1;
+    const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    for (float x : {-512.0f, -400.0f}) {
+        form.x = x;
+        mgSetBackGround(200, 150, 100, 128);
+        mgBeginFrame(nullptr);
+        int state = -1;
+        form.MenuFormDraw(state);
+        mgEndFrame(nullptr);
+        std::vector<uint8_t> rgba;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+        const auto pixel = [&](float px, float py, int channel) {
+            const int sx = static_cast<int>(mapping.offset_x + px * mapping.scale_x);
+            const int sy = static_cast<int>(mapping.offset_y + py * mapping.scale_y);
+            return rgba[(static_cast<size_t>(sy) * width + sx) * 4 + channel];
+        };
+        if (x == -512) {
+            EXPECT_GT(pixel(-50, 200, 0), 190) << "parked backdrop leaks into the side";
+            EXPECT_GT(pixel(0.5f, 200, 1), 200) << "retail's sliver inside the screen lost";
+        } else {
+            EXPECT_GT(pixel(-50, 200, 1), 200) << "entering backdrop clipped to the screen";
+        }
+    }
+    MenuPosData = saved_layout;
+}
+
+namespace {
+
+// A menu message window that draws its frame and choice cursor without any text.
+void PrepareMessageForm(CDC2Mes &message, int preset, CMenuPosDataForm &form) {
+    static short buffer[4] = {};
+    message.MsgPreset(preset);
+    message.SetBuff(buffer);
+    // StepMsg lays out no message, and DrawMesWin still draws the window.
+    message.CDC2Mes::mes_no = -1;
+    message.ClsMes::mes_no = 0;
+    message.fade_speed = 0.0f;
+    message.push_button = 0;
+    message.line_indent_on = 0;
+    message.abs_win.width = 236;
+    message.abs_win.height = 82;
+    message.text_off_x = 28;
+    message.text_off_y = 16;
+    form = {};
+    form.active = form.draw_flag = 1;
+    form.rgba[3] = 128;
+    form.dtype = MENUFORM_DTYPE_MSGFORM;
+    form.sub_no = 0;
+    form.y = 200;
+}
+
+// Lays the window out and puts it as the form's draw does, then classifies it.
+bool MessageParkedAt(CDC2Mes &message, int x, int y = 200) {
+    message.StepMsg();
+    int put[2] = {x, y};
+    message.SetPutPos(put);
+    return MenuMessageParked(message);
+}
+
+// Enters an opaque green "gaiji" texture, which message frames, cursors and gaiji draw from.
+class OpaqueGaiji {
+public:
+    OpaqueGaiji() : arena_(4096), pixels_(256 * 256 * 4 / 16) {
+        memory_.stSetBuffer(arena_.data(), static_cast<int>(arena_.size()));
+        mgTexManager.SetTableBuffer(16, 4, &memory_);
+        mgTexManager.Initialize(0x1000, -1);
+        auto *bytes = reinterpret_cast<uint8_t *>(pixels_.data());
+        for (int i = 0; i < 256 * 256; ++i) {
+            bytes[i * 4 + 1] = 255;
+            bytes[i * 4 + 3] = 255;
+        }
+        u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels_.data()};
+        char       gaiji[] = "gaiji";
+        entered_ = mgTexManager.EnterTexture(0, gaiji, levels, 256, 256, 32, nullptr, 0, 0) != nullptr;
+    }
+
+    ~OpaqueGaiji() {
+        mgTexManager.Initialize(0x1000, -1);
+    }
+
+    OpaqueGaiji(const OpaqueGaiji &) = delete;
+    OpaqueGaiji &operator=(const OpaqueGaiji &) = delete;
+
+    bool entered() const {
+        return entered_;
+    }
+
+private:
+    std::vector<u_long128> arena_;
+    std::vector<u_long128> pixels_;
+    mgCMemory              memory_;
+    bool                   entered_ = false;
+};
+
+// Lays out half-width ASCII through a synthetic font lookup table, which is game state, not disc
+// assets: each character's entry is its code followed by a space.
+class AsciiFontTable {
+public:
+    AsciiFontTable() {
+        auto *header = reinterpret_cast<FONT_TBL_BIN *>(GetYoyakuTblTop() - 8);
+        std::memcpy(saved_.data(), header, saved_.size());
+        std::memset(header, 0, sizeof(*header));
+        header->half_font_num = header->yoyaku_num = 94;
+        header->kanji_top_no = 0xffff;
+        for (int i = 0; i < 94; ++i) {
+            GetYoyakuTblTop()[i * 2] = static_cast<u8>(i + 0x20);
+            GetYoyakuTblTop()[i * 2 + 1] = 0x20;
+        }
+    }
+
+    ~AsciiFontTable() {
+        std::memcpy(GetYoyakuTblTop() - 8, saved_.data(), saved_.size());
+    }
+
+    AsciiFontTable(const AsciiFontTable &) = delete;
+    AsciiFontTable &operator=(const AsciiFontTable &) = delete;
+
+private:
+    std::array<unsigned char, FONT_TBL_BIN_SIZE> saved_{};
+};
+
+// Draws one message form on a background of (200, 150, 100) and reads back the frame.
+std::vector<uint8_t> DrawMessageForm(CMenuPosDataForm &form, CDC2Mes &message, uint32_t &width) {
+    mgSetBackGround(200, 150, 100, 128);
+    mgBeginFrame(nullptr);
+    int state = message.texture_block;
+    form.MenuFormDraw(state);
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> rgba;
+    uint32_t             height = 0;
+    EXPECT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+    return rgba;
+}
+
+} // namespace
+
+TEST(MglibAspect, MenuFormsParkMessageWindowsAndInventCards) {
+    AspectRenderer   renderer(1920, 1080);
+    CDC2Mes          message;
+    CMenuPosDataForm form;
+    PrepareMessageForm(message, MENU_SCRIPT_MES_GENERAL, form);
+    // The item description rests at x=570 off the main menu and slides in through x=477.
+    EXPECT_TRUE(MessageParkedAt(message, 570, 354));
+    EXPECT_FALSE(MessageParkedAt(message, 477, 354));
+    EXPECT_FALSE(MessageParkedAt(message, 510)) << "the frame starts at x=510, rounded down to 509";
+    EXPECT_TRUE(MessageParkedAt(message, 511));
+    EXPECT_FALSE(MessageParkedAt(message, -250)) << "a window put left of the screen sits at its default place";
+    message.abs_win.width = 0;
+    EXPECT_TRUE(MessageParkedAt(message, 570)) << "past the right side, the right edge is not needed";
+    message.abs_win.width = 236;
+    message.draw_off_x = -60.0f;
+    EXPECT_FALSE(MessageParkedAt(message, 570)) << "the drawing offset moves every draw";
+    message.draw_off_x = 0.0f;
+    message.equip_on[2] = 1;
+    message.equip_x[2] = 500;
+    EXPECT_FALSE(MessageParkedAt(message, 570)) << "a mark at its line's place reaches x=500";
+    message.equip_x[2] = 600;
+    EXPECT_TRUE(MessageParkedAt(message, 570));
+    message.equip_on[2] = 0;
+
+    // The choice cursor's goal is 40 pixels and half a character left of the text, and it sways 6.
+    message.cursor = 0;
+    EXPECT_FALSE(MessageParkedAt(message, 535)) << "the cursor reaches x=535+28-40-7-6=510";
+    message.cursor_time = 0;
+    EXPECT_TRUE(MessageParkedAt(message, 536));
+    message.cursor_time = 3;
+    message.cursor_x = 400;
+    EXPECT_FALSE(MessageParkedAt(message, 536)) << "the cursor is still easing in from x=400";
+    message.cursor_on = 0;
+    message.cursor_x = 900;
+    EXPECT_FALSE(MessageParkedAt(message, 536)) << "a hidden cursor eases from x=-1000";
+
+    // A floating window's tail reaches 13 pixels past its frame.
+    PrepareMessageForm(message, MENU_SCRIPT_MES_ITEMCMD, form);
+    EXPECT_FALSE(MessageParkedAt(message, 523));
+    EXPECT_TRUE(MessageParkedAt(message, 524));
+    message.put_centering = 1;
+    EXPECT_FALSE(MessageParkedAt(message, 570)) << "a centred window is put on the screen";
+    message.put_centering = 0;
+    message.window_mode = MES_WIN_FUKIDASHI;
+    EXPECT_FALSE(MessageParkedAt(message, 570)) << "a speech bubble places itself";
+
+    // The Make menu's invention card rows rest at x=-262 and are 231 wide.
+    form.dtype = MENUFORM_DTYPE_INV_CARD;
+    form.y = 70;
+    form.x = -262;
+    EXPECT_TRUE(MenuFormParked(form));
+    form.x = -200;
+    EXPECT_FALSE(MenuFormParked(form));
+}
+
+// Draws message forms with an opaque gaiji texture: a cursor or tail that reaches the screen
+// draws whole, and a window past the screen's right edge stays off the side.
+TEST(MglibAspect, MenuFormsKeepMessageCursorAndTailWhole) {
+    AspectRenderer renderer(1920, 1080);
+    OpaqueGaiji    gaiji;
+    ASSERT_TRUE(gaiji.entered());
+    auto *const saved_message = MenuDCMsg[0];
+    CDC2Mes     message;
+    MenuDCMsg[0] = &message;
+    const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+
+    struct Case {
+        int   preset;
+        float x;
+        int   cursor, point_x, point_y;
+        float sample_x, sample_dy;
+        bool  drawn;
+    };
+
+    // A plain window's cursor goal is x+28-40-7, drawn 5 further right on its first frame. A
+    // floating window's tail sits left of its frame, level with a pointer 20 pixels down. Both
+    // are sampled between the screen's edge and the frame.
+    for (const Case c : {
+             Case{MENU_SCRIPT_MES_GENERAL, 520, 0,  0,   0,  515, 12, true },
+             Case{MENU_SCRIPT_MES_GENERAL, 560, 0,  0,   0,  550, 12, false},
+             Case{MENU_SCRIPT_MES_ITEMCMD, 520, -1, -30, 20, 515, 20, true },
+             Case{MENU_SCRIPT_MES_ITEMCMD, 560, -1, -30, 20, 550, 20, false},
+    }) {
+        SCOPED_TRACE(c.x);
+        SCOPED_TRACE(c.preset);
+        CMenuPosDataForm form;
+        PrepareMessageForm(message, c.preset, form);
+        form.x = c.x;
+        message.cursor = c.cursor;
+        message.point_x = c.point_x;
+        message.point_y = c.point_y;
+        uint32_t   width = 0;
+        const auto rgba = DrawMessageForm(form, message, width);
+        ASSERT_FALSE(rgba.empty());
+        const auto pixel = [&](float px, float py, int channel) {
+            const int sx = static_cast<int>(mapping.offset_x + px * mapping.scale_x);
+            const int sy = static_cast<int>(mapping.offset_y + py * mapping.scale_y);
+            return rgba[(static_cast<size_t>(sy) * width + sx) * 4 + channel];
+        };
+        if (c.cursor >= 0) {
+            ASSERT_EQ(message.cursor_x, static_cast<int>(c.x) + 28 - 40 - 15 / 2);
+        }
+        const float sample_y = (c.cursor >= 0 ? message.cursor_y : form.y) + c.sample_dy;
+        if (c.drawn) {
+            EXPECT_GT(pixel(c.sample_x, sample_y, 1), 200) << "cut off at the screen's edge";
+            EXPECT_LT(pixel(c.sample_x, sample_y, 0), 100) << "cut off at the screen's edge";
+        } else {
+            EXPECT_GT(pixel(c.sample_x, sample_y, 0), 190) << "parked window shows at the side";
+        }
+        // The frame's left edge.
+        EXPECT_EQ(pixel(c.x + 2, form.y + 30, 0) < 100, c.drawn);
+    }
+    MenuDCMsg[0] = saved_message;
+}
+
+// Draws a window past the screen whose text reaches left of where the window's text starts and
+// crosses the screen's edge, so the window is not parked and the glyph draws on both sides of
+// that edge: a line placed on its own at x=512 whose gaiji 0xFD21 starts 6 left of it; a number
+// padded to fewer digits than it has, which moves the pen left of the text's start (123456 in a
+// one-digit field leaves the pen 48 left of it, so the following 0xFD21 covers x=510..521); and
+// 0xFD29, 30 tall on a 24-pixel line placed at y=480, which starts 7 above it.
+TEST(MglibAspect, MenuFormsKeepLaidOutTextWhole) {
+    struct Case {
+        int         window_width, window_height;
+        float       x, y;
+        int         line_x, line_y;
+        int         number, number_width;
+        const char *text;
+        float       inside_x, inside_y, outside_x, outside_y;
+        bool        parked_unplaced;
+    };
+
+    for (const Case c : {
+             Case{1920, 1080, 570, 200, 512, 300, 0,      0, "[bulb]",          508, 309, 515, 309, true },
+             Case{1920, 1080, 536, 200, -1,  0,   123456, 1, "[Number1][bulb]", 511, 224, 519, 224, false},
+             Case{800,  1200, 100, 500, 200, 480, 0,      0, "(L)",             210, 476, 210, 495, false},
+    }) {
+        SCOPED_TRACE(c.text);
+        AspectRenderer renderer(c.window_width, c.window_height);
+        OpaqueGaiji    gaiji;
+        ASSERT_TRUE(gaiji.entered());
+        AsciiFontTable font_table;
+        auto *const    saved_message = MenuDCMsg[0];
+        CDC2Mes        message;
+        MenuDCMsg[0] = &message;
+        CMenuPosDataForm form;
+        PrepareMessageForm(message, MENU_SCRIPT_MES_GENERAL, form);
+        EXPECT_EQ(message.font_h, 24);
+        EXPECT_EQ(message.font_w, 15);
+        message.cursor = -1;
+        message.value_half = 1;
+        message.value_space = 0;
+        int number = c.number;
+        int number_width = c.number_width;
+        message.SetMsgVolumeNo(&number, &number_width, 1);
+        std::string text = c.text;
+        message.MakeMsg(text.data());
+        form.x = c.x;
+        form.y = c.y;
+        if (c.line_x >= 0) {
+            // Text in the window parks with it sideways; no message window parks vertically.
+            EXPECT_EQ(MessageParkedAt(message, static_cast<int>(c.x), static_cast<int>(c.y)), c.parked_unplaced);
+            message.line_pos_on[0] = 1;
+            message.line_pos[0][0] = c.line_x;
+            message.line_pos[0][1] = c.line_y;
+        }
+        EXPECT_FALSE(MessageParkedAt(message, static_cast<int>(c.x), static_cast<int>(c.y)));
+        uint32_t   width = 0;
+        const auto rgba = DrawMessageForm(form, message, width);
+        MenuDCMsg[0] = saved_message;
+        ASSERT_FALSE(rgba.empty());
+        const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+        const auto pixel = [&](float px, float py, int channel) {
+            const int sx = static_cast<int>(mapping.offset_x + px * mapping.scale_x);
+            const int sy = static_cast<int>(mapping.offset_y + py * mapping.scale_y);
+            return rgba[(static_cast<size_t>(sy) * width + sx) * 4 + channel];
+        };
+        EXPECT_GT(pixel(c.inside_x, c.inside_y, 1), 200) << "glyph not drawn";
+        EXPECT_GT(pixel(c.outside_x, c.outside_y, 1), 200) << "glyph cut off at the screen's edge";
+        EXPECT_LT(pixel(c.outside_x, c.outside_y, 0), 100) << "glyph cut off at the screen's edge";
+    }
+}
+
+TEST(MglibAspect, MenuFormsNeverParkAtFourThree) {
+    AspectRenderer   renderer(640, 480);
+    CMenuPosDataForm form{};
+    form.active = form.draw_flag = 1;
+    form.dtype = MENUFORM_DTYPE_INV_CARD;
+    form.x = -262;
+    EXPECT_FALSE(MenuFormParked(form)) << "the 4:3 picture is already the screen";
+    CDC2Mes message;
+    PrepareMessageForm(message, MENU_SCRIPT_MES_GENERAL, form);
+    EXPECT_FALSE(MessageParkedAt(message, 570));
+}
+
+namespace {
+
+// One filled part form at (x, y), parked or entering, then an independent white quad drawn with
+// the GS state, whose draw must not be held to the screen. A ui form's fill takes the form's
+// alpha and draws in UI units like a menu sprite; otherwise it is depth-tested and drawn in the
+// target's logical units, as SetSpriteEnv's MENU_SPRITE_ENV_COLOR leaves it. Samples are in the
+// fill's units, the quad in UI units.
+struct PartFormCase {
+    float x, y;
+    int   w, h;
+    float sample_x, sample_y;
+    bool  drawn;
+    float quad_x, quad_y;
+    float sliver_x = -1000.0f; // a point inside the screen the parked form still covers
+};
+
+void ExpectPartForms(int window_width, int window_height, float ui_scale, bool ui, std::initializer_list<PartFormCase> cases) {
+    AspectRenderer renderer(window_width, window_height);
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = ui_scale});
+    CMenuPosDataManage layout{};
+    auto              *saved_layout = MenuPosData;
+    MenuPosData = &layout;
+    MENU_BASETEXINFO texture_info{};
+    layout.tex_info = &texture_info;
+    layout.tex_info_num = 1;
+    MENU_PARTS_EFFECT_STRUCT1 fill{};
+    fill.param[0] = 20;
+    fill.param[1] = 220;
+    fill.param[2] = 30;
+    fill.param[3] = 128;
+    MENUFORMPARTS_TYPE part{};
+    part.active = part.draw_flag = 1;
+    part.dtype = MENUFORMPARTS_DTYPE_SQ_BETA;
+    part.effect = &fill;
+    CMenuPosDataForm form{};
+    form.active = form.draw_flag = 1;
+    form.rgba[3] = 128;
+    form.rgba_bit = ui ? MENUFORM_RGBA_BIT_ALPHA : 0;
+    form.dtype = MENUFORM_DTYPE_NORMAL;
+    form.parts = &part;
+    form.parts_num = 1;
+    const auto ui_mapping = gfx::GetUiMapping(gfx::kMainTarget);
+    const auto fill_mapping = ui ? ui_mapping : gfx::GetLogicalMapping(gfx::kMainTarget);
+    for (const PartFormCase &c : cases) {
+        SCOPED_TRACE(testing::Message() << "form at " << c.x << ", " << c.y);
+        form.x = c.x;
+        form.y = c.y;
+        part.w = c.w;
+        part.h = c.h;
+        mgSetBackGround(200, 150, 100, 128);
+        mgBeginFrame(nullptr);
+        int state = -1;
+        form.MenuFormDraw(state);
+        const std::array quad = {QuadCorner(c.quad_x, c.quad_y), QuadCorner(c.quad_x + 25, c.quad_y),
+                                 QuadCorner(c.quad_x + 25, c.quad_y + 25), QuadCorner(c.quad_x, c.quad_y + 25)};
+        gfx::DrawState   quad_state = mgPortDrawState();
+        quad_state.depth_test = gfx::DepthTest::Always;
+        quad_state.depth_write = false;
+        mgPortDraw2D(gfx::Primitive::Quads, quad, {}, quad_state);
+        mgEndFrame(nullptr);
+        std::vector<uint8_t> rgba;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
+        ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+        const auto pixel = [&](const gfx::LogicalMapping &mapping, float px, float py, int channel) {
+            const int sx = static_cast<int>(mapping.offset_x + px * mapping.scale_x);
+            const int sy = static_cast<int>(mapping.offset_y + py * mapping.scale_y);
+            EXPECT_TRUE(sx >= 0 && sy >= 0 && std::cmp_less(sx, width) && std::cmp_less(sy, height));
+            return rgba[(static_cast<size_t>(std::clamp<int>(sy, 0, height - 1)) * width + std::clamp<int>(sx, 0, width - 1)) * 4 + channel];
+        };
+        if (c.drawn) {
+            EXPECT_GT(pixel(fill_mapping, c.sample_x, c.sample_y, 1), 200) << "entering form clipped to the screen";
+        } else {
+            EXPECT_GT(pixel(fill_mapping, c.sample_x, c.sample_y, 0), 190) << "parked form shows past the screen";
+            EXPECT_LT(pixel(fill_mapping, c.sample_x, c.sample_y, 1), 200) << "parked form shows past the screen";
+        }
+        if (c.sliver_x > -1000.0f) {
+            EXPECT_GT(pixel(fill_mapping, c.sliver_x, c.sample_y, 1), 200) << "retail's sliver inside the screen lost";
+        }
+        EXPECT_GT(pixel(ui_mapping, c.quad_x + 12, c.quad_y + 12, 0), 240) << "form clip leaked to a following draw";
+        EXPECT_GT(pixel(ui_mapping, c.quad_x + 12, c.quad_y + 12, 2), 240) << "form clip leaked to a following draw";
+    }
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = 1.0f});
+    MenuPosData = saved_layout;
+}
+
+} // namespace
+
+// UI scale 0.5 shows the UI from x=-256 to x=768 on a 4:3 window, so menu sprites parked past
+// the screen would show at its sides, though its logical units show only the screen.
+TEST(MglibAspect, MenuFormsParkPastHalfScaleUi) {
+    ExpectPartForms(1024, 768, 0.5f, true,
+                    {
+                        {.x = -512, .y = 0, .w = 513, .h = 480, .sample_x = -50, .sample_y = 200, .drawn = false, .quad_x = -75, .quad_y = 40, .sliver_x = 0.5f},
+                        {.x = -400, .y = 0, .w = 513, .h = 480, .sample_x = -50, .sample_y = 200, .drawn = true, .quad_x = -75, .quad_y = 40},
+                        {.x = 530, .y = 296, .w = 236, .h = 164, .sample_x = 550, .sample_y = 350, .drawn = false, .quad_x = 560, .quad_y = 40},
+                        {.x = 470, .y = 296, .w = 236, .h = 164, .sample_x = 550, .sample_y = 350, .drawn = true, .quad_x = 560, .quad_y = 40},
+    });
+}
+
+// UI scale 1.5 at 32:9 shows the UI from about x=-199 to x=711 and y=80 to y=400.
+TEST(MglibAspect, MenuFormsParkPastOneAndAHalfScaleUi) {
+    ExpectPartForms(3840, 1080, 1.5f, true,
+                    {
+                        {.x = -512, .y = 0, .w = 513, .h = 480, .sample_x = -50, .sample_y = 200, .drawn = false, .quad_x = -75, .quad_y = 100, .sliver_x = 0.5f},
+                        {.x = -400, .y = 0, .w = 513, .h = 480, .sample_x = -50, .sample_y = 200, .drawn = true, .quad_x = -75, .quad_y = 100},
+                        {.x = 530, .y = 296, .w = 236, .h = 164, .sample_x = 550, .sample_y = 350, .drawn = false, .quad_x = 560, .quad_y = 100},
+                        {.x = 470, .y = 296, .w = 236, .h = 164, .sample_x = 550, .sample_y = 350, .drawn = true, .quad_x = 560, .quad_y = 100},
+    });
+}
+
+// At UI scale 1.5 a 1600x1080 window shows the UI only from about x=66 to x=445, but its logical
+// units from x=-28 to x=540, where depth-tested fills parked past the screen would show.
+TEST(MglibAspect, MenuFormsParkFillsPastOneAndAHalfScaleUi) {
+    ExpectPartForms(1600, 1080, 1.5f, false,
+                    {
+                        {.x = -512, .y = 0, .w = 513, .h = 480, .sample_x = -20, .sample_y = 200, .drawn = false, .quad_x = 300, .quad_y = 100, .sliver_x = 0.5f},
+                        {.x = -400, .y = 0, .w = 513, .h = 480, .sample_x = -20, .sample_y = 200, .drawn = true, .quad_x = 300, .quad_y = 100},
+                        {.x = 530, .y = 296, .w = 236, .h = 164, .sample_x = 535, .sample_y = 350, .drawn = false, .quad_x = 300, .quad_y = 100},
+                        {.x = 470, .y = 296, .w = 236, .h = 164, .sample_x = 535, .sample_y = 350, .drawn = true, .quad_x = 300, .quad_y = 100},
+    });
+}
+
+// An 800x1200 window shows from y=-144 to y=624: panels parked below or above the screen are
+// clipped to it, and ones entering it draw whole.
+TEST(MglibAspect, MenuFormsParkVerticallyOnTallWindow) {
+    ExpectPartForms(800, 1200, 1.0f, false,
+                    {
+                        {.x = 100, .y = 490,  .w = 236, .h = 164, .sample_x = 200, .sample_y = 550, .drawn = false, .quad_x = 300, .quad_y = 560},
+                        {.x = 100, .y = 400,  .w = 236, .h = 164, .sample_x = 200, .sample_y = 550, .drawn = true,  .quad_x = 300, .quad_y = 560},
+                        {.x = 100, .y = -170, .w = 236, .h = 164, .sample_x = 200, .sample_y = -50, .drawn = false, .quad_x = 300, .quad_y = -60},
+                        {.x = 100, .y = -100, .w = 236, .h = 164, .sample_x = 200, .sample_y = -50, .drawn = true,  .quad_x = 300, .quad_y = -60},
+    });
 }
 
 namespace {

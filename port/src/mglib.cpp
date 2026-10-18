@@ -70,6 +70,7 @@ struct RenderTargetEntry {
     float              texture_scale = 1.0f; /**< Physical canvas texels per retail texture texel. */
 };
 
+bool screen_clip = false;
 bool ready = false;
 bool frame_open = false;
 bool gfx_open = false;
@@ -711,6 +712,14 @@ mgPortExtent mgPortVisibleUiExtent(gfx::TextureHandle target) {
     return extent;
 }
 
+mgPortScreenClipScope::mgPortScreenClipScope(bool enabled) : saved_(screen_clip) {
+    screen_clip = screen_clip || enabled;
+}
+
+mgPortScreenClipScope::~mgPortScreenClipScope() {
+    screen_clip = saved_;
+}
+
 // GS state
 
 mgPortGsState &mgPortGs() {
@@ -825,6 +834,18 @@ void mgPortApplyTexa(gfx::DrawState &state, uint64_t texa) {
 }
 
 void mgPortApplyScissor(gfx::DrawState &state, const int scissor[4]) {
+    if (screen_clip) {
+        // Not carried past the screen's edges, as a scissor that reaches them otherwise is.
+        state.extend_scissor = false;
+        const int left = std::max(0, scissor[0]);
+        const int top = std::max(0, scissor[1]);
+        const int right = std::min(mgScreenWidth - 1, scissor[2]);
+        const int bottom = std::min(mgScreenHeight - 1, scissor[3]);
+        state.scissor = true;
+        state.scissor_rect = {.x = static_cast<float>(left), .y = static_cast<float>(top), .w = static_cast<float>(std::max(0, right - left + 1)), .h = static_cast<float>(std::max(0, bottom - top + 1))};
+        return;
+    }
+
     if (scissor[0] <= 0 && scissor[1] <= 0 && scissor[2] >= mgScreenWidth - 1 &&
         scissor[3] >= mgScreenHeight - 1) {
         state.scissor = false;

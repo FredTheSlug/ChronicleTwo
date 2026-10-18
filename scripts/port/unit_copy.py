@@ -57,6 +57,7 @@ RETAIL_BRIDGES = {
         ("MenuWorldTrans()", "MenuWorldTrans", "PortRetailMenuWorldTrans"),
     ],
     "menudraw.cpp": [("DrawMenuFillBox(int,int,int,int)", "DrawMenuFillBox", "PortRetailDrawMenuFillBox")],
+    "menucls1.cpp": [("CDC2Mes::DrawMsg()", "DrawMsg", "PortRetailDrawMsg")],
     "charasetup.cpp": [("GetRoboPartsInfo(CUserDataManager*)", "GetRoboPartsInfo", "PortRetailGetRoboPartsInfo")],
     "menusys.cpp": [
         ("CBaseMenuClass::MenuItemCommandSelect(int,int)", "MenuItemCommandSelect", "PortRetailMenuItemCommandSelect"),

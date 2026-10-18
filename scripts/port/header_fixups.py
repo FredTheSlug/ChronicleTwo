@@ -179,6 +179,9 @@ UNIT_FIXUPS = [
     ("charasetup.cpp", "    {120000, 0,", f"    {{120000 + {CHARA_MODEL_STACK_EXTRA}, 0,"),
     # Each floor reads game.more_monsters once; spawns, free slots and the slots' script memory keep to its limit.
     ("monster.cpp", "    priority_limit = 5;", "    priority_limit = PortMonsterLatchLimits();"),
+    # The monster slots reach into the sub-game slots, which InitDungeonMain clears after binding the monsters.
+    ("subgame.cpp", "            scene->DeleteChara(j + SUBGAME_CHARA_BASE);",
+     "            if (scene->GetType(SCENE_DATA_CHARA, j + SUBGAME_CHARA_BASE) != SCENE_CHARA_TYPE_MONSTER) scene->DeleteChara(j + SUBGAME_CHARA_BASE);"),
     ("monster.cpp", "    for (slot = 0; slot < MONSTER_ACTIVE_MAX; slot++) {\n        monster = active[slot];",
      "    for (slot = 0; slot < PortMonsterActiveLimit(); slot++) {\n        monster = active[slot];"),
     ("dng_event.cpp", "        if (spawn_count > MONSTER_ACTIVE_MAX) {\n            spawn_count = MONSTER_ACTIVE_MAX;",

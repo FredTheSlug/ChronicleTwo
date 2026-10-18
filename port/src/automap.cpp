@@ -6,6 +6,7 @@
 #include "common.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <iterator>
 #include <new>
@@ -21,6 +22,7 @@
 #include "mg_memory.hpp"
 #include "mglib.hpp"
 #include "scenesnd.hpp"
+#include "test_hooks.hpp"
 
 namespace {
 
@@ -330,6 +332,10 @@ PORT_OVERRIDE void CMiniMapSymbol::Draw(float *pos) {
 }
 
 PORT_OVERRIDE void CAutoMapGen::SetupRoomInfo(char *name, int /*length*/, mgCMemory *mem) {
+    // Build follows, so a fixed seed fixes the layout and the treasure and monster placement after it.
+    if (const auto seed = GameSeed()) {
+        srand(*seed);
+    }
     room_info = new (mem->Alloc(kRoomTableBlocks)) AUTOMAP_ROOM_INFO[AUTOMAP_ROOM_INFO_MAX];
 
     for (int i = 0; i < AUTOMAP_ROOM_INFO_MAX; i++) {

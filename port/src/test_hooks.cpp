@@ -1,5 +1,6 @@
 #include "test_hooks.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <cstdio>
 #include <cstdlib>
@@ -9,6 +10,10 @@
 #include <string>
 #include <vector>
 
+#include "actionchara.hpp"
+#include "dng_main.hpp"
+#include "event.hpp"
+#include "event_func.hpp"
 #include "gamedata.hpp"
 #include "log/log.hpp"
 #include "main.hpp"
@@ -23,9 +28,15 @@
 extern unsigned char PortGameBootInit asm("Title_GameBootInit");
 
 namespace {
-std::optional<GameJump> target;
-std::vector<int>        gifts;
-bool                    fast_load = false;
+std::optional<GameJump>      target;
+std::vector<int>             gifts;
+bool                         fast_load = false;
+bool                         skip_events = false;
+bool                         invincible = false;
+std::optional<std::uint32_t> seed;
+
+// The dungeon script event that loads the selected floor without opening the floor list.
+constexpr int kDungeonFloorLoadEvent = 1010;
 
 constexpr int kNoLimit = std::numeric_limits<int>::max();
 
@@ -174,6 +185,31 @@ void GameSetFastLoad(bool fast) { fast_load = fast; }
 
 bool GameFastLoad() { return fast_load; }
 
+void GameSetSkipEvents(bool skip) { skip_events = skip; }
+
+bool GameSkipEvents() { return skip_events; }
+
+void GameSetInvincible(bool value) { invincible = value; }
+
+bool GameInvincible() { return invincible; }
+
+void GameSetSeed(std::optional<std::uint32_t> value) { seed = value; }
+
+std::optional<std::uint32_t> GameSeed() { return seed; }
+
+void GameDebugFrame(int mode) {
+    if (mode != LOOP_DUNGEON) {
+        return;
+    }
+    if (invincible && MainChara__2 != nullptr) {
+        // Keeps the hit check's invulnerability window open, so no hit lands or knocks the character back.
+        MainChara__2->muteki_time = std::max(MainChara__2->muteki_time, 2);
+    }
+    if (skip_events && DngStatus.mode == DNG_STATUS_EVENT && EdEventInfo.skip_state == EVENT_SKIP_ENABLED) {
+        SkipEventStart();
+    }
+}
+
 void GamePrepareJump(int &mode, INIT_LOOP_ARG &arg) {
     for (int item : gifts) {
         RequireKnownItem(item);
@@ -209,6 +245,9 @@ void GamePrepareJump(int &mode, INIT_LOOP_ARG &arg) {
             mode = LOOP_DUNGEON;
             arg.map_no = jump.map;
             arg.floor_no = jump.floor;
+            if (skip_events) {
+                arg.event_no = kDungeonFloorLoadEvent;
+            }
             break;
         case JumpMode::Opening: {
             DebugGetItem(&GetSaveData()->user_data, 1);

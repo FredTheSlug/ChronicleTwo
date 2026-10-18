@@ -574,8 +574,9 @@ TEST(MgVisual, QueuedFixFaceSurvivesFaceAddressReuse) {
     MemoryPool      model;
     mgCVisualFixMDT first;
     ASSERT_EQ(first.DataAssignMDT(first_file.header(), &model.memory(), nullptr), 1);
-    const mgCFace *face = first.face_group->face;
-    const auto    *geometry = mgVisualPortFaceMesh(face);
+    const mgCFace      *face = first.face_group->face;
+    const mgFACE_GROUP *group = first.face_group;
+    const auto         *geometry = mgVisualPortGroupMesh(group, nullptr);
     ASSERT_NE(geometry, nullptr);
     const gfx::MeshHandle previous = geometry->mesh;
     ASSERT_NE(previous, gfx::kNullMesh);
@@ -599,8 +600,9 @@ TEST(MgVisual, QueuedFixFaceSurvivesFaceAddressReuse) {
     model.memory().stReset();
     mgCVisualFixMDT next;
     ASSERT_EQ(next.DataAssignMDT(next_file.header(), &model.memory(), nullptr), 1);
+    ASSERT_EQ(next.face_group, group);
     ASSERT_EQ(next.face_group->face, face);
-    ASSERT_NE(mgVisualPortFaceMesh(face)->mesh, previous);
+    ASSERT_NE(mgVisualPortGroupMesh(group, nullptr)->mesh, previous);
 
     mgPreEndDraw(nullptr);
     mgEndDraw(0, nullptr);

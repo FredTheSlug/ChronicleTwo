@@ -50,6 +50,9 @@ struct Options {
     const char           *give = nullptr;
     const char           *log_level = nullptr;
     bool                  fast_load = false;
+    bool                  skip_events = false;
+    bool                  invincible = false;
+    const char           *seed = nullptr;
     bool                  headless = false;
     bool                  offscreen = false;
     int                   frames = 0;
@@ -69,7 +72,7 @@ Options g_options;
 
 [[noreturn]] void Usage(const char *program) {
     CT_LOG_ERROR(Main,
-                 "usage: {} [--data DIR] [--run-dir DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n          [--frames N] [--screenshot PATH] [--input SCRIPT] [--display-per-tick N]\n          [--show-fps] [--log-fps] [--screenshot-display N] [--screenshot-fps]\n          [--log-level SPEC]\n  --jump MODE[:ARG]  start in town:<map>, dungeon:<n>[:<floor>], event:<id>, title, opening, menu (DC2_JUMP)\n  --fast-load        shorten loading-screen holds (DC2_FAST_LOAD=1)\n  --give ITEM,...    give missing items and weapons on arrival (DC2_GIVE)\n  --run-dir DIR      game root containing data.zip and saves/\n                     (default: the per-user chronicletwo app data directory)\n  --data DIR         override the extracted data/ subdirectory (DC2_DATA)\n  --save DIR         override the saves/ subdirectory (DC2_SAVE)\n  --headless         render offscreen (SDL offscreen driver, VK_EXT_headless_surface)\n  --offscreen        --headless without a Vulkan surface: render to an image only\n  --frames N         exit after frame N of the game's main loop (N a positive integer)\n  --screenshot PATH  with --frames: write the last frame to PATH as a PNG on exit\n  --screenshot-display N  with --screenshot: also write N interpolated display frames of that frame\n                     beside PATH, as PATH-display-K.png for K = 0..N-1\n  --screenshot-fps   with --screenshot: draw the FPS counter and menu pointer into the written image\n  --input SCRIPT     drive the pads named in SCRIPT from an input script\n  --window WxH       window size in pixels (default: config.json, then the monitor's)\n  --display-per-tick N  headless: also render N interpolated display frames per tick (discarded)\n  --show-fps         draw the FPS counter on presented frames, headless too\n  --log-fps          print the FPS counter's text on stderr every second\n  --log-level SPEC   trace, debug, info, warning, error, critical or off, and/or CATEGORY=LEVEL,\n                     comma-separated (DC2_LOG; default: config.json's log.level)",
+                 "usage: {} [--data DIR] [--run-dir DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n          [--frames N] [--screenshot PATH] [--input SCRIPT] [--display-per-tick N]\n          [--show-fps] [--log-fps] [--screenshot-display N] [--screenshot-fps]\n          [--log-level SPEC]\n  --jump MODE[:ARG]  start in town:<map>, dungeon:<n>[:<floor>], event:<id>, title, opening, menu (DC2_JUMP)\n  --fast-load        shorten loading-screen holds (DC2_FAST_LOAD=1)\n  --give ITEM,...    give missing items and weapons on arrival (DC2_GIVE)\n  --skip-events      enter a jumped dungeon floor directly; skip skippable dungeon scenes (DC2_SKIP_EVENTS=1)\n  --invincible       the dungeon character takes no hits (DC2_INVINCIBLE=1)\n  --seed N           reseed the random generator with N as each dungeon floor is built (DC2_SEED)\n  --run-dir DIR      game root containing data.zip and saves/\n                     (default: the per-user chronicletwo app data directory)\n  --data DIR         override the extracted data/ subdirectory (DC2_DATA)\n  --save DIR         override the saves/ subdirectory (DC2_SAVE)\n  --headless         render offscreen (SDL offscreen driver, VK_EXT_headless_surface)\n  --offscreen        --headless without a Vulkan surface: render to an image only\n  --frames N         exit after frame N of the game's main loop (N a positive integer)\n  --screenshot PATH  with --frames: write the last frame to PATH as a PNG on exit\n  --screenshot-display N  with --screenshot: also write N interpolated display frames of that frame\n                     beside PATH, as PATH-display-K.png for K = 0..N-1\n  --screenshot-fps   with --screenshot: draw the FPS counter and menu pointer into the written image\n  --input SCRIPT     drive the pads from an input script; live input is ignored\n  --window WxH       window size in pixels (default: config.json, then the monitor's)\n  --display-per-tick N  headless: also render N interpolated display frames per tick (discarded)\n  --show-fps         draw the FPS counter on presented frames, headless too\n  --log-fps          print the FPS counter's text on stderr every second\n  --log-level SPEC   trace, debug, info, warning, error, critical or off, and/or CATEGORY=LEVEL,\n                     comma-separated (DC2_LOG; default: config.json's log.level)",
                  program);
     LogFlush();
     std::exit(kExitUsage);
@@ -80,6 +83,16 @@ const char *OptionValue(int argc, const char **argv, int &i) {
         Usage(argv[0]);
     }
     return argv[++i];
+}
+
+std::uint32_t ParseSeed(std::string_view text, const char *program) {
+    std::uint32_t value = 0;
+    const char   *last = text.data() + text.size();
+    const auto [end, ec] = std::from_chars(text.data(), last, value);
+    if (ec != std::errc() || end != last) {
+        Usage(program);
+    }
+    return value;
 }
 
 int ParsePositive(std::string_view text, const char *program) {
@@ -119,6 +132,12 @@ Options ParseOptions(int argc, const char **argv) {
             }
         } else if (arg == "--fast-load") {
             options.fast_load = true;
+        } else if (arg == "--skip-events") {
+            options.skip_events = true;
+        } else if (arg == "--invincible") {
+            options.invincible = true;
+        } else if (arg == "--seed") {
+            options.seed = OptionValue(argc, argv, i);
         } else if (arg == "--headless") {
             options.headless = true;
         } else if (arg == "--offscreen") {
@@ -300,6 +319,14 @@ int Run(int argc, const char **argv) {
     PortAutosave = !options.headless && !GameHasJump() && options.input.empty();
     const char *fast = SettingsEnv("FAST_LOAD");
     GameSetFastLoad(options.fast_load || (fast && *fast && *fast != '0'));
+    const char *skip_events = SettingsEnv("SKIP_EVENTS");
+    GameSetSkipEvents(options.skip_events || (skip_events && *skip_events && *skip_events != '0'));
+    const char *invincible = SettingsEnv("INVINCIBLE");
+    GameSetInvincible(options.invincible || (invincible && *invincible && *invincible != '0'));
+    const char *seed = options.seed ? options.seed : SettingsEnv("SEED");
+    if (seed && (options.seed || *seed)) {
+        GameSetSeed(ParseSeed(seed, argv[0]));
+    }
     InputScript input_script;
     if (!options.input.empty()) {
         std::string error;
@@ -333,7 +360,8 @@ int Run(int argc, const char **argv) {
     if (!options.headless) {
         CrashShowLastReportNotice();
     }
-    InputInitForRun(options.headless);
+    // A scripted run takes no live input: no devices open, no window input events and no mouse capture.
+    InputInitForRun(options.headless || !options.input.empty());
     InputScriptInstall(std::move(input_script));
 
     gfx::RendererConfig renderer;

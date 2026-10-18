@@ -68,7 +68,7 @@ export VK_DRIVER_FILES="$(brew --prefix)/etc/vulkan/icd.d/MoltenVK_icd.json"
 
 Native builds include [Tracy 0.14.1](https://github.com/wolfpld/tracy/releases/tag/v0.14.1) from a pinned source archive. Tracy records game zones, frame marks and plots only while `game.debug_mode=true` or a `--jump` debug session is active. Start the matching Tracy profiler and connect to localhost while the game runs; recording begins on connection. Normal sessions leave the local listener idle, and sampling and system tracing are disabled. `-DCT_ENABLE_TRACY=OFF` removes the dependency and instrumentation from a build entirely.
 
-The default and `Game` frame tracks mark completed game frames; `Display` marks frames actually presented. CPU zones separate canonical scene rendering, display rendering, pacing and readbacks. Loading zones cover archive indexing and reads, script checks, model documents and instances, and texture decoding and uploads. Plots show scene draw counts, visual face table size, retained CPU geometry, resident GPU faces, failed mesh uploads and immediate face draws. The last two plots describe work since the preceding visual-face sweep. These zones do not cross the game's cooperative thread switches. The renderer itself has no Vulkan GPU timestamp zones yet. The Flatpak grants network access so a local Tracy profiler outside its sandbox can connect during a debug session. Distributed builds include Tracy's license notice.
+The default and `Game` frame tracks mark completed game frames; `Display` marks frames actually presented. CPU zones separate canonical scene rendering, display rendering, pacing and readbacks. Loading zones cover archive indexing and reads, script checks, model documents and instances, and texture decoding and uploads. Plots show scene draw counts, visual face table size, retained CPU geometry, resident GPU face batches, failed mesh uploads and immediate face draws. The last two plots describe work since the preceding visual-face sweep. These zones do not cross the game's cooperative thread switches. The renderer itself has no Vulkan GPU timestamp zones yet. The Flatpak grants network access so a local Tracy profiler outside its sandbox can connect during a debug session. Distributed builds include Tracy's license notice.
 
 ### Debug information
 
@@ -467,7 +467,7 @@ darkchronicle [options]
 | `--screenshot PATH` | with `--frames`: write the last frame to PATH as a PNG on exit. A failed write exits with status 1 |
 | `--screenshot-display N` | with `--screenshot`: also write N interpolated display frames of that frame, as `<stem>-display-<k>.png` for k = 0 to N-1 |
 | `--screenshot-fps` | with `--screenshot`: draw the FPS counter and any menu pointer into the image, from a presented frame at window size. With `--offscreen`, nothing is presented: the image is read back from the display image instead |
-| `--input SCRIPT` | drive the pads from an input script at start-up. A bad script exits with status 2 |
+| `--input SCRIPT` | drive the pads from an input script at start-up. A bad script exits with status 2. Live input is ignored for the whole run: no gamepads open, the window's keyboard and mouse events are not read and the mouse is not captured |
 | `--display-per-tick N` | also render N interpolated display frames per clock tick, discarded. N is a positive integer |
 | `--show-fps` | draw the FPS counter on presented frames, headless too |
 | `--log-fps` | print the FPS counter's text on stderr once a second |
@@ -525,11 +525,28 @@ items, and targets absent from the loaded map or event tables exit with status 2
 - `--give ITEM,...` (`DC2_GIVE`) gives missing items and weapons by their numeric
   IDs through `CUserDataManager::GetItem` each time a town or dungeon starts.
   Items already held are skipped. See `ITEM_ID` in `ps2/include/gamedata.hpp`.
+- `--skip-events` (`DC2_SKIP_EVENTS=1`) makes a `dungeon:` jump start the floor
+  load event (1010) instead of the floor-start event, so the floor list is not
+  shown, and skips each skippable dungeon drama scene (the arrival
+  communication or entrance scene) as soon as it allows it. A floor of Ocean's
+  Roar is controllable by frame 60.
+- `--invincible` (`DC2_INVINCIBLE=1`) holds the dungeon character's
+  invulnerability counter (`CActionChara::muteki_time`) open every frame, so
+  no hit lands or knocks it back. Poison and scripted HP changes still apply.
+- `--seed N` (`DC2_SEED`) reseeds the game's random generator with N as each
+  dungeon floor is built (`CAutoMapGen::SetupRoomInfo`), fixing the layout and
+  the treasure and monster placement. Without it the seed is the retail stream.
 
 For example, `darkchronicle --jump dungeon:0:1 --fast-load --headless --offscreen
 --input tools/input/jump-dungeon-floor1.input --frames 2300 --screenshot floor.png`
 reaches the first Underground Channel floor with movement and the HUD. See
 [Debug mode](DEBUG.md#jump-replays) for other rendered checkpoints and controls.
+
+`tools/input/perf-ocean-walk.input` is the Ocean's Roar performance replay: run
+`darkchronicle --jump dungeon:3:1 --fast-load --skip-events --invincible --seed 1234
+--window 1920x1080 --input tools/input/perf-ocean-walk.input --frames 480 --log-fps`
+in a real window with `video.present_mode` `immediate`. Max walks into the open
+water and the camera pans across it, at about 3,000 scene draws a tick.
 
 To replay a milestone save without changing its source, use:
 
@@ -1414,6 +1431,8 @@ to compare presentation captures (`caption-display-0.png`) at those resolutions.
 `--frames N` exits after frame N. `--screenshot PATH` writes that frame as a PNG first; a failed write exits with status 1. `--screenshot` without `--frames` is a usage error. `--input SCRIPT` loads the script at start-up. The pump applies it on each tick with `mgPortFrameCount()`, so pad input follows the game's frame count.
 
 Draws are recorded into display lists (see "Ticks and display frames").
+
+Visual faces (`port/src/mg_visual.cpp`) keep their triangles on the CPU. `mgCVisualMDT::Draw` batches each stretch of consecutive face groups that share a material and VU microprogram: their faces are concatenated in draw order into one mesh, and the stretch is drawn once for each run of consecutive faces with the same face flags (`MG_FACE_NO_TEXTURE`, `MG_FACE_COLOUR`, `MG_FACE_NO_NORMAL`). Native models give most faces a group of their own, so this cuts Ocean's Roar's scene from about 3,200 to 700 draws. Batches of fixed and motion visuals are uploaded as GPU meshes and released after 1,800 unused frames, keeping their CPU copy for re-upload and for immediate draws when no mesh slot is free. A plain visual's batches stay on the CPU, because its faces are rebuilt every tick. A refreshed face is a new mesh, so a batch built from the old one is rebuilt when it next draws.
 
 ### Window aspect
 

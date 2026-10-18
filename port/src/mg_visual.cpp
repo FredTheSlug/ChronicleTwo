@@ -3,6 +3,7 @@
 #include <array>
 #include <cstring>
 #include <memory>
+#include <span>
 #include <unordered_map>
 #include <vector>
 
@@ -115,13 +116,27 @@ gfx::Vertex3D SkinSlot(const mgVertexWeight &weight) {
 }
 
 struct FaceEntry {
-    std::shared_ptr<mgVisualFaceMesh> mesh;
-    bool                              persistent = false;
-    int                               last_frame = 0;
+    std::shared_ptr<const mgVisualFaceMesh> mesh;
+    bool                                    persistent = false;
+    int                                     last_frame = 0;
 };
 
 std::unordered_map<const mgCFace *, FaceEntry> &FaceTable() {
     static std::unordered_map<const mgCFace *, FaceEntry> table;
+    return table;
+}
+
+struct GroupEntry {
+    std::shared_ptr<mgVisualGroupMesh> mesh;
+    // The face meshes the batch was built from, in draw order. A refreshed face is a new mesh, so a
+    // mismatch means the batch is stale; holding them also keeps their addresses from being reused.
+    std::vector<std::shared_ptr<const mgVisualFaceMesh> > sources;
+    bool                                                  persistent = false;
+    int                                                   last_frame = 0;
+};
+
+std::unordered_map<const mgFACE_GROUP *, GroupEntry> &GroupTable() {
+    static std::unordered_map<const mgFACE_GROUP *, GroupEntry> table;
     return table;
 }
 
@@ -130,7 +145,7 @@ uint64_t gpu_upload_failures = 0;
 uint64_t immediate_face_draws = 0;
 #endif
 
-void ReleaseMesh(mgVisualFaceMesh &mesh) {
+void ReleaseMesh(mgVisualGroupMesh &mesh) {
     if (mesh.mesh != gfx::kNullMesh) {
         gfx::DestroyMesh(mesh.mesh);
         mesh.mesh = gfx::kNullMesh;
@@ -138,10 +153,9 @@ void ReleaseMesh(mgVisualFaceMesh &mesh) {
 }
 
 // The CPU copy supports reupload after eviction and immediate draws when no mesh slot is free.
-void UploadIfReady(FaceEntry &entry) {
-    mgVisualFaceMesh &mesh = *entry.mesh;
-    if (!entry.persistent || mesh.mesh != gfx::kNullMesh || mesh.indices.empty() ||
-        !mgPortRendererReady()) {
+void UploadIfReady(GroupEntry &entry) {
+    mgVisualGroupMesh &mesh = *entry.mesh;
+    if (!entry.persistent || mesh.mesh != gfx::kNullMesh || mesh.indices.empty() || !mgPortRendererReady()) {
         return;
     }
 
@@ -151,6 +165,35 @@ void UploadIfReady(FaceEntry &entry) {
         ++gpu_upload_failures;
     }
 #endif
+}
+
+// Concatenates the faces in order. Each face's indices are rebased onto the batch's vertices (a skinned
+// vertex is a pair of Vertex3D), and consecutive faces with the same face flags share one run.
+std::shared_ptr<mgVisualGroupMesh> BuildGroup(const std::vector<std::shared_ptr<const mgVisualFaceMesh> > &faces) {
+    // The last owner releases the GPU mesh, including while a queued draw or display list still holds it.
+    std::shared_ptr<mgVisualGroupMesh> group(new mgVisualGroupMesh(), [](mgVisualGroupMesh *mesh) {
+        ReleaseMesh(*mesh);
+        delete mesh;
+    });
+
+    constexpr uint32_t kFaceFlags = MG_FACE_NO_TEXTURE | MG_FACE_COLOUR | MG_FACE_NO_NORMAL;
+    for (const auto &face : faces) {
+        group->skinned = face->skinned;
+        const uint32_t stride = face->skinned ? 2 : 1;
+        const uint32_t base = static_cast<uint32_t>(group->vertices.size()) / stride;
+        const uint32_t first = static_cast<uint32_t>(group->indices.size());
+        const uint32_t flags = face->type & kFaceFlags;
+        group->vertices.insert(group->vertices.end(), face->vertices.begin(), face->vertices.end());
+        for (uint32_t index : face->indices) {
+            group->indices.push_back(base + index);
+        }
+        if (!group->runs.empty() && group->runs.back().face_flags == flags) {
+            group->runs.back().index_count += face->index_count;
+        } else {
+            group->runs.push_back({.first_index = first, .index_count = face->index_count, .face_flags = flags});
+        }
+    }
+    return group;
 }
 
 } // namespace
@@ -209,41 +252,67 @@ void mgVisualPortRefreshFace(mgCVisualMDT *visual, mgCFace *face) {
     CT_PROFILE_ZONE("Build visual face");
     const int  kind = visual->Iam();
     FaceEntry &entry = FaceTable()[face];
-    // Address reuse replaces the table's owner. Queued draws keep the previous geometry alive until their
-    // packet arena is reset; the last owner releases its GPU mesh, including during display-list recording.
-    entry.mesh = std::shared_ptr<mgVisualFaceMesh>(
-        new mgVisualFaceMesh(mgVisualPortBuildFace(*visual, *face, kind == MG_VISUAL_KIND_MOTION_MDT)),
-        [](mgVisualFaceMesh *mesh) {
-            ReleaseMesh(*mesh);
-            delete mesh;
-        });
-    // A plain visual is rebuilt on every CreateFacePacket and would churn GPU meshes if uploaded, so it stays
-    // on the CPU.
+    // Address reuse replaces the table's owner. A group batch built from the previous geometry keeps it alive
+    // and is rebuilt when it next draws.
+    entry.mesh = std::make_shared<const mgVisualFaceMesh>(
+        mgVisualPortBuildFace(*visual, *face, kind == MG_VISUAL_KIND_MOTION_MDT));
+    // A plain visual is rebuilt on every CreateFacePacket and would churn GPU meshes if uploaded, so its
+    // group batches stay on the CPU.
     entry.persistent = kind == MG_VISUAL_KIND_FIX_MDT || kind == MG_VISUAL_KIND_MOTION_MDT;
     entry.last_frame = mgPortFrameCount();
-    UploadIfReady(entry);
 }
 
 namespace {
 
-std::shared_ptr<const mgVisualFaceMesh> FaceMesh(const mgCFace *face) {
+FaceEntry *FindFace(const mgCFace *face) {
     auto &table = FaceTable();
     auto  found = table.find(face);
     if (found == table.end()) {
         return nullptr;
     }
+    found->second.last_frame = mgPortFrameCount();
+    return &found->second;
+}
 
-    FaceEntry &entry = found->second;
+// The batch of the groups from first up to end, keyed by first.
+std::shared_ptr<const mgVisualGroupMesh> GroupMesh(const mgFACE_GROUP *first, const mgFACE_GROUP *end) {
+    std::vector<std::shared_ptr<const mgVisualFaceMesh> > faces;
+    bool                                                  persistent = true;
+    for (const mgFACE_GROUP *group = first; group != end; group = group->next) {
+        for (const mgCFace *face = group->face; face != nullptr; face = face->next) {
+            const FaceEntry *entry = FindFace(face);
+            if (entry == nullptr || entry->mesh->indices.empty()) {
+                continue;
+            }
+            faces.push_back(entry->mesh);
+            persistent = persistent && entry->persistent;
+        }
+    }
+    mgVisualPortSweep();
+    if (faces.empty()) {
+        return nullptr;
+    }
+
+    GroupEntry &entry = GroupTable()[first];
+    if (entry.mesh == nullptr || entry.sources != faces) {
+        entry.mesh = BuildGroup(faces);
+        entry.sources = std::move(faces);
+    }
+    entry.persistent = persistent;
     entry.last_frame = mgPortFrameCount();
     UploadIfReady(entry);
-    mgVisualPortSweep();
     return entry.mesh;
 }
 
 } // namespace
 
 const mgVisualFaceMesh *mgVisualPortFaceMesh(const mgCFace *face) {
-    return FaceMesh(face).get();
+    const FaceEntry *entry = FindFace(face);
+    return entry != nullptr ? entry->mesh.get() : nullptr;
+}
+
+const mgVisualGroupMesh *mgVisualPortGroupMesh(const mgFACE_GROUP *first, const mgFACE_GROUP *end) {
+    return GroupMesh(first, end).get();
 }
 
 void mgVisualPortSweep() {
@@ -255,16 +324,32 @@ void mgVisualPortSweep() {
     swept_frame = frame;
     CT_PROFILE_ZONE("Sweep visual faces");
 
-    auto &table = FaceTable();
+    auto &faces = FaceTable();
 #ifdef CT_ENABLE_TRACY
     const bool profiling = ct::profile::Enabled();
-    uint64_t   gpu_faces = 0;
+    uint64_t   gpu_groups = 0;
     uint64_t   cpu_bytes = 0;
 #endif
-    for (auto it = table.begin(); it != table.end();) {
+    for (auto it = faces.begin(); it != faces.end();) {
 #ifdef CT_ENABLE_TRACY
         if (profiling) {
-            gpu_faces += it->second.mesh->mesh != gfx::kNullMesh;
+            cpu_bytes += it->second.mesh->vertices.size() * sizeof(gfx::Vertex3D) +
+                         it->second.mesh->indices.size() * sizeof(uint32_t);
+        }
+#endif
+        if (it->second.persistent || frame - it->second.last_frame <= kFaceUnusedFrameLimit) {
+            ++it;
+            continue;
+        }
+        // A queued draw may still own this CPU geometry after the table forgets it.
+        it = faces.erase(it);
+    }
+
+    auto &groups = GroupTable();
+    for (auto it = groups.begin(); it != groups.end();) {
+#ifdef CT_ENABLE_TRACY
+        if (profiling) {
+            gpu_groups += it->second.mesh->mesh != gfx::kNullMesh;
             cpu_bytes += it->second.mesh->vertices.size() * sizeof(gfx::Vertex3D) +
                          it->second.mesh->indices.size() * sizeof(uint32_t);
         }
@@ -281,13 +366,12 @@ void mgVisualPortSweep() {
             ++it;
             continue;
         }
-        // A queued draw may still own this CPU geometry after the table forgets it.
-        it = table.erase(it);
+        it = groups.erase(it);
     }
 #ifdef CT_ENABLE_TRACY
     if (profiling) {
-        CT_PROFILE_PLOT("Visual face table entries", static_cast<int64_t>(table.size()));
-        CT_PROFILE_PLOT("Visual resident GPU faces", static_cast<int64_t>(gpu_faces));
+        CT_PROFILE_PLOT("Visual face table entries", static_cast<int64_t>(faces.size()));
+        CT_PROFILE_PLOT("Visual resident GPU batches", static_cast<int64_t>(gpu_groups));
         CT_PROFILE_PLOT("Visual retained CPU bytes", static_cast<int64_t>(cpu_bytes));
         CT_PROFILE_PLOT("Visual GPU upload failures", static_cast<int64_t>(gpu_upload_failures));
         CT_PROFILE_PLOT("Visual immediate face draws", static_cast<int64_t>(immediate_face_draws));
@@ -331,11 +415,11 @@ RenderRecord &CurrentRecord() {
 
 const void *current_object = nullptr;
 
-// A draw owns its immutable geometry independently of the face address in the load arena.
-struct FaceDraw {
-    std::shared_ptr<const mgVisualFaceMesh> geometry;
-    gfx::TextureBinding                     binding;
-    uint32_t                                face_flags{};
+// A draw owns its immutable geometry independently of the group address in the load arena.
+struct RunDraw {
+    std::shared_ptr<const mgVisualGroupMesh> geometry;
+    mgVisualGroupRun                         run;
+    gfx::TextureBinding                      binding;
 };
 
 struct GroupDraw {
@@ -348,7 +432,7 @@ struct GroupDraw {
 
 // Both prog0 submissions. Every call goes through here, so the renderer and frame checks mgPortDrawMesh makes
 // apply to all of them.
-void SubmitFaces(const GroupDraw &group, const std::vector<FaceDraw> &faces) {
+void SubmitRuns(const GroupDraw &group, const std::vector<RunDraw> &runs) {
     CT_PROFILE_ZONE("Submit visual faces");
     if (!mgPortRendererReady() || !mgPortFrameOpen()) {
         return;
@@ -357,20 +441,21 @@ void SubmitFaces(const GroupDraw &group, const std::vector<FaceDraw> &faces) {
     mgPortInterpScope   scope(group.object, kMgPortFrameTeleportDistance);
     gfx::Prog0Constants prog0 = group.prog0;
 
-    for (const FaceDraw &face : faces) {
-        prog0.face = face.face_flags;
+    for (const RunDraw &draw : runs) {
+        prog0.face = draw.run.face_flags;
 
-        if (face.geometry->mesh != gfx::kNullMesh) {
-            mgPortDrawMeshProg0(face.geometry->mesh, 0, face.geometry->index_count, group.mesh, prog0, face.binding,
-                                group.state, &group.transform);
+        if (draw.geometry->mesh != gfx::kNullMesh) {
+            mgPortDrawMeshProg0(draw.geometry->mesh, draw.run.first_index, draw.run.index_count, group.mesh, prog0,
+                                draw.binding, group.state, &group.transform);
         } else {
 #ifdef CT_ENABLE_TRACY
             if (ct::profile::Enabled()) {
                 ++immediate_face_draws;
             }
 #endif
-            mgPortDrawMeshImmediateProg0(face.geometry->vertices, face.geometry->indices, group.mesh, prog0,
-                                         face.binding, group.state, &group.transform);
+            const auto indices = std::span(draw.geometry->indices).subspan(draw.run.first_index, draw.run.index_count);
+            mgPortDrawMeshImmediateProg0(draw.geometry->vertices, indices, group.mesh, prog0, draw.binding, group.state,
+                                         &group.transform);
         }
     }
 }
@@ -663,7 +748,12 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
         mgPortClearPacketDraw(common);
     }
 
-    for (mgFACE_GROUP *group = face_group; group != nullptr; group = group->next) {
+    for (mgFACE_GROUP *group = face_group, *end = nullptr; group != nullptr; group = end) {
+        // Consecutive groups with one material and microprogram draw identically, so they batch together.
+        end = group->next;
+        while (end != nullptr && end->material == group->material && end->vu_program == group->vu_program) {
+            end = end->next;
+        }
         mgMaterial         *mat = material + group->material;
         gfx::TextureBinding binding = mgPortBinding(mat->texture);
         // Retail SetMaterialRef writes this texture's CLAMP for every material, so no draw inherits another's wrap.
@@ -683,22 +773,16 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
         draw.state.cull = gfx::Prog0CullMode(draw.prog0);
         draw.object = object;
 
-        std::vector<FaceDraw> faces;
-        for (mgCFace *face = group->face; face != nullptr; face = face->next) {
-            const auto geometry = FaceMesh(face);
-            if (geometry == nullptr || (geometry->mesh == gfx::kNullMesh && geometry->indices.empty())) {
-                continue;
+        std::vector<RunDraw> runs;
+        if (const auto geometry = GroupMesh(group, end)) {
+            for (const mgVisualGroupRun &run : geometry->runs) {
+                const bool textured = (run.face_flags & MG_FACE_NO_TEXTURE) == 0;
+                runs.push_back({.geometry = geometry, .run = run, .binding = textured ? binding : gfx::TextureBinding()});
             }
-
-            FaceDraw entry;
-            entry.geometry = geometry;
-            entry.face_flags = face->type & (gfx::kProg0FaceNoTexture | gfx::kProg0FaceColor | gfx::kProg0FaceNoNormal);
-            entry.binding = (face->type & MG_FACE_NO_TEXTURE) != 0 ? gfx::TextureBinding() : binding;
-            faces.push_back(entry);
         }
 
         if (tag != nullptr) {
-            SubmitFaces(draw, faces);
+            SubmitRuns(draw, runs);
             continue;
         }
 
@@ -707,8 +791,8 @@ PORT_OVERRIDE int mgCVisualMDT::Draw(u_int *tag, float (*matrix)[4], mgCDrawMana
             break;
         }
 
-        mgPortSetPacketDraw(packet, [draw, faces = std::move(faces)] {
-            SubmitFaces(draw, faces);
+        mgPortSetPacketDraw(packet, [draw, runs = std::move(runs)] {
+            SubmitRuns(draw, runs);
         });
 
         const int block = mat->texture != nullptr ? mat->texture->block : -1;

@@ -475,6 +475,7 @@ PORT_OVERRIDE void MainLoop() {
                 DebugFlag = !DebugFlag;
             }
 
+            GameDebugFrame(PortLoopNo);
             mgBeginFrame(nullptr);
             mode_finished = LoopMain[PortLoopNo]();
             PortFinishQuickChange();

@@ -105,7 +105,6 @@ protected:
         previous_language = LanguageCode;
         LanguageCode = LANG_ENGLISH;
         directory = std::filesystem::temp_directory_path() / ("chronicle_native_loaders_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        std::filesystem::create_directories(directory / "port_data");
         std::filesystem::create_directories(directory / "data");
         DataReadIndex(directory / "data");
         storage.resize(8192);
@@ -131,7 +130,7 @@ protected:
      * Writes a native document of a kind with the given body, returning its size in bytes.
      */
     std::uintmax_t Write(const std::string &name, const std::string &kind, const Json &body) {
-        const auto path = directory / "port_data" / name;
+        const auto path = directory / "data" / name;
         Json       document = body;
         document["schema_version"] = 2;
         document["kind"] = kind;
@@ -245,7 +244,7 @@ TEST_F(NativeConfigLoaders, NpcRecordsKeepTheTableBoundsAndNullTexts) {
     EXPECT_EQ(GetPartyNPCData(3), nullptr);
 
     // Command-list documents are no longer read.
-    std::ofstream(directory / "port_data" / "npc1.cfg.json", std::ios::binary) << R"({"schema_version":1,"commands":[]})";
+    std::ofstream(directory / "data" / "npc1.cfg.json", std::ios::binary) << R"({"schema_version":1,"commands":[]})";
     LoadNPCCfg();
     EXPECT_EQ(GetPartyNPCData(3), nullptr);
 }

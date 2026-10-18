@@ -40,7 +40,7 @@ protected:
     void SetUp() override {
         previous_root = datapacks::Root();
         directory = std::filesystem::temp_directory_path() / ("chronicle_native_menu_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        std::filesystem::create_directories(directory / "port_data/menu/fixture.pac");
+        std::filesystem::create_directories(directory / "data/menu/fixture.pac");
         std::filesystem::create_directories(directory / "data");
         DataReadIndex(directory / "data");
         storage.resize(16384);
@@ -81,7 +81,7 @@ protected:
         document["schema_version"] = 2;
         document["kind"] = kind;
         const auto text = document.dump(2);
-        std::ofstream(directory / "port_data/menu/fixture.pac" / name, std::ios::binary) << text;
+        std::ofstream(directory / "data/menu/fixture.pac" / name, std::ios::binary) << text;
         buffers.push_back(std::make_unique<std::string>(text));
         DataReadRegisterAsset(buffers.back()->data(), "menu/fixture.pac/" + name, text.size());
         return *buffers.back();

@@ -275,6 +275,8 @@ TEST_F(DataArchive, OverrideIndexMergesZipAndFolderPacksByLoadOrder) {
 }
 
 TEST_F(DataArchive, DataReadLoadsFromDataZipWithoutDirectories) {
+    const std::string gameplay = R"({"schema_version":2,"kind":"weapon","records":[]})";
+    Write(tree / "menu/cfg7/wepdat.cfg.json", gameplay);
     Pack(tree, root / "data.zip");
     Write(root / "data.json", R"({"schema_version":1,"data_version":)" + std::to_string(KAZAROV_DATA_VERSION) + "}");
     EXPECT_FALSE(FirstRunDataMissing(root / "data"));
@@ -293,6 +295,14 @@ TEST_F(DataArchive, DataReadLoadsFromDataZipWithoutDirectories) {
     EXPECT_TRUE(std::all_of(buffer.begin() + 5000, buffer.begin() + 6144, [](std::uint8_t value) { return value == 0; }));
     EXPECT_EQ(DataReadScriptKeys().size(), 0u);
     EXPECT_FALSE(DataReadFind("missing.bin"));
+    const auto settings = DataReadFind("menu/cfg7/wepdat.cfg.json");
+    if (!settings) {
+        FAIL() << "archived gameplay document is missing";
+    }
+    EXPECT_TRUE(settings->Display().starts_with("data.zip!"));
+    EXPECT_FALSE(vfs::HostPath(*settings));
+    EXPECT_EQ(Read(*settings), (std::vector<std::uint8_t>(gameplay.begin(), gameplay.end())));
+    EXPECT_FALSE(DataReadFind("character_clips.json"));
 }
 
 TEST_F(DataArchive, MoviePlaysIdenticallyFromAStoredArchiveEntry) {

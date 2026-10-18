@@ -1,4 +1,4 @@
-# Packages CMake's explicit program/runtime list, never data, port_data, saves or ROMs.
+# Packages CMake's program/runtime list without extracted assets.
 param([Parameter(Mandatory)][string]$BuildDirectory,
       [Parameter(Mandatory)][string]$Destination)
 $ErrorActionPreference = 'Stop'
@@ -20,4 +20,4 @@ $paths = foreach ($name in $names) {
     $path
 }
 Compress-Archive -LiteralPath $paths -DestinationPath $archive -Force
-Write-Output "Packaged $($paths.Count) program/runtime files in $archive (no retail assets)."
+Write-Output "Packaged $($paths.Count) program/runtime files in $archive."

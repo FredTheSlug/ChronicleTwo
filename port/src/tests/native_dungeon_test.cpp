@@ -39,7 +39,6 @@ protected:
     void SetUp() override {
         previous_root = datapacks::Root();
         directory = std::filesystem::temp_directory_path() / ("chronicle_native_dungeon_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        std::filesystem::create_directories(directory / "port_data");
         std::filesystem::create_directories(directory / "data");
         DataReadIndex(directory / "data");
         storage.resize(16384);
@@ -61,7 +60,7 @@ protected:
      * Writes a native document of a kind and re-indexes the data root so the retail readers see it.
      */
     void Write(const std::string &name, const std::string &kind, const Json &body) {
-        const auto path = directory / "port_data" / name;
+        const auto path = directory / "data" / name;
         std::filesystem::create_directories(path.parent_path());
         Json document = body;
         document["schema_version"] = 2;

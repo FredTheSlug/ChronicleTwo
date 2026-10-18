@@ -15,6 +15,7 @@
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mglib.hpp"
+#include "native_document_fixture.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/model_assets.hpp"
 #include "texture_source.hpp"
@@ -38,12 +39,11 @@ protected:
     std::array<unsigned char, 132> script{};
 
     static void Write(const std::filesystem::path &path, const Json &document) {
-        std::filesystem::create_directories(path.parent_path());
-        std::ofstream(path, std::ios::binary) << document.dump(2);
+        dc::test::WriteNativeDocument(path, document);
     }
 
     void Vm(const std::string &path) {
-        const auto file = root / "port_data" / path;
+        const auto file = root / "data" / path;
         std::filesystem::create_directories(file.parent_path());
         std::ofstream output(file, std::ios::binary);
         output.write(reinterpret_cast<const char *>(script.data()), script.size());
@@ -63,8 +63,8 @@ protected:
             {"scenes", Json::array({{{"nodes", {0}}}})  },
             {"nodes",  Json::array({{{"name", "root"}}})}
         };
-        Write(root / "port_data/dungeon/articles/eff01.gltf", gltf);
-        Write(root / "port_data/dungeon/articles/eff01.assets/Explosion_s.gltf", gltf);
+        Write(root / "data/dungeon/articles/eff01.gltf", gltf);
+        Write(root / "data/dungeon/articles/eff01.assets/Explosion_s.gltf", gltf);
         const Json model = {
             {"schema_version",  1                                                                             },
             {"frames",          Json::array({{{"id", 0}, {"name", "root"}, {"parent", -1}, {"mdt", nullptr}}})},
@@ -82,7 +82,7 @@ protected:
         child["profiles"]["info"]["commands"] = Json::array({
             {{"command", "MODEL"}, {"args", Json::array({{{"type", "resource"}, {"kind", "model"}, {"index", 0}}})}}
         });
-        Write(root / "port_data/dungeon/articles/eff01.assets/Explosion_s.game.json", child);
+        Write(root / "data/dungeon/articles/eff01.assets/Explosion_s.game.json", child);
         Json game = {
             {"schema_version", 1             },
             {"kind",           "character"   },
@@ -92,13 +92,13 @@ protected:
         game["resources"]["texture_sets"] = Json::array({
             {{"document", {{"schema_version", 3}, {"groups", {0}}, {"entries", Json::array({{{"name", "n_heal"}, {"pictures", Json::array({{{"canvas", {{"width", 2}, {"height", 2}}}}})}}})}}}}
         });
-        Write(root / "port_data/dungeon/articles/eff01.game.json", game);
+        Write(root / "data/dungeon/articles/eff01.game.json", game);
         bundle = gltf.dump(2);
         Vm("dungeon/articles/eff01.assets/explosion.stb");
         Vm("dungeon/articles/eff01.assets/n_heal.stb");
         Vm("dungeon/articles/eff01.assets/n_heal_sub.stb");
         Vm("dungeon/articles/eff01.assets/bakudan.stb");
-        Write(root / "port_data/dungeon/eff_script/n_heal.json", game["resources"]["texture_sets"][0]["document"]);
+        Write(root / "data/dungeon/eff_script/n_heal.json", game["resources"]["texture_sets"][0]["document"]);
         Vm("dungeon/eff_script/n_heal.stb");
         std::filesystem::create_directories(root / "data");
         DataReadIndex(root / "data");
@@ -198,18 +198,18 @@ TEST_F(NativeEffectBase, InvalidVmReplacementFallsThroughToTheBaseProgram) {
                                                  {"schema_version", 1           },
                                                  {"load_order",     {"override"}}
     });
-    datapacks::Load(root / "port_data");
+    datapacks::Load(root / "data");
     ASSERT_EQ(manager.BuildPack(26, Bundle(), nullptr, -1), 1);
     EXPECT_EQ(std::memcmp(manager.base[0]->script, script.data(), script.size()), 0);
 }
 
 TEST_F(NativeEffectBase, AbsentEmbeddedTextureSetFailsWithoutCommittingABase) {
-    Write(root / "port_data/dungeon/articles/eff01.game.json", {
-                                                                   {"schema_version", 1             },
-                                                                   {"kind",           "character"   },
-                                                                   {"models",         Json::array() },
-                                                                   {"profiles",       Json::object()},
-                                                                   {"resources",      Json::object()}
+    Write(root / "data/dungeon/articles/eff01.game.json", {
+                                                              {"schema_version", 1             },
+                                                              {"kind",           "character"   },
+                                                              {"models",         Json::array() },
+                                                              {"profiles",       Json::object()},
+                                                              {"resources",      Json::object()}
     });
     EXPECT_EQ(manager.BuildPack(4, Bundle(), nullptr, -1), -1);
     EXPECT_EQ(manager.base_num, 0);

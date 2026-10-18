@@ -2,12 +2,15 @@
 #include <nlohmann/json.hpp>
 
 #include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
 #include <stdexcept>
+#include <vector>
 
+#include "platform/archive_mount.hpp"
 #include "platform/texture_bundle.hpp"
+#include "platform/vfs.hpp"
 
 namespace {
 using Json = nlohmann::json;
@@ -45,19 +48,22 @@ TEST(TextureBundle, RejectsAmbiguousNamesAcrossDistinctSets) {
 }
 
 TEST(TextureBundleRetail, EveryDungeonLanguageContainsTheExpectedSharedAtlases) {
-    const auto *manifest_path = std::getenv("CT_CFG_PARITY_MANIFEST");
-    if (!manifest_path || !*manifest_path) {
-        GTEST_SKIP() << "CT_CFG_PARITY_MANIFEST selects the converted retail asset root";
+    const auto *data_path = std::getenv("DC2_DATA");
+    if (!data_path || !*data_path) {
+        GTEST_SKIP() << "DC2_DATA selects the published retail asset root";
     }
-    Json manifest;
-    std::ifstream(manifest_path) >> manifest;
-    const std::filesystem::path root = manifest.at("port_data").get<std::string>();
+    const auto root = std::filesystem::u8path(data_path);
+    const auto archive = root.parent_path() / "data.zip";
+    const auto mount = std::filesystem::is_regular_file(archive) ? ArchiveMountOpen(archive) : vfs::OpenDirectory(root);
     for (int language = 0; language < 7; ++language) {
         SCOPED_TRACE(language);
-        Json          game;
-        std::ifstream input(root / ("dungeon/articles/tex01_" + std::to_string(language) + ".game.json"));
-        ASSERT_TRUE(input.good());
-        input >> game;
+        const auto index = mount->Find("dungeon/articles/tex01_" + std::to_string(language) + ".game.json");
+        if (!index) {
+            FAIL() << "missing dungeon texture metadata for language " << language;
+        }
+        std::vector<std::uint8_t> bytes;
+        ASSERT_TRUE(vfs::Read(vfs::Ref(mount, *index), bytes));
+        const auto game = Json::parse(bytes);
         for (const auto *entry : std::array{"frame", "effect00", "sweff", "potbeam", "ref", "fire_wrk"}) {
             EXPECT_TRUE(texture_bundle::FindSet(game, entry)) << entry;
         }

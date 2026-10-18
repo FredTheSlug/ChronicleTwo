@@ -533,12 +533,12 @@ TEST_F(DataRead, HostNameAbsentFromTheSaveTreeLoadsFromData) {
     EXPECT_EQ(size, 258);
 }
 
-TEST_F(DataRead, MissingAssetRootKeepsLooseConfigsAndDoesNotAbort) {
+TEST_F(DataRead, MissingAssetRootDoesNotLoadRepositoryGameplayOrAbort) {
     testing::internal::CaptureStderr();
     DataReadIndex(base / "absent");
     std::string log = testing::internal::GetCapturedStderr();
     EXPECT_NE(log.find("dataread: indexed "), std::string::npos) << log;
-    EXPECT_TRUE(DataReadFind("/menu/cfg7/atdat.cfg.json").has_value());
+    EXPECT_FALSE(DataReadFind("/menu/cfg7/atdat.cfg.json").has_value());
 
     EXPECT_FALSE(DataReadFind("small.txt").has_value());
     int size = 0;

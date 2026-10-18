@@ -21,8 +21,17 @@ enum class ConfigHaptics {
     Full,      // Also camera quakes and the effects of the player, battles and monsters.
 };
 
+// video.render_thread: which thread runs device work. The environment (DC2_RENDER_THREAD, KZ_RENDER_THREAD)
+// overrides it, and headless and frame-limited runs always use off.
+enum class ConfigRenderThread {
+    Off,
+    Lockstep,
+    Async,
+};
+
 struct Config : HostSettings {
     bool interpolation = true;
+    ConfigRenderThread render_thread = ConfigRenderThread::Off;
     bool debug_mode = false;
     bool autosave = true;
     // game.quick_loadout_title "plate": the quick loadout's title on a plate like the EXP gauge's, not on a bar.

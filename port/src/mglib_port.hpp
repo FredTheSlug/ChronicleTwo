@@ -259,6 +259,9 @@ bool mgPortRecording();
 // The tick's list and the one before it (null until two ticks were recorded), for the present driver.
 const gfx::DisplayList *mgPortLastList();
 const gfx::DisplayList *mgPortPreviousList();
+// The same lists as owning references, for a render that outlives the tick.
+gfx::DisplayListRef mgPortLastListRef();
+gfx::DisplayListRef mgPortPreviousListRef();
 
 // Readback
 

@@ -1193,6 +1193,14 @@ const gfx::DisplayList *mgPortPreviousList() {
     return previous_list.get();
 }
 
+gfx::DisplayListRef mgPortLastListRef() {
+    return last_list;
+}
+
+gfx::DisplayListRef mgPortPreviousListRef() {
+    return previous_list;
+}
+
 // Readback
 
 bool mgPortCanonicalReadColor(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &width,
@@ -1443,66 +1451,77 @@ PORT_OVERRIDE void mgBeginPacket(mgCDrawManager *manager) {
 PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
     bool queued[4] = {};
 
-    for (int slot = 0; slot < 4; ++slot) {
-        MG_PICKZ &pick = mgPickZBuff[slot];
+    {
+        // The tick's device work runs under the lease; an Async render thread draws no display frame until it ends.
+        gfx::RenderLease lease;
+        bool             tick_rendered = false;
 
-        if (pick.enable == 0) {
-            continue;
-        }
+        for (int slot = 0; slot < 4; ++slot) {
+            MG_PICKZ &pick = mgPickZBuff[slot];
 
-        if (pick.x < 4 || pick.x > mgScreenWidth - 4 || pick.y < 4 || pick.y > mgScreenHeight - 4) {
-            pick.z = -1;
-        } else if (gfx_open) {
-            gfx::ReadDepth(static_cast<uint32_t>(slot), static_cast<float>(pick.x - 4),
-                           static_cast<float>(pick.y - 4), 8.0f, 8.0f);
-            queued[slot] = true;
-        } else {
-            pick.z = -1;
-        }
-    }
+            if (pick.enable == 0) {
+                continue;
+            }
 
-    if (gfx_open) {
-        gfx::SetRenderTarget(gfx::kMainTarget);
-        const bool clear_bars = letterbox_clears >= 0;
-        if (clear_bars) {
-            ClearBars();
-            ++letterbox_clears;
-        }
-        gfx::DisplayListRef list = gfx::EndRecording();
-        recording = false;
-
-        if (list) {
-            CT_PROFILE_ZONE("Canonical scene render");
-            if (!menuworld::RenderPauseFrame(*list)) {
-                gfx::RenderList(*list, 1.0f, gfx::RenderOptions{.canonical = true});
+            if (pick.x < 4 || pick.x > mgScreenWidth - 4 || pick.y < 4 || pick.y > mgScreenHeight - 4) {
+                pick.z = -1;
+            } else if (gfx_open) {
+                gfx::ReadDepth(static_cast<uint32_t>(slot), static_cast<float>(pick.x - 4),
+                               static_cast<float>(pick.y - 4), 8.0f, 8.0f);
+                queued[slot] = true;
+            } else {
+                pick.z = -1;
             }
         }
 
-        previous_list = std::move(last_list);
-        last_list = std::move(list);
-        // The display image keeps its own bars, and no display frame need run before letterboxing.
-        if (clear_bars && last_list) {
-            CT_PROFILE_ZONE("Letterbox display render");
-            gfx::RenderList(*last_list, 1.0f, gfx::RenderOptions{});
+        if (gfx_open) {
+            gfx::SetRenderTarget(gfx::kMainTarget);
+            const bool clear_bars = letterbox_clears >= 0;
+            if (clear_bars) {
+                ClearBars();
+                ++letterbox_clears;
+            }
+            gfx::DisplayListRef list = gfx::EndRecording();
+            recording = false;
+
+            if (list) {
+                CT_PROFILE_ZONE("Canonical scene render");
+                if (!menuworld::RenderPauseFrame(*list)) {
+                    gfx::RenderList(*list, 1.0f, gfx::RenderOptions{.canonical = true});
+                }
+            }
+
+            previous_list = std::move(last_list);
+            last_list = std::move(list);
+            // The display image keeps its own bars, and no display frame need run before letterboxing.
+            if (clear_bars && last_list) {
+                CT_PROFILE_ZONE("Letterbox display render");
+                gfx::RenderList(*last_list, 1.0f, gfx::RenderOptions{});
+            }
+            PresentTickRendered();
+            tick_rendered = last_list != nullptr;
+
+            {
+                CT_PROFILE_ZONE("Canonical readbacks");
+                CacheMarkedColors();
+                AnswerDepthQueries();
+            }
         }
-        PresentTickRendered();
 
-        {
-            CT_PROFILE_ZONE("Canonical readbacks");
-            CacheMarkedColors();
-            AnswerDepthQueries();
-        }
-    }
+        gfx_open = false;
 
-    gfx_open = false;
+        for (int slot = 0; slot < 4; ++slot) {
+            if (!queued[slot]) {
+                continue;
+            }
 
-    for (int slot = 0; slot < 4; ++slot) {
-        if (!queued[slot]) {
-            continue;
+            const auto depth = gfx::DepthResult(static_cast<uint32_t>(slot));
+            mgPickZBuff[slot].z = depth ? static_cast<int>(mgPortGsDepth(*depth)) : -1;
         }
 
-        const auto depth = gfx::DepthResult(static_cast<uint32_t>(slot));
-        mgPickZBuff[slot].z = depth ? static_cast<int>(mgPortGsDepth(*depth)) : -1;
+        if (tick_rendered) {
+            PresentPublishTick(old_vcount, mgFrameRate);
+        }
     }
 
     depth_next = kFirstAllocatedDepthSlot;

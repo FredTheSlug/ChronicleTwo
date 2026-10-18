@@ -87,4 +87,41 @@ Items 1-6 are implemented. Each keeps all 20 `pixels.sh` images identical, and t
 
 Overall: baseline fps.sh min 435-462, p50 475-524; after items 1-6 min 470-566, p50 570-582. Final capture per display frame: RenderList p50 1489 µs (of which WaitFrame 890 µs), GPU total 1406 µs p50, 2 descriptor binds, 0.81 MB transient data. The remaining display-frame cost is mostly GPU time and the fence wait, so further CPU work on display frames shows little in FPS on this machine.
 
-Not done: item 7 (frustum cull) was skipped by decision; items 8-9 not started; item 10 is covered separately.
+Not done: item 7 (frustum cull) was skipped by decision; items 8-9 are not started.
+
+### Item 10: render thread
+
+- What it is: Kazarov `RendererConfig::render_thread` is `Off` (default, today's single-threaded path and the kill switch), `Lockstep` (a worker thread runs all device work while the caller waits; byte-identical to `Off`) or `Async` (the worker renders and presents display frames from the port's idle hook while the game thread runs the next tick; the game thread takes a `RenderLease` for its canonical render and per-tick device work). Selected by the config key `video.render_thread` (`off`, `lockstep` or `async`), `DC2_RENDER_THREAD`, or `KZ_RENDER_THREAD` (read by the renderer, wins). Headless and screenshot runs are forced `Off`; Android is always `Off`.
+
+| Check | Result |
+|---|---|
+| `pixels.sh`, Off | 20/20 identical |
+| `pixels.sh` with `KZ_RENDER_THREAD=lockstep` | 20/20 identical |
+| GPU test suite with `KZ_RENDER_THREAD=lockstep` | all pass (tests that call internal device functions hold a `RenderLease`) |
+| Full suite | pass (13 new `GfxGpuRenderThread` / `GfxRenderThread` tests, `MglibPresent.AsyncPublishesTheTickPairAndPresentsFromTheWorker`) |
+| Debug build with Vulkan validation and thread asserts, Async, Ocean's Roar 480 frames | no validation messages, no thread-assert failures |
+| Tracy, Async | display-frame `Kazarov RenderList` zones run on the render thread (9234) and canonical ones on the game thread (480); 388 display frames overlap a tick's `Draw visual` zones |
+
+FPS from `fps.sh`, two runs each:
+
+| Mode | min | p50 |
+|---|---|---|
+| Off | 494 / 483 | 589 / 591 |
+| Async | 546 / 565 | 589 / 588 |
+
+The median is unchanged because display frames are GPU-bound here (fence wait about 0.86 ms). The minimum rises because tick work no longer delays display frames.
+
+Behaviour differences in Async:
+
+- SDL events and input are pumped once per tick by the game thread rather than between display frames.
+- The mouse-fixed camera ease advances once per tick, so its display frames interpolate a per-tick look.
+- Depth-query answers may arrive up to one tick later than in Off.
+- The "Kazarov uploads" GPU zone is only recorded in Off (Tracy needs a GPU zone to begin and end on one thread).
+
+Untested and risks:
+
+- Window resize, minimise, fullscreen toggles and present-mode changes during an Async session. The worker skips display frames until the game thread's next recording recreates the swapchain.
+- `Fatal` on the worker exits the process from that thread.
+- Per-slot texture and mesh fields (`live`, `generation`) are read by the game thread while the worker may write a different slot's (grab twins, deferred deletions).
+
+Recommendation: Async stays default Off until resize and fullscreen are tested and the input and mouse-look timing changes are approved.

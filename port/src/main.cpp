@@ -206,6 +206,17 @@ gfx::PresentMode PresentMode(ConfigPresentMode mode) {
     }
 }
 
+gfx::RenderThreadMode RenderThread(ConfigRenderThread mode) {
+    switch (mode) {
+        case ConfigRenderThread::Lockstep:
+            return gfx::RenderThreadMode::Lockstep;
+        case ConfigRenderThread::Async:
+            return gfx::RenderThreadMode::Async;
+        default:
+            return gfx::RenderThreadMode::Off;
+    }
+}
+
 gfx::FrameLayout Layout(const Config &config) {
     return {.aspect = config.aspect == ConfigAspect::Auto ? gfx::AspectMode::Fill : gfx::AspectMode::Letterbox, .ui_scale = config.ui_scale};
 }
@@ -376,6 +387,16 @@ int Run(int argc, const char **argv) {
     renderer.layout = Layout(ConfigGet());
     renderer.prog0_meshes = true;
     renderer.validation = renderer.validation || SettingsEnv("VULKAN_VALIDATION") != nullptr;
+    renderer.render_thread = RenderThread(ConfigGet().render_thread);
+    if (const char *setting = SettingsEnv("RENDER_THREAD")) {
+        if (auto mode = gfx::ParseRenderThreadMode(setting)) {
+            renderer.render_thread = *mode;
+        }
+    }
+    // Headless and screenshot runs stay deterministic: no render thread.
+    if (options.headless || !options.screenshot.empty()) {
+        renderer.render_thread = gfx::RenderThreadMode::Off;
+    }
     gfx::RendererInit(WindowHandle(), renderer);
     PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));
     AudioInit(options.headless);
@@ -405,6 +426,7 @@ int Run(int argc, const char **argv) {
     ConfigSetChangeHook(nullptr);
     InputShutdown();
     AudioShutdown();
+    gfx::SetRenderIdleHook(nullptr, nullptr);
     gfx::RendererShutdown();
     WindowShutdown();
     CT_LOG_FILE_INFO("main: exit {}", static_cast<int>(kExitOk));

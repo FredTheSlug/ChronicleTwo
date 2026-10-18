@@ -345,6 +345,7 @@ void BuildPlayerlessReplay(const gfx::DisplayList &source, const PlayerlessFilte
     replay.palettes = source.palettes;
     replay.main_cleared = source.main_cleared;
     replay.needs_base = source.needs_base;
+    replay.cut_generation = source.cut_generation;
 
     const std::unordered_set<std::size_t> trailing_run = LastTrailingRun(source, filter.trailing_run_keys);
     const bool                            has_outline = filter.outline_target != gfx::kNullTexture;

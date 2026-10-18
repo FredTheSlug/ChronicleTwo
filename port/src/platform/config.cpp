@@ -64,6 +64,7 @@ constexpr auto kNonNegative = [](auto value) { return value >= 0; };
 constexpr auto kUnit = [](auto value) { return value >= 0 && value <= 1; };
 
 constexpr const char *kPresentModeNames[] = {"fifo", "mailbox", "immediate"};
+constexpr const char *kRenderThreadNames[] = {"off", "lockstep", "async"};
 constexpr const char *kAspectNames[] = {"auto", "4:3"};
 constexpr const char *kFpsDetailNames[] = {"fps", "ticks", "all"};
 constexpr const char *kHapticsNames[] = {"off", "vibration", "full"};
@@ -267,6 +268,9 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     }
     if (name == "video.interpolation") {
         return ReadBool(value, config.interpolation);
+    }
+    if (name == "video.render_thread") {
+        return ReadEnum(value, kRenderThreadNames, config.render_thread);
     }
     if (name == "video.max_fps") {
         if (!ReadNumber(value, s.max_fps, kNonNegative)) {
@@ -518,6 +522,7 @@ std::string ConfigSerialize(const Config &config) {
     root["game"]["more_monsters"] = config.more_monsters;
     root["video"]["present_mode"] = kPresentModeNames[static_cast<std::size_t>(s.present_mode)];
     root["video"]["interpolation"] = config.interpolation;
+    root["video"]["render_thread"] = kRenderThreadNames[static_cast<std::size_t>(config.render_thread)];
     root["video"]["max_fps"] = s.max_fps;
     root["video"]["width"] = s.window_width;
     root["video"]["height"] = s.window_height;

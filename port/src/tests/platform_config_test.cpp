@@ -86,6 +86,7 @@ TEST_F(PlatformConfig, TinyFrameCapsClampButZeroRemainsUncapped) {
 TEST_F(PlatformConfig, FullFileRoundTrips) {
     Config full;
     full.present_mode = ConfigPresentMode::Mailbox;
+    full.render_thread = ConfigRenderThread::Async;
     full.max_fps = 144.0;
     full.window_width = 1920;
     full.window_height = 1080;

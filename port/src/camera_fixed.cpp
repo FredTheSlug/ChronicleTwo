@@ -141,6 +141,7 @@ void MouseFixedDisplayList(const gfx::DisplayList &source, gfx::DisplayList &out
     out.prog0_blocks = source.prog0_blocks;
     out.cut = source.cut;
     out.camera_cut = source.camera_cut;
+    out.cut_generation = source.cut_generation;
     out.needs_base = source.needs_base;
     out.tagged_2d = source.tagged_2d;
     out.scene = source.scene;
@@ -252,21 +253,32 @@ bool MouseFixedActive(double seconds) {
     return display_look.Active();
 }
 
+void MouseFixedLook(float &yaw, float &pitch) {
+    yaw = display_look.yaw;
+    pitch = display_look.pitch;
+}
+
+bool MouseFixedRenderAt(const gfx::DisplayList &list, const gfx::DisplayList *previous, float yaw, float pitch,
+                        float alpha, const gfx::RenderOptions &options) {
+    // Reuse storage across displays; geometry and resource handles remain borrowed.
+    static gfx::DisplayList turned;
+    static gfx::DisplayList turned_previous;
+    MouseFixedDisplayList(list, turned, yaw, pitch);
+    auto render = options;
+    render.previous = nullptr;
+    if (previous) {
+        MouseFixedDisplayList(*previous, turned_previous, yaw, pitch);
+        render.previous = &turned_previous;
+    }
+    return gfx::RenderList(turned, alpha, render);
+}
+
 bool MouseFixedRender(const gfx::DisplayList &list, float alpha, const gfx::RenderOptions &options,
                       double seconds) {
     if (!MouseFixedActive(seconds) || options.canonical) {
         return gfx::RenderList(list, alpha, options);
     }
-    // Reuse storage across displays; geometry and resource handles remain borrowed.
-    static gfx::DisplayList turned;
-    static gfx::DisplayList previous;
-    MouseFixedDisplayList(list, turned, display_look.yaw, display_look.pitch);
-    auto render = options;
-    if (options.previous) {
-        MouseFixedDisplayList(*options.previous, previous, display_look.yaw, display_look.pitch);
-        render.previous = &previous;
-    }
-    return gfx::RenderList(turned, alpha, render);
+    return MouseFixedRenderAt(list, options.previous, display_look.yaw, display_look.pitch, alpha, options);
 }
 
 float MouseFixedCullRadius(float focal_x, float focal_y, float half_width, float half_height) {

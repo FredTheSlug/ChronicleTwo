@@ -5,6 +5,7 @@
 #include <nlohmann/json.hpp>
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -14,6 +15,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "actionchara.hpp"
@@ -86,7 +88,7 @@ std::optional<std::size_t> SystemFrameTextureSet(std::string &error) {
 
 class PresentRenderer {
 public:
-    PresentRenderer(int width, int height) {
+    PresentRenderer(int width, int height, gfx::RenderThreadMode render_thread = gfx::RenderThreadMode::Off) {
         SetEnv("VK_LAYER_VALIDATE_SYNC", "1", 0);
         WindowConfig window{.width = width, .height = height, .headless = true};
         window.vulkan = false;
@@ -99,6 +101,7 @@ public:
         config.display_aspect = 4.0f / 3.0f;
         config.validation = true;
         config.offscreen = true;
+        config.render_thread = render_thread;
         config.pipeline_cache = std::filesystem::temp_directory_path() / "dc_gfx_test" /
                                 ("mglib_present_" + std::to_string(ProcessId()) + ".bin");
         gfx::RendererInit(WindowHandle(), config);
@@ -464,6 +467,32 @@ TEST(MglibPresent, InterpolationOffPresentsOncePerTick) {
     EXPECT_EQ(stats.display_frames, 0u);
     EXPECT_EQ(stats.canonical_presents, 3u);
     EXPECT_EQ(stats.presented, 3u);
+}
+
+TEST(MglibPresent, AsyncPublishesTheTickPairAndPresentsFromTheWorker) {
+    if (std::getenv("KZ_RENDER_THREAD") != nullptr) {
+        GTEST_SKIP() << "KZ_RENDER_THREAD overrides the render thread mode";
+    }
+    PresentRenderer renderer(640, 480, gfx::RenderThreadMode::Async);
+    ASSERT_EQ(gfx::ActiveRenderThreadMode(), gfx::RenderThreadMode::Async);
+    PresentResetStats();
+    PresentSetSettings(PresentSettings{.interpolation = true, .display_per_tick = 0});
+
+    static int object;
+    mgPortCutInterpolation();
+    RecordTicks(2, &object, 0.0f);
+    ASSERT_NE(mgPortLastList(), nullptr);
+    ASSERT_NE(mgPortPreviousList(), nullptr);
+
+    // The render thread presents from its idle hook; the game thread does not wait for it.
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+    while (PresentGetStats().display_frames == 0 && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    const PresentStats stats = PresentGetStats();
+    EXPECT_EQ(stats.ticks, 2u);
+    EXPECT_GT(stats.display_frames, 0u);
+    EXPECT_EQ(gfx::ValidationMessageCount(), 0u);
 }
 
 TEST(MglibPresent, ScreenshotDisplayWithInterpolationOffIgnoresAlpha) {

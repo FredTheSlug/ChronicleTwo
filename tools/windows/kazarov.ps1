@@ -11,7 +11,7 @@ $rest = @($args | Select-Object -Skip 2)
 if ($command -notin 'build', 'run') { throw "kazarov: unknown command $command" }
 
 switch ($config.ToLower()) {
-    { $_ -in 'windows', 'windows-x64-release' } { $name = 'windows-x64-release'; $buildType = 'RelWithDebInfo' }
+    { $_ -in 'windows', 'windows-x64-release' } { $name = 'windows-x64-release'; $buildType = 'Release' }
     'windows-x64' { $name = 'windows-x64'; $buildType = 'Debug' }
     default { throw "kazarov: unknown Windows configuration $config" }
 }

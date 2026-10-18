@@ -30,7 +30,7 @@ The renderer's cases need a Vulkan device with the features `tools/kazarov/src/c
 .\run.bat windows-x64
 ```
 
-`build.bat` and `run.bat` pass the configuration through Kazarov's host launcher to `tools/windows/kazarov.ps1`. That script builds into `port/build/<configuration>`. The first run fetches the toolchain into `.kazarov/windows`, through `tools/windows/acquire.ps1`: llvm-mingw 20260922 (clang and lld), Ninja 1.13.2, SDL3 3.4.18 (MinGW), FFmpeg n9.0.2 (the LGPL shared build), glslang 16.6.0, the Vulkan 1.4.363.0 headers, and Rust 1.99.0 for the llvm-mingw UCRT target. `acquire-rust.ps1` verifies the official Rust and rustfmt archives, caches the locked crates, and installs `cxxbridge-cmd` 1.0.205; Corrosion 0.6.1 integrates Rust with CMake. Each downloaded archive is checked against its SHA-256 before extraction. `windows-x64` is a Debug build; `windows-x64-release` (and `windows`) is RelWithDebInfo.
+`build.bat` and `run.bat` pass the configuration through Kazarov's host launcher to `tools/windows/kazarov.ps1`. That script builds into `port/build/<configuration>`. The first run fetches the toolchain into `.kazarov/windows`, through `tools/windows/acquire.ps1`: llvm-mingw 20260922 (clang and lld), Ninja 1.13.2, SDL3 3.4.18 (MinGW), FFmpeg n9.0.2 (the LGPL shared build), glslang 16.6.0, the Vulkan 1.4.363.0 headers, and Rust 1.99.0 for the llvm-mingw UCRT target. `acquire-rust.ps1` verifies the official Rust and rustfmt archives, caches the locked crates, and installs `cxxbridge-cmd` 1.0.205; Corrosion 0.6.1 integrates Rust with CMake. Each downloaded archive is checked against its SHA-256 before extraction. `windows-x64` is a Debug build; `windows-x64-release` (and `windows`) is Release.
 
 The Windows launcher prints elapsed stages for dependency checks, configuration and the build, and announces any lock wait. Compiler and Cargo output appears live, with the complete latest build output retained in `port/build/<configuration>/build.log`; failures preserve the native exit code. First-run downloads, archive verification and extraction announce their stages and log paths. `JOBS=N` sets the compile job count (the logical processor count by default). See [build measurements](port/buildperf.md) for the measured incremental costs. `pwsh -NoProfile -File tools/windows/test-build.ps1` checks live stdout/stderr, full logging and successful/failing exit codes without requiring a toolchain.
 
@@ -69,6 +69,10 @@ export VK_DRIVER_FILES="$(brew --prefix)/etc/vulkan/icd.d/MoltenVK_icd.json"
 Native builds include [Tracy 0.14.1](https://github.com/wolfpld/tracy/releases/tag/v0.14.1) from a pinned source archive. Tracy records game zones, frame marks and plots only while `game.debug_mode=true` or a `--jump` debug session is active. Start the matching Tracy profiler and connect to localhost while the game runs; recording begins on connection. Normal sessions leave the local listener idle, and sampling and system tracing are disabled. `-DCT_ENABLE_TRACY=OFF` removes the dependency and instrumentation from a build entirely.
 
 The default and `Game` frame tracks mark completed game frames; `Display` marks frames actually presented. CPU zones separate canonical scene rendering, display rendering, pacing and readbacks. Loading zones cover archive indexing and reads, script checks, model documents and instances, and texture decoding and uploads. Plots show scene draw counts, visual face table size, retained CPU geometry, resident GPU face batches, failed mesh uploads and immediate face draws. The last two plots describe work since the preceding visual-face sweep. These zones do not cross the game's cooperative thread switches. The renderer itself has no Vulkan GPU timestamp zones yet. The Flatpak grants network access so a local Tracy profiler outside its sandbox can connect during a debug session. Distributed builds include Tracy's license notice.
+
+### Optimisation
+
+Release, RelWithDebInfo and MinSizeRel link the game with ThinLTO (`port/cmake/optimise.cmake`), so ps2/src, port/src and the host code inline across units; Release compiles and links at `-O3`. `-DCT_LTO=full` uses monolithic LTO instead, and `-DCT_LTO=off` disables it. x86-64 builds target `x86-64-v2` (SSE4.2 and POPCNT) in every configuration; `-DCT_X86_64_LEVEL` changes the baseline. lld keeps a ThinLTO cache in `lto-cache/` of the build directory. On macOS, ld64 keeps the LTO objects in `lto/`, where `dsymutil` reads their DWARF. CI ships the macOS and Windows Release builds and the Release Flatpak; the Linux job stays Debug for the Vulkan validation layer and assertions.
 
 ### Debug information
 
@@ -265,7 +269,7 @@ A data root is missing when its parent has no current `data.json` marker, or has
 
 The setup uses an eframe desktop window and rfd native dialogs on Windows, Linux and macOS. Linux file and folder selection requires an XDG desktop portal and its desktop backend. Extraction uses the same bounded ZIP stream, final archive checks and transactional publication as `dc2data`; the output must be outside the selected source folder. A typed ISO path is supported without mounting the image.
 
-`run.sh` with no configuration boots the PS2 build in PCSX2 on Linux, and runs `macos-arm64-release` on macOS. `run.bat` with no configuration runs `windows-x64-release`. A PC configuration name extracts the data first, as described above, and then runs the port.
+`run.sh` with no configuration runs `linux-x64-release` on Linux and `macos-arm64-release` on macOS; `./run.sh ps2-pal` boots the PS2 build in PCSX2. `run.bat` with no configuration runs `windows-x64-release`. A PC configuration name extracts the data first, as described above, and then runs the port.
 
 ### Saves
 

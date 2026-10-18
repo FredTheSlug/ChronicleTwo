@@ -51,6 +51,7 @@ jobs:
 
       # Lavapipe renders on the CPU, so the unit tests' per-case limit is widened from its 5 second default.
       # CT_SYMBOLS=split also writes darkchronicle.debug with objcopy, which the symboliser check reads.
+      # Debug keeps the Vulkan validation layer and assertions on; the Flatpak is the shipped, Release Linux build.
       - name: Configure
         run: cmake --preset linux-x64 -DCT_TEST_TIMEOUT=60 -DCT_PAL_TIMING_BASE="$CT_PAL_TIMING_BASE" -DCT_SYMBOLS=split
 
@@ -126,23 +127,23 @@ jobs:
 
       # CT_SYMBOLS=split runs dsymutil after the link, for the symbol artifact.
       - name: Configure
-        run: cmake --preset macos-arm64 -DCT_TEST_TIMEOUT=60 -DCT_SYMBOLS=split
+        run: cmake --preset macos-arm64-release -DCT_TEST_TIMEOUT=60 -DCT_SYMBOLS=split
 
       - name: Build
-        run: cmake --build --preset macos-arm64
+        run: cmake --build --preset macos-arm64-release
 
       - name: Test
-        run: ctest --preset macos-arm64 -E "$MACOS_GPU_REPORT_ONLY"
+        run: ctest --preset macos-arm64-release -E "$MACOS_GPU_REPORT_ONLY"
 
       - name: Test cases the hosted runner's virtual GPU renders wrongly (report only)
         continue-on-error: true
-        run: ctest --preset macos-arm64 -R "$MACOS_GPU_REPORT_ONLY"
+        run: ctest --preset macos-arm64-release -R "$MACOS_GPU_REPORT_ONLY"
 
       - name: Test Rust data publisher
         run: cargo test --locked --manifest-path tools/kazarov/Cargo.toml
 
       - name: Package the macOS build
-        run: tar -czf artifacts/chronicletwo-macos-arm64.tar.gz -C port/build/macos-arm64 darkchronicle -C assets data.zip
+        run: tar -czf artifacts/chronicletwo-macos-arm64.tar.gz -C port/build/macos-arm64-release darkchronicle -C assets data.zip
 
       - name: Upload the macOS build
         uses: actions/upload-artifact@v7
@@ -154,14 +155,14 @@ jobs:
       # Without Homebrew's llvm on PATH the symboliser falls back to atos, against the dSYM.
       - name: Check the dSYM resolves a frame
         run: |
-          address=$(nm port/build/macos-arm64/darkchronicle | awk '$3 == "_main" { print $1 }')
+          address=$(nm port/build/macos-arm64-release/darkchronicle | awk '$3 == "_main" { print $1 }')
           printf '#0  darkchronicle+0x%x\n' $((0x$address - 0x100000000)) > report.txt
-          python3 tools/crash/symbolize.py report.txt --binary port/build/macos-arm64/darkchronicle.dSYM | tee symbolized.txt
+          python3 tools/crash/symbolize.py report.txt --binary port/build/macos-arm64-release/darkchronicle.dSYM | tee symbolized.txt
           grep -q 'main.cpp:' symbolized.txt
 
       # docs/SYMBOLS.md: tools/crash/symbolize.py resolves a report from this build with the dSYM.
       - name: Package the macOS symbols
-        run: tar -czf artifacts/chronicletwo-macos-arm64-symbols.tar.gz -C port/build/macos-arm64 darkchronicle darkchronicle.dSYM
+        run: tar -czf artifacts/chronicletwo-macos-arm64-symbols.tar.gz -C port/build/macos-arm64-release darkchronicle darkchronicle.dSYM
 
       - name: Upload the macOS symbols
         uses: actions/upload-artifact@v7
@@ -196,16 +197,16 @@ jobs:
 
       - name: Configure
         run: |
-          ./tools/windows/configure.ps1 -Root $env:RUNNER_TEMP -BuildDirectory $env:GITHUB_WORKSPACE/port/build/windows-x64-tests -Tests -TestTimeout 60
+          ./tools/windows/configure.ps1 -Root $env:RUNNER_TEMP -BuildDirectory $env:GITHUB_WORKSPACE/port/build/windows-x64-release-tests -Tests -BuildType Release -TestTimeout 60
 
       - name: Build
         run: |
-          ./tools/windows/build.ps1 -Root $env:RUNNER_TEMP -BuildDirectory $env:GITHUB_WORKSPACE/port/build/windows-x64-tests -Tests
+          ./tools/windows/build.ps1 -Root $env:RUNNER_TEMP -BuildDirectory $env:GITHUB_WORKSPACE/port/build/windows-x64-release-tests -Tests
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       # The runner has no Vulkan device, so cases labelled gpu are excluded.
       - name: Test
-        run: ctest --test-dir port/build/windows-x64-tests --output-on-failure -j4 -LE gpu
+        run: ctest --test-dir port/build/windows-x64-release-tests --output-on-failure -j4 -LE gpu
 
       - name: Test Rust data publisher
         run: |
@@ -218,7 +219,7 @@ jobs:
 
       - name: Package the Windows build
         run: |
-          ./tools/windows/package.ps1 -BuildDirectory port/build/windows-x64-tests -Destination chronicletwo-windows-x64.zip
+          ./tools/windows/package.ps1 -BuildDirectory port/build/windows-x64-release-tests -Destination chronicletwo-windows-x64.zip
 
       - name: Upload the Windows build
         uses: actions/upload-artifact@v7
@@ -230,7 +231,7 @@ jobs:
       - name: Check the executable resolves a frame
         run: |
           $llvm = "$env:RUNNER_TEMP/deps/llvm/llvm-mingw-20260922-ucrt-x86_64/bin"
-          $exe = 'port/build/windows-x64-tests/darkchronicle.exe'
+          $exe = 'port/build/windows-x64-release-tests/darkchronicle.exe'
           $address = (& "$llvm/llvm-nm.exe" $exe | Where-Object { $_ -match ' T wmain$' }).Split(' ')[0]
           '#0  darkchronicle.exe+0x{0:x}' -f ([Convert]::ToUInt64($address, 16) - 0x140000000) | Set-Content report.txt
           python tools/crash/symbolize.py report.txt --binary $exe --llvm-symbolizer "$llvm/llvm-symbolizer.exe" | Tee-Object symbolized.txt
@@ -239,7 +240,7 @@ jobs:
       # docs/SYMBOLS.md: the executables (their DWARF), any PDBs and their build ids, for tools/crash/symbolize.py.
       - name: Package the Windows symbols
         run: |
-          ./tools/windows/package-symbols.ps1 -Root $env:RUNNER_TEMP -BuildDirectory port/build/windows-x64-tests -Destination chronicletwo-windows-x64-symbols.zip
+          ./tools/windows/package-symbols.ps1 -Root $env:RUNNER_TEMP -BuildDirectory port/build/windows-x64-release-tests -Destination chronicletwo-windows-x64-symbols.zip
 
       - name: Upload the Windows symbols
         uses: actions/upload-artifact@v7

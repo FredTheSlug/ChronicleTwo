@@ -32,7 +32,7 @@ CI uploads one symbol artifact per job, named with the commit (`chronicletwo-<pl
 | macOS | `chronicletwo-macos-arm64-symbols-<sha>` | `darkchronicle` and `darkchronicle.dSYM` (`CT_SYMBOLS=split`) |
 | Flatpak | `chronicletwo-flatpak-x86_64-symbols-<sha>` | The packaged Release `darkchronicle`, which keeps its line tables |
 
-The Linux job configures `CT_SYMBOLS=split`. It checks the build id note and debuglink, and resolves a frame through `darkchronicle.debug`. It uploads nothing: its Debug binary is not distributed, and the Flatpak is the shipped Linux build. The macOS and Windows jobs resolve a frame at `main`/`wmain` to `main.cpp` the same way.
+The Linux job configures `CT_SYMBOLS=split`. It checks the build id note and debuglink, and resolves a frame through `darkchronicle.debug`. It uploads nothing: its Debug binary is not distributed, and the Flatpak is the shipped Linux build. The macOS and Windows jobs build Release with ThinLTO and resolve a frame at `main`/`wmain` to `main.cpp` the same way.
 
 `pwsh -NoProfile -File tools/windows/package-symbols.ps1 -BuildDirectory <build> -Destination symbols.zip` packages a local Windows build.
 

@@ -21,7 +21,7 @@ so Docker or Podman must be installed.
 - `./build.sh` builds the PAL executable (`ps2-pal`) and checks it against retail.
   `./build.sh ps2-pal elf objdiff` builds only the named targets; `CLEAN=1 ./build.sh`
   rebuilds from scratch.
-- `./run.sh` builds, masters a disc image and boots it in PCSX2.
+- `./run.sh` builds and runs the Release port; `./run.sh ps2-pal` builds, masters a disc image and boots it in PCSX2.
 - `build.bat` and `run.bat` do the same on Windows.
 - `tools/kazarov/scripts/kazarov shell` opens a shell in the build container, with the
   project at `/work/chronicletwo`.

@@ -1,3 +1,5 @@
+#include "kazarov_bridge/rust/lib.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -7,18 +9,20 @@
 #include <string>
 #include <thread>
 
-#include "kazarov_bridge/rust/lib.h"
-
 namespace {
 namespace fs = std::filesystem;
 
 #ifdef _WIN32
 using ArgChar = wchar_t;
+
 bool ArgEquals(const ArgChar *arg, const wchar_t *value) { return std::wcscmp(arg, value) == 0; }
+
 #define ARG_LITERAL(value) L##value
 #else
 using ArgChar = char;
+
 bool ArgEquals(const ArgChar *arg, const char *value) { return std::strcmp(arg, value) == 0; }
+
 #define ARG_LITERAL(value) value
 #endif
 
@@ -31,10 +35,14 @@ int Usage() {
     std::fputs("usage: dc2data extract <iso-or-directory> <game-root>/data [--jobs N]\n"
                "       dc2data list <iso-or-directory>\n"
                "       dc2data sound <iso-or-directory>\n"
+               "       dc2data gameplay <iso-or-directory> <repo>/port/gameplay\n"
+               "       dc2data gameplay-audit <iso-or-directory> <repo>/port/gameplay\n"
+               "       dc2data gameplay-parity <iso-or-directory> <data.zip> <repo>/port/gameplay <fixture-dir> [--texture-oracle <directory>]\n"
                "       dc2data check <game-root>/data\n"
                "       dc2data current <iso-or-directory> <game-root>/data\n"
                "       dc2data pack <directory> <archive.zip>\n"
-               "extract publishes <game-root>/data.zip and <game-root>/data.json.\n", stderr);
+               "extract publishes <game-root>/data.zip and <game-root>/data.json.\n",
+               stderr);
     return 2;
 }
 } // namespace
@@ -42,15 +50,21 @@ int Usage() {
 int Run(int argc, ArgChar **argv) {
     try {
         if ((argc == 4 || argc == 6) && ArgEquals(argv[1], ARG_LITERAL("extract"))) {
-            unsigned jobs = std::clamp(std::thread::hardware_concurrency(), 1u, 32u);
+            unsigned jobs = std::max(std::thread::hardware_concurrency(), 1u);
             if (argc == 6) {
-                if (!ArgEquals(argv[4], ARG_LITERAL("--jobs"))) return Usage();
+                if (!ArgEquals(argv[4], ARG_LITERAL("--jobs"))) {
+                    return Usage();
+                }
                 unsigned parsed_jobs = 0;
                 for (const ArgChar *digit = argv[5]; *digit; ++digit) {
-                    if (*digit < ARG_LITERAL('0') || *digit > ARG_LITERAL('9') || parsed_jobs > 64) return Usage();
+                    if (*digit < ARG_LITERAL('0') || *digit > ARG_LITERAL('9') || parsed_jobs > 1024) {
+                        return Usage();
+                    }
                     parsed_jobs = parsed_jobs * 10 + static_cast<unsigned>(*digit - ARG_LITERAL('0'));
                 }
-                if (parsed_jobs == 0 || parsed_jobs > 64) return Usage();
+                if (parsed_jobs == 0 || parsed_jobs > 1024) {
+                    return Usage();
+                }
                 jobs = parsed_jobs;
             }
             const auto report = kazarov::extract(Utf8Path(argv[2]), Utf8Path(argv[3]), jobs);
@@ -69,6 +83,26 @@ int Run(int argc, ArgChar **argv) {
         if (argc == 3 && ArgEquals(argv[1], ARG_LITERAL("sound"))) {
             const auto result = kazarov::sound(Utf8Path(argv[2]));
             std::fwrite(result.data(), 1, result.size(), stdout);
+            return 0;
+        }
+        if (argc == 4 && (ArgEquals(argv[1], ARG_LITERAL("gameplay")) || ArgEquals(argv[1], ARG_LITERAL("configs")))) {
+            const auto count = kazarov::refresh_configs(Utf8Path(argv[2]), Utf8Path(argv[3]));
+            std::printf("refreshed %llu gameplay documents\n", static_cast<unsigned long long>(count));
+            return 0;
+        }
+        if (argc == 4 && (ArgEquals(argv[1], ARG_LITERAL("gameplay-audit")) || ArgEquals(argv[1], ARG_LITERAL("configs-audit")))) {
+            const auto result = kazarov::audit_configs(Utf8Path(argv[2]), Utf8Path(argv[3]));
+            std::fwrite(result.data(), 1, result.size(), stdout);
+            return 0;
+        }
+        if ((argc == 6 || argc == 8) && (ArgEquals(argv[1], ARG_LITERAL("gameplay-parity")) || ArgEquals(argv[1], ARG_LITERAL("configs-parity")))) {
+            if (argc == 8 && !ArgEquals(argv[6], ARG_LITERAL("--texture-oracle"))) {
+                return Usage();
+            }
+            const auto count = kazarov::configs_parity(Utf8Path(argv[2]), Utf8Path(argv[3]),
+                                                       Utf8Path(argv[4]), Utf8Path(argv[5]),
+                                                       argc == 8 ? Utf8Path(argv[7]) : std::string{});
+            std::printf("prepared %llu original CFG parity inputs\n", static_cast<unsigned long long>(count));
             return 0;
         }
         if (argc == 3 && ArgEquals(argv[1], ARG_LITERAL("check"))) {

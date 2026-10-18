@@ -302,6 +302,31 @@ endif()
 include(GNUInstallDirs)
 install(TARGETS darkchronicle RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
+# Gameplay settings stay editable beside installed executables, outside data.zip.
+file(GLOB_RECURSE CT_GAMEPLAY_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gameplay/*.json)
+set(CT_GAMEPLAY_COPIES "")
+foreach(gameplay IN LISTS CT_GAMEPLAY_SOURCES)
+    file(RELATIVE_PATH gameplay_name ${CMAKE_CURRENT_SOURCE_DIR}/gameplay ${gameplay})
+    list(APPEND CT_GAMEPLAY_COPIES ${CMAKE_BINARY_DIR}/gameplay/${gameplay_name})
+endforeach()
+if(CT_GAMEPLAY_COPIES)
+    set(CT_GAMEPLAY_MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/gameplay_sources.txt)
+    file(GENERATE OUTPUT ${CT_GAMEPLAY_MANIFEST} CONTENT "${CT_GAMEPLAY_SOURCES}\n")
+    add_custom_command(OUTPUT ${CT_GAMEPLAY_COPIES}
+        COMMAND ${CMAKE_COMMAND}
+            -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/gameplay
+            -DBUILD_ROOT=${CMAKE_BINARY_DIR}
+            -DDESTINATION_DIR=${CMAKE_BINARY_DIR}/gameplay
+            -P ${CMAKE_SOURCE_DIR}/tools/cmake/sync_gameplay.cmake
+        DEPENDS ${CT_GAMEPLAY_SOURCES} ${CT_GAMEPLAY_MANIFEST}
+            ${CMAKE_SOURCE_DIR}/tools/cmake/sync_gameplay.cmake
+        COMMENT "Synchronizing gameplay settings"
+        VERBATIM)
+    add_custom_target(ct_gameplay DEPENDS ${CT_GAMEPLAY_COPIES})
+    add_dependencies(darkchronicle ct_gameplay)
+endif()
+install(DIRECTORY gameplay/ DESTINATION ${CMAKE_INSTALL_BINDIR}/gameplay FILES_MATCHING PATTERN "*.json")
+
 # The button symbols (docs/GLYPHS.md): port/assets/glyphs, copied to glyphs/ beside the executable, the art of
 # TheMoonPeople/Chronicle's port/glyphs.
 # Each copy is a declared output, so an up-to-date build runs nothing and a deleted copy is restored.
@@ -330,6 +355,10 @@ file(GLOB ct_stream_cmake CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/cmake/*.
 foreach(f IN LISTS ct_stream_cmake)
     include(${f})
 endforeach()
+
+if(TARGET ct_gameplay)
+    add_dependencies(dc2data ct_gameplay)
+endif()
 
 if(WIN32)
     include(${KZ_ROOT}/cmake/KazarovWindowsRuntime.cmake)

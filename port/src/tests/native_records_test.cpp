@@ -14,6 +14,7 @@
 #include "dataread_port.hpp"
 #include "fishing.hpp"
 #include "inventmn.hpp"
+#include "log_capture.hpp"
 #include "mapinfo.hpp"
 #include "mapsky.hpp"
 #include "mg_memory.hpp"
@@ -40,7 +41,6 @@ protected:
 
     void SetUp() override {
         directory = std::filesystem::temp_directory_path() / ("chronicle_native_records_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        std::filesystem::create_directories(directory / "port_data");
         std::filesystem::create_directories(directory / "data");
         memory.stSetBuffer(storage.data(), static_cast<int>(storage.size()));
         buffers.reserve(16);
@@ -65,7 +65,7 @@ protected:
     char *Publish(const std::string &name, const char *kind, Json body) {
         body["schema_version"] = 2;
         body["kind"] = kind;
-        const auto path = directory / "port_data" / name;
+        const auto path = directory / "data" / name;
         std::filesystem::create_directories(path.parent_path());
         std::ofstream(path, std::ios::binary) << body.dump(2);
         DataReadIndex(directory / "data");
@@ -102,9 +102,9 @@ TEST_F(NativeRecords, OverlongQuestNamesRefuseTheDocument) {
     });
     CQuestManager manager;
     manager.Initialize();
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     manager.LoadCfg(&memory, script, 0);
-    EXPECT_NE(testing::internal::GetCapturedStderr().find("longer than the game holds"), std::string::npos);
+    EXPECT_NE(GetLoggedStderr().find("longer than the game holds"), std::string::npos);
     EXPECT_EQ(manager.num, 0);
 }
 
@@ -213,7 +213,7 @@ TEST_F(NativeRecords, MapInfoReadsPacksLightingAndSettings) {
 }
 
 TEST_F(NativeRecords, CommandDocumentsAreRefused) {
-    const auto path = directory / "port_data/menu/1/quest.pac/quest1.cfg.json";
+    const auto path = directory / "data/menu/1/quest.pac/quest1.cfg.json";
     std::filesystem::create_directories(path.parent_path());
     std::ofstream(path, std::ios::binary) << R"({"schema_version":1,"commands":[{"command":"NUM","args":[{"type":"int","value":3}]}]})";
     DataReadIndex(directory / "data");
@@ -221,9 +221,9 @@ TEST_F(NativeRecords, CommandDocumentsAreRefused) {
     DataReadRegisterAsset(bytes.data(), "menu/1/quest.pac/quest1.cfg.json", bytes.size());
     CQuestManager manager;
     manager.Initialize();
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     manager.LoadCfg(&memory, bytes.data(), 0);
-    EXPECT_NE(testing::internal::GetCapturedStderr().find("command-list"), std::string::npos);
+    EXPECT_NE(GetLoggedStderr().find("command-list"), std::string::npos);
     EXPECT_EQ(manager.num, 0);
     TextureSourceForget(bytes.data());
 }

@@ -3,6 +3,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -17,7 +18,9 @@
 #include "audio_bank_fixture.hpp"
 #include "dataread.hpp"
 #include "ezbgm.hpp"
+#include "platform/archive_mount.hpp"
 #include "platform/paths.hpp"
+#include "platform/vfs.hpp"
 #include "snd_mngr.hpp"
 #include "sound.hpp"
 #include "sound_port.hpp"
@@ -239,38 +242,53 @@ TEST_F(Sound, InitMngrStartsTheDriver) {
     EXPECT_FLOAT_EQ(audio::DefaultMixer().CoreVolume(1), 1.0f);
 }
 
-namespace {
-std::string ReadDocument(const fs::path &path) {
-    std::ifstream in(path);
-    return {std::istreambuf_iterator<char>(in), {}};
-}
-} // namespace
-
 TEST(SoundRealData, PublishedBanksAndSequencesLoad) {
     fs::path root;
-    for (fs::path dir = PathsExecutable().parent_path(); !dir.empty(); dir = dir.parent_path()) {
-        if (fs::is_directory(dir / "port_data/snd2")) {
-            root = dir / "port_data";
-            break;
-        }
-        if (dir == dir.parent_path()) {
-            break;
+    if (const auto *selected = std::getenv("DC2_DATA"); selected && *selected) {
+        root = fs::u8path(selected);
+    } else {
+        for (fs::path dir = PathsExecutable().parent_path(); !dir.empty(); dir = dir.parent_path()) {
+            if (fs::is_regular_file(dir / "data.zip") || fs::is_directory(dir / "data/snd2")) {
+                root = dir / "data";
+                break;
+            }
+            if (dir == dir.parent_path()) {
+                break;
+            }
         }
     }
     if (root.empty()) {
         GTEST_SKIP() << "no published native sound bundles near test executable";
     }
-    for (const auto &entry : fs::recursive_directory_iterator(root / "snd2")) {
-        if (!entry.is_regular_file() || entry.path().extension() != ".json") {
+    const auto archive = root.parent_path() / "data.zip";
+    const auto mount = fs::is_regular_file(archive) ? ArchiveMountOpen(archive) : vfs::OpenDirectory(root);
+    const auto resolve = [&](const fs::path &relative) {
+        std::vector<vfs::Ref> candidates;
+        if (const auto index = mount->Find(relative.generic_string())) {
+            candidates.emplace_back(mount, *index);
+        }
+        return candidates;
+    };
+    std::size_t banks = 0;
+    std::size_t sequences = 0;
+    for (std::size_t index = 0; index < mount->Count(); ++index) {
+        const auto name = mount->Name(index);
+        if (!name.starts_with("snd2/") || !name.ends_with(".json")) {
             continue;
         }
-        const auto document = ReadDocument(entry.path());
-        const auto kind = nlohmann::json::parse(document).value("kind", "");
+        std::vector<std::uint8_t> bytes;
+        ASSERT_TRUE(vfs::Read(vfs::Ref(mount, index), bytes)) << name;
+        const std::string_view document(reinterpret_cast<const char *>(bytes.data()), bytes.size());
+        const auto             kind = nlohmann::json::parse(document).value("kind", "");
         if (kind == "bank") {
-            EXPECT_NE(audio::Bank::CreateFromJson(document, [&](const auto &p) { return root / p; }), nullptr) << entry.path();
+            ++banks;
+            EXPECT_NE(audio::Bank::CreateFromJsonCandidates(document, resolve), nullptr) << name;
         }
         if (kind == "sequence") {
-            EXPECT_NE(audio::SqFile::CreateFromJson(document), nullptr) << entry.path();
+            ++sequences;
+            EXPECT_NE(audio::SqFile::CreateFromJson(document), nullptr) << name;
         }
     }
+    EXPECT_GT(banks, 0u);
+    EXPECT_GT(sequences, 0u);
 }

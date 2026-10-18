@@ -12,6 +12,7 @@
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "gamedata.hpp"
+#include "log_capture.hpp"
 #include "mainloop.hpp"
 #include "mainloop_port.hpp"
 #include "mapselect.hpp"
@@ -48,16 +49,16 @@ class NativeGame : public testing::Test {
 protected:
     std::filesystem::path  previous_root = datapacks::Root(); /**< Data root restored after the fixture. */
     std::array<char, 1024> previous_directory{};              /**< Current resource directory restored after the fixture. */
-    std::filesystem::path  directory;                         /**< Fixture root holding data/ and port_data/. */
+    std::filesystem::path  directory;                         /**< Fixture root holding the unified data tree. */
 
     void SetUp() override {
         GetCurrentDir(previous_directory.data());
         SetCurrentDir(nullptr);
         directory = std::filesystem::temp_directory_path() /
                     ("chronicle_native_game_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-        std::filesystem::create_directories(directory / "port_data/menu/cfg7");
-        std::filesystem::create_directories(directory / "port_data/map");
-        std::filesystem::create_directories(directory / "port_data/dbg");
+        std::filesystem::create_directories(directory / "data/menu/cfg7");
+        std::filesystem::create_directories(directory / "data/map");
+        std::filesystem::create_directories(directory / "data/dbg");
         std::filesystem::create_directories(directory / "data");
     }
 
@@ -73,12 +74,12 @@ protected:
     }
 
     /**
-     * Writes one native document of a kind under port_data.
+     * Writes one native document of a kind under the fixture's data tree.
      */
     void Write(const std::string &name, const char *kind, Json body) const {
         body["schema_version"] = 2;
         body["kind"] = kind;
-        std::ofstream(directory / "port_data" / name, std::ios::binary) << body.dump(2);
+        std::ofstream(directory / "data" / name, std::ios::binary) << body.dump(2);
     }
 
     /**
@@ -236,14 +237,14 @@ TEST_F(NativeGame, ItemTableOfAnotherKindOrCommandListIsRefused) {
                                                         {"count", 0            },
                                                         {"maps",  Json::array()}
     });
-    std::ofstream(directory / "port_data/menu/cfg7/wepdat.cfg.json") << R"({"schema_version":1,"commands":[]})";
+    std::ofstream(directory / "data/menu/cfg7/wepdat.cfg.json") << R"({"schema_version":1,"commands":[]})";
     Index();
     char common[] = "comdat.cfg";
     char weapons[] = "wepdat.cfg";
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     EXPECT_EQ(LoadGameDataAnalyze(common), 0);
     EXPECT_EQ(LoadGameDataAnalyze(weapons), 0);
-    const auto diagnostics = testing::internal::GetCapturedStderr();
+    const auto diagnostics = GetLoggedStderr();
     EXPECT_NE(diagnostics.find("item table"), std::string::npos) << diagnostics;
     EXPECT_NE(diagnostics.find("no longer read"), std::string::npos) << diagnostics;
 }
@@ -292,9 +293,9 @@ TEST_F(NativeGame, AbsentRootGameConfigIsSilentAndClearsTheDirectory) {
     Index();
     char directory_name[] = "dbg/";
     SetCurrentDir(directory_name);
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     LoadGameConfig(nullptr);
-    const auto diagnostic = testing::internal::GetCapturedStderr();
+    const auto diagnostic = GetLoggedStderr();
     EXPECT_TRUE(diagnostic.empty()) << diagnostic;
     EXPECT_EQ(GetSaveData()->game_progress, 1);
     char current[1024]{};
@@ -349,9 +350,9 @@ TEST_F(NativeGame, OversizedMapNameTableIsRefused) {
                                                 {"maps",  Json::array()}
     });
     Index();
-    testing::internal::CaptureStderr();
+    CaptureLoggedStderr();
     LoadMapName(1, nullptr);
-    const auto diagnostic = testing::internal::GetCapturedStderr();
+    const auto diagnostic = GetLoggedStderr();
     EXPECT_NE(diagnostic.find("map name buffer"), std::string::npos) << diagnostic;
     // With no table loaded, a map has no entry: its title is null and its name the selection fallback.
     char *title = nullptr;

@@ -52,7 +52,7 @@ constexpr std::size_t kExpectedFiles = 10240;
 constexpr std::array<std::string_view, 4> kExcludedRootNames = {"manifest.txt", "manifest.json", "movie", "sound"};
 
 /**
- * Locates the loose game configuration in a checkout or beside an installed executable.
+ * Locates loose gameplay settings in a checkout or beside an installed executable.
  */
 fs::path GameplayRoot() {
     const auto      executable_directory = PathsExecutable().parent_path();

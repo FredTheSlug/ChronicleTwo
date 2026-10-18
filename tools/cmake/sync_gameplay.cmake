@@ -1,0 +1,21 @@
+# Keeps the generated gameplay settings identical to the repository JSON corpus.
+foreach(required SOURCE_DIR BUILD_ROOT DESTINATION_DIR)
+    if(NOT DEFINED ${required})
+        message(FATAL_ERROR "Missing ${required} for gameplay synchronization")
+    endif()
+endforeach()
+
+file(REAL_PATH "${BUILD_ROOT}" build_root)
+file(REAL_PATH "${DESTINATION_DIR}" destination)
+cmake_path(IS_PREFIX build_root "${destination}" NORMALIZE inside_build)
+if(NOT inside_build OR NOT destination STREQUAL "${build_root}/gameplay")
+    message(FATAL_ERROR "Gameplay destination must be the build directory's gameplay folder")
+endif()
+
+file(GLOB_RECURSE existing RELATIVE "${destination}" "${destination}/*.json")
+foreach(relative IN LISTS existing)
+    if(NOT EXISTS "${SOURCE_DIR}/${relative}")
+        file(REMOVE "${destination}/${relative}")
+    endif()
+endforeach()
+file(COPY "${SOURCE_DIR}/" DESTINATION "${destination}" FILES_MATCHING PATTERN "*.json")

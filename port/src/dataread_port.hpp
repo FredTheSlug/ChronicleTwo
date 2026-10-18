@@ -9,8 +9,8 @@
 #include "loaded_buffer_copy.hpp"
 #include "platform/vfs.hpp"
 
-// Rebuilds the index of the converted data that replaces DATA.HD4: <root>/../data.zip, or else root and
-// its sibling port_data. Keys are lower-cased relative paths with bytes >= 0x80 and '%' percent-encoded as
+// Rebuilds the index of the converted data that replaces DATA.HD4: <root>/../data.zip, or else root.
+// Keys are lower-cased relative paths with bytes >= 0x80 and '%' percent-encoded as
 // dc2data's DiskName does; root-level manifests, dot entries, *.dc2tmp and the movie/ and sound/ trees
 // are left out.
 void DataReadIndex(const std::filesystem::path &root);

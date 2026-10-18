@@ -105,7 +105,7 @@ TEST_F(GameplayTimingSites, ItemPowerStatusUsesNtscDuration) {
     effect.use_flags = ITEM_USE_FLAG_ADD_POWER;
     effect.target_flags = 6;
     effect.action_flags = 0;
-    const auto previous_items = GameItemDataManage.item_data;
+    auto *const previous_items = GameItemDataManage.item_data;
     const auto previous_count = GameItemDataManage.item_num;
     common->type = ITEM_DATA_RECOVERY;
     common->list_no = 0;

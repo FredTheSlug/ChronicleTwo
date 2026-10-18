@@ -1,11 +1,13 @@
 #include "present.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <print>
 #include <string>
 #include <thread>
-#include <utility>
 
 #include "camera_fixed.hpp"
 #include "exitcodes.hpp"
@@ -18,34 +20,48 @@
 #include "platform/overlay.hpp"
 #include "platform/window.hpp"
 #include "present_timing.hpp"
-
-void mgTimeWaitTicks(int start, int frames, ClockWaitHook hook);
+#include "stubs/mglib.hpp"
 
 namespace {
 
 using Clock = std::chrono::steady_clock;
 
 struct FpsOverlay {
-    bool on = false;
-    OverlayRate frames;
-    OverlayRate ticks;
+    bool                on = false;
+    OverlayRate         frames;
+    OverlayRate         ticks;
     gfx::DisplayListRef list;
 };
 
-PresentSettings settings;
-PresentStats stats;
-bool tick_shown = true;
+PresentSettings   settings;
+PresentStats      stats;
+bool              tick_shown = true;
 PresentPacer      pacer;
 Clock::time_point last_log;
-FpsOverlay overlay;
-std::int64_t counted_tick = 0;
-int wait_start = 0;
-int wait_frames = 0;
+FpsOverlay        overlay;
+std::int64_t      counted_tick = 0;
+int               wait_start = 0;
+int               wait_frames = 0;
 
 void PollFpsToggle() {
     if (InputHostPressed(InputHostAction::FpsToggle)) {
         overlay.on = !overlay.on;
     }
+}
+
+// Records the host overlay of a presented frame: the FPS counter when asked, then the menu pointer.
+gfx::DisplayListRef RecordHostOverlay(bool fps) {
+    gfx::BeginRecording(gfx::RecordingKind::Overlay);
+    if (!gfx::Recording()) {
+        return nullptr;
+    }
+    if (fps) {
+        const int pixel = OverlayPixelSize(gfx::GetLogicalMapping(gfx::kMainTarget));
+        OverlayDrawText(PresentFpsText(), gfx::GetUiMapping(gfx::kMainTarget), pixel,
+                        pixel * kOverlayPadding, pixel * kOverlayPadding);
+    }
+    MenuMouseDraw();
+    return gfx::EndRecording();
 }
 
 const gfx::DisplayList *DisplayOverlayList() {
@@ -59,17 +75,7 @@ const gfx::DisplayList *DisplayOverlayList() {
     if (!overlay.on && !MenuMousePointerVisible()) {
         return nullptr;
     }
-    gfx::BeginRecording(gfx::RecordingKind::Overlay);
-    if (!gfx::Recording()) {
-        return nullptr;
-    }
-    if (overlay.on) {
-        const int pixel = OverlayPixelSize(gfx::GetLogicalMapping(gfx::kMainTarget));
-        OverlayDrawText(PresentFpsText(), gfx::GetUiMapping(gfx::kMainTarget), pixel,
-                        pixel * kOverlayPadding, pixel * kOverlayPadding);
-    }
-    MenuMouseDraw();
-    overlay.list = gfx::EndRecording();
+    overlay.list = RecordHostOverlay(overlay.on);
     return overlay.list.get();
 }
 
@@ -80,7 +86,7 @@ void NotePresented() {
 
     if (settings.log_fps && now - last_log >= std::chrono::seconds(1)) {
         last_log = now;
-        std::fprintf(stderr, "present: %s\n", PresentFpsText().c_str());
+        std::println(stderr, "present: {}", PresentFpsText());
     }
 }
 
@@ -227,7 +233,7 @@ void PresentTickRendered() {
 
     // Capped so a long stall does not replay an unbounded number of ticks into the rate window.
     const Clock::time_point now = Clock::now();
-    const std::int64_t now_tick = ClockTickCount();
+    const std::int64_t      now_tick = ClockTickCount();
 
     for (std::int64_t t = counted_tick; t < now_tick && t < counted_tick + 16; ++t) {
         overlay.ticks.Count(now);
@@ -316,10 +322,15 @@ bool PresentScreenshotFps(std::vector<uint8_t> &rgba, uint32_t &width, uint32_t 
 
     // The overlay exists only in a presented image, and the canonical target never takes it, so the
     // composite is presented at alpha 1 and read back from the window-sized display image.
-    const gfx::DisplayListRef fps = OverlayRecord(PresentFpsText());
+    // Like a presented frame, it carries the menu pointer in place of the retail hand it stands for.
+    const gfx::DisplayListRef fps = RecordHostOverlay(true);
+    if (!fps) {
+        return false;
+    }
     gfx::RenderOptions options;
     options.present = true;
     options.overlay = fps.get();
+    options.suppressed_2d_key = MenuMouseReplacedHandKey();
 
     return gfx::RenderList(*list, 1.0f, options) && gfx::ReadbackFrame(rgba, width, height);
 }

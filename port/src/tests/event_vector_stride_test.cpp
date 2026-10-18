@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include <cstring>
-#include <memory>
 
 #include "dng_main.hpp"
 #include "effscript.hpp"
@@ -68,7 +67,7 @@ TEST_F(EventVectorStride, DistanceOutputsUseNativeStackElements) {
 
 TEST_F(EventVectorStride, AttributeOutputFollowsThreeInputs) {
     auto &script = EventScript;
-    auto  previous = AutoMapGen.grid;
+    auto *previous = AutoMapGen.grid;
     AutoMapGen.grid = nullptr;
     RS_STACKDATA output = Integer(-123);
     RS_STACKDATA args[] = {Number(3), Number(4), Number(12), Reference(output)};

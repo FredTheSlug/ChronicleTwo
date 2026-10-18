@@ -34,7 +34,7 @@ class OffscreenRenderer {
 public:
     OffscreenRenderer() {
         SetEnv("VK_LAYER_VALIDATE_SYNC", "1", 0);
-        WindowConfig window{640, 480, true};
+        WindowConfig window{.width = 640, .height = 480, .headless = true};
         window.vulkan = false;
         WindowInit(window);
 

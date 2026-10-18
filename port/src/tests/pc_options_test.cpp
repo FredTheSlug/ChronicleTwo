@@ -34,7 +34,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
         "video.show_fps",
         "audio.master_volume",
         "audio.soundtrack",
-        "audio.robot_voice",
+        "audio.dualsense_speaker",
         "audio.controller_volume",
         "input.mouse_sensitivity",
         "input.mouse_invert_y",
@@ -44,8 +44,16 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
         "input.stick_sensitivity",
         "input.stick_invert_x",
         "input.stick_invert_y",
+        "input.dualsense_haptics",
+        "input.haptics_strength",
         "input.glyphs",
         "input.glyph_device",
+        "game.autosave",
+        "game.quick_loadout_title",
+        "game.skip_intro",
+        "game.auto_use_event_item",
+        "game.floor_info_monsters",
+        "game.debug_mode",
     };
     std::set<std::string> actual;
     for (const auto &page : options::Pages()) {
@@ -59,7 +67,7 @@ TEST(PcOptions, RequestedSettingsHaveUniqueRowsAndRoundTripTheirEdits) {
             ASSERT_TRUE(options::StepRow(row, config, 1) || options::StepRow(row, config, -1)) << row.key;
             EXPECT_NE(config, Config{}) << row.key;
             EXPECT_EQ(ConfigParse(ConfigSerialize(config)), config) << row.key;
-            EXPECT_FALSE(config.debug_mode);
+            EXPECT_EQ(config.debug_mode, row.key == "game.debug_mode") << row.key;
             EXPECT_DOUBLE_EQ(config.tick_rate, 60);
         }
     }
@@ -99,10 +107,10 @@ TEST(PcOptions, BooleanAndEnumChoicesWrapInBothDirections) {
 
 TEST(PcOptions, ResolutionsKeepDesktopAndCustomSizeAndDeduplicateDisplayModes) {
     const DisplayModeSize modes[]{
-        {1920, 1080},
-        {1920, 1080},
-        {2560, 1440},
-        {320,  200 }
+        {.width = 1920, .height = 1080},
+        {.width = 1920, .height = 1080},
+        {.width = 2560, .height = 1440},
+        {.width = 320,  .height = 200 }
     };
     const auto sizes = options::ResolutionList(modes, 1234, 789);
     EXPECT_EQ(sizes.front().width, 0);
@@ -112,31 +120,45 @@ TEST(PcOptions, ResolutionsKeepDesktopAndCustomSizeAndDeduplicateDisplayModes) {
     EXPECT_FALSE(std::ranges::any_of(sizes, [](auto s) { return s.width == 320; }));
 }
 
+TEST(PcOptions, OnlyATabChangeCountsAsATurn) {
+    const int      pages = static_cast<int>(options::Pages().size());
+    options::State state;
+    state.open = true;
+    EXPECT_TRUE(options::SelectPage(state, 1));
+    EXPECT_TRUE(options::SelectPage(state, 0));
+    EXPECT_TRUE(options::SelectPage(state, -1));
+    EXPECT_EQ(state.page, pages - 1);
+    EXPECT_TRUE(options::SelectPage(state, pages));
+    EXPECT_EQ(state.page, 0);
+    // Selecting the tab already shown is not a turn and stays silent.
+    EXPECT_FALSE(options::SelectPage(state, 0));
+}
+
 TEST(PcOptions, LongBindingPageScrollsAndEachTabKeepsItsCursor) {
     options::State state;
     state.open = true;
-    options::SelectPage(state, 3);
+    options::SelectPage(state, options::kBindingsPage);
     for (int n = 0; n < 12; ++n) {
         options::MoveRow(state, 1);
     }
-    EXPECT_EQ(state.row[3], 12);
-    EXPECT_EQ(state.first[3], 5);
+    EXPECT_EQ(state.row[options::kBindingsPage], 12);
+    EXPECT_EQ(state.first[options::kBindingsPage], 5);
     options::SelectPage(state, 0);
     EXPECT_EQ(state.row[0], 0);
     options::MoveRow(state, -1);
     EXPECT_EQ(state.row[0], 0);
     options::SelectPage(state, -1);
-    EXPECT_EQ(state.page, 3);
-    EXPECT_EQ(state.row[3], 12);
-    EXPECT_EQ(state.first[3], 5);
+    EXPECT_EQ(state.page, options::kBindingsPage);
+    EXPECT_EQ(state.row[options::kBindingsPage], 12);
+    EXPECT_EQ(state.first[options::kBindingsPage], 5);
     for (int n = 0; n < 100; ++n) {
         options::MoveRow(state, 1);
     }
-    EXPECT_EQ(state.row[3], options::Pages()[3].rows.size() - 1);
+    EXPECT_EQ(state.row[options::kBindingsPage], options::Pages()[options::kBindingsPage].rows.size() - 1);
     for (int n = 0; n < 100; ++n) {
         options::MoveRow(state, -1);
     }
-    EXPECT_EQ(state.first[3], 0);
+    EXPECT_EQ(state.first[options::kBindingsPage], 0);
 }
 
 TEST(PcOptions, HitTestingUsesVisibleRowsAndHasNoDeadRowsOrOutOfBoundsHits) {
@@ -145,15 +167,20 @@ TEST(PcOptions, HitTestingUsesVisibleRowsAndHasNoDeadRowsOrOutOfBoundsHits) {
     EXPECT_EQ(options::HitTest(state, 300, 180).kind, options::HitKind::None);
     state.open = true;
     EXPECT_EQ(options::HitTest(state, 82, 91).index, 0);
-    EXPECT_EQ(options::HitTest(state, 370, 100).index, 3);
+    EXPECT_EQ(options::HitTest(state, 370, 100).index, options::kBindingsPage);
     EXPECT_EQ(options::HitTest(state, 288, 120).direction, -1);
     EXPECT_EQ(options::HitTest(state, 420, 120).direction, 1);
     EXPECT_EQ(options::HitTest(state, 440, 120).kind, options::HitKind::None);
     EXPECT_EQ(options::HitTest(state, 84, 352).kind, options::HitKind::Back);
     options::SelectPage(state, 1);
-    EXPECT_EQ(options::HitTest(state, 300, 180).kind, options::HitKind::None);
-    options::SelectPage(state, 3);
-    state.first[3] = 7;
+    const auto audio_rows = static_cast<int>(options::Pages()[1].rows.size());
+    EXPECT_EQ(options::HitTest(state, 300, options::kRowY + (audio_rows - 1) * options::kRowStep).index, audio_rows - 1);
+    EXPECT_EQ(options::HitTest(state, 300, options::kRowY + audio_rows * options::kRowStep).kind, options::HitKind::None);
+    options::SelectPage(state, options::kBindingsPage - 1);
+    const auto game_rows = static_cast<int>(options::Pages()[options::kBindingsPage - 1].rows.size());
+    EXPECT_EQ(options::HitTest(state, 300, options::kRowY + game_rows * options::kRowStep).kind, options::HitKind::None);
+    options::SelectPage(state, options::kBindingsPage);
+    state.first[options::kBindingsPage] = 7;
     EXPECT_EQ(options::HitTest(state, 300, 120).index, 7);
     EXPECT_EQ(options::HitTest(state, 300, 300).index, 14);
     EXPECT_EQ(options::HitTest(state, 300, 352).kind, options::HitKind::ResetBinding);
@@ -164,7 +191,7 @@ TEST(PcOptions, HitTestingUsesVisibleRowsAndHasNoDeadRowsOrOutOfBoundsHits) {
 
 TEST(PcOptions, PointerUsesUiScaleLetterboxingAndHighDpiMapping) {
     // 2560x1440 pixels in a 1280x720 window, UI 0.75, 4:3 logical image centered.
-    gfx::LogicalMapping mapping{2.8125f, 2.25f, 560, 180, 2560, 1440};
+    gfx::LogicalMapping mapping{.scale_x = 2.8125f, .scale_y = 2.25f, .offset_x = 560, .offset_y = 180, .pixel_width = 2560, .pixel_height = 1440};
     const float         x = (300 * mapping.scale_x + mapping.offset_x) / 2;
     const float         y = (160 * mapping.scale_y + mapping.offset_y) / 2;
     auto                point = options::PointerToUi(x, y, 1280, 720, mapping);
@@ -177,19 +204,19 @@ TEST(PcOptions, PointerUsesUiScaleLetterboxingAndHighDpiMapping) {
 TEST(PcOptions, StationaryPointerDoesNotUndoWheelOrPadNavigation) {
     options::State state;
     state.open = true;
-    options::SelectPage(state, 3);
-    const options::Point point{200, options::kRowY + 3 * options::kRowStep + 4};
+    options::SelectPage(state, options::kBindingsPage);
+    const options::Point point{.x = 200, .y = options::kRowY + 3 * options::kRowStep + 4};
     options::NavigatePointer(state, point, true, 0);
-    EXPECT_EQ(state.row[3], 3);
+    EXPECT_EQ(state.row[options::kBindingsPage], 3);
     for (int n = 0; n < 15; ++n) {
         options::NavigatePointer(state, point, false, -1);
         options::NavigatePointer(state, point, false, 0);
     }
-    EXPECT_EQ(state.row[3], 18);
-    EXPECT_EQ(state.first[3], 11);
+    EXPECT_EQ(state.row[options::kBindingsPage], 18);
+    EXPECT_EQ(state.first[options::kBindingsPage], 11);
     options::MoveRow(state, -1);
     options::NavigatePointer(state, point, false, 0);
-    EXPECT_EQ(state.row[3], 17);
+    EXPECT_EQ(state.row[options::kBindingsPage], 17);
 }
 
 TEST(PcOptions, HeldConfirmNeverRepeatsButNavigationDoes) {
@@ -213,7 +240,7 @@ TEST(PcOptions, HeldConfirmNeverRepeatsButNavigationDoes) {
 TEST(PcOptions, EscapeAndWholeAxesCannotBeBoundAndResetOnlyTouchesOneAction) {
     Config config;
     config.key_bindings = {
-        {"circle", {"Q"}}
+        {.action = "circle", .keys = {"Q"}}
     };
     EXPECT_FALSE(options::SetBinding(config, "cross", "Escape"));
     EXPECT_FALSE(options::SetBinding(config, "cross", "ESCAPE"));
@@ -259,7 +286,7 @@ TEST(PcOptions, PromptsFollowBindingsAndControllerFamilyWithoutChangingPadAction
     EXPECT_EQ(options::ButtonName("cross", config), "B");
     config.glyph_device = ConfigGlyphDevice::Keyboard;
     config.key_bindings = {
-        {"cross", {"K"}}
+        {.action = "cross", .keys = {"K"}}
     };
     InputApplyConfig(config);
     EXPECT_EQ(options::ButtonName("cross", config), "K");
@@ -281,7 +308,7 @@ TEST(PcOptions, ZoomResetHasAVisibleRebindableRow) {
 }
 
 TEST(PcOptions, TimingRowIsAbsentAndOtherSettingsRemain) {
-    EXPECT_EQ(options::Pages().size(), 4u);
+    EXPECT_EQ(options::Pages().size(), static_cast<std::size_t>(options::kPages));
     for (const auto &page : options::Pages()) {
         for (const auto &row : page.rows) {
             EXPECT_NE(row.key, "game.timing");

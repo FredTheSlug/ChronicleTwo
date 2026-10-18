@@ -96,7 +96,12 @@ void SetBone(gfx::Prog0Constants &p, uint32_t slot, const std::array<float, 12> 
 }
 
 gfx::Vertex3D Vert(const std::array<float, 3> &position, const std::array<float, 3> &normal) {
-    return {{position[0], position[1], position[2]}, {normal[0], normal[1], normal[2]}, {0.0f, 0.0f}, {0, 0, 0, 0}};
+    return {
+        .position = {position[0], position[1], position[2]},
+          .normal = {normal[0], normal[1], normal[2]},
+          .uv = {0.0f, 0.0f},
+          .color = {0, 0, 0, 0}
+    };
 }
 
 std::vector<gfx::Vertex3D> Triangle(const Point &a, const Point &b, const Point &c, float z,
@@ -167,7 +172,7 @@ TEST(Vu1Prog0Shader, LightingOffVector) {
     // Alpha 128 is GS 1.0 here: Cs * As >> 7 keeps Cs.
     gfx::DrawState blend;
     blend.blend = true;
-    blend.alpha = gfx::GsBlend{0, 2, 0, 2};
+    blend.alpha = gfx::GsBlend{.a = 0, .b = 2, .c = 0, .d = 2};
     Render(fixture, ScreenVertices({0, 0, 1}), kTriangle, c, blend);
     EXPECT_TRUE(At(fixture, 0, 0, 64, 32, 16));
 }

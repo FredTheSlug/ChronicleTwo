@@ -26,8 +26,19 @@ LONG64_SUFFIXES = (".h", ".hpp", ".hh", ".inc", ".inl")
 # ClsMes::Init is out-of-line only in dngmenu.cpp; making it inline everywhere leaves one definition.
 # mgVu0FBOX is not trivially copyable, so memset on it trips -Wnontrivial-memcall.
 FIXUPS = [
+    # Paint colours close the menu into paint mode on the first visit as well as returned visits.
+    ("editmenu.hpp", "        paint_top = 0;", "        paint_top = 0; paint_return = 1;"),
     ("dng_event.hpp", "    virtual void Draw();", "    virtual int Draw();"),
     ("dng_hud.hpp", "    virtual void Draw();", "    virtual int Draw();"),
+    # The quick loadout's "Equip Slot" command wraps the item command list; retail's routine stays under this name.
+    ("menusys.hpp", "    int MenuItemCommandSelect(int select_key, int push_button);",
+     "    int MenuItemCommandSelect(int select_key, int push_button);\n"
+     "    int PortRetailMenuItemCommandSelect(int select_key, int push_button);"),
+    # The floor information's monster page wraps the tree map's step and draw; retail's routines stay under these names.
+    ("dngmenu.hpp", "    int FadeInOutMenu();",
+     "    int FadeInOutMenu();\n"
+     "    int PortRetailStep();\n"
+     "    void PortRetailDraw();"),
     ("nd_meswin.hpp", "#ifndef MES_WINDOW_OUT_OF_LINE_INIT", "#if 1"),
     ("collision.hpp", "memset(&bbox, 0, sizeof(bbox));", "memset(static_cast<void *>(&bbox), 0, sizeof(bbox));"),
     # kernel32 exports these three names on Windows; the PS2 kernel's versions take their own link names so they never bind to kernel32.
@@ -38,6 +49,10 @@ FIXUPS = [
     # GetLight and GetCharaLight assign with, so the mirror spells it out on the declaration's line.
     ("mapload.hpp", "    CFuncPoint() {}", '    CFuncPoint() {} CFuncPoint &operator=(CFuncPoint &other) { name = other.name; type = other.type; unk_8 = other.unk_8; flag_no = other.flag_no; enable = other.enable; start = other.start; end = other.end; __builtin_memcpy(static_cast<void *>(data), other.data, reinterpret_cast<char *>(&frame) - reinterpret_cast<char *>(data)); frame = other.frame; __builtin_memcpy(position, other.position, sizeof(position)); __builtin_memcpy(rotation, other.rotation, sizeof(rotation)); __builtin_memcpy(scale, other.scale, sizeof(scale)); active = other.active; return *this; }'),
 ]
+
+# Each packet a frame sorts takes one mgSORT_PACKET (one quadword on the PS2) from the scene's work stack, along with
+# its slot in the draw manager's pointer tables. Both grow with pointer width, so the work stacks scale with them.
+WORK_STACK_QUADWORDS = "10000 * (int) sizeof(mgSORT_PACKET) / 16"
 
 # The leading newline anchors each match to its line start: a copy already rewritten fails the exactly-once check
 # instead of gaining a second `inline`.
@@ -82,8 +97,20 @@ UNIT_FIXUPS = [
 """),
     # Emit the constructor from the native unit without changing its retail inline spelling.
     ("inventmn.cpp", "\ninline CMenuInvent::CMenuInvent() {", "\nCMenuInvent::CMenuInvent() {"),
+    # game.skip_intro: the boot's language select and title image load stay; the logo's fade frames are skipped.
+    ("nowload.cpp", "    for (; frame <= 22; ++frame, opacity_value += 128) {",
+     "    for (; frame <= 22 && !PortSkipIntro(); ++frame, opacity_value += 128) {"),
     ("editeff.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
     ("editmap.cpp", "\ninline CMapParts::CMapParts() { Initialize(); }", "\n"),
+    # PAL's op_cursorlimmit bottom (y 274) lies above the ninth shown row (288); the Options cursor's bottom limit
+    # reaches the selected row's place in the settled list instead.
+    ("menuop.cpp", '                MenuPosData->GetEtcTblValue("op_cursorlimmit", limit[0], limit[1]);',
+     '                MenuPosData->GetEtcTblValue("op_cursorlimmit", limit[0], limit[1]); '
+     'if (LocalMenuBGForm != NULL) { int base[2]; LocalMenuBGForm->GetPutPosXY("base_msg", base[0], base[1]); '
+     'limit[1] = PortOptionCursorBottom(limit[1], pos.y, fptosi(list_y - 3.0f), base[1] - top * 24 - 3); }'),
+    # Fusion colours can target a float-aligned ambient field rather than a quadword boundary.
+    ("menusys.cpp", "*(u_long128 *) color = *(u_long128 *) fusion_ambient;",
+     "memcpy(color, fusion_ambient, sizeof(fusion_ambient));"),
     ("dng_debug.cpp", "\nvoid CTreasureBox::Initialize() {", "\ninline void CTreasureBox::Initialize() {"),
     # The dungeon menu carves its memory from these 200000 quadwords and gives the invention menu's
     # model reads (LOAD STACK) whatever is left. Host objects are larger than retail's, so with Max's
@@ -92,18 +119,35 @@ UNIT_FIXUPS = [
      "BuffReadData = MainBuffer->stAlloc64(260000);"),
     ("dng_main.cpp", "\n                stack.stSetBuffer(BuffReadData, 200000);",
      "\n                stack.stSetBuffer(BuffReadData, 260000);"),
+    ("dng_main.cpp", "BuffWorkData.stSetBuffer(MainBuffer->stAlloc64(10000), 10000);",
+     f"BuffWorkData.stSetBuffer(MainBuffer->stAlloc64({WORK_STACK_QUADWORDS}), {WORK_STACK_QUADWORDS});"),
     # The town menu's buffer, carved from the end of the main stack after the total data buffer, needs
-    # the same 60000 quadwords for the invention menu's model reads.
+    # the same 60000 quadwords for the invention menu's model reads. The work stack follows it.
     ("editloop.cpp", """    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - 210128);
     printf("data memory size = %d kbyte", (data_size - 210128) * 16 / 1024);""",
-     """    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - 270128);
-    printf("data memory size = %d kbyte", (data_size - 270128) * 16 / 1024);"""),
+     f"""    TotalDataBuff.stSetBuffer(&main_stack->stack[main_stack->stack_used], data_size - (260128 + {WORK_STACK_QUADWORDS}));
+    printf("data memory size = %d kbyte", (data_size - (260128 + {WORK_STACK_QUADWORDS})) * 16 / 1024);"""),
+    # Geostone announcement updates and draws reserve eight nullable message slots.
+    ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
+    # A Georama list that fits on one page has no scroll range: the EE FPU's 0/0 is finite, IEEE's is NaN.
+    ("editmenu.cpp", "            float rate = space / (num - GEORAMA_LIST_LINE_NUM);",
+     "            float rate = num > GEORAMA_LIST_LINE_NUM ? space / (num - GEORAMA_LIST_LINE_NUM) : 0.0f;"),
+    # Geostone conditions are copied bounded into their 128-byte text, and word-wrapped into 128 bytes
+    # rather than 64: wrapping replaces a space with a newline, so the result is never longer.
+    ("editmenu.cpp", "            strcpy(text, condition_name);",
+     "            snprintf(text, sizeof(text), \"%s\", condition_name);"),
+    ("editmenu.cpp", "            char        *wrapped = (char *) stack->Alloc(4);",
+     "            char        *wrapped = (char *) stack->Alloc(8);"),
     ("editloop.cpp", """    main_stack->Alloc(data_size - 210128);
     MenuBuffer__2.stSetBuffer(read_buffer = main_stack->stAlloc64(200000), 200000);
-    read_buffer_end = read_buffer + 200000;""",
-     """    main_stack->Alloc(data_size - 270128);
+    read_buffer_end = read_buffer + 200000;
+    WorkBuffer.stSetBuffer(main_stack->stAlloc64(10000), 10000);""",
+     f"""    main_stack->Alloc(data_size - (260128 + {WORK_STACK_QUADWORDS}));
     MenuBuffer__2.stSetBuffer(read_buffer = main_stack->stAlloc64(260000), 260000);
-    read_buffer_end = read_buffer + 260000;"""),
+    read_buffer_end = read_buffer + 260000;
+    WorkBuffer.stSetBuffer(main_stack->stAlloc64({WORK_STACK_QUADWORDS}), {WORK_STACK_QUADWORDS});"""),
+    # Map files are read into a buffer sized to them rather than the caller's fixed one.
+    ("sceneload.cpp", "    u8        *load_buf = info.load_buf;", "    u8        *load_buf = PortMapLoadBuffer(info);"),
 ]
 
 # MWCC-only pragmas. ct_port builds with -Wall and no -Wno-unknown-pragmas, so they are blanked, not silenced.

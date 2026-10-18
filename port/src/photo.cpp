@@ -25,9 +25,7 @@ PORT_OVERRIDE void LoopTakePhoto(CPadControl *pad, CInventUserData *user) {
         if (!(AddProj <= 200.0f)) {
             AddProj = 200.0f;
         }
-        if (AddProj < -200.0f) {
-            AddProj = -200.0f;
-        }
+        AddProj = std::max(AddProj, -200.0f);
         if (user->IsPhotoSpace(nullptr) && pad->Btn(PAD_BTN_ACTION_SQUARE)) {
             TakePhotoMode = TAKE_PHOTO_SHUTTER;
         }
@@ -45,7 +43,8 @@ PORT_OVERRIDE void LoopTakePhoto(CPadControl *pad, CInventUserData *user) {
         // Recording defers GPU work to the frame boundary. Request the capture
         // there so the following STORE frame receives this shot, including depth.
         std::vector<uint8_t> ignored;
-        uint32_t             width = 0, height = 0;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
         mgPortReadColor(mgPortRenderTarget(WorkTex), ignored, width, height);
         mgRect<int> lens(252, 204, 260, 212);
         u_long128   depth[16];

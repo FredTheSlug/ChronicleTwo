@@ -2,6 +2,7 @@
 #include "common.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -10,6 +11,7 @@
 #include <filesystem>
 #include <map>
 #include <optional>
+#include <print>
 #include <set>
 #include <string>
 #include <utility>
@@ -25,9 +27,9 @@
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "photo_hd.hpp"
 #include "platform/clock.hpp"
 #include "platform/paths.hpp"
-#include "photo_hd.hpp"
 #include "present.hpp"
 #include "scenesnd.hpp"
 #include "stubs/mglib.hpp"
@@ -52,40 +54,44 @@ uint64_t ToRaw(const T &value) {
     return raw;
 }
 
-constexpr int kExitScreenshotFailed = 1;
+constexpr int      kExitScreenshotFailed = 1;
 constexpr uint64_t kClampBoth = 1 | (1 << 2);
-constexpr int kDepthSlotCount = static_cast<int>(gfx::kDepthQueryCount);
+constexpr int      kDepthSlotCount = static_cast<int>(gfx::kDepthQueryCount);
 // mgStoreZBuffImage's query slot. Slot 4 is outside the per-frame allocator, which starts above it.
 constexpr int kStoreDepthSlot = 4;
 constexpr int kFirstAllocatedDepthSlot = 5;
 
 struct RenderTargetEntry {
-    gfx::TextureHandle handle;
-    int width;
-    int height;
-    int psm;
-    bool frame_target;
-    float texture_scale = 1.0f; /**< Physical canvas texels per retail texture texel. */
+    gfx::TextureHandle handle{};
+    int                width{};
+    int                height{};
+    int                psm{};
+    bool               frame_target{};
+    float              texture_scale = 1.0f; /**< Physical canvas texels per retail texture texel. */
 };
 
 bool ready = false;
 bool frame_open = false;
 bool gfx_open = false;
 bool recording = false;
-bool cut_next_tick = true;
-bool cut_camera_next_tick = true;
+// Destination alpha occupies one stencil bit until frame reset or shadow rendering.
+constexpr uint8_t       kDestAlphaBit = 0x80;
+bool                    dest_alpha_valid = false;
+bool                    dest_alpha_write = false;
+bool                    cut_next_tick = true;
+bool                    cut_camera_next_tick = true;
 unsigned long long      camera_generation = 0;
-gfx::DisplayListRef last_list;
-gfx::DisplayListRef previous_list;
-int frame_count = 0;
-int exit_frames = 0;
-std::filesystem::path screenshot_path;
+gfx::DisplayListRef     last_list;
+gfx::DisplayListRef     previous_list;
+int                     frame_count = 0;
+int                     exit_frames = 0;
+std::filesystem::path   screenshot_path;
 mgPortScreenshotOptions screenshot_options;
-int store_count = 0;
+int                     store_count = 0;
 
-mgPortGsState gs_state;
-gfx::TextureHandle current_target = gfx::kMainTarget;
-std::map<uint32_t, RenderTargetEntry> render_targets; // by TBP0
+mgPortGsState                          gs_state;
+gfx::TextureHandle                     current_target = gfx::kMainTarget;
+std::map<uint32_t, RenderTargetEntry>  render_targets;  // by TBP0
 std::map<const mgCTexture *, uint32_t> texture_targets; // by texture, the TBP0 of its entry
 
 // Seeded from the registry image, which a reload replaces; a recreated target loses its pixels, so
@@ -94,51 +100,52 @@ struct RegisteredTarget {
     uint32_t           tbp0;
     gfx::TextureHandle seeded_from;
 };
+
 std::map<const mgCTexture *, RegisteredTarget> registered_targets;
 
 mgPortTextureLookup lookup_texture = nullptr;
-mgPortTex0Lookup lookup_tex0 = nullptr;
+mgPortTex0Lookup    lookup_tex0 = nullptr;
 
 mgCTexture frame_tex;
-int frame_buf0 = 0;
-int frame_buf1 = 0;
-int dbuff_id = 0;
+int        frame_buf0 = 0;
+int        frame_buf1 = 0;
+int        dbuff_id = 0;
 
 // mgCDrawPrim disables primitives when mgVif1Packet is null, so the sentinel must stay addressable.
 sceVif1Packet vif_packet{};
 // Non-null selects the immediate Draw path; NULL selects the deferred one. Nothing on PC writes through it.
-u_int direct_tag[4] = {};
-int data_id = 0;
+u_int     direct_tag[4] = {};
+int       data_id = 0;
 mgCMemory data_buf[2];
 
-int old_vcount = 0;
-int now_prog_id = -1;
-u_long128 *prog_adr[MG_VU_PROG_BUILTIN_NUM] = {Vu_prog0, Vu_prog_sdw, Vu_prog_3dsp};
+int         old_vcount = 0;
+int         now_prog_id = -1;
+u_long128  *prog_adr[MG_VU_PROG_BUILTIN_NUM] = {Vu_prog0, Vu_prog_sdw, Vu_prog_3dsp};
 u_long128 **user_prog_adr = nullptr;
-int user_prog_num = 0;
+int         user_prog_num = 0;
 
 struct ColorImage {
     std::vector<uint8_t> rgba;
-    uint32_t width = 0;
-    uint32_t height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
 };
 
 struct DepthRect {
-    int x = 0;
-    int y = 0;
-    int width = 0;
-    int height = 0;
+    int  x = 0;
+    int  y = 0;
+    int  width = 0;
+    int  height = 0;
     bool operator==(const DepthRect &) const = default;
 };
 
 std::optional<float> depth_answer[gfx::kDepthQueryCount];
-bool depth_pending[gfx::kDepthQueryCount] = {};
-int depth_next = kFirstAllocatedDepthSlot;
-DepthRect depth_queued_rect;
-DepthRect depth_answered_rect;
+bool                 depth_pending[gfx::kDepthQueryCount] = {};
+int                  depth_next = kFirstAllocatedDepthSlot;
+DepthRect            depth_queued_rect;
+DepthRect            depth_answered_rect;
 
 std::map<gfx::TextureHandle, ColorImage> color_cache;
-std::set<gfx::TextureHandle> color_marks;
+std::set<gfx::TextureHandle>             color_marks;
 
 bool in_shadow = false;
 
@@ -250,7 +257,7 @@ mgPortTexture GrabFrameIfSampled(mgPortTexture found) {
         return found;
     }
 
-    return {grab, found.palette};
+    return {.texture = grab, .palette = found.palette};
 }
 
 gfx::TextureHandle RenderTargetHandle(uint32_t tbp0) {
@@ -313,7 +320,7 @@ bool ReadNow(gfx::TextureHandle target, std::vector<uint8_t> &rgba, uint32_t &wi
 
 bool WriteScreenshotDisplayFrames() {
     if (PresentGetSettings().interpolation && mgPortPreviousList() == nullptr) {
-        std::fprintf(stderr, "mglib: frame %d has no previous list, display frames skipped\n", frame_count);
+        std::println(stderr, "mglib: frame {} has no previous list, display frames skipped", frame_count);
         return true;
     }
 
@@ -321,21 +328,21 @@ bool WriteScreenshotDisplayFrames() {
     bool      written = true;
 
     for (int k = 0; k < count && written; ++k) {
-        std::vector<uint8_t> rgba;
-        uint32_t             width = 0;
-        uint32_t             height = 0;
+        std::vector<uint8_t>  rgba;
+        uint32_t              width = 0;
+        uint32_t              height = 0;
         std::filesystem::path name = screenshot_path.stem();
         name += "-display-" + std::to_string(k) + ".png";
         const std::filesystem::path path = screenshot_path.parent_path() / name;
-        const float alpha = static_cast<float>(k) / static_cast<float>(count);
+        const float                 alpha = static_cast<float>(k) / static_cast<float>(count);
         written = PresentScreenshotDisplay(alpha, rgba, width, height) && gfx::WritePng(path, rgba.data(), width, height);
 
         if (written) {
-            std::fprintf(stderr, "mglib: display frame %d of frame %d written to %s\n", k, frame_count,
-                         PathsDisplay(path).c_str());
+            std::println(stderr, "mglib: display frame {} of frame {} written to {}", k, frame_count,
+                         PathsDisplay(path));
         } else {
-            std::fprintf(stderr, "mglib: display frame %d of frame %d could not be written to %s\n", k, frame_count,
-                         PathsDisplay(path).c_str());
+            std::println(stderr, "mglib: display frame {} of frame {} could not be written to {}", k, frame_count,
+                         PathsDisplay(path));
         }
     }
 
@@ -379,7 +386,7 @@ bool InclusiveLogicalRect(const mgRect<int> &rect, gfx::Rect &out) {
 
     const int left = rect.left / 16;
     const int top = rect.top / 16;
-    out = gfx::Rect{left, top, rect.right / 16 - left + 1, rect.bottom / 16 - top + 1};
+    out = gfx::Rect{.x = left, .y = top, .w = rect.right / 16 - left + 1, .h = rect.bottom / 16 - top + 1};
     return true;
 }
 
@@ -388,7 +395,9 @@ bool InclusiveLogicalRect(const mgRect<int> &rect, gfx::Rect &out) {
  */
 float TextureScale(gfx::TextureHandle handle) {
     for (const auto &[key, target] : render_targets) {
-        if (target.handle == handle) return target.texture_scale;
+        if (target.handle == handle) {
+            return target.texture_scale;
+        }
     }
     return MgTextureImageScale(handle);
 }
@@ -397,8 +406,7 @@ float TextureScale(gfx::TextureHandle handle) {
  * Maps a retail texture rectangle onto its physical canvas.
  */
 gfx::Rect ScaleRectangle(gfx::Rect rect, float scale) {
-    return {static_cast<int>(rect.x * scale), static_cast<int>(rect.y * scale),
-            static_cast<int>(rect.w * scale), static_cast<int>(rect.h * scale)};
+    return {.x = static_cast<int>(rect.x * scale), .y = static_cast<int>(rect.y * scale), .w = static_cast<int>(rect.w * scale), .h = static_cast<int>(rect.h * scale)};
 }
 
 /**
@@ -406,9 +414,21 @@ gfx::Rect ScaleRectangle(gfx::Rect rect, float scale) {
  */
 gfx::DrawState TargetDrawState(gfx::DrawState state) {
     const float scale = TextureScale(current_target);
-    auto &rect = state.scissor_rect;
-    rect = {rect.x * scale, rect.y * scale, rect.w * scale, rect.h * scale};
+    auto       &rect = state.scissor_rect;
+    rect = {.x = rect.x * scale, .y = rect.y * scale, .w = rect.w * scale, .h = rect.h * scale};
     return state;
+}
+
+std::vector<gfx::Vertex2D> ScaleVertices(std::span<const gfx::Vertex2D> vertices, float target_scale,
+                                         float source_scale) {
+    std::vector<gfx::Vertex2D> scaled(vertices.begin(), vertices.end());
+    for (auto &vertex : scaled) {
+        vertex.x *= target_scale;
+        vertex.y *= target_scale;
+        vertex.u *= source_scale;
+        vertex.v *= source_scale;
+    }
+    return scaled;
 }
 
 void CopyRectangle(gfx::TextureHandle src, const mgRect<int> &rect, gfx::TextureHandle dst, int dst_x, int dst_y) {
@@ -416,11 +436,11 @@ void CopyRectangle(gfx::TextureHandle src, const mgRect<int> &rect, gfx::Texture
         return;
     }
 
-    gfx::Rect source;
+    gfx::Rect source{};
     if (InclusiveLogicalRect(rect, source)) {
-        const float src_scale = TextureScale(src);
-        const float dst_scale = TextureScale(dst);
-        const gfx::Rect destination{dst_x >> 4, dst_y >> 4, source.w, source.h};
+        const float     src_scale = TextureScale(src);
+        const float     dst_scale = TextureScale(dst);
+        const gfx::Rect destination{.x = dst_x >> 4, .y = dst_y >> 4, .w = source.w, .h = source.h};
         gfx::BlitTexture(src, ScaleRectangle(source, src_scale), dst,
                          ScaleRectangle(destination, dst_scale), gfx::Filter::Nearest);
     }
@@ -434,21 +454,13 @@ gfx::TextureHandle FrameGrabAt(uint32_t tbp0) {
 }
 
 // The copy is retail's 1:1 texel copy in logical units; the frame target's mapping brings the window's sides.
-void GrabFrame(gfx::TextureHandle frame, const gfx::Rect &source, int32_t dst_x, int32_t dst_y,
-               gfx::TextureHandle target) {
-    if (target == gfx::kNullTexture) {
-        return;
-    }
-
-    gfx::BlitTexture(frame, source, target, gfx::Rect{dst_x, dst_y, source.w, source.h}, gfx::Filter::Nearest);
-}
-
 void CopyFrameInto(gfx::TextureHandle frame, const mgRect<int> &rect, int dst_x, int dst_y,
                    gfx::TextureHandle target) {
-    gfx::Rect source;
+    gfx::Rect source{};
 
     if (target != gfx::kNullTexture && InclusiveLogicalRect(rect, source)) {
-        GrabFrame(frame, source, dst_x >> 4, dst_y >> 4, target);
+        gfx::BlitTexture(frame, source, target, gfx::Rect{.x = dst_x >> 4, .y = dst_y >> 4, .w = source.w, .h = source.h},
+                         gfx::Filter::Nearest);
     }
 }
 
@@ -473,7 +485,7 @@ void StretchInto(gfx::TextureHandle src, const mgRect<int> &src_rect, const sceG
     }
 
     const int width = static_cast<int>(dst_tex0.TBW) * 64;
-    mgSetPkFrameBuffer(static_cast<int>(dst_tex0.TBP0 / 32), width, (dst_height + 63) & ~63,
+    mgSetPkFrameBuffer((dst_tex0.TBP0 / 32), width, (dst_height + 63) & ~63,
                        static_cast<int>(dst_tex0.PSM));
 
     const gfx::TextureHandle dst = dst_texture != nullptr ? mgPortFindTexture(dst_texture).texture
@@ -481,8 +493,7 @@ void StretchInto(gfx::TextureHandle src, const mgRect<int> &src_rect, const sceG
 
     // Sprite corners: right and bottom are the far edge, exclusive.
     const auto to_rect = [](const mgRect<int> &rect) {
-        return gfx::Rect{rect.left / 16, rect.top / 16, rect.right / 16 - rect.left / 16,
-                         rect.bottom / 16 - rect.top / 16};
+        return gfx::Rect{.x = rect.left / 16, .y = rect.top / 16, .w = rect.right / 16 - rect.left / 16, .h = rect.bottom / 16 - rect.top / 16};
     };
     const auto is_empty = [](const mgRect<int> &rect) {
         return rect.right <= rect.left || rect.bottom <= rect.top;
@@ -518,8 +529,8 @@ mgPortExtent ExtentOf(float left, float top, float right, float bottom) {
 // Only x and y follow the visible extent; the depth components stay retail's.
 void ApplyVisibleBox(mgRENDER_INFO &info) {
     const mgPortExtent extent = mgPortVisibleExtent();
-    const float centre_x = 0.5f * static_cast<float>(mgScreenWidth);
-    const float centre_y = 0.5f * static_cast<float>(mgScreenHeight);
+    const float        centre_x = 0.5f * static_cast<float>(mgScreenWidth);
+    const float        centre_y = 0.5f * static_cast<float>(mgScreenHeight);
     info.screen_box_min[0] = extent.left - centre_x;
     info.screen_box_min[1] = extent.top - centre_y;
     info.screen_box_max[0] = extent.right - centre_x;
@@ -566,7 +577,7 @@ mgPortProjection mgPortCurrentProjection() {
 
 void mgPortEyeToClip(const mgPortProjection &projection, gfx::TextureHandle target, float out[16]) {
     gfx::LogicalMapping mapping = gfx::GetLogicalMapping(target);
-    const float scale = TextureScale(target);
+    const float         scale = TextureScale(target);
     mapping.scale_x *= scale;
     mapping.scale_y *= scale;
 
@@ -576,8 +587,8 @@ void mgPortEyeToClip(const mgPortProjection &projection, gfx::TextureHandle targ
         return;
     }
 
-    const float pixel_width = static_cast<float>(mapping.pixel_width);
-    const float pixel_height = static_cast<float>(mapping.pixel_height);
+    const auto  pixel_width = static_cast<float>(mapping.pixel_width);
+    const auto  pixel_height = static_cast<float>(mapping.pixel_height);
     const float depth_span = projection.far_z - projection.near_z;
 
     std::memset(out, 0, 16 * sizeof(float));
@@ -647,6 +658,20 @@ mgPortExtent mgPortVisibleExtent() {
     return mgPortVisibleExtent(mgPortCurrentTarget());
 }
 
+mgPortExtent mgPortVisibleUiExtent(gfx::TextureHandle target) {
+    mgPortExtent extent = mgPortVisibleExtent(target);
+
+    if (mgPortRendererReady()) {
+        const gfx::LogicalMapping scene = gfx::GetLogicalMapping(target);
+        const gfx::LogicalMapping ui = gfx::GetUiMapping(target);
+        const auto                ui_x = [&](float x) { return (x * scene.scale_x + scene.offset_x - ui.offset_x) / ui.scale_x; };
+        const auto                ui_y = [&](float y) { return (y * scene.scale_y + scene.offset_y - ui.offset_y) / ui.scale_y; };
+        extent = ExtentOf(ui_x(extent.left), ui_y(extent.top), ui_x(extent.right), ui_y(extent.bottom));
+    }
+
+    return extent;
+}
+
 // GS state
 
 mgPortGsState &mgPortGs() {
@@ -694,11 +719,51 @@ gfx::DrawState mgPortDrawState() {
 }
 
 void mgPortApplyTest(gfx::DrawState &state, uint64_t test) {
-    const sceGsTest reg = FromRaw<sceGsTest>(test);
+    const auto reg = FromRaw<sceGsTest>(test);
     state.alpha_test = reg.ATE != 0;
     state.alpha_func = static_cast<gfx::AlphaFunc>(reg.ATST);
     state.alpha_ref = static_cast<uint8_t>(reg.AREF);
     state.depth_test = reg.ZTE != 0 ? static_cast<gfx::DepthTest>(reg.ZTST) : gfx::DepthTest::Always;
+
+    const gfx::StencilFace date_zero{.compare = gfx::CompareOp::Equal, .fail = gfx::StencilOp::Keep, .pass = gfx::StencilOp::Keep, .depth_fail = gfx::StencilOp::Keep, .reference = 0, .compare_mask = kDestAlphaBit, .write_mask = 0};
+    auto                   date_one = date_zero;
+    date_one.reference = kDestAlphaBit;
+    const gfx::StencilFace date_write{.compare = gfx::CompareOp::Always, .fail = gfx::StencilOp::Keep, .pass = gfx::StencilOp::Replace, .depth_fail = gfx::StencilOp::Keep, .reference = 0, .compare_mask = 0xff, .write_mask = kDestAlphaBit};
+    if (!dest_alpha_write && state.stencil_front == date_write && state.stencil_back == date_write) {
+        state.color_write_mask = gfx::kWriteRgba;
+    }
+    if (!dest_alpha_write && (!dest_alpha_valid || reg.DATE == 0) && state.stencil_front == state.stencil_back &&
+        (state.stencil_front == date_zero || state.stencil_front == date_one || state.stencil_front == date_write)) {
+        state.stencil_test = false;
+        state.stencil_front = {};
+        state.stencil_back = {};
+    }
+
+    if (dest_alpha_write) {
+        state.alpha_test = false;
+        state.stencil_test = true;
+        state.stencil_front = date_write;
+        state.stencil_back = date_write;
+        state.color_write_mask = 0;
+    } else if (dest_alpha_valid && reg.DATE != 0) {
+        state.stencil_test = true;
+        state.stencil_front = reg.DATM != 0 ? date_one : date_zero;
+        state.stencil_back = state.stencil_front;
+    }
+}
+
+void mgPortBeginDestAlphaMask() {
+    if (!gfx_open) {
+        return;
+    }
+
+    gfx::ClearStencil(kDestAlphaBit, nullptr);
+    dest_alpha_valid = true;
+    dest_alpha_write = true;
+}
+
+void mgPortEndDestAlphaMask() {
+    dest_alpha_write = false;
 }
 
 void mgPortApplyZbuf(gfx::DrawState &state, uint64_t zbuf) {
@@ -706,7 +771,7 @@ void mgPortApplyZbuf(gfx::DrawState &state, uint64_t zbuf) {
 }
 
 void mgPortApplyAlpha(gfx::DrawState &state, uint64_t alpha) {
-    const sceGsAlpha reg = FromRaw<sceGsAlpha>(alpha);
+    const auto reg = FromRaw<sceGsAlpha>(alpha);
     state.alpha.a = static_cast<uint8_t>(reg.A);
     state.alpha.b = static_cast<uint8_t>(reg.B);
     state.alpha.c = static_cast<uint8_t>(reg.C);
@@ -715,7 +780,7 @@ void mgPortApplyAlpha(gfx::DrawState &state, uint64_t alpha) {
 }
 
 void mgPortApplyTexa(gfx::DrawState &state, uint64_t texa) {
-    const sceGsTexa reg = FromRaw<sceGsTexa>(texa);
+    const auto reg = FromRaw<sceGsTexa>(texa);
     state.texa_aem = reg.AEM != 0;
     state.texa_ta0 = static_cast<uint8_t>(reg.TA0);
 }
@@ -728,9 +793,7 @@ void mgPortApplyScissor(gfx::DrawState &state, const int scissor[4]) {
     }
 
     state.scissor = true;
-    state.scissor_rect = {static_cast<float>(scissor[0]), static_cast<float>(scissor[1]),
-                          static_cast<float>(scissor[2] - scissor[0] + 1),
-                          static_cast<float>(scissor[3] - scissor[1] + 1)};
+    state.scissor_rect = {.x = static_cast<float>(scissor[0]), .y = static_cast<float>(scissor[1]), .w = static_cast<float>(scissor[2] - scissor[0] + 1), .h = static_cast<float>(scissor[3] - scissor[1] + 1)};
 }
 
 void mgPortApplyDrawEnv(gfx::DrawState &state, const mgCDrawEnv &env) {
@@ -762,15 +825,15 @@ mgPortTexture mgPortFindTexture(uint64_t tex0) {
     const uint32_t tbp0 = static_cast<uint32_t>(FromRaw<sceGsTex0>(tex0).TBP0);
 
     if (tbp0 == static_cast<uint32_t>(DrawFbp()) << 5) {
-        return {gfx::kMainTarget, gfx::kNullTexture};
+        return {.texture = gfx::kMainTarget, .palette = gfx::kNullTexture};
     }
 
     if (tbp0 == static_cast<uint32_t>(DisplayFbp()) << 5) {
-        return {gfx::kPreviousFrame, gfx::kNullTexture};
+        return {.texture = gfx::kPreviousFrame, .palette = gfx::kNullTexture};
     }
 
     if (const gfx::TextureHandle target = RenderTargetHandle(tbp0); target != gfx::kNullTexture) {
-        return {target, gfx::kNullTexture};
+        return {.texture = target, .palette = gfx::kNullTexture};
     }
 
     if (lookup_tex0 != nullptr) {
@@ -799,7 +862,7 @@ mgPortTexture mgPortFindTexture(const mgCTexture *texture) {
 
     if (const auto it = texture_targets.find(texture); it != texture_targets.end()) {
         if (const gfx::TextureHandle target = RenderTargetHandle(it->second); target != gfx::kNullTexture) {
-            return {target, gfx::kNullTexture};
+            return {.texture = target, .palette = gfx::kNullTexture};
         }
     }
 
@@ -828,7 +891,7 @@ gfx::TextureBinding mgPortBinding(uint64_t tex0, uint64_t tex1) {
 
 void mgPortAdoptColorVariant(const mgCTexture *src, mgCTexture *dst) {
     if (src != nullptr && dst != nullptr) {
-        MgTextureSelectVariant(dst, MgTexturePaletteSource(src));
+        MgTextureSelectVariant(dst, MgTextureVariantSelector(src));
     }
 }
 
@@ -848,6 +911,45 @@ gfx::TextureHandle mgPortSnapshotFrame() {
 
 gfx::TextureHandle mgPortCurrentTarget() {
     return current_target;
+}
+
+/**
+ * Saves native framebuffer coordinates and render inputs for a scoped auxiliary draw.
+ */
+struct mgPortRenderStateScope::State {
+    mgRENDER_INFO      render = mgRenderInfo;                                                                                             /**< Camera, projection, lighting and clip state. */
+    mgPortGsState      gs = gs_state;                                                                                                     /**< Native GS draw state. */
+    mgCTexture         frame = frame_tex;                                                                                                 /**< Current framebuffer's native texture descriptor. */
+    sceGsFrame         frame_register = mgFRAME_1;                                                                                        /**< Current GS framebuffer register. */
+    gfx::TextureHandle target = current_target;                                                                                           /**< Actual render target including registered aliases. */
+    std::array<int, 8> screen{mgScreenWidth, mgScreenHeight, mgScreenNX, mgScreenNY, mgScreenMX, mgScreenMY, mgScreenOffx, mgScreenOffy}; /**< Logical framebuffer dimensions and coordinate bounds. */
+    bool               alpha_valid = dest_alpha_valid;                                                                                    /**< Whether the current target has a destination alpha mask. */
+    bool               alpha_write = dest_alpha_write;                                                                                    /**< Whether draws are writing destination alpha coverage. */
+    bool               shadow = in_shadow;                                                                                                /**< Whether draws use shadow-volume state. */
+};
+
+mgPortRenderStateScope::mgPortRenderStateScope() : state(std::make_unique<State>()) {}
+
+mgPortRenderStateScope::~mgPortRenderStateScope() {
+    mgRenderInfo = state->render;
+    gs_state = state->gs;
+    frame_tex = state->frame;
+    mgFRAME_1 = state->frame_register;
+    current_target = state->target;
+    mgScreenWidth = state->screen[0];
+    mgScreenHeight = state->screen[1];
+    mgScreenNX = state->screen[2];
+    mgScreenNY = state->screen[3];
+    mgScreenMX = state->screen[4];
+    mgScreenMY = state->screen[5];
+    mgScreenOffx = state->screen[6];
+    mgScreenOffy = state->screen[7];
+    dest_alpha_valid = state->alpha_valid;
+    dest_alpha_write = state->alpha_write;
+    in_shadow = state->shadow;
+    if (gfx_open) {
+        gfx::SetRenderTarget(current_target);
+    }
 }
 
 float mgPortTextureScale(gfx::TextureHandle texture) {
@@ -870,7 +972,7 @@ gfx::TextureHandle mgPortRenderTarget(uint32_t tbp0, int width, int height, int 
     const gfx::TextureHandle handle =
         gfx::CreateRenderTarget(static_cast<uint32_t>(width), static_cast<uint32_t>(height),
                                 psm != SCE_GS_PSMCT24, false, frame_target);
-    render_targets[tbp0] = RenderTargetEntry{handle, width, height, psm, frame_target};
+    render_targets[tbp0] = RenderTargetEntry{.handle = handle, .width = width, .height = height, .psm = psm, .frame_target = frame_target};
     return handle;
 }
 
@@ -888,13 +990,13 @@ gfx::TextureHandle mgPortRenderTarget(const mgCTexture *texture, bool frame_targ
         lookup_texture(texture);
     }
 
-    const uint32_t tbp0 = static_cast<uint32_t>(texture->tex0.TBP0);
+    const auto tbp0 = static_cast<uint32_t>(texture->tex0.TBP0);
     texture_targets[texture] = tbp0;
-    const auto physical = MgTexturePhysicalExtent(texture);
+    const auto  physical = MgTexturePhysicalExtent(texture);
     const float scale = static_cast<float>(physical.width) / (1u << texture->tex0.TW);
-    const int width = !frame_target && scale > 1 ? physical.width : texture->width;
-    const int height = !frame_target && scale > 1 ? physical.height : texture->height;
-    const auto handle = mgPortRenderTarget(tbp0, width, height, static_cast<int>(texture->tex0.PSM), frame_target);
+    const int   width = !frame_target && scale > 1 ? physical.width : texture->width;
+    const int   height = !frame_target && scale > 1 ? physical.height : texture->height;
+    const auto  handle = mgPortRenderTarget(tbp0, width, height, static_cast<int>(texture->tex0.PSM), frame_target);
     render_targets[tbp0].texture_scale = frame_target ? 1.0f : scale;
     return handle;
 }
@@ -923,30 +1025,15 @@ void mgPortDraw2D(gfx::Primitive primitive, std::span<const gfx::Vertex2D> verti
         gfx::Draw2D(primitive, vertices, texture, state, presentation);
         return;
     }
-    std::vector<gfx::Vertex2D> scaled(vertices.begin(), vertices.end());
-    for (auto &vertex : scaled) {
-        vertex.x *= target_scale;
-        vertex.y *= target_scale;
-        vertex.u *= source_scale;
-        vertex.v *= source_scale;
-    }
-    gfx::DrawState scaled_state = state;
-    scaled_state.scissor_rect = {state.scissor_rect.x * target_scale, state.scissor_rect.y * target_scale,
-                                  state.scissor_rect.w * target_scale, state.scissor_rect.h * target_scale};
-    std::vector<gfx::Vertex2D> presentation_vertices;
-    gfx::Presentation2D scaled_presentation;
+    const std::vector<gfx::Vertex2D> scaled = ScaleVertices(vertices, target_scale, source_scale);
+    std::vector<gfx::Vertex2D>       presentation_vertices;
+    gfx::Presentation2D              scaled_presentation;
     if (presentation) {
-        presentation_vertices.assign(presentation->vertices.begin(), presentation->vertices.end());
-        for (auto &vertex : presentation_vertices) {
-            vertex.x *= target_scale; vertex.y *= target_scale;
-            vertex.u *= source_scale; vertex.v *= source_scale;
-        }
+        presentation_vertices = ScaleVertices(presentation->vertices, target_scale, source_scale);
         scaled_presentation.vertices = presentation_vertices;
-        scaled_presentation.state = presentation->state;
-        auto &rect = scaled_presentation.state.scissor_rect;
-        rect = {rect.x * target_scale, rect.y * target_scale, rect.w * target_scale, rect.h * target_scale};
+        scaled_presentation.state = TargetDrawState(presentation->state);
     }
-    gfx::Draw2D(primitive, scaled, texture, scaled_state, presentation ? &scaled_presentation : nullptr);
+    gfx::Draw2D(primitive, scaled, texture, TargetDrawState(state), presentation ? &scaled_presentation : nullptr);
 }
 
 void mgPortDrawMesh(gfx::MeshHandle mesh, uint32_t first_index, uint32_t index_count,
@@ -1105,7 +1192,7 @@ bool mgPortInShadow() {
 
 // PORT_OVERRIDE definitions replacing ps2/src/mglib.cpp
 
-PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
+PORT_OVERRIDE void mgInit(int screen_mode, int /*video_mode*/) {
     mgScreenMode = ScreenSizeForMode(screen_mode, &mgScreenWidth, &mgScreenHeight);
     mgScreenNX = -(mgScreenWidth >> 1);
     mgScreenNY = -(mgScreenHeight >> 1);
@@ -1163,23 +1250,23 @@ PORT_OVERRIDE void mgInit(int screen_mode, int video_mode) {
     ready = true;
 }
 
-PORT_OVERRIDE void mgInitVif1Packet(u_long128 *, u_long128 *, int) {
+PORT_OVERRIDE void mgInitVif1Packet(u_long128 * /*unused*/, u_long128 * /*unused*/, int /*unused*/) {
 }
 
-PORT_OVERRIDE void mgSetPacketBuffer(mgCMemory *, mgCMemory *) {
+PORT_OVERRIDE void mgSetPacketBuffer(mgCMemory * /*unused*/, mgCMemory * /*unused*/) {
 }
 
 PORT_OVERRIDE void mgSetDataBuffer(mgCMemory *pool_a, mgCMemory *pool_b, int skip_header) {
-    u_char *base = (u_char *) pool_a->stAllocTest(1);
-    int     size = pool_a->stack_size - pool_a->stack_used;
+    auto *base = reinterpret_cast<u_char *>(pool_a->stAllocTest(1));
+    int   size = pool_a->stack_size - pool_a->stack_used;
 
     if (skip_header != 0) {
         base += 0x4000;
         size -= 0x800;
     }
 
-    data_buf[0].stSetBuffer((u_long128 *) base, size);
-    base = (u_char *) pool_b->stAllocTest(1);
+    data_buf[0].stSetBuffer(reinterpret_cast<u_long128 *>(base), size);
+    base = reinterpret_cast<u_char *>(pool_b->stAllocTest(1));
     size = pool_b->stack_size - pool_b->stack_used;
 
     if (skip_header != 0) {
@@ -1187,7 +1274,7 @@ PORT_OVERRIDE void mgSetDataBuffer(mgCMemory *pool_a, mgCMemory *pool_b, int ski
         size -= 0x800;
     }
 
-    data_buf[1].stSetBuffer((u_long128 *) base, size);
+    data_buf[1].stSetBuffer(reinterpret_cast<u_long128 *>(base), size);
     data_buf[0].stack_used = 0;
     data_buf[0].lock = 0;
     data_buf[1].stack_used = 0;
@@ -1200,17 +1287,20 @@ PORT_OVERRIDE mgCMemory *mgGetDataBuffer() {
 
 PORT_OVERRIDE void mgSetRenderInfo(float fov, float clip_near, float clip_far) {
     mgRenderInfo.SetRenderInfo(fov, mgScreenWidth, mgScreenHeight, clip_near, clip_far,
-                               mgScreenZDepth, 2096.0f / (3.0f * (float) mgScreenWidth));
+                               mgScreenZDepth, 2096.0f / (3.0f * static_cast<float>(mgScreenWidth)));
     ApplyVisibleBox(mgRenderInfo);
 }
 
 PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
-    if (manager == NULL) {
+    if (manager == nullptr) {
         manager = &mgDrawManager;
     }
 
     manager->texture_manager = &mgTexManager;
     manager->render_info = &mgRenderInfo;
+    MgTextureRefreshButtonGlyphs();
+    dest_alpha_valid = false;
+    dest_alpha_write = false;
     mgTimeFrameBegin();
     static const CScene    *last_scene = nullptr;
     static const mgCCamera *last_camera = nullptr;
@@ -1230,8 +1320,8 @@ PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
         last_event = event;
         last_map = map;
     }
-    // Entry takes its eye pose on the following logic tick. Exit cuts at the
-    // native ResetEyeView seam in the tick that restores the follow pose.
+    // Entry takes its eye pose on the following logic tick; exit cuts at ResetEyeView in the tick that
+    // restores the follow pose.
     last_dungeon_eye = dungeon_eye;
 
     if (!frame_open) {
@@ -1258,7 +1348,7 @@ PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
     mgSetPkTextureRepeat(1);
     mgSetPkFrameBuffer(-1, -1, -1, -1);
     // The window can change shape between ticks; SetRenderInfo only runs once per scene.
-    if (manager->render_info != NULL) {
+    if (manager->render_info != nullptr) {
         ApplyVisibleBox(*manager->render_info);
     }
 
@@ -1266,7 +1356,7 @@ PORT_OVERRIDE void mgBeginFrame(mgCDrawManager *manager) {
 }
 
 PORT_OVERRIDE void mgBeginPacket(mgCDrawManager *manager) {
-    if (manager == NULL) {
+    if (manager == nullptr) {
         manager = &mgDrawManager;
     }
 
@@ -1342,16 +1432,16 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
             std::vector<uint8_t> rgba;
             uint32_t             width = 0;
             uint32_t             height = 0;
-            bool written = screenshot_options.fps ? PresentScreenshotFps(rgba, width, height)
-                                                  : ReadNow(gfx::kMainTarget, rgba, width, height);
+            bool                 written = screenshot_options.fps ? PresentScreenshotFps(rgba, width, height)
+                                                                  : ReadNow(gfx::kMainTarget, rgba, width, height);
             written = written && gfx::WritePng(screenshot_path, rgba.data(), width, height);
 
             if (written) {
-                std::fprintf(stderr, "mglib: frame %d written to %s\n", frame_count,
-                             PathsDisplay(screenshot_path).c_str());
+                std::println(stderr, "mglib: frame {} written to {}", frame_count,
+                             PathsDisplay(screenshot_path));
             } else {
-                std::fprintf(stderr, "mglib: frame %d could not be written to %s\n", frame_count,
-                             PathsDisplay(screenshot_path).c_str());
+                std::println(stderr, "mglib: frame {} could not be written to {}", frame_count,
+                             PathsDisplay(screenshot_path));
                 status = kExitScreenshotFailed;
             }
 
@@ -1368,15 +1458,15 @@ PORT_OVERRIDE void mgEndFrame(mgCDrawManager *manager) {
     PresentTickEnd();
     mgNowFrameRate = mgTimeFrameFields();
 
-    if (!(mgNowFrameRate - (float) mgFrameRate <= 1.0f)) {
-        mgNowFrameRate = 1.0f + (float) mgFrameRate;
+    if (!(mgNowFrameRate - static_cast<float>(mgFrameRate) <= 1.0f)) {
+        mgNowFrameRate = 1.0f + static_cast<float>(mgFrameRate);
     }
 
     mgSendPacket(manager);
     dbuff_id ^= 1;
 }
 
-PORT_OVERRIDE void mgSendPacket(mgCDrawManager *manager) {
+PORT_OVERRIDE void mgSendPacket(mgCDrawManager * /*manager*/) {
     data_id ^= 1;
 }
 
@@ -1390,7 +1480,7 @@ PORT_OVERRIDE void mgFlushRenderInfo() {
 }
 
 PORT_OVERRIDE int mgDrawDirect(mgCFrame *frame) {
-    if (frame == NULL) {
+    if (frame == nullptr) {
         return 0;
     }
 
@@ -1398,7 +1488,7 @@ PORT_OVERRIDE int mgDrawDirect(mgCFrame *frame) {
 }
 
 PORT_OVERRIDE int mgDrawDirect(mgCVisual *visual, float (*matrix)[4]) {
-    if (visual == NULL) {
+    if (visual == nullptr) {
         return 0;
     }
 
@@ -1410,7 +1500,7 @@ PORT_OVERRIDE void mgDrawDirectStart() {
 }
 
 PORT_OVERRIDE int mgDrawDirect2(mgCFrame *frame) {
-    if (frame == NULL) {
+    if (frame == nullptr) {
         return 0;
     }
 
@@ -1422,7 +1512,7 @@ PORT_OVERRIDE int mgDrawDirect2(mgCFrame *frame) {
 PORT_OVERRIDE void mgDrawDirectEnd() {
 }
 
-PORT_OVERRIDE void StoreImage(int front_buffer) {
+PORT_OVERRIDE void StoreImage(int /*front_buffer*/) {
     if (frame_open) {
         return;
     }
@@ -1481,13 +1571,13 @@ gfx::TextureHandle RegisteredFrameTarget(const mgCTexture *texture) {
     }
 
     const gfx::TextureHandle target = mgPortRenderTarget(texture);
-    const auto record = registered_targets.find(texture);
+    const auto               record = registered_targets.find(texture);
 
     if (record == registered_targets.end() || record->second.seeded_from != image) {
-        const int scale = MgTexturePhysicalExtent(texture).width / (1u << texture->tex0.TW);
-        const gfx::Rect whole{0, 0, texture->width * scale, texture->height * scale};
+        const int       scale = MgTexturePhysicalExtent(texture).width / (1u << texture->tex0.TW);
+        const gfx::Rect whole{.x = 0, .y = 0, .w = texture->width * scale, .h = texture->height * scale};
         gfx::BlitTexture(image, whole, target, whole, gfx::Filter::Nearest);
-        registered_targets[texture] = RegisteredTarget{static_cast<uint32_t>(texture->tex0.TBP0), image};
+        registered_targets[texture] = RegisteredTarget{.tbp0 = static_cast<uint32_t>(texture->tex0.TBP0), .seeded_from = image};
     }
 
     return target;
@@ -1518,7 +1608,7 @@ void SetFrameBuffer(uint32_t tbp0, int width, int height, int psm, gfx::TextureH
     mgScreenOffy = 0x800 - height / 2;
 
     const int aligned_width = (width + 63) & ~63;
-    sceGsFrame frame = FromRaw<sceGsFrame>(0);
+    auto      frame = FromRaw<sceGsFrame>(0);
     frame.FBP = tbp0 >> 5;
     frame.FBW = aligned_width / 64;
     frame.PSM = psm;
@@ -1530,22 +1620,7 @@ void SetFrameBuffer(uint32_t tbp0, int width, int height, int psm, gfx::TextureH
     gs_state.scissor[2] = width - 1;
     gs_state.scissor[3] = height - 1;
 
-    int bpp = 0;
-
-    switch (psm) {
-        case SCE_GS_PSMCT32:
-            bpp = 32;
-            break;
-        case SCE_GS_PSMCT24:
-            bpp = 24;
-            break;
-        case SCE_GS_PSMCT16:
-        case SCE_GS_PSMCT16S:
-            bpp = 16;
-            break;
-        default:
-            break;
-    }
+    const int bpp = BytesPerTexel(psm) * 8;
 
     frame_tex.Initialize();
     frame_tex.width = static_cast<short>(width);
@@ -1584,7 +1659,7 @@ void SetFrameBuffer(uint32_t tbp0, int width, int height, int psm, gfx::TextureH
 // A registered texture is keyed by its full TBP0; the frame-address key drops the low five bits and
 // would collide with other keys.
 PORT_OVERRIDE void mgSetPkFrameBuffer(mgCTexture *texture) {
-    if (texture == NULL) {
+    if (texture == nullptr) {
         mgSetPkFrameBuffer(-1, -1, -1, -1);
         return;
     }
@@ -1596,7 +1671,7 @@ PORT_OVERRIDE void mgSetPkFrameBuffer(mgCTexture *texture) {
         return;
     }
 
-    mgSetPkFrameBuffer(static_cast<int>(texture->tex0.TBP0 / 32), static_cast<int>(texture->tex0.TBW << 6),
+    mgSetPkFrameBuffer((texture->tex0.TBP0 / 32), (texture->tex0.TBW << 6),
                        texture->height, psm);
 }
 
@@ -1605,9 +1680,7 @@ PORT_OVERRIDE void mgSetPkFrameBuffer(int fbp, int width, int height, int psm) {
         fbp = DrawFbp();
     }
 
-    if (psm < 0) {
-        psm = SCE_GS_PSMCT32;
-    }
+    psm = std::max(psm, 0);
 
     SetFrameBuffer(static_cast<uint32_t>(fbp) << 5, width, height, psm, gfx::kNullTexture);
 }
@@ -1632,7 +1705,7 @@ PORT_OVERRIDE void mgSetPkClearScreen(u_char red, u_char green, u_char blue, u_c
 
 PORT_OVERRIDE u_long128 *mgGetVuProgPacket(int id) {
     if (!VuProgIdValid(id)) {
-        return NULL;
+        return nullptr;
     }
 
     if (id < MG_VU_PROG_USER) {
@@ -1642,7 +1715,7 @@ PORT_OVERRIDE u_long128 *mgGetVuProgPacket(int id) {
     return user_prog_adr[id - MG_VU_PROG_USER];
 }
 
-PORT_OVERRIDE int mgSendVuProg(u_int *tag, int id) {
+PORT_OVERRIDE int mgSendVuProg(u_int * /*tag*/, int id) {
     now_prog_id = VuProgIdValid(id) ? id : -1;
     return 0;
 }
@@ -1668,8 +1741,8 @@ PORT_OVERRIDE void mgCloseFont() {
 }
 
 PORT_OVERRIDE void mgSetPkMoveImage(mgCTexture *source, mgRect<int> rect, mgCTexture *destination, int dst_x,
-                                    int dst_y, int direction) {
-    if (source == NULL || destination == NULL) {
+                                    int dst_y, int /*direction*/) {
+    if (source == nullptr || destination == nullptr) {
         return;
     }
 
@@ -1680,12 +1753,12 @@ PORT_OVERRIDE void mgSetPkMoveImage(mgCTexture *source, mgRect<int> rect, mgCTex
         return;
     }
 
-    CopyRectangle(mgPortFindTexture(source).texture, rect, mgPortFindTexture(destination).texture, dst_x, dst_y);
+    CopyRectangle(frame, rect, mgPortFindTexture(destination).texture, dst_x, dst_y);
 }
 
 PORT_OVERRIDE void mgSetPkMoveImage(sceGsTex0 *src, mgRect<int> src_rect, sceGsTex0 *dst, int dst_x, int dst_y,
-                                    int direction) {
-    if (src == NULL || dst == NULL) {
+                                    int /*direction*/) {
+    if (src == nullptr || dst == nullptr) {
         return;
     }
 
@@ -1695,13 +1768,12 @@ PORT_OVERRIDE void mgSetPkMoveImage(sceGsTex0 *src, mgRect<int> src_rect, sceGsT
         return;
     }
 
-    CopyRectangle(mgPortFindTexture(ToRaw(*src)).texture, src_rect, mgPortFindTexture(ToRaw(*dst)).texture, dst_x,
-                  dst_y);
+    CopyRectangle(frame, src_rect, mgPortFindTexture(ToRaw(*dst)).texture, dst_x, dst_y);
 }
 
 PORT_OVERRIDE void mgSetPkMoveImage(mgCTexture *source, mgRect<int> source_rect, mgCTexture *destination,
-                                    mgRect<int> destination_rect, mgCDrawEnv *draw_env) {
-    if (source == NULL || destination == NULL) {
+                                    mgRect<int> destination_rect, mgCDrawEnv * /*draw_env*/) {
+    if (source == nullptr || destination == nullptr) {
         return;
     }
 
@@ -1710,8 +1782,8 @@ PORT_OVERRIDE void mgSetPkMoveImage(mgCTexture *source, mgRect<int> source_rect,
 }
 
 PORT_OVERRIDE void mgSetPkMoveImage(sceGsTex0 *src, mgRect<int> src_rect, sceGsTex0 *dst, int dst_height,
-                                    mgRect<int> dst_rect, mgCDrawEnv *env) {
-    if (src == NULL || dst == NULL) {
+                                    mgRect<int> dst_rect, mgCDrawEnv * /*env*/) {
+    if (src == nullptr || dst == nullptr) {
         return;
     }
 
@@ -1719,7 +1791,7 @@ PORT_OVERRIDE void mgSetPkMoveImage(sceGsTex0 *src, mgRect<int> src_rect, sceGsT
 }
 
 PORT_OVERRIDE int mgStoreImage(mgCTexture *texture, u_long128 *buffer) {
-    if (texture == NULL || buffer == NULL) {
+    if (texture == nullptr || buffer == nullptr) {
         return 0;
     }
 
@@ -1728,25 +1800,25 @@ PORT_OVERRIDE int mgStoreImage(mgCTexture *texture, u_long128 *buffer) {
     const int psm = static_cast<int>(texture->tex0.PSM);
     const int bytes_per_texel = BytesPerTexel(psm);
     const int bytes = width * height * bytes_per_texel;
-    uint8_t *out = reinterpret_cast<uint8_t *>(buffer);
+    auto     *out = reinterpret_cast<uint8_t *>(buffer);
 
     if (bytes > 0) {
         std::memset(out, 0, static_cast<size_t>(bytes));
     }
 
     std::vector<uint8_t> rgba;
-    uint32_t src_width = 0;
-    uint32_t src_height = 0;
-    const auto source = mgPortFindTexture(texture).texture;
-    const bool has_source = bytes > 0 &&
-                            mgPortReadColor(source, rgba, src_width, src_height) &&
-                            src_width > 0 && src_height > 0 &&
-                            rgba.size() >= static_cast<size_t>(src_width) * src_height * 4;
+    uint32_t             src_width = 0;
+    uint32_t             src_height = 0;
+    const auto           source = mgPortFindTexture(texture).texture;
+    const bool           has_source = bytes > 0 &&
+                                      mgPortReadColor(source, rgba, src_width, src_height) &&
+                                      src_width > 0 && src_height > 0 &&
+                                      rgba.size() >= static_cast<size_t>(src_width) * src_height * 4;
 
     if (has_source) {
-        uint32_t content_width = src_width;
-        uint32_t content_height = src_height;
-        const auto info = gfx::GetTextureInfo(source);
+        uint32_t    content_width = src_width;
+        uint32_t    content_height = src_height;
+        const auto  info = gfx::GetTextureInfo(source);
         const float scale = TextureScale(source);
         if (info && scale > 1.0f) {
             content_width = static_cast<uint32_t>(width * scale * src_width / info->width);
@@ -1771,7 +1843,7 @@ PORT_OVERRIDE int mgStoreImage(mgCTexture *texture, u_long128 *buffer) {
                 for (uint32_t x = 0; x < kPhotoHdSize; ++x) {
                     const uint32_t x0 = x * content_width / kPhotoHdSize;
                     const uint32_t x1 = std::max(x0 + 1, (x + 1) * content_width / kPhotoHdSize);
-                    uint32_t sum[3] = {};
+                    uint32_t       sum[3] = {};
                     for (uint32_t sy = y0; sy < y1; ++sy) {
                         for (uint32_t sx = x0; sx < x1; ++sx) {
                             const uint8_t *pixel = &rgba[(static_cast<size_t>(sy) * src_width + sx) * 4];
@@ -1781,7 +1853,7 @@ PORT_OVERRIDE int mgStoreImage(mgCTexture *texture, u_long128 *buffer) {
                         }
                     }
                     const uint32_t count = (y1 - y0) * (x1 - x0);
-                    uint8_t *texel = &hd[(static_cast<size_t>(y) * kPhotoHdSize + x) * 4];
+                    uint8_t       *texel = &hd[(static_cast<size_t>(y) * kPhotoHdSize + x) * 4];
                     texel[0] = static_cast<uint8_t>(sum[0] / count);
                     texel[1] = static_cast<uint8_t>(sum[1] / count);
                     texel[2] = static_cast<uint8_t>(sum[2] / count);
@@ -1805,9 +1877,9 @@ PORT_OVERRIDE int mgStoreZBuffImage(mgRect<int> &rect, u_long128 *buffer) {
         return 0;
     }
 
-    const DepthRect query{rect.left, rect.top, width, height};
+    const DepthRect            query{.x = rect.left, .y = rect.top, .width = width, .height = height};
     const std::optional<float> depth = query == depth_answered_rect ? depth_answer[kStoreDepthSlot] : std::nullopt;
-    const uint32_t value = depth ? mgPortGsDepth(*depth) : 0;
+    const uint32_t             value = depth ? mgPortGsDepth(*depth) : 0;
 
     if (gfx_open) {
         gfx::ReadDepth(static_cast<uint32_t>(kStoreDepthSlot), static_cast<float>(rect.left),
@@ -1816,7 +1888,7 @@ PORT_OVERRIDE int mgStoreZBuffImage(mgRect<int> &rect, u_long128 *buffer) {
         depth_queued_rect = query;
     }
 
-    u_int *out = reinterpret_cast<u_int *>(buffer);
+    auto *out = reinterpret_cast<u_int *>(buffer);
 
     for (int pixel = 0; pixel < width * height; ++pixel) {
         out[pixel] = value;
@@ -1825,12 +1897,15 @@ PORT_OVERRIDE int mgStoreZBuffImage(mgRect<int> &rect, u_long128 *buffer) {
     return width * height / 4;
 }
 
-PORT_OVERRIDE void mgBeginDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
-    if (shadow == NULL) {
+PORT_OVERRIDE void mgBeginDrawShadow(mgCTexture *shadow, mgCTexture * /*unused*/) {
+    if (shadow == nullptr) {
         return;
     }
 
     // The counts live in the main target's stencil, which the renderer does not clear per frame.
+    // They take the stencil over from a destination alpha mask.
+    dest_alpha_valid = false;
+    dest_alpha_write = false;
     if (gfx_open) {
         gfx::ClearStencil(0, nullptr);
     }
@@ -1838,33 +1913,34 @@ PORT_OVERRIDE void mgBeginDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
     in_shadow = true;
 }
 
-PORT_OVERRIDE void mgEndDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
-    if (shadow == NULL || !in_shadow) {
+PORT_OVERRIDE void mgEndDrawShadow(mgCTexture *shadow, mgCTexture * /*unused*/) {
+    if (shadow == nullptr || !in_shadow) {
         return;
     }
 
     // Any non-zero count darkens the pixel once and zeroes it: union, as retail's AEM composite.
     gfx::DrawState state = mgPortDrawState();
     state.blend = true;
-    state.alpha = gfx::GsBlend{2, 1, 0, 1, 0x80};
+    state.alpha = gfx::GsBlend{.a = 2, .b = 1, .c = 0, .d = 1, .fix = 0x80};
     state.depth_test = gfx::DepthTest::Always;
     state.depth_write = false;
     state.alpha_test = false;
     state.cull = gfx::CullMode::None;
     state.stencil_test = true;
-    const gfx::StencilFace composite_face{gfx::CompareOp::NotEqual, gfx::StencilOp::Keep,
-                                          gfx::StencilOp::Zero, gfx::StencilOp::Keep};
+    const gfx::StencilFace composite_face{.compare = gfx::CompareOp::NotEqual, .fail = gfx::StencilOp::Keep, .pass = gfx::StencilOp::Zero, .depth_fail = gfx::StencilOp::Keep};
     state.stencil_front = composite_face;
     state.stencil_back = composite_face;
     state.color_write_mask = gfx::kWriteRgba;
 
     // Alpha 48 is retail's TEXA TA0 for the composite.
-    const uint8_t colour[4] = {0, 0, 0, 48};
+    const uint8_t      colour[4] = {0, 0, 0, 48};
     const mgPortExtent extent = mgPortVisibleExtent();
-    const float corners[4][2] = {{extent.left, extent.top},
-                                 {extent.right, extent.top},
-                                 {extent.right, extent.bottom},
-                                 {extent.left, extent.bottom}};
+    const float        corners[4][2] = {
+        {extent.left,  extent.top   },
+        {extent.right, extent.top   },
+        {extent.right, extent.bottom},
+        {extent.left,  extent.bottom}
+    };
     gfx::Vertex2D quad[4]{};
     for (int i = 0; i < 4; ++i) {
         quad[i].x = corners[i][0];
@@ -1873,7 +1949,7 @@ PORT_OVERRIDE void mgEndDrawShadow(mgCTexture *shadow, mgCTexture *unused) {
     }
     mgPortDraw2D(gfx::Primitive::Quads, quad, gfx::TextureBinding{}, state);
 
-    sceGsTexa texa = FromRaw<sceGsTexa>(0);
+    auto texa = FromRaw<sceGsTexa>(0);
     texa.TA0 = 0;
     texa.TA1 = 128;
     texa.AEM = 1;

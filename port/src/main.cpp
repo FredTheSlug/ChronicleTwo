@@ -3,18 +3,21 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <print>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <vector>
 
 #include "audio/soundtrack.hpp"
+#include "audio_init.hpp"
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "exitcodes.hpp"
 #include "gfx/gfx.hpp"
 #include "identity.hpp"
 #include "mainloop.hpp"
+#include "mainloop_port.hpp"
 #include "mglib_port.hpp"
 #include "platform/clock.hpp"
 #include "platform/config.hpp"
@@ -30,12 +33,6 @@
 #include "sce/threads.hpp"
 #include "sound_port.hpp"
 #include "test_hooks.hpp"
-
-// The audio branch adds audio_init.hpp; until it lands the port builds without audio.
-#if __has_include("audio_init.hpp")
-#include "audio_init.hpp"
-#define CT_HAVE_AUDIO_INIT 1
-#endif
 
 int VSyncCallBack(int field);
 
@@ -65,29 +62,8 @@ struct Options {
 Options g_options;
 
 [[noreturn]] void Usage(const char *program) {
-    std::fprintf(stderr,
-                 "usage: %s [--data DIR] [--run-dir DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n"
-                 "          [--frames N] [--screenshot PATH] [--input SCRIPT] [--display-per-tick N]\n"
-                 "          [--show-fps] [--log-fps] [--screenshot-display N] [--screenshot-fps]\n"
-                 "  --jump MODE[:ARG]  start in town:<map>, dungeon:<n>[:<floor>], event:<id>, title, opening, menu (DC2_JUMP)\n"
-                 "  --fast-load        shorten loading-screen holds (DC2_FAST_LOAD=1)\n"
-                 "  --give ITEM,...    give missing items and weapons on arrival (DC2_GIVE)\n"
-                 "  --run-dir DIR      game root containing data/, port_data/ and saves/\n"
-                 "                     (default: the per-user chronicletwo app data directory)\n"
-                 "  --data DIR         override the extracted data/ subdirectory (DC2_DATA)\n"
-                 "  --save DIR         override the saves/ subdirectory (DC2_SAVE)\n"
-                 "  --headless         render offscreen (SDL offscreen driver, VK_EXT_headless_surface)\n"
-                 "  --offscreen        --headless without a Vulkan surface: render to an image only\n"
-                 "  --frames N         exit after frame N of the game's main loop (N a positive integer)\n"
-                 "  --screenshot PATH  with --frames: write the last frame to PATH as a PNG on exit\n"
-                 "  --screenshot-display N  with --screenshot: also write N interpolated display frames of that frame\n"
-                 "                     beside PATH, as PATH-display-K.png for K = 0..N-1\n"
-                 "  --screenshot-fps   with --screenshot: draw the FPS counter into the written image\n"
-                 "  --input SCRIPT     drive the pads named in SCRIPT from an input script\n"
-                 "  --window WxH       window size in pixels (default: config.json, then the monitor's)\n"
-                 "  --display-per-tick N  headless: also render N interpolated display frames per tick (discarded)\n"
-                 "  --show-fps         draw the FPS counter on presented frames, headless too\n"
-                 "  --log-fps          print the FPS counter's text on stderr every second\n",
+    std::println(stderr,
+                 "usage: {} [--data DIR] [--run-dir DIR] [--save DIR] [--window WxH] [--headless] [--offscreen]\n          [--frames N] [--screenshot PATH] [--input SCRIPT] [--display-per-tick N]\n          [--show-fps] [--log-fps] [--screenshot-display N] [--screenshot-fps]\n  --jump MODE[:ARG]  start in town:<map>, dungeon:<n>[:<floor>], event:<id>, title, opening, menu (DC2_JUMP)\n  --fast-load        shorten loading-screen holds (DC2_FAST_LOAD=1)\n  --give ITEM,...    give missing items and weapons on arrival (DC2_GIVE)\n  --run-dir DIR      game root containing data/, port_data/ and saves/\n                     (default: the per-user chronicletwo app data directory)\n  --data DIR         override the extracted data/ subdirectory (DC2_DATA)\n  --save DIR         override the saves/ subdirectory (DC2_SAVE)\n  --headless         render offscreen (SDL offscreen driver, VK_EXT_headless_surface)\n  --offscreen        --headless without a Vulkan surface: render to an image only\n  --frames N         exit after frame N of the game's main loop (N a positive integer)\n  --screenshot PATH  with --frames: write the last frame to PATH as a PNG on exit\n  --screenshot-display N  with --screenshot: also write N interpolated display frames of that frame\n                     beside PATH, as PATH-display-K.png for K = 0..N-1\n  --screenshot-fps   with --screenshot: draw the FPS counter and menu pointer into the written image\n  --input SCRIPT     drive the pads named in SCRIPT from an input script\n  --window WxH       window size in pixels (default: config.json, then the monitor's)\n  --display-per-tick N  headless: also render N interpolated display frames per tick (discarded)\n  --show-fps         draw the FPS counter on presented frames, headless too\n  --log-fps          print the FPS counter's text on stderr every second",
                  program);
     std::exit(kExitUsage);
 }
@@ -174,15 +150,15 @@ Options ParseOptions(int argc, const char **argv) {
 }
 
 void ReportPipelineProgress(std::uint32_t done, std::uint32_t total) {
-    static std::uint32_t    reported = 0;
+    static std::uint32_t reported = 0;
     constexpr std::uint32_t kSteps = 4;
     if (total == 0) {
         return;
     }
-    std::uint32_t step = done * kSteps / total;
+    const std::uint32_t step = done * kSteps / total;
     if (done == 0 || step > reported) {
         reported = step;
-        std::fprintf(stderr, "compiling shaders %u/%u\n", done, total);
+        std::println(stderr, "compiling shaders {}/{}", done, total);
     }
 }
 
@@ -198,7 +174,7 @@ gfx::PresentMode PresentMode(ConfigPresentMode mode) {
 }
 
 gfx::FrameLayout Layout(const Config &config) {
-    return {config.aspect == ConfigAspect::Auto ? gfx::AspectMode::Fill : gfx::AspectMode::Letterbox, config.ui_scale};
+    return {.aspect = config.aspect == ConfigAspect::Auto ? gfx::AspectMode::Fill : gfx::AspectMode::Letterbox, .ui_scale = config.ui_scale};
 }
 
 PresentSettings PresentSettingsFor(const Config &config, const Options &options) {
@@ -256,19 +232,23 @@ int Run(int argc, const char **argv) {
         (give && (options.give || *give) && !GameSetGive(give))) {
         Usage(argv[0]);
     }
+    PortAutosave = !options.headless && !GameHasJump() && options.input.empty();
     const char *fast = SettingsEnv("FAST_LOAD");
     GameSetFastLoad(options.fast_load || (fast && *fast && *fast != '0'));
-    InputScript   input_script;
+    InputScript input_script;
     if (!options.input.empty()) {
         std::string error;
         if (!InputScriptLoad(options.input, input_script, error)) {
-            std::fprintf(stderr, "bad input script: %s\n", error.c_str());
+            std::println(stderr, "bad input script: {}", error);
             std::exit(kExitUsage);
         }
     }
     ConfigLoad();
     FirstRunRequireData(PathsDataRoot(), options.headless);
     InitCDFile();
+    if (!options.headless) {
+        GameSetDataIcon();
+    }
     if (!DataReadPrepareScriptTiming(options.headless)) {
         return kExitScriptTiming;
     }
@@ -296,12 +276,10 @@ int Run(int argc, const char **argv) {
     renderer.validation = renderer.validation || SettingsEnv("VULKAN_VALIDATION") != nullptr;
     gfx::RendererInit(WindowHandle(), renderer);
     PresentSetSettings(PresentSettingsFor(ConfigGet(), g_options));
-#ifdef CT_HAVE_AUDIO_INIT
     AudioInit(options.headless);
     // --frames leaves through std::exit from mgEndFrame: the output must stop before the mixer's statics are destroyed
     // under the audio thread.
     std::atexit(AudioShutdown);
-#endif
 
     ClockSetTickRate(kConfigTickRateDefault);
     ClockSetUnbounded(options.headless);
@@ -320,9 +298,7 @@ int Run(int argc, const char **argv) {
     ClockRemovePumpHook(PumpHost);
     ConfigSetChangeHook(nullptr);
     InputShutdown();
-#ifdef CT_HAVE_AUDIO_INIT
     AudioShutdown();
-#endif
     gfx::RendererShutdown();
     WindowShutdown();
     return kExitOk;
@@ -338,9 +314,11 @@ PORT_OVERRIDE int main(int argc, const char **argv) {
 int wmain(int argc, wchar_t **wide_argv) {
     std::vector<std::string>  args;
     std::vector<const char *> argv;
+    args.reserve(argc);
     for (int i = 0; i < argc; ++i) {
         args.push_back(PathsDisplay(std::filesystem::path(wide_argv[i])));
     }
+    argv.reserve(args.size());
     for (const std::string &arg : args) {
         argv.push_back(arg.c_str());
     }

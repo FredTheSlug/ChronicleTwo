@@ -12,16 +12,23 @@
 #endif
 #endif
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <charconv>
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <memory>
+#include <print>
 #include <set>
+#include <utility>
 
 #include "platform/files.hpp"
 #include "platform/paths.hpp"
@@ -33,9 +40,24 @@ SaveSlotList SaveSlots;
 bool         SaveSlotNew = false;
 
 namespace {
-constexpr char     kPrefix[] = "BESCES-51190dkcl";
-constexpr char     kSecondCard[] = ".card2";
-SaveSlotImportHook import_hook;
+std::optional<AutosaveSpawn> pending_spawn;
+constexpr char               kPrefix[] = "BESCES-51190dkcl";
+constexpr char               kSecondCard[] = ".card2";
+constexpr char               kVersion2[] = "dc2Ver2";
+constexpr char               kVersion4[] = "dc2Ver4";
+SaveSlotImportHook           import_hook;
+
+bool ValidSpawn(const AutosaveSpawn &spawn) {
+    if (spawn.counter == 0 || spawn.map_no < 0 || spawn.map_no >= 256) {
+        return false;
+    }
+    for (const auto *vector : {spawn.position, spawn.rotation, spawn.camera_pos, spawn.camera_ref}) {
+        if (!std::all_of(vector, vector + 4, [](float value) { return std::isfinite(value); })) {
+            return false;
+        }
+    }
+    return true;
+}
 
 bool ImportStep(SaveSlotImportStage stage, const fs::path &from, const fs::path &to) {
     return !import_hook || import_hook(stage, from, to);
@@ -51,7 +73,8 @@ int CheckDigit(const char *bytes, std::size_t size) {
 
 bool ListDirectory(const fs::path &path, std::vector<fs::path> &paths) {
     std::error_code        error;
-    fs::directory_iterator iter(path, error), end;
+    fs::directory_iterator iter(path, error);
+    fs::directory_iterator end;
     if (error == std::errc::no_such_file_or_directory) {
         return true;
     }
@@ -112,11 +135,13 @@ ByteComparison SameBytes(const fs::path &left, const fs::path &right) {
     if (size != other_size) {
         return ByteComparison::Different;
     }
-    std::ifstream a(left, std::ios::binary), b(right, std::ios::binary);
+    std::ifstream a(left, std::ios::binary);
+    std::ifstream b(right, std::ios::binary);
     if (!a || !b || !ImportStep(SaveSlotImportStage::Comparing, left, right)) {
         return ByteComparison::Unavailable;
     }
-    std::array<char, 65536> x, y;
+    std::array<char, 65536> x;
+    std::array<char, 65536> y;
     for (std::uintmax_t remaining = size; remaining;) {
         const auto count = static_cast<std::streamsize>(std::min<std::uintmax_t>(remaining, x.size()));
         if (!a.read(x.data(), count) || !b.read(y.data(), count)) {
@@ -131,10 +156,10 @@ ByteComparison SameBytes(const fs::path &left, const fs::path &right) {
 }
 
 struct CachedHeader {
-    std::uintmax_t     size;
+    std::uintmax_t     size{};
     fs::file_time_type modified;
     SaveSlotState      state;
-    SAVEDATA_INFO      info;
+    SAVEDATA_INFO      info{};
 };
 
 std::map<fs::path, CachedHeader> header_cache;
@@ -154,8 +179,8 @@ SaveSlotState ReadHeader(const fs::path &path, std::uintmax_t size, SAVEDATA_INF
     if (!file) {
         return SaveSlotState::Unreadable;
     }
-    if (std::memcmp(image->version, "dc2Ver4", 8) != 0 &&
-        std::memcmp(image->version, "dc2Ver2", 8) != 0) {
+    if (std::memcmp(image->version, kVersion4, sizeof(kVersion4)) != 0 &&
+        std::memcmp(image->version, kVersion2, sizeof(kVersion2)) != 0) {
         return SaveSlotState::WrongVersion;
     }
     if (image->incomplete) {
@@ -163,7 +188,7 @@ SaveSlotState ReadHeader(const fs::path &path, std::uintmax_t size, SAVEDATA_INF
     }
     // Ver2 can be loaded and converted, but its raw header must not grant
     // unlocks, debug codes or newest-save priority before that conversion.
-    info.state = std::memcmp(image->version, "dc2Ver4", 8) == 0 ? 1 : 0;
+    info.state = std::memcmp(image->version, kVersion4, sizeof(kVersion4)) == 0 ? 1 : 0;
     info.map_no = image->map_no;
     info.program_loop_no = image->program_loop_no;
     info.dungeon_no = image->dungeon_no;
@@ -198,7 +223,7 @@ SaveSlotState CachedInfo(const fs::path &path, SAVEDATA_INFO &info) {
     }
     const auto state = ReadHeader(path, size, info);
     if (state != SaveSlotState::Unreadable) {
-        header_cache[path] = {size, modified, state, info};
+        header_cache[path] = {.size = size, .modified = modified, .state = state, .info = info};
     }
     return state;
 }
@@ -263,8 +288,8 @@ bool Archive(const fs::path &dir, bool second_card) {
         synced = synced && source_synced && target_synced;
 #endif
         if (!synced) {
-            std::fprintf(stderr, "save import: archive moved but directory sync failed: %s\n",
-                         PathsDisplay(target).c_str());
+            std::println(stderr, "save import: archive moved but directory sync failed: {}",
+                         PathsDisplay(target));
         }
         // A reported sync failure after publication cannot roll back the move.
         // Both a persisted move and its pre-move state are recoverable on scan.
@@ -285,10 +310,103 @@ int FirstFree(const std::set<int> &occupied) {
 }
 } // namespace
 
+void SaveSlotSetPendingSpawn(std::optional<AutosaveSpawn> spawn) {
+    pending_spawn = spawn && ValidSpawn(*spawn) ? spawn : std::nullopt;
+}
+
+std::optional<AutosaveSpawn> SaveSlotTakePendingSpawn(int map_no) {
+    auto spawn = std::exchange(pending_spawn, std::nullopt);
+    if (spawn && spawn->map_no == map_no) {
+        return spawn;
+    }
+    return std::nullopt;
+}
+
 fs::path SaveSlotsRoot() { return PathsSaveRoot() / "saves"; }
 
 fs::path SaveSlotPath(int number, bool second_card) {
     return SaveSlotsRoot() / (std::string(kPrefix) + std::to_string(number) + (second_card ? kSecondCard : ""));
+}
+
+fs::path SaveSlotAutosavePath() { return SaveSlotsRoot() / "autosave"; }
+
+fs::path SaveSlotAutosaveSpawnPath(u64 counter) {
+    return SaveSlotsRoot() / ("autosave.spawn." + std::to_string(counter) + ".json");
+}
+
+bool SaveSlotWriteSpawn(const AutosaveSpawn &spawn) {
+    if (!ValidSpawn(spawn)) {
+        return false;
+    }
+    const nlohmann::json document = {
+        {"schema_version", 1               },
+        {"counter",        spawn.counter   },
+        {"map_no",         spawn.map_no    },
+        {"position",       spawn.position  },
+        {"rotation",       spawn.rotation  },
+        {"camera_pos",     spawn.camera_pos},
+        {"camera_ref",     spawn.camera_ref}
+    };
+    const auto bytes = document.dump(2) + "\n";
+    return FilesWrite(SaveSlotAutosaveSpawnPath(spawn.counter), bytes.data(), bytes.size(), true) == FilesResult::kWritten;
+}
+
+std::optional<AutosaveSpawn> SaveSlotReadSpawn(u64 counter, int map_no) {
+    std::array<char, 16385> bytes{};
+    const auto              count = FilesRead(SaveSlotAutosaveSpawnPath(counter), bytes.data(), bytes.size());
+    if (count == 0 || count == bytes.size()) {
+        return std::nullopt;
+    }
+    try {
+        const auto document = nlohmann::json::parse(bytes.begin(), bytes.begin() + count);
+        if (!document.at("schema_version").is_number_integer() || document.at("schema_version") != 1 ||
+            !document.at("counter").is_number_unsigned() || !document.at("map_no").is_number_integer() ||
+            document.at("map_no") < 0 || document.at("map_no") >= 256) {
+            return std::nullopt;
+        }
+        AutosaveSpawn spawn;
+        spawn.counter = document.at("counter").get<u64>();
+        spawn.map_no = document.at("map_no").get<int>();
+        for (auto [name, vector] : {
+                 std::pair{"position",   spawn.position  },
+                 std::pair{"rotation",   spawn.rotation  },
+                 std::pair{"camera_pos", spawn.camera_pos},
+                 std::pair{"camera_ref", spawn.camera_ref}
+        }) {
+            const auto &values = document.at(name);
+            if (!values.is_array() || values.size() != 4) {
+                return std::nullopt;
+            }
+            for (int i = 0; i < 4; ++i) {
+                vector[i] = values.at(i).get<float>();
+            }
+        }
+        if (spawn.counter == counter && spawn.map_no == map_no && ValidSpawn(spawn)) {
+            return spawn;
+        }
+    } catch (const nlohmann::json::exception &) {
+    }
+    return std::nullopt;
+}
+
+void SaveSlotPruneSpawns(std::optional<u64> keep) {
+    std::error_code error;
+    for (fs::directory_iterator it(SaveSlotsRoot(), error), end; !error && it != end; it.increment(error)) {
+        const auto name = it->path().filename().string();
+        constexpr std::string_view prefix = "autosave.spawn.";
+        if (!name.starts_with(prefix) || !name.ends_with(".json")) {
+            continue;
+        }
+        const auto digits = std::string_view(name).substr(prefix.size(), name.size() - prefix.size() - 5);
+        u64        counter = 0;
+        const auto [last, result] = std::from_chars(digits.data(), digits.data() + digits.size(), counter);
+        if (result == std::errc{} && last == digits.data() + digits.size() && (!keep || counter != *keep)) {
+            std::error_code ignored;
+            if (it->is_regular_file(ignored)) {
+                fs::remove(it->path(), ignored);
+            }
+        }
+    }
 }
 
 int SaveSlotNumber(const std::string &name, bool &second_card) {
@@ -323,7 +441,7 @@ int SaveSlotRows(const SaveSlotList &list, bool saving) {
 }
 
 bool SaveSlotIsNew(const SaveSlotList &list, int row, bool saving) {
-    return saving && list.first_free >= 0 && row == static_cast<int>(list.saves.size());
+    return saving && list.first_free >= 0 && std::cmp_equal(row, list.saves.size());
 }
 
 const char *SaveSlotStatus(SaveSlotState state) {
@@ -359,8 +477,8 @@ SaveSlotState SaveSlotRead(const fs::path &path, SAVEDATA_FORMAT &image) {
     if (FilesRead(path, &image, sizeof(image)) != sizeof(image)) {
         return SaveSlotState::Unreadable;
     }
-    const bool old_version = std::memcmp(image.version, "dc2Ver2", 8) == 0;
-    if (!old_version && std::memcmp(image.version, "dc2Ver4", 8) != 0) {
+    const bool old_version = std::memcmp(image.version, kVersion2, sizeof(kVersion2)) == 0;
+    if (!old_version && std::memcmp(image.version, kVersion4, sizeof(kVersion4)) != 0) {
         return SaveSlotState::WrongVersion;
     }
     if (image.incomplete) {
@@ -379,13 +497,13 @@ SaveSlotState SaveSlotRead(const fs::path &path, SAVEDATA_FORMAT &image) {
     return SaveSlotState::Ready;
 }
 
-SaveSlotList SaveSlotScan() {
+SaveSlotList SaveSlotScan(bool include_autosave) {
     SaveSlotList                             list;
     std::map<std::pair<int, bool>, fs::path> entries;
     std::vector<fs::path>                    paths;
     list.read_failed = !ListDirectory(SaveSlotsRoot(), paths);
     for (const auto &path : paths) {
-        bool second;
+        bool second = false;
         int  number = SaveSlotNumber(path.filename().string(), second);
         if (number >= 0) {
             entries[{number, second}] = path;
@@ -399,7 +517,7 @@ SaveSlotList SaveSlotScan() {
             list.read_failed = true;
         }
         for (const auto &dir : paths) {
-            bool second;
+            bool second = false;
             int  number = SaveSlotNumber(dir.filename().string(), second);
             if (number < 0 || second) {
                 continue;
@@ -412,13 +530,14 @@ SaveSlotList SaveSlotScan() {
     // allocating collision numbers. The archive is never enumerated here.
     std::ranges::sort(legacy);
     for (const auto &[dir, second_card] : legacy) {
-        bool       second;
+        bool       second = false;
         int        number = SaveSlotNumber(dir.filename().string(), second);
         auto       key = std::make_pair(number, second_card);
         const auto source = dir / dir.filename();
         // Search all flat saves, even if the original number is now free. A
         // previous copy whose archive move failed needs no second publication.
-        bool copied = false, comparison_unavailable = false;
+        bool copied = false;
+        bool comparison_unavailable = false;
         for (const auto &[flat_key, path] : entries) {
             if (path.parent_path() != SaveSlotsRoot()) {
                 continue;
@@ -476,6 +595,18 @@ SaveSlotList SaveSlotScan() {
         entries[key] = source;
     }
     std::set<fs::path> seen;
+    if (include_autosave) {
+        SaveSlot slot;
+        slot.number = -1;
+        slot.autosave = true;
+        slot.path = SaveSlotAutosavePath();
+        seen.insert(slot.path);
+        slot.state = CachedInfo(slot.path, slot.info);
+        if (slot.state != SaveSlotState::Unreadable) {
+            slot.info.file_no = slot.number;
+            list.saves.push_back(slot);
+        }
+    }
     for (const auto &[key, path] : entries) {
         SaveSlot slot;
         slot.number = key.first;

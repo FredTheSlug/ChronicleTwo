@@ -1,10 +1,8 @@
 #include "common.h"
 
-#include <SDL3/SDL.h>
-
 #include <algorithm>
-#include <cmath>
 #include <string>
+#include <utility>
 
 #include "gamepad.hpp"
 #include "mainloop.hpp"
@@ -30,6 +28,11 @@ namespace options {
 State g_screen;
 
 namespace {
+
+// MenuMouseSample button bits.
+constexpr std::uint32_t kMouseLeft = 1;
+constexpr std::uint32_t kMouseRight = 2;
+
 Repeat        g_repeat;
 bool          g_tracking = false;
 bool          g_pointing = false;
@@ -67,9 +70,8 @@ void Close() {
     g_screen.open = false;
     g_screen.binding = -1;
     g_wait_source.clear();
+    // Swallow the closing click or held key so it cannot change a retail option underneath.
     g_drain = true;
-    // Stay in menu-pointer mode until the retail Options screen finishes, so a closing click or
-    // held key cannot change one of its options. Its pad state and settings are otherwise untouched.
     MenuSePlay(SYSTEM_SE_CANCEL);
 }
 
@@ -124,10 +126,9 @@ InputMenuMouse Pointer() {
     g_pointer_x = sample.x;
     g_pointer_y = sample.y;
     g_pointing = sample.pointing;
-    // This page handles its own hit regions, so a click must not also reach the
-    // underlying retail Options screen through the shared synthetic pad edge.
+    // This page handles its own clicks; they must not also reach the retail Options screen as pad edges.
     MenuMouseSetButtons(0);
-    return {sample.pointing && sample.moved ? 1.0f : 0.0f, 0, sample.wheel, sample.held};
+    return {.dx = sample.pointing && sample.moved ? 1.0f : 0.0f, .dy = 0, .wheel = sample.wheel, .buttons = sample.held};
 }
 
 void Track(bool on) {
@@ -167,7 +168,7 @@ bool Run() {
     }
     const int cancel = LanguageCode > 0 ? PAD_CIRCLE : PAD_CROSS;
     const int confirm = LanguageCode > 0 ? PAD_CROSS : PAD_CIRCLE;
-    if (pressed_mouse & 2) {
+    if (pressed_mouse & kMouseRight) {
         if (g_screen.binding >= 0) {
             g_screen.binding = -1;
             g_drain = true;
@@ -180,7 +181,7 @@ bool Run() {
     }
     if (g_screen.binding >= 0) {
         const auto point = PointerPosition();
-        if ((pressed_mouse & 1) && HitTest(g_screen, point.x, point.y).kind == HitKind::Back) {
+        if ((pressed_mouse & kMouseLeft) && HitTest(g_screen, point.x, point.y).kind == HitKind::Back) {
             g_screen.binding = -1;
             g_drain = true;
             return true;
@@ -230,66 +231,74 @@ bool Run() {
                 Change(1);
             }
         } else if ((pressed & PAD_SQUARE) && !CurrentRow().action.empty()) {
-            Activate({HitKind::ResetBinding});
+            Activate({.kind = HitKind::ResetBinding});
         }
     }
     const auto point = PointerPosition();
     const Hit  hit = HitTest(g_screen, point.x, point.y);
     NavigatePointer(g_screen, point, mouse.dx != 0 || mouse.dy != 0, mouse.wheel);
-    if (pressed_mouse & 1) {
+    if (pressed_mouse & kMouseLeft) {
         Activate(hit);
         if (g_screen.open) {
             return true;
         }
-        if (!g_drain && PortMenuOption && MenuMouseOption(*PortMenuOption, MenuPosData ? MenuPosData->GetFormInfo(const_cast<char *>("Op_Switch")) : nullptr)) {
+        if (!g_drain && PortMenuOption && MenuPosData &&
+            MenuMouseOption(*PortMenuOption, MenuPosData->GetFormInfo(const_cast<char *>("Op_Switch")),
+                            MenuPosData->GetFormInfo(const_cast<char *>("clip0")))) {
             MenuMousePress(confirm);
         }
     }
     return g_screen.open || g_drain;
 }
 
-Point PointerPosition() { return {g_pointer_x, g_pointer_y}; }
+Point PointerPosition() { return {.x = g_pointer_x, .y = g_pointer_y}; }
 
 bool Pointing() { return g_tracking && g_pointing; }
 
 Point PointerToUi(float x, float y, int w, int h, const gfx::LogicalMapping &mapping) {
     if (w <= 0 || h <= 0 || mapping.scale_x <= 0 || mapping.scale_y <= 0) {
-        return {-1, -1};
+        return {.x = -1, .y = -1};
     }
-    return {(x * mapping.pixel_width / w - mapping.offset_x) / mapping.scale_x,
-            (y * mapping.pixel_height / h - mapping.offset_y) / mapping.scale_y};
+    return {.x = (x * mapping.pixel_width / w - mapping.offset_x) / mapping.scale_x,
+            .y = (y * mapping.pixel_height / h - mapping.offset_y) / mapping.scale_y};
 }
 
 Hit HitTest(const State &state, float x, float y) {
     if (state.binding >= 0) {
-        return Inside(x, y, kLeft, 343, kLeft + 105, 370) ? Hit{HitKind::Back} : Hit{};
+        return Inside(x, y, kLeft, 343, kLeft + 105, 370) ? Hit{.kind = HitKind::Back} : Hit{};
     }
     if (!state.open) {
-        return Inside(x, y, 284, 51, 444, 76) ? Hit{HitKind::Entry} : Hit{};
+        return Inside(x, y, 284, 51, 444, 76) ? Hit{.kind = HitKind::Entry} : Hit{};
     }
-    for (int page = 0; page < 4; ++page) {
-        if (Inside(x, y, kLeft + page * 88, 91, kLeft + (page + 1) * 88, 114)) {
-            return {HitKind::Tab, page};
+    for (int page = 0; page < kPages; ++page) {
+        if (Inside(x, y, kLeft + page * kTabStep, 91, kLeft + (page + 1) * kTabStep, 114)) {
+            return {.kind = HitKind::Tab, .index = page};
         }
     }
     if (Inside(x, y, kLeft, 343, kLeft + 105, 370)) {
-        return {HitKind::Back};
+        return {.kind = HitKind::Back};
     }
-    if (state.page == 3 && Inside(x, y, 272, 343, kRight, 370)) {
-        return {HitKind::ResetBinding};
+    if (state.page == kBindingsPage && Inside(x, y, 272, 343, kRight, 370)) {
+        return {.kind = HitKind::ResetBinding};
     }
     if (Inside(x, y, kLeft, kRowY, kRight, kRowY + kVisibleRows * kRowStep)) {
         int row = state.first[state.page] + static_cast<int>(y - kRowY) / kRowStep;
-        if (row < static_cast<int>(Pages()[state.page].rows.size())) {
-            return {HitKind::Row, row, x < kValueX + 65 ? -1 : 1};
+        if (std::cmp_less(row, Pages()[state.page].rows.size())) {
+            return {.kind = HitKind::Row, .index = row, .direction = x < kValueX + 65 ? -1 : 1};
         }
     }
     return {};
 }
 
-void SelectPage(State &state, int page) {
-    state.page = (page + 4) % 4;
+bool SelectPage(State &state, int page) {
+    const int previous = state.page;
+    state.page = (page + kPages) % kPages;
     state.binding = -1;
+    if (state.page == previous) {
+        return false;
+    }
+    MenuSePlay(SYSTEM_SE_CURSOR);
+    return true;
 }
 
 void MoveRow(State &state, int direction) {

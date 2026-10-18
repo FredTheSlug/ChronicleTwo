@@ -1,5 +1,7 @@
 #include "common.h"
 
+#include <algorithm>
+
 #include "menu_mouse.hpp"
 #include "menusys.hpp"
 #include "mglib_port.hpp"
@@ -25,9 +27,7 @@ PORT_OVERRIDE int MenuKeySelectCheck(int step, int *cursor, int *scroll, int min
     int result = MENU_CURSOR_UNCHANGED;
     switch (limit_mode) {
         case MENU_CURSOR_LIMIT_CLAMP:
-            if (*cursor < min) {
-                *cursor = min;
-            }
+            *cursor = std::max(*cursor, min);
             if (*cursor >= max) {
                 *cursor = max - 1;
             }
@@ -70,9 +70,7 @@ PORT_OVERRIDE int MenuKeySelectCheck(int step, int *cursor, int *scroll, int min
             break;
     }
     if (scroll) {
-        if (*cursor < *scroll) {
-            *scroll = *cursor;
-        }
+        *scroll = std::min(*cursor, *scroll);
         while (*scroll + visible <= *cursor) {
             ++*scroll;
         }

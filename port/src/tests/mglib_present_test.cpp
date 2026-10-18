@@ -2,10 +2,12 @@
 
 #include <SDL3/SDL.h>
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -31,6 +33,8 @@
 #include "maintex.hpp"
 #include "map.hpp"
 #include "menu_mouse.hpp"
+#include "menuchr_port.hpp"
+#include "menudraw.hpp"
 #include "mg_drawprim.hpp"
 #include "mg_drawprim_port.hpp"
 #include "mg_memory.hpp"
@@ -43,12 +47,12 @@
 #include "platform/clock.hpp"
 #include "platform/firstrun.hpp"
 #include "platform/input.hpp"
+#include "platform/model_assets.hpp"
 #include "platform/mouse.hpp"
 #include "platform/paths.hpp"
 #include "platform/window.hpp"
 #include "present.hpp"
 #include "scenesnd.hpp"
-#include "texture_source.hpp"
 #include "userdata.hpp"
 
 // Register macros must follow the host and test headers.
@@ -60,16 +64,31 @@ using namespace dc::test;
 
 namespace {
 
-struct TextureSourceScope {
-    const void *buffer;
-    ~TextureSourceScope() { TextureSourceForget(buffer); }
-};
+/**
+ * Finds the native system-frame texture set in the direct glTF gameplay document.
+ */
+std::optional<std::size_t> SystemFrameTextureSet(std::string &error) {
+    const auto game = model_assets::ReadGameplay("dungeon/articles/tex01_1.gltf", error);
+    if (!game) {
+        return std::nullopt;
+    }
+    const auto &sets = game->at("resources").at("texture_sets");
+    for (std::size_t index = 0; index < sets.size(); ++index) {
+        for (const auto &entry : sets.at(index).at("document").at("entries")) {
+            if (entry.value("name", std::string{}) == "frame") {
+                return index;
+            }
+        }
+    }
+    error = "system-frame texture is absent from native glTF";
+    return std::nullopt;
+}
 
 class PresentRenderer {
 public:
     PresentRenderer(int width, int height) {
         SetEnv("VK_LAYER_VALIDATE_SYNC", "1", 0);
-        WindowConfig window{width, height, true};
+        WindowConfig window{.width = width, .height = height, .headless = true};
         window.vulkan = false;
         WindowInit(window);
 
@@ -108,8 +127,8 @@ gfx::Vertex2D QuadCorner(float x, float y) {
 }
 
 size_t PixelOffset(const gfx::LogicalMapping &mapping, uint32_t width, float x, float y) {
-    const size_t px = static_cast<size_t>(x * mapping.scale_x + mapping.offset_x);
-    const size_t py = static_cast<size_t>(y * mapping.scale_y + mapping.offset_y);
+    const auto px = static_cast<size_t>(x * mapping.scale_x + mapping.offset_x);
+    const auto py = static_cast<size_t>(y * mapping.scale_y + mapping.offset_y);
     return (py * width + px) * 4;
 }
 
@@ -226,8 +245,8 @@ void RecordTicks(int count, const void *object, float first_x) {
 
 using Quads = std::vector<u_long128>;
 
-constexpr int kTextureCount = 64;
-constexpr int kBlockCount = 8;
+constexpr int    kTextureCount = 64;
+constexpr int    kBlockCount = 8;
 constexpr size_t kStorageQuads = 4096;
 
 Quads Pack(const std::vector<uint8_t> &bytes) {
@@ -289,7 +308,7 @@ public:
 
     mgCTexture *Enter(const std::string &name, int width, int height, int bpp, u_long128 *image, u_long128 *clut) {
         std::string owned = name;
-        u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {image};
+        u_long128  *levels[MG_TEXTURE_LEVEL_MAX] = {image};
         return manager_.EnterTexture(0, owned.data(), levels, width, height, bpp, clut, 0, 0);
     }
 
@@ -371,12 +390,12 @@ TEST(MglibPresent, TickIsRecordedAndRenderedCanonically) {
 TEST(MglibPresent, FrameTargetFlag) {
     PresentRenderer renderer(1280, 720);
 
-    const gfx::TextureHandle framed = mgPortRenderTarget(0x3000u, 512, 480, SCE_GS_PSMCT32, true);
+    const gfx::TextureHandle              framed = mgPortRenderTarget(0x3000u, 512, 480, SCE_GS_PSMCT32, true);
     const std::optional<gfx::TextureInfo> framed_info = gfx::GetTextureInfo(framed);
     ASSERT_TRUE(framed_info.has_value());
     EXPECT_TRUE(framed_info->frame_target);
 
-    const gfx::TextureHandle plain = mgPortRenderTarget(0x3000u, 512, 480, SCE_GS_PSMCT32, false);
+    const gfx::TextureHandle              plain = mgPortRenderTarget(0x3000u, 512, 480, SCE_GS_PSMCT32, false);
     const std::optional<gfx::TextureInfo> plain_info = gfx::GetTextureInfo(plain);
     ASSERT_TRUE(plain_info.has_value());
     EXPECT_FALSE(plain_info->frame_target);
@@ -514,7 +533,7 @@ TEST(MglibPresent, DisplayPerTickLeavesCanonicalImage) {
     PresentRenderer renderer(640, 480);
     PresentResetStats();
 
-    static int object;
+    static int           object;
     std::vector<uint8_t> with_display;
     std::vector<uint8_t> without_display;
     uint32_t             width = 0;
@@ -689,7 +708,7 @@ TEST(MglibPresent, MoveImageOfTheFrameUsesAFrameTarget) {
 
 TEST(MglibPresent, BackBufferCapturePreservesWidePixelsAndHoldsUntilRecaptured) {
     PresentRenderer renderer(1920, 1080);
-    gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = 1.0f});
     Textures    textures;
     Quads       pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
     mgCTexture *capture = textures.Enter("back_buffer_capture", 512, 480, 32, pixels.data(), nullptr);
@@ -714,7 +733,8 @@ TEST(MglibPresent, BackBufferCapturePreservesWidePixelsAndHoldsUntilRecaptured) 
         }
         mgEndFrame(nullptr);
         std::vector<uint8_t> expected;
-        uint32_t             width = 0, height = 0;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, expected, width, height));
 
         // Begin a different frame: the capture must still read the last completed scene.
@@ -810,11 +830,12 @@ TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
         source(16, 240, 48);
         mgEndFrame(nullptr);
         std::vector<uint8_t> rgba;
-        uint32_t             width = 0, height = 0;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
         const auto   mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
-        const size_t x = static_cast<size_t>(256 * mapping.scale_x + mapping.offset_x);
-        const size_t y = static_cast<size_t>(200 * mapping.scale_y + mapping.offset_y);
+        const auto   x = static_cast<size_t>(256 * mapping.scale_x + mapping.offset_x);
+        const auto   y = static_cast<size_t>(200 * mapping.scale_y + mapping.offset_y);
         const size_t p = (y * width + x) * 4;
         EXPECT_NEAR(rgba[p], 40, 1);
         EXPECT_NEAR(rgba[p + 1], 80, 1);
@@ -824,7 +845,7 @@ TEST(MglibPresent, FrameSamplingPrimitiveUsesOrderedSnapshot) {
 
 TEST(MglibPresent, CrossFadeRecapturesCompletedSceneAfterUncapturedTicks) {
     PresentRenderer renderer(1280, 720);
-    gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = 1.0f});
     Textures    textures;
     Quads       pixels = Pack(Fill(512 * 480, 0, 0, 0, 0x80));
     mgCTexture *texture = textures.Enter("cross_capture", 512, 480, 32, pixels.data(), nullptr);
@@ -860,7 +881,8 @@ TEST(MglibPresent, CrossFadeRecapturesCompletedSceneAfterUncapturedTicks) {
             }
         };
         std::vector<uint8_t> rgba;
-        uint32_t             width = 0, height = 0;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
         check(rgba, width, height);
         ASSERT_TRUE(PresentScreenshotDisplay(0.5f, rgba, width, height));
@@ -877,12 +899,12 @@ TEST(MglibPresent, CrossFadeRecapturesCompletedSceneAfterUncapturedTicks) {
 
 TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
     PresentRenderer renderer(1280, 720);
-    gfx::SetFrameLayout({gfx::AspectMode::Letterbox, 1.0f});
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Letterbox, .ui_scale = 1.0f});
     Textures    textures;
     Quads       old_pixels = Pack(Fill(64 * 64, 0, 180, 0, 255));
     mgCTexture *old = textures.Enter("effect_work", 64, 64, 32, old_pixels.data(), nullptr);
     ASSERT_NE(old, nullptr);
-    const uint32_t key = static_cast<uint32_t>(old->tex0.TBP0);
+    const auto key = static_cast<uint32_t>(old->tex0.TBP0);
     mgBeginFrame(nullptr);
     mgSetPkFrameBuffer(old);
     mgSetPkFrameBuffer(-1, -1, -1, -1);
@@ -918,7 +940,8 @@ TEST(MglibSeam, ReusedTextureKeyDoesNotSampleRetiredRenderTarget) {
     prim.End();
     mgEndFrame(nullptr);
     std::vector<uint8_t> rgba;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
     const size_t p = (static_cast<size_t>(height / 2) * width + width / 2) * 4;
     EXPECT_NEAR(rgba[p], 96, 1);
@@ -947,7 +970,7 @@ void DamageProjection(float x) {
 
 std::vector<gfx::Vertex2D> DamageVertices(const gfx::DisplayList &list) {
     for (const auto &entry : list.entries) {
-        if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
+        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
             return draw->vertices;
         }
     }
@@ -958,21 +981,23 @@ std::vector<gfx::Vertex2D> DamageVertices(const gfx::DisplayList &list) {
 namespace {
 void CheckDamageBlend(const gfx::DisplayList &list, const std::vector<gfx::Vertex2D> &before,
                       const std::vector<gfx::Vertex2D> &after, const std::vector<uint8_t> &newest) {
-    std::vector<uint8_t> actual, expected;
-    uint32_t             width = 0, height = 0;
+    std::vector<uint8_t> actual;
+    std::vector<uint8_t> expected;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
         ASSERT_TRUE(PresentScreenshotDisplay(alpha, actual, width, height));
         gfx::BeginRecording();
         for (const auto &entry : list.entries) {
             auto copy = entry;
-            if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&copy)) {
+            if (auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&copy)) {
                 ASSERT_EQ(draw->vertices.size(), before.size());
                 for (size_t i = 0; i < draw->vertices.size(); ++i) {
                     auto &v = draw->vertices[i];
                     v.x = before[i].x + (after[i].x - before[i].x) * alpha;
                     v.y = before[i].y + (after[i].y - before[i].y) * alpha;
                     v.color[3] = static_cast<uint8_t>(std::lround(before[i].color[3] +
-                                                                  (float(after[i].color[3]) - before[i].color[3]) * alpha));
+                                                                  (static_cast<float>(after[i].color[3]) - before[i].color[3]) * alpha));
                 }
             }
             gfx::detail::RecordEntry(std::move(copy));
@@ -988,8 +1013,10 @@ void CheckDamageBlend(const gfx::DisplayList &list, const std::vector<gfx::Verte
 }
 
 void ExpectNewestAtEveryAlpha() {
-    std::vector<uint8_t> canonical, display;
-    uint32_t             width = 0, height = 0;
+    std::vector<uint8_t> canonical;
+    std::vector<uint8_t> display;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
     for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
         ASSERT_TRUE(PresentScreenshotDisplay(alpha, display, width, height));
@@ -1006,7 +1033,7 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesPositionAndHealthAndReuseCuts
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     DamagePrimSink sink;
-    CEnemyLifeGage gauge;
+    CEnemyLifeGage gauge{};
     gauge.Initialize(0);
     gauge.SetView(1);
     gauge.scale = 1;
@@ -1025,7 +1052,8 @@ TEST(TargetPresentation, WorldLifeGaugeInterpolatesPositionAndHealthAndReuseCuts
     ASSERT_EQ(before.size(), 12u);
     ASSERT_EQ(after.size(), before.size());
     std::vector<uint8_t> newest;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     const auto state = gauge;
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
@@ -1111,7 +1139,8 @@ TEST(TargetPresentation, BracketsInterpolateAndTargetSwitchCuts) {
     ASSERT_EQ(before.size(), 16u);
     ASSERT_EQ(after.size(), before.size());
     std::vector<uint8_t> newest;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     mgPortCutCameraInterpolation();
@@ -1152,14 +1181,15 @@ void CheckOverlayBlend(const std::vector<gfx::detail::Entry> &before, const std:
             previous.push_back(draw);
         }
     }
-    std::vector<uint8_t> actual, expected;
-    uint32_t             width = 0, height = 0;
+    std::vector<uint8_t> actual;
+    std::vector<uint8_t> expected;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     for (float alpha : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
         ASSERT_TRUE(PresentScreenshotDisplay(alpha, actual, width, height));
         gfx::BeginRecording();
         size_t draw_index = 0;
-        for (size_t j = 0; j < after.size(); ++j) {
-            auto copy = after[j];
+        for (auto copy : after) {
             if (auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&copy)) {
                 ASSERT_LT(draw_index, previous.size());
                 const auto *old = previous[draw_index++];
@@ -1169,7 +1199,7 @@ void CheckOverlayBlend(const std::vector<gfx::detail::Entry> &before, const std:
                     v.x = old->vertices[i].x + (v.x - old->vertices[i].x) * alpha;
                     v.y = old->vertices[i].y + (v.y - old->vertices[i].y) * alpha;
                     v.color[3] = static_cast<uint8_t>(std::lround(old->vertices[i].color[3] +
-                                                                  (float(v.color[3]) - old->vertices[i].color[3]) * alpha));
+                                                                  (static_cast<float>(v.color[3]) - old->vertices[i].color[3]) * alpha));
                 }
             }
             gfx::detail::RecordEntry(std::move(copy));
@@ -1199,7 +1229,7 @@ TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
             mgPortDraw2D(p, v, {}, s);
         }
     });
-    CEnemyLifeGage gauge;
+    CEnemyLifeGage gauge{};
     gauge.Initialize(3);
     gauge.SetView(1);
     gauge.scale = 1;
@@ -1217,7 +1247,8 @@ TEST(TargetPresentation, RageMarksInterpolateMotionAndBreakAway) {
         record(x, hp, count);
         auto                 after = mgPortLastList()->entries;
         std::vector<uint8_t> newest;
-        uint32_t             width = 0, height = 0;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
         const auto state = gauge;
         CheckOverlayBlend(before, after, newest);
@@ -1247,7 +1278,7 @@ TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
     DamagePrimSink sink;
-    CEnemyLifeGage gauge;
+    CEnemyLifeGage gauge{};
     gauge.Initialize(3);
     gauge.SetView(1);
     gauge.scale = 1;
@@ -1256,7 +1287,7 @@ TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
         mgBeginFrame(nullptr);
         DamageProjection(x);
         gauge.Set(position, 100, 100, 3, 0);
-        const gfx::Interp2D outer{987, 654};
+        const gfx::Interp2D outer{.key = 987, .generation = 654};
         gfx::SetInterp2D(outer);
         gauge.Draw(hidden);
         EXPECT_EQ(gfx::CurrentInterp2D().key, outer.key);
@@ -1265,7 +1296,7 @@ TEST(TargetPresentation, RageMarkIdentitySurvivesMissingNeighbours) {
         mgEndFrame(nullptr);
         std::vector<gfx::detail::Draw2DEntry> marks;
         for (const auto &entry : mgPortLastList()->entries) {
-            if (auto draw = std::get_if<gfx::detail::Draw2DEntry>(&entry);
+            if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry);
                 draw && draw->primitive == gfx::Primitive::Quads) {
                 marks.push_back(*draw);
             }
@@ -1386,7 +1417,8 @@ TEST(TargetPresentation, NameInterpolatesAndTargetSwitchCuts) {
     ASSERT_NE(message.mes_no, -1);
     ASSERT_FALSE(DamageVertices(*mgPortLastList()).empty());
     std::vector<uint8_t> newest;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     const auto message_state = message;
     CheckOverlayBlend(before, after, newest);
@@ -1437,9 +1469,12 @@ TEST(DamagePresentation, RetailDamageInterpolatesProjectedBounceAndOpacity) {
     for (int i = 0; i < 4; i++) {
         damage.Step();
     }
-    std::vector<gfx::Vertex2D> before, after;
-    std::vector<uint8_t>       earlier, newest;
-    uint32_t                   width = 0, height = 0;
+    std::vector<gfx::Vertex2D> before;
+    std::vector<gfx::Vertex2D> after;
+    std::vector<uint8_t>       earlier;
+    std::vector<uint8_t>       newest;
+    uint32_t                   width = 0;
+    uint32_t                   height = 0;
     for (int k = 0; k < 2; k++) {
         mgBeginFrame(nullptr);
         DamageProjection(256.0f + 8.0f * k);
@@ -1474,7 +1509,7 @@ TEST(DamagePresentation, RetailLifetimesRemainInGameSteps) {
         ++steps;
     }
     EXPECT_EQ(steps, 50);
-    CDamageScore2 other;
+    CDamageScore2 other{};
     other.SetValue(0, 123, 20);
     steps = 0;
     while (other.phase != DAMAGE_SCORE2_PHASE_NONE && steps < 500) {
@@ -1594,11 +1629,13 @@ TEST(DamagePresentation, Score2InterpolatesAndReusedSlotsStayNewest) {
     scene->chara_num = 1;
     scene->chara[0].status = 1;
     scene->chara[0].chara = &character;
-    CDamageScore2 damage;
+    CDamageScore2 damage{};
     damage.SetValue(0, 123, 0);
-    std::vector<gfx::Vertex2D> before, after;
+    std::vector<gfx::Vertex2D> before;
+    std::vector<gfx::Vertex2D> after;
     std::vector<uint8_t>       newest;
-    uint32_t                   width = 0, height = 0;
+    uint32_t                   width = 0;
+    uint32_t                   height = 0;
     auto                       record = [&](float x) {
         mgBeginFrame(nullptr);
         DamageProjection(x);
@@ -1672,7 +1709,8 @@ TEST(DamagePresentation, SpriteHealClippingAndPause) {
     record(264);
     auto                 after = DamageVertices(*mgPortLastList());
     std::vector<uint8_t> newest;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, newest, width, height));
     CheckDamageBlend(*mgPortLastList(), before, after, newest);
     damage.SetSprite(position, 192, 22, 18, 18);
@@ -1715,22 +1753,9 @@ TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
         GTEST_SKIP() << "DC2_DATA needs the current published PNG extraction";
     }
     DataReadIndex(data);
-    const auto    path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file) {
-        GTEST_SKIP() << "Extracted system texture archive unavailable";
-    }
-    const size_t           bytes = static_cast<size_t>(file.tellg());
-    std::vector<u_long128> archive((bytes + 15) / 16);
-    file.seekg(0);
-    ASSERT_TRUE(file.read(reinterpret_cast<char *>(archive.data()), bytes));
-    TextureSourceRegister(archive.data(), "dungeon/articles/tex01_1.chr", bytes);
-    const TextureSourceScope archive_source{archive.data()};
-    int   member_size = 0;
-    char  member_name[] = "frame_basic.img";
-    auto *image = GetPackFile(reinterpret_cast<u_int *>(archive.data()), member_name, &member_size);
-    const TextureSourceScope image_source{image};
-    ASSERT_NE(image, nullptr);
+    std::string native_error;
+    const auto  texture_set = SystemFrameTextureSet(native_error);
+    ASSERT_TRUE(texture_set.has_value()) << native_error;
     PresentRenderer renderer(640, 480);
     PresentSetSettings(PresentSettings{.interpolation = true});
     std::vector<u_long128> backing(131072);
@@ -1739,7 +1764,7 @@ TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
     mgCTextureManager manager;
     manager.SetTableBuffer(64, 8, &memory);
     manager.Initialize(0x1000, -1);
-    manager.EnterIMGFile(reinterpret_cast<u_char *>(image), 0, &memory, nullptr);
+    ASSERT_TRUE(model_assets::LoadTextureSet("dungeon/articles/tex01_1.gltf", *texture_set, manager, 0, memory, native_error)) << native_error;
     auto *saved = TEX_SystenFrame;
     char  texture_name[] = "frame";
     TEX_SystenFrame = manager.GetTexture(texture_name, -1);
@@ -1756,9 +1781,12 @@ TEST(DamagePresentation, RealAtlasProjectedEndpoints) {
     for (int i = 0; i < 14; ++i) {
         damage.Step();
     }
-    std::vector<gfx::Vertex2D> before, after;
-    std::vector<uint8_t>       newest, earlier;
-    uint32_t                   width = 0, height = 0;
+    std::vector<gfx::Vertex2D> before;
+    std::vector<gfx::Vertex2D> after;
+    std::vector<uint8_t>       newest;
+    std::vector<uint8_t>       earlier;
+    uint32_t                   width = 0;
+    uint32_t                   height = 0;
     for (int k = 0; k < 2; ++k) {
         mgBeginFrame(nullptr);
         DamageProjection(256 + 8 * k);
@@ -1783,19 +1811,22 @@ TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
     MenuMouseEnable(true);
     EXPECT_FALSE(PresentMouseActive());
     EXPECT_FALSE(MouseInputLive()); // Headless scripted pointer needs no native capture.
-    const auto    texture = gfx::CreateTexture({1, 1});
+    const auto    texture = gfx::CreateTexture({.width = 1, .height = 1});
     const uint8_t white[] = {255, 255, 255, 128};
     ASSERT_TRUE(gfx::UpdateTexture(texture, 0, 0, 0, 1, 1, white));
     mgSetBackGround(8, 16, 24, 128);
     mgBeginFrame(nullptr);
     mgEndFrame(nullptr);
-    std::vector<uint8_t> expected, canonical, displayed;
-    uint32_t             width = 0, height = 0;
+    std::vector<uint8_t> expected;
+    std::vector<uint8_t> canonical;
+    std::vector<uint8_t> displayed;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, expected, width, height));
     InputSetScriptedDevices({.mouse_dx = 30});
     mgBeginFrame(nullptr);
     MenuMouseTake();
-    MenuMouseNoteHand({.texture = texture}, {0, 0, 40, 24});
+    MenuMouseNoteHand({.texture = texture}, {.x = 0, .y = 0, .w = 40, .h = 24});
     mgEndFrame(nullptr);
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, canonical, width, height));
     EXPECT_EQ(canonical, expected);
@@ -1811,7 +1842,7 @@ TEST(MglibPresent, MenuPointerOverlayNeverChangesCanonicalOrScreenshotCapture) {
     EXPECT_NE(displayed, canonical);
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, displayed, width, height));
     EXPECT_EQ(displayed, canonical); // --screenshot and pause/crossfade grabs use this image.
-    const auto grab = gfx::CreateTexture({width, height});
+    const auto grab = gfx::CreateTexture({.width = width, .height = height});
     ASSERT_TRUE(gfx::SnapshotFrame(grab));
     ASSERT_TRUE(gfx::ReadbackTexture(grab, displayed, width, height));
     EXPECT_EQ(displayed, canonical);
@@ -1845,14 +1876,15 @@ TEST(MglibPresent, HandTipUsesTheHoverMappingAtFourThreeAndWidescreenFill) {
         InputHandleEvent(event);
         const auto point = MenuMouseDisplaySample();
         const auto mapping = gfx::GetUiMapping(gfx::kMainTarget);
-        int        w = size.first, h = size.second;
+        int        w = size.first;
+        int        h = size.second;
         WindowSize(w, h);
         EXPECT_FLOAT_EQ(point.x, before.x + 64 * MenuMouseUnits(mapping.scale_x, mapping.pixel_width, w));
         EXPECT_FLOAT_EQ(point.y, before.y - 32 * MenuMouseUnits(mapping.scale_y, mapping.pixel_height, h));
-        const auto    texture = gfx::CreateTexture({1, 1});
+        const auto    texture = gfx::CreateTexture({.width = 1, .height = 1});
         const uint8_t white[] = {255, 255, 255, 255};
         ASSERT_TRUE(gfx::UpdateTexture(texture, 0, 0, 0, 1, 1, white));
-        MenuMouseNoteHand({.texture = texture}, {0, 0, 40, 24}, 0.2f, 0, 128);
+        MenuMouseNoteHand({.texture = texture}, {.x = 0, .y = 0, .w = 40, .h = 24}, 0.2f, 128);
         gfx::BeginRecording();
         MenuMouseDraw();
         const auto list = gfx::EndRecording();
@@ -1881,6 +1913,37 @@ TEST(MglibPresent, HandTipUsesTheHoverMappingAtFourThreeAndWidescreenFill) {
     InputSetMouseSettings(settings);
 }
 
+TEST(MglibPresent, MenuPointerKeepsOneFacingWithItsFingertipOnTheHotspot) {
+    PresentRenderer renderer(1280, 960);
+    InputResetBindings();
+    InputSetScriptedDevices({.mouse_dx = 1});
+    MenuMouseEnable(true);
+    MenuMouseTake();
+    const auto point = MenuMouseDisplaySample();
+    ASSERT_TRUE(point.pointing);
+    const auto    texture = gfx::CreateTexture({.width = 1, .height = 1});
+    const uint8_t white[] = {255, 255, 255, 255};
+    ASSERT_TRUE(gfx::UpdateTexture(texture, 0, 0, 0, 1, 1, white));
+    // Retail mirrors Max's Character page hand; the pointer is given no facing and keeps its usual one.
+    MenuMouseNoteHand({.texture = texture}, {.x = 0, .y = 0, .w = 40, .h = 24});
+    gfx::BeginRecording();
+    MenuMouseDraw();
+    const auto list = gfx::EndRecording();
+    ASSERT_EQ(gfx::ListStats(*list).draws_2d, 1u);
+    const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&list->entries.front());
+    ASSERT_NE(draw, nullptr);
+    ASSERT_EQ(draw->vertices.size(), 4u);
+    // The wrist (u = 0) stays left of the fingertip (u = 40), which sits on the pointer.
+    EXPECT_LT(draw->vertices[0].x, draw->vertices[1].x);
+    EXPECT_LT(draw->vertices[0].u, draw->vertices[1].u);
+    EXPECT_NEAR((draw->vertices[1].x + draw->vertices[3].x) / 2, point.x, 0.0001f);
+    EXPECT_NEAR((draw->vertices[1].y + draw->vertices[3].y) / 2, point.y, 0.0001f);
+    MenuMouseEnable(false);
+    InputSetScriptedDevices({});
+    InputSetMenuMouse(false);
+    gfx::DestroyTexture(texture);
+}
+
 namespace {
 void CaptureRidepodWarning(bool wide) {
     const char *data = std::getenv("DC2_DATA");
@@ -1891,24 +1954,11 @@ void CaptureRidepodWarning(bool wide) {
         GTEST_SKIP() << "DC2_DATA needs the current published PNG extraction";
     }
     DataReadIndex(data);
-    const auto    path = std::filesystem::path(data) / "dungeon/articles/tex01_1.chr";
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file) {
-        GTEST_SKIP() << "Extracted system texture archive unavailable";
-    }
-    const size_t           bytes = static_cast<size_t>(file.tellg());
-    std::vector<u_long128> archive((bytes + 15) / 16);
-    file.seekg(0);
-    ASSERT_TRUE(file.read(reinterpret_cast<char *>(archive.data()), bytes));
-    TextureSourceRegister(archive.data(), "dungeon/articles/tex01_1.chr", bytes);
-    const TextureSourceScope archive_source{archive.data()};
-    int   member_size = 0;
-    char  member_name[] = "frame_basic.img";
-    auto *image = GetPackFile(reinterpret_cast<u_int *>(archive.data()), member_name, &member_size);
-    const TextureSourceScope image_source{image};
-    ASSERT_NE(image, nullptr);
+    std::string native_error;
+    const auto  texture_set = SystemFrameTextureSet(native_error);
+    ASSERT_TRUE(texture_set.has_value()) << native_error;
     PresentRenderer renderer(wide ? 1280 : 640, wide ? 720 : 480);
-    gfx::SetFrameLayout({gfx::AspectMode::Fill, 1.0f});
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = 1.0f});
     PresentSetSettings(PresentSettings{.interpolation = true});
     std::vector<u_long128> backing(131072);
     mgCMemory              memory;
@@ -1916,7 +1966,7 @@ void CaptureRidepodWarning(bool wide) {
     mgCTextureManager manager;
     manager.SetTableBuffer(64, 8, &memory);
     manager.Initialize(0x1000, -1);
-    manager.EnterIMGFile(reinterpret_cast<u_char *>(image), 0, &memory, nullptr);
+    ASSERT_TRUE(model_assets::LoadTextureSet("dungeon/articles/tex01_1.gltf", *texture_set, manager, 0, memory, native_error)) << native_error;
     auto *saved = TEX_SystenFrame;
     char  texture_name[] = "frame";
     TEX_SystenFrame = manager.GetTexture(texture_name, -1);
@@ -1932,15 +1982,17 @@ void CaptureRidepodWarning(bool wide) {
     mgBeginFrame(nullptr);
     warning.Draw();
     mgEndFrame(nullptr);
-    std::vector<uint8_t> anchored, old;
-    uint32_t             width = 0, height = 0;
+    std::vector<uint8_t> anchored;
+    std::vector<uint8_t> old;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, anchored, width, height));
     gfx::BeginRecording();
     for (auto entry : mgPortLastList()->entries) {
         if (auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
             EXPECT_EQ(draw->side.x, -1);
             EXPECT_EQ(draw->side.y, -1);
-            draw->side = {}; // The previous robot-warning path, as a pixel oracle.
+            draw->side = {}; // Unanchored draws are the pixel reference.
         }
         gfx::detail::RecordEntry(std::move(entry));
     }
@@ -1954,7 +2006,7 @@ void CaptureRidepodWarning(bool wide) {
     }
     if (const char *capture = std::getenv("DC2_CAPTURE_DIR")) {
         std::filesystem::create_directories(capture);
-        const auto name = wide ? "ridepod-16x9.png" : "ridepod-4x3.png";
+        const auto *const name = wide ? "ridepod-16x9.png" : "ridepod-4x3.png";
         ASSERT_TRUE(gfx::WritePng(std::filesystem::path(capture) / name, anchored.data(), width, height));
         ASSERT_TRUE(gfx::WritePng(std::filesystem::path(capture) / (std::string("before-") + name), old.data(), width, height));
     }
@@ -1975,7 +2027,8 @@ TEST(MglibPresent, RetailTownEyeMovementPairsAndRendersIntermediateCamera) {
     const auto  old_loop = PortLoopNo;
     const auto  old_mode = PortEditViewMode;
     const auto  old_pad = GamePad__2;
-    const float old_heading = PortEditEyeHeading, old_tilt = PortEditEyeTilt;
+    const float old_heading = PortEditEyeHeading;
+    const float old_tilt = PortEditEyeTilt;
     PortActiveSaveData = save.get();
     PortLoopNo = LOOP_EDIT;
     PortEditViewMode = EDIT_VIEW_MODE_EYE;
@@ -2022,7 +2075,8 @@ TEST(MglibPresent, RetailTownEyeMovementPairsAndRendersIntermediateCamera) {
     record(10, 0.1f);
     EXPECT_FALSE(mgPortLastList()->camera_cut);
     std::vector<uint8_t> pixels;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     double               centers[3]{};
     for (int i = 0; i < 3; ++i) {
         EXPECT_TRUE(PresentScreenshotDisplay(i * 0.5f, pixels, width, height));
@@ -2048,7 +2102,8 @@ TEST(MglibPresent, RetailForcedFollowMovementPairsAndRendersIntermediateCamera) 
     const auto  old_loop = PortLoopNo;
     const auto  old_mode = PortEditViewMode;
     const auto  old_pad = GamePad__2;
-    const float old_heading = PortEditEyeHeading, old_tilt = PortEditEyeTilt;
+    const float old_heading = PortEditEyeHeading;
+    const float old_tilt = PortEditEyeTilt;
     PortActiveSaveData = save.get();
     PortLoopNo = LOOP_EDIT;
     PortEditViewMode = EDIT_VIEW_MODE_WALK;
@@ -2096,7 +2151,8 @@ TEST(MglibPresent, RetailForcedFollowMovementPairsAndRendersIntermediateCamera) 
     record(20, 0.1f);
     EXPECT_FALSE(mgPortLastList()->camera_cut);
     std::vector<uint8_t> pixels;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     double               centers[3]{};
     for (int i = 0; i < 3; ++i) {
         EXPECT_TRUE(PresentScreenshotDisplay(i * 0.5f, pixels, width, height));
@@ -2150,7 +2206,8 @@ TEST(MglibPresent, SameOwnerAuthoredCameraStepCutsTheDrawnTick) {
     ASSERT_NE(mgPortLastList(), nullptr);
     EXPECT_TRUE(mgPortLastList()->camera_cut);
     std::vector<uint8_t> pixels;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     double               centers[3]{};
     for (int i = 0; i < 3; ++i) {
         EXPECT_TRUE(PresentScreenshotDisplay(i * 0.5f, pixels, width, height));
@@ -2200,4 +2257,173 @@ TEST(MglibPresent, DungeonEyeExitCutsTheRestoreTickWithoutCuttingTheNextTick) {
     BattleAreaScene = old_area;
     DngStatus = old_status;
     PortLoopNo = old_loop;
+}
+
+namespace {
+// Change-logo atlas rows: one colour per character, so a draw of the wrong row is visible.
+constexpr std::array<std::array<uint8_t, 3>, 4> kBannerRowColours = {
+    {{255, 255, 255}, {255, 0, 0}, {0, 255, 0}, {0, 0, 255}}
+};
+
+size_t BannerDrawCount(const gfx::DisplayList &list, uint64_t &key) {
+    size_t count = 0;
+    for (const auto &entry : list.entries) {
+        if (const auto *draw = std::get_if<gfx::detail::Draw2DEntry>(&entry)) {
+            key = draw->interpolation.key;
+            ++count;
+        }
+    }
+    return count;
+}
+
+// Leftmost pixel of a character's logo row colour on the logo's middle line, or -1.
+int BannerLogoLeft(const std::vector<uint8_t> &rgba, uint32_t width, uint32_t height, int chara) {
+    const auto  mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    const auto  y = static_cast<uint32_t>(static_cast<float>(mgScreenHeight - 72) * mapping.scale_y + mapping.offset_y);
+    const auto &colour = kBannerRowColours[chara];
+    for (uint32_t x = 0; y < height && x < width; ++x) {
+        const uint8_t *p = &rgba[(static_cast<size_t>(y) * width + x) * 4];
+        bool           match = true;
+        for (int c = 0; c < 3; ++c) {
+            match = match && (colour[c] != 0 ? p[c] > 200 : p[c] < 60);
+        }
+        if (match) {
+            return static_cast<int>(x);
+        }
+    }
+    return -1;
+}
+} // namespace
+
+TEST(QuickChangeBannerPresentation, SlideAndFadeInterpolateAndNewBannersRestartAndHiddenOnesResume) {
+    PresentRenderer        renderer(640, 480);
+    std::vector<u_long128> arena(4096);
+    std::vector<u_long128> pixels(256 * 256 * 4 / 16);
+    mgCMemory              memory;
+    memory.stSetBuffer(arena.data(), static_cast<int>(arena.size()));
+    mgTexManager.SetTableBuffer(16, 4, &memory);
+    mgTexManager.Initialize(0x1000, -1);
+    auto *rgba = reinterpret_cast<uint8_t *>(pixels.data());
+    for (int y = 0; y < 256; ++y) {
+        for (int x = 0; x < 256; ++x) {
+            const auto &colour = kBannerRowColours[y / 64];
+            uint8_t    *texel = &rgba[(static_cast<std::size_t>(y) * 256 + x) * 4];
+            texel[0] = colour[0];
+            texel[1] = colour[1];
+            texel[2] = colour[2];
+            texel[3] = 0xFF;
+        }
+    }
+    u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels.data()};
+    char       logo_name[] = "change_logo";
+    ASSERT_NE(mgTexManager.EnterTexture(0, logo_name, levels, 256, 256, 32, nullptr, 0, 0), nullptr);
+    PresentSetSettings(PresentSettings{.interpolation = true});
+    const int old_loop = PortLoopNo;
+    const int old_rate = mgFrameRate;
+    auto     *old_menu = MenuPosData;
+    // The banner only tests MenuPosData for null; a zeroed manager stands in for an open menu.
+    auto menu = std::unique_ptr<CMenuPosDataManage, decltype(&std::free)>(
+        static_cast<CMenuPosDataManage *>(std::calloc(1, sizeof(CMenuPosDataManage))), &std::free);
+    PortLoopNo = LOOP_DUNGEON;
+    MenuPosData = nullptr;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    auto     record = [] {
+        mgBeginFrame(nullptr);
+        PortDrawQuickChangeBanner();
+        mgEndFrame(nullptr);
+    };
+    auto canonical = [&] {
+        std::vector<uint8_t> image;
+        EXPECT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, image, width, height));
+        return image;
+    };
+    auto display = [&](float alpha) {
+        std::vector<uint8_t> image;
+        EXPECT_TRUE(PresentScreenshotDisplay(alpha, image, width, height));
+        return image;
+    };
+    uint64_t key = 0;
+
+    // A whole banner at both game-frame lengths. Each display frame between two game frames starts on the earlier
+    // game frame's own image and ends on the later one's, with the logo halfway between them at alpha 0.5.
+    for (int rate : {1, 2}) {
+        SCOPED_TRACE(rate);
+        mgFrameRate = rate;
+        record(); // A game frame before the banner.
+        PortShowQuickChangeBanner(0);
+        record();
+        ExpectNewestAtEveryAlpha(); // The first visible frame has nothing to slide from.
+        auto previous = canonical();
+        int  previous_left = BannerLogoLeft(previous, width, height, 0);
+        bool slid_in = false;
+        bool held = false;
+        bool slid_out = false;
+        bool gone = false;
+        for (int frame = 0; frame < 200 && !gone; ++frame) {
+            record();
+            const auto newest = canonical();
+            const auto draws = BannerDrawCount(*mgPortLastList(), key);
+            if (draws == 0) {
+                ExpectNewestAtEveryAlpha(); // The frame after the last visible one has nothing to slide to.
+                gone = true;
+                break;
+            }
+            ASSERT_EQ(draws, 2u); // The strip, then the logo.
+            EXPECT_NE(key, 0u);
+            EXPECT_EQ(display(0.0f), previous) << frame;
+            EXPECT_EQ(display(1.0f), newest) << frame;
+            const auto half = display(0.5f);
+            const int  left = BannerLogoLeft(newest, width, height, 0);
+            if (previous_left > 0 && left == previous_left) {
+                EXPECT_EQ(half, newest) << frame; // Resting: no jitter.
+                held = true;
+            } else if (previous_left > 0 && left > 0) {
+                EXPECT_NEAR(BannerLogoLeft(half, width, height, 0), (previous_left + left) / 2.0, 1.5) << frame;
+                (held ? slid_out : slid_in) = true;
+            } else {
+                EXPECT_NE(half, newest) << frame; // Partly off the left edge, still moving.
+            }
+            previous = newest;
+            previous_left = left;
+        }
+        EXPECT_TRUE(slid_in);
+        EXPECT_TRUE(held);
+        EXPECT_TRUE(slid_out);
+        EXPECT_TRUE(gone);
+    }
+
+    // Each character's row. A new banner, even over a sliding one or for the same character, restarts at the left
+    // edge instead of sliding from the last one.
+    mgFrameRate = 2;
+    for (int chara : {1, 2, 3, 3}) {
+        SCOPED_TRACE(chara);
+        record();
+        PortShowQuickChangeBanner(chara);
+        record();
+        ExpectNewestAtEveryAlpha();
+        record();
+        const auto newest = canonical();
+        for (int other = 0; other < 4; ++other) {
+            EXPECT_EQ(BannerLogoLeft(newest, width, height, other) >= 0, other == chara) << other;
+        }
+        EXPECT_NE(display(0.5f), newest);
+    }
+
+    // A menu hides the banner while it keeps sliding; it reappears where it is, then slides on.
+    MenuPosData = menu.get();
+    record();
+    EXPECT_EQ(BannerDrawCount(*mgPortLastList(), key), 0u);
+    MenuPosData = nullptr;
+    record();
+    ExpectNewestAtEveryAlpha();
+    record();
+    EXPECT_NE(display(0.5f), canonical());
+    EXPECT_EQ(gfx::CurrentInterp2D().key, 0u);
+
+    PortCancelQuickChangeBanner();
+    mgFrameRate = old_rate;
+    PortLoopNo = old_loop;
+    MenuPosData = old_menu;
+    mgTexManager.Initialize(0x1000, -1);
 }

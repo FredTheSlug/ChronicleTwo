@@ -13,17 +13,37 @@ enum class ConfigAspect {
     FourThree,
 };
 
+// input.dualsense_haptics: what a DualSense's actuators play (see dualsense_haptics.hpp).
+enum class ConfigHaptics {
+    Off,       // Classic rumble only.
+    Vibration, // The game's own vibration, played on the actuators.
+    Full,      // Also camera quakes and the effects of the player, battles and monsters.
+};
+
 struct Config : HostSettings {
-    bool         interpolation = true;
-    bool         debug_mode = false;
+    bool interpolation = true;
+    bool debug_mode = false;
+    bool autosave = true;
+    // game.quick_loadout_title "plate": the quick loadout's title on a plate like the EXP gauge's, not on a bar.
+    bool quick_loadout_plate = false;
+    // game.skip_intro: boots past the Sony Computer Entertainment text, the copyright notice and the Level-5 logo.
+    bool skip_intro = false;
+    // game.auto_use_event_item: an event that asks for one item the bag holds is handed it without the item picker.
+    bool auto_use_event_item = false;
+    // game.floor_info_monsters: Triangle on a dungeon floor's information lists its monsters and their drops.
+    bool         floor_info_monsters = false;
     ConfigAspect aspect = ConfigAspect::Auto;
     float        ui_scale = 1.0f;
     bool         font_sharp = false;
     bool         mouse_fixed_look = true;
-    // audio.robot_voice "controller": the Ridepod's lines play on a DualSense speaker when one is found.
-    bool robot_voice_controller = false;
+    // audio.dualsense_speaker: the Ridepod's lines, the treasure chests' opening and the menus' effects
+    // play on a DualSense speaker when one is found instead of the TV.
+    bool dualsense_speaker = true;
     // audio.controller_volume: gain on the controller speaker, on top of the master volume.
-    float controller_volume = 1.0f;
+    float         controller_volume = 1.0f;
+    ConfigHaptics dualsense_haptics = ConfigHaptics::Full;
+    // input.haptics_strength: gain on the DualSense actuators.
+    float haptics_strength = 1.0f;
 
     bool operator==(const Config &) const = default;
 };

@@ -42,7 +42,7 @@ protected:
         PlayTimeReset();
     }
 
-    void Ticks(int count) {
+    static void Ticks(int count) {
         while (count-- > 0) {
             ClockPump();
         }

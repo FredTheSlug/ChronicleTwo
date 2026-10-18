@@ -43,7 +43,7 @@ void CameraZoom::Read(CCameraControl &camera, float wheel, bool reset, bool enab
 
 void CameraZoom::Move(CCameraControl &camera, CScene &scene,
                       CCameraControl::Control &control, float *rotation,
-                      CCPoly *retail_polys, int retail_count) {
+                      CCPoly *retail_polys, int retail_count) const {
     if (!active) {
         camera.MoveCamera(&control, rotation, retail_polys, retail_count);
         return;
@@ -76,7 +76,7 @@ void CameraZoom::Move(CCameraControl &camera, CScene &scene,
     CCPoly polys[512];
     // Reuse the collector after retail avoidance changes the destination. Each
     // proof must enclose the actual current and final pending corridors.
-    auto collect = [&]() {
+    auto collect = [&] {
         mgVu0FBOX bounds{};
         for (int i = 0; i < 3; ++i) {
             bounds.min[i] = std::min({camera.pos[i], camera.ref[i], candidate.next_pos[i], candidate.next_ref[i]}) - 8;

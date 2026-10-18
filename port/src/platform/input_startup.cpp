@@ -5,8 +5,7 @@
 
 void InputInitForRun(bool headless) {
     if (headless) {
-        // InputPoll and script overrides work without physical devices or window event hooks.
-        // Apply the same bindings and mouse settings without opening SDL's gamepad subsystem.
+        // Bindings and mouse settings still apply to scripted input; no gamepad subsystem is opened.
         InputApplyConfig(SettingsGet());
     } else {
         InputInit();

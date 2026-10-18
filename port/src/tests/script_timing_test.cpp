@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <math.h>
 
 #include <algorithm>
 #include <bit>
@@ -11,6 +12,7 @@
 #include <iterator>
 #include <map>
 #include <optional>
+#include <print>
 #include <string>
 #include <vector>
 
@@ -43,47 +45,47 @@ struct I {
 };
 
 I Push(int v) {
-    return {kPush, RS_CONST_INT, v};
+    return {.op = kPush, .a1 = RS_CONST_INT, .a2 = v};
 }
 
 I PushF(float v) {
-    return {kPush, RS_CONST_FLOAT, std::bit_cast<int>(v)};
+    return {.op = kPush, .a1 = RS_CONST_FLOAT, .a2 = std::bit_cast<int>(v)};
 }
 
 I Load(int slot) {
-    return {kLoad, slot, RS_ADDR_LOCAL};
+    return {.op = kLoad, .a1 = slot, .a2 = RS_ADDR_LOCAL};
 }
 
 I LoadF(int slot) {
-    return {kLoad, slot, RS_ADDR_LOCAL_FLOAT};
+    return {.op = kLoad, .a1 = slot, .a2 = RS_ADDR_LOCAL_FLOAT};
 }
 
 I Lda(int slot) {
-    return {kLda, slot, RS_ADDR_LOCAL};
+    return {.op = kLda, .a1 = slot, .a2 = RS_ADDR_LOCAL};
 }
 
 I LdaF(int slot) {
-    return {kLda, slot, RS_ADDR_LOCAL_FLOAT};
+    return {.op = kLda, .a1 = slot, .a2 = RS_ADDR_LOCAL_FLOAT};
 }
 
 I Op(int op, int a1 = 0) {
-    return {op, a1, 0};
+    return {.op = op, .a1 = a1, .a2 = 0};
 }
 
 I Jf(int label) {
-    I i{kJf, 0, 0};
+    I i{.op = kJf, .a1 = 0, .a2 = 0};
     i.label = label;
     return i;
 }
 
 I Jmp(int label) {
-    I i{kJmp, 0, 0};
+    I i{.op = kJmp, .a1 = 0, .a2 = 0};
     i.label = label;
     return i;
 }
 
 I Call(int callee) {
-    I i{kCall, 0, 0};
+    I i{.op = kCall, .a1 = 0, .a2 = 0};
     i.callee = callee;
     return i;
 }
@@ -92,7 +94,7 @@ I Call(int callee) {
 std::vector<I> Record(std::vector<I> value) {
     std::vector<I> out = {Push(0)};
     out.insert(out.end(), value.begin(), value.end());
-    out.push_back({kExt, 2, 0});
+    out.push_back({.op = kExt, .a1 = 2, .a2 = 0});
     return out;
 }
 
@@ -119,7 +121,7 @@ Built Assemble(const std::vector<Fn> &fns, const std::vector<std::pair<int, int>
         at += static_cast<std::size_t>(fns[f].pad_before) * 12;
         block[f] = at;
         at += 0x38 + fns[f].code.size() * 12;
-        at += (fns[f].data.size() + 4) & ~std::size_t(3);
+        at += (fns[f].data.size() + 4) & ~static_cast<std::size_t>(3);
     }
     Built out;
     out.bytes.assign(at, 0);
@@ -221,7 +223,7 @@ float FloatAt(const VmRun &run, std::size_t i) {
 }
 
 Expected Want(std::initializer_list<std::pair<script_timing::Recipe, int> > recipes, int anchors = 0, int windows = 0) {
-    Expected e{"synthetic", {}, static_cast<std::uint8_t>(anchors), static_cast<std::uint8_t>(windows)};
+    Expected e{.path = "synthetic", .recipes = {}, .anchors = static_cast<std::uint8_t>(anchors), .windows = static_cast<std::uint8_t>(windows)};
     for (auto [recipe, count] : recipes) {
         e.recipes[recipe] = static_cast<std::uint16_t>(count);
     }
@@ -237,33 +239,33 @@ Result Convert(const std::string &key, std::vector<unsigned char> &bytes, const 
 // The event library's wait(n): PAL form, n + 1 resumes.
 Fn EventWait() {
     return {
-        1,
-        1,
-        {Load(0), Push(0), Op(kCmp, RS_CMP_GT), Jf(12),
-          Lda(0), Load(0), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kStore), Op(kPop),
-          Op(kOp22, 0), Load(0), Push(0), Op(kCmp, RS_CMP_GE), Jf(25),
-          Lda(0), Load(0), Push(1), Op(kSub), Op(kStore), Op(kPop), Op(kWait), Jmp(12),
-          Op(kOp22, 1), Push(0), Op(kRet)}
+        .local = 1,
+        .arg = 1,
+        .code = {Load(0), Push(0), Op(kCmp, RS_CMP_GT), Jf(12),
+                 Lda(0), Load(0), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kStore), Op(kPop),
+                 Op(kOp22, 0), Load(0), Push(0), Op(kCmp, RS_CMP_GE), Jf(25),
+                 Lda(0), Load(0), Push(1), Op(kSub), Op(kStore), Op(kPop), Op(kWait), Jmp(12),
+                 Op(kOp22, 1), Push(0), Op(kRet)}
     };
 }
 
 // The monster converter conv(n) = ftoi(itof(n) / 30.0f * 25.0f).
 Fn MonsterConvert() {
     return {
-        1, 1, {Load(0), Op(kItof), PushF(30.0f), Op(kDiv), PushF(25.0f), Op(kMul), Op(kFtoi), Op(kRet)}
+        .local = 1, .arg = 1, .code = {Load(0), Op(kItof), PushF(30.0f), Op(kDiv), PushF(25.0f), Op(kMul), Op(kFtoi), Op(kRet)}
     };
 }
 
 // The integer wait(n) of b14a/rin: n = (n / 30) * 25, then n resumes.
 Fn IntegerWait() {
     return {
-        2,
-        1,
-        {Lda(0), Load(0), Push(30), Op(kDiv), Push(25), Op(kMul), Op(kStore), Op(kPop),
-          Lda(1), Push(0), Op(kStore), Op(kPop),
-          Op(kOp22, 0), Load(1), Load(0), Op(kCmp, RS_CMP_LT), Jf(25),
-          Op(kWait), Lda(1), Load(1), Push(1), Op(kAdd), Op(kStore), Op(kPop), Jmp(12), Op(kOp22, 1),
-          Push(0), Op(kRet)}
+        .local = 2,
+        .arg = 1,
+        .code = {Lda(0), Load(0), Push(30), Op(kDiv), Push(25), Op(kMul), Op(kStore), Op(kPop),
+                 Lda(1), Push(0), Op(kStore), Op(kPop),
+                 Op(kOp22, 0), Load(1), Load(0), Op(kCmp, RS_CMP_LT), Jf(25),
+                 Op(kWait), Lda(1), Load(1), Push(1), Op(kAdd), Op(kStore), Op(kPop), Jmp(12), Op(kOp22, 1),
+                 Push(0), Op(kRet)}
     };
 }
 
@@ -276,8 +278,8 @@ std::vector<I> ReturnZero() {
 TEST(ScriptTiming, Op22MarkerIsANoOp) {
     // Opcode 22 has no case in CRunScript::exe(): the patcher's marker must leave stacks and flow alone.
     Fn prog{
-        0, 0, Join({Record({Push(7), {kOp22, 0x4E544D54, 0x02030004}, Op(kOp22, 5)}), Record({Push(9)}), ReturnZero()}
-          )
+        .local = 0, .arg = 0, .code = Join({Record({Push(7), {.op = kOp22, .a1 = 0x4E544D54, .a2 = 0x02030004}, Op(kOp22, 5)}), Record({Push(9)}), ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -294,8 +296,8 @@ TEST(ScriptTiming, Op22MarkerIsANoOp) {
 
 TEST(ScriptTiming, EventWaitHelperRunsNtscFields) {
     Fn prog{
-        0, 0, Join({{Push(30), Call(1), Op(kPop)}, ReturnZero()}
-          )
+        .local = 0, .arg = 0, .code = Join({{Push(30), Call(1), Op(kPop)}, ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -327,8 +329,8 @@ TEST(ScriptTiming, EventWaitHelperRunsNtscFields) {
 
 TEST(ScriptTiming, MonsterConvertBecomesIdentityAndKeepsIntegers) {
     Fn prog{
-        1, 0, Join({Record({Push(7), Call(1)}), Record({Push(8), Call(1)}), Record({Push(10), Call(1)}), Record({Push(12), Call(1)}), {Lda(0), Push(9), Op(kStore), Op(kPop)}, Record({Load(0), Call(1)}), Record({PushF(8.75f), Call(1)}), ReturnZero()}
-          )
+        .local = 1, .arg = 0, .code = Join({Record({Push(7), Call(1)}), Record({Push(8), Call(1)}), Record({Push(10), Call(1)}), Record({Push(12), Call(1)}), {Lda(0), Push(9), Op(kStore), Op(kPop)}, Record({Load(0), Call(1)}), Record({PushF(8.75f), Call(1)}), ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -364,8 +366,8 @@ TEST(ScriptTiming, MonsterConvertBecomesIdentityAndKeepsIntegers) {
 TEST(ScriptTiming, ConvertIsOnlyRecognisedAsAWholeHelper) {
     // The same six instructions inside a larger function are not the converter helper.
     Fn prog{
-        1, 1, Join({{Load(0), Op(kItof), PushF(30.0f), Op(kDiv), PushF(25.0f), Op(kMul), Op(kFtoi), Op(kPop)}, ReturnZero()}
-          )
+        .local = 1, .arg = 1, .code = Join({{Load(0), Op(kItof), PushF(30.0f), Op(kDiv), PushF(25.0f), Op(kMul), Op(kFtoi), Op(kPop)}, ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -382,8 +384,8 @@ TEST(ScriptTiming, ConvertIsOnlyRecognisedAsAWholeHelper) {
 
 TEST(ScriptTiming, IntegerHelpersKeepShortWaits) {
     Fn prog{
-        0, 0, Join({{Push(8), Call(1), Op(kPop)}, Record({Push(40), Push(30), Op(kDiv), Push(25), Op(kMul)}), ReturnZero()}
-          )
+        .local = 0, .arg = 0, .code = Join({{Push(8), Call(1), Op(kPop)}, Record({Push(40), Push(30), Op(kDiv), Push(25), Op(kMul)}), ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -408,13 +410,13 @@ TEST(ScriptTiming, IntegerHelpersKeepShortWaits) {
 TEST(ScriptTiming, EventInlineSitesAndTheLipSyncCue) {
     // cue(l0, l1, l2): PAL scales the timeout l1, then sets the cue l2 from the scaled l1.
     Fn cue{
-        3, 3, Join({{Load(1), Push(0), Op(kCmp, RS_CMP_GT), Jf(12), Lda(1), Load(1), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kStore), Op(kPop), Op(kOp22, 0), Load(2), Push(0), Op(kCmp, RS_CMP_GT), Jf(25), Lda(2), Load(1), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kStore), Op(kPop), Op(kOp22, 1)}, Record({Load(1)}), Record({Load(2)}), ReturnZero()}
-          )
+        .local = 3, .arg = 3, .code = Join({{Load(1), Push(0), Op(kCmp, RS_CMP_GT), Jf(12), Lda(1), Load(1), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kStore), Op(kPop), Op(kOp22, 0), Load(2), Push(0), Op(kCmp, RS_CMP_GT), Jf(25), Lda(2), Load(1), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kStore), Op(kPop), Op(kOp22, 1)}, Record({Load(1)}), Record({Load(2)}), ReturnZero()}
+                )
     };
     // A loop of (45 * 50) / 60 resumes and a variable argument (l1 * 50) / 60.
     Fn prog{
-        2, 0, Join({{Lda(0), Push(0), Op(kStore), Op(kPop), Op(kOp22, 0), Load(0), Push(45), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kCmp, RS_CMP_LT), Jf(21), Op(kWait), Lda(0), Load(0), Push(1), Op(kAdd), Op(kStore), Op(kPop), Jmp(4), Op(kOp22, 1), Lda(1), Push(36), Op(kStore), Op(kPop)}, Record({Load(1), Push(50), Op(kMul), Push(60), Op(kDiv)}), {Push(0), Push(90), Push(30), Call(1), Op(kPop)}, ReturnZero()}
-          )
+        .local = 2, .arg = 0, .code = Join({{Lda(0), Push(0), Op(kStore), Op(kPop), Op(kOp22, 0), Load(0), Push(45), Push(50), Op(kMul), Push(60), Op(kDiv), Op(kCmp, RS_CMP_LT), Jf(21), Op(kWait), Lda(0), Load(0), Push(1), Op(kAdd), Op(kStore), Op(kPop), Jmp(4), Op(kOp22, 1), Lda(1), Push(36), Op(kStore), Op(kPop)}, Record({Load(1), Push(50), Op(kMul), Push(60), Op(kDiv)}), {Push(0), Push(90), Push(30), Call(1), Op(kPop)}, ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -446,7 +448,7 @@ TEST(ScriptTiming, EventInlineSitesAndTheLipSyncCue) {
 }
 
 TEST(ScriptTiming, FloatAndInverseForms) {
-    Fn prog{0, 0, Join({Record({PushF(30.0f), PushF(50.0f), Op(kMul), PushF(60.0f), Op(kDiv)}), Record({Push(121), Push(60), Op(kDiv), Push(50), Op(kMul)}), Record({PushF(0.8f), PushF(120.0f), Op(kDiv), PushF(60.0f), Op(kDiv), PushF(50.0f), Op(kMul)}), ReturnZero()})};
+    Fn prog{.local = 0, .arg = 0, .code = Join({Record({PushF(30.0f), PushF(50.0f), Op(kMul), PushF(60.0f), Op(kDiv)}), Record({Push(121), Push(60), Op(kDiv), Push(50), Op(kMul)}), Record({PushF(0.8f), PushF(120.0f), Op(kDiv), PushF(60.0f), Op(kDiv), PushF(50.0f), Op(kMul)}), ReturnZero()})};
 
     auto built = Assemble({
                               prog
@@ -476,12 +478,11 @@ TEST(ScriptTiming, NearMissesAndStringBytesAreLeftAlone) {
     std::string        pattern(48, '\0');
     const std::int32_t words[12] = {kPush, 1, 50, kMul, 0, 0, kPush, 1, 60, kDiv, 0, 0};
     std::memcpy(pattern.data(), words, sizeof words);
-    I str{kPush, RS_CONST_STR, 0};
+    I str{.op = kPush, .a1 = RS_CONST_STR, .a2 = 0};
     str.str = true;
     Fn prog{
-        0, 0, Join({{str, Op(kPop)}, Record({Push(9), Push(50), Op(kMul), Push(61), Op(kDiv)}), Record({Push(9), PushF(50.0f), Op(kMul), Push(60), Op(kDiv)}), Record({Push(9), Push(50), Op(kOp22, 3), Op(kMul), Push(60), Op(kDiv)}), ReturnZero()}
-          ),
-        pattern
+        .local = 0, .arg = 0, .code = Join({{str, Op(kPop)}, Record({Push(9), Push(50), Op(kMul), Push(61), Op(kDiv)}), Record({Push(9), PushF(50.0f), Op(kMul), Push(60), Op(kDiv)}), Record({Push(9), Push(50), Op(kOp22, 3), Op(kMul), Push(60), Op(kDiv)}), ReturnZero()}
+                ), .data = pattern
     };
 
     auto built = Assemble({
@@ -505,8 +506,8 @@ TEST(ScriptTiming, NearMissesAndStringBytesAreLeftAlone) {
 
 TEST(ScriptTiming, InvalidScriptsAreRefused) {
     Fn prog{
-        0, 0, Join({{Push(30), Call(1), Op(kPop)}, ReturnZero()}
-          )
+        .local = 0, .arg = 0, .code = Join({{Push(30), Call(1), Op(kPop)}, ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -551,8 +552,8 @@ TEST(ScriptTiming, InvalidScriptsAreRefused) {
 TEST(ScriptTiming, LanguageAnchorsWriteNtscLiteralsOnce) {
     // s03: a turn of (pi/20) * 1.2 per resume over a 33-resume loop; NTSC turns pi/20 over 40.
     Fn prog{
-        4, 0, Join({{LdaF(2), PushF(0.0f), Op(kStore), Op(kPop), Lda(3), Push(0), Op(kStore), Op(kPop), Op(kOp22, 0), Load(3), Push(33), Op(kCmp, RS_CMP_LT), Jf(31), LdaF(2), LoadF(2), {kPush, RS_CONST_FLOAT, 0x40490fdb}, PushF(20.0f), Op(kDiv), PushF(1.2f), Op(kMul), Op(kAdd), Op(kStore), Op(kPop), Op(kWait), Lda(3), Load(3), Push(1), Op(kAdd), Op(kStore), Op(kPop), Jmp(8), Op(kOp22, 1)}, Record({LoadF(2)}), ReturnZero()}
-          )
+        .local = 4, .arg = 0, .code = Join({{LdaF(2), PushF(0.0f), Op(kStore), Op(kPop), Lda(3), Push(0), Op(kStore), Op(kPop), Op(kOp22, 0), Load(3), Push(33), Op(kCmp, RS_CMP_LT), Jf(31), LdaF(2), LoadF(2), {.op = kPush, .a1 = RS_CONST_FLOAT, .a2 = 0x40490fdb}, PushF(20.0f), Op(kDiv), PushF(1.2f), Op(kMul), Op(kAdd), Op(kStore), Op(kPop), Op(kWait), Lda(3), Load(3), Push(1), Op(kAdd), Op(kStore), Op(kPop), Jmp(8), Op(kOp22, 1)}, Record({LoadF(2)}), ReturnZero()}
+                )
     };
 
     auto built = Assemble({
@@ -592,7 +593,7 @@ TEST(ScriptTiming, AttackWindowsUseNtscBounds) {
         {101, 0}
     };
     const std::size_t code_at = Assemble({
-                                             {0, 0, {Op(kOp22)}}
+                                             {.local = 0, .arg = 0, .code = {Op(kOp22)}}
     },
                                          programs, 0)
                                     .code_at[0];
@@ -609,7 +610,7 @@ TEST(ScriptTiming, AttackWindowsUseNtscBounds) {
     }
 
     auto built = Assemble({
-                              {0, 0, code}
+                              {.local = 0, .arg = 0, .code = code}
     },
                           programs, 0);
 
@@ -620,7 +621,7 @@ TEST(ScriptTiming, AttackWindowsUseNtscBounds) {
     auto result = Convert("mainchr/c02.stb", ntsc, Want({}, 0, 2));
     ASSERT_TRUE(result.ok) << result.error;
     EXPECT_EQ(result.writes, 2);
-    float value;
+    float value = NAN;
     std::memcpy(&value, ntsc.data() + 0xb308 + 8, 4);
     EXPECT_EQ(value, 0.45f);
     std::memcpy(&value, ntsc.data() + 0xb3bc + 8, 4);
@@ -640,7 +641,7 @@ TEST(ScriptTiming, InventoryRowsAreSortedAndKnownScriptsAreRefused) {
     EXPECT_EQ(script_timing::Find("map/s/s01/s01.stb"), nullptr);
     EXPECT_EQ(script_timing::Key("MAP\\S\\S01\\S01_1.STB"), "map/s/s01/s01_1.stb");
     // A known script whose bytes are not the PAL release's is refused, without writing.
-    Fn prog{0, 0, ReturnZero()};
+    Fn prog{.local = 0, .arg = 0, .code = ReturnZero()};
 
     auto built = Assemble({
                               prog
@@ -653,7 +654,7 @@ TEST(ScriptTiming, InventoryRowsAreSortedAndKnownScriptsAreRefused) {
     // An unknown script without conversions passes; one with a conversion is refused.
     EXPECT_TRUE(script_timing::Patch("map/x/x99_1.stb", bytes.data(), bytes.size()));
     auto wait = Assemble({
-                             {0, 0, Join({{Push(3), Call(1), Op(kPop)}, ReturnZero()})},
+                             {.local = 0, .arg = 0, .code = Join({{Push(3), Call(1), Op(kPop)}, ReturnZero()})},
                              EventWait()
     },
                          {{100, 0}}, 0);
@@ -668,7 +669,7 @@ constexpr const char *kStartupScript = "dungeon/eff_script/b02a_hibasira.stb";
 
 Built StartupScript() {
     return Assemble({
-                        {0, 0, Join({Record({Push(40), Push(30), Op(kDiv), Push(25), Op(kMul)}), ReturnZero()})}
+                        {.local = 0, .arg = 0, .code = Join({Record({Push(40), Push(30), Op(kDiv), Push(25), Op(kMul)}), ReturnZero()})}
     },
                     {{100, 0}}, 0);
 }
@@ -688,7 +689,7 @@ protected:
         fs::remove_all(base, error);
     }
 
-    void Write(const fs::path &path, const std::vector<unsigned char> &bytes) {
+    static void Write(const fs::path &path, const std::vector<unsigned char> &bytes) {
         fs::create_directories(path.parent_path());
         std::ofstream out(path, std::ios::binary);
         out.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
@@ -700,12 +701,12 @@ protected:
         std::ofstream(base / "datapacks/datapacks.json") << R"({"schema_version":1,"load_order":["test"]})";
     }
 
-    std::vector<unsigned char> Load() {
+    static std::vector<unsigned char> Load() {
         std::string name = std::string("/") + kStartupScript;
         int         size = 0;
         EXPECT_EQ(LoadFile2(name.data(), nullptr, &size, LOAD_FILE_SIZE), 1);
         std::vector<unsigned char> bytes((static_cast<std::size_t>(size) + DATAREAD_SECTOR_SIZE - 1) &
-                                         ~std::size_t(DATAREAD_SECTOR_SIZE - 1));
+                                         ~static_cast<std::size_t>(DATAREAD_SECTOR_SIZE - 1));
         EXPECT_EQ(LoadFile2(name.data(), bytes.data(), &size, LOAD_FILE_READ), 1);
         bytes.resize(static_cast<std::size_t>(size));
         return bytes;
@@ -716,7 +717,7 @@ protected:
 
 TEST_F(ScriptTimingStartup, HeadlessExtractedMismatchRefusesStartup) {
     const auto bad = Assemble({
-                                  {0, 0, ReturnZero()}
+                                  {.local = 0, .arg = 0, .code = ReturnZero()}
     },
                               {{100, 0}}, 0)
                          .bytes;
@@ -788,7 +789,7 @@ TEST_F(ScriptTimingStartup, UnlistedUndecodableScriptStaysUnchangedAndWarnsOnce)
 
 TEST_F(ScriptTimingStartup, UnlistedConversionsAreReportedOnEveryValidation) {
     const auto unknown = Assemble({
-                                      {0, 0, Join({{Push(3), Call(1), Op(kPop)}, ReturnZero()})},
+                                      {.local = 0, .arg = 0, .code = Join({{Push(3), Call(1), Op(kPop)}, ReturnZero()})},
                                       EventWait()
     },
                                   {{100, 0}}, 0);
@@ -835,7 +836,7 @@ std::optional<DataScripts> ReadScripts() {
     DataReadIndex(fs::path(data));
     InitFileCache(nullptr, FILE_CACHE_NONE);
     SetCurrentDir(nullptr);
-    return DataScripts{fs::path(data), DataReadScriptKeys()};
+    return DataScripts{.root = fs::path(data), .keys = DataReadScriptKeys()};
 }
 
 const std::optional<DataScripts> &Scripts() {
@@ -861,7 +862,7 @@ std::string ShardOf(const std::string &key) {
     }
     for (const char *prefix : {"map/d/", "map/f/", "map/g/", "map/i/", "map/m/", "map/s/"}) {
         if (key.starts_with(prefix)) {
-            return std::string(prefix);
+            return {prefix};
         }
     }
     if (event) {
@@ -869,7 +870,7 @@ std::string ShardOf(const std::string &key) {
     }
     for (const char *prefix : {"dungeon/monster/", "dungeon/eff_script/"}) {
         if (key.starts_with(prefix)) {
-            return std::string(prefix);
+            return {prefix};
         }
     }
     return "other";
@@ -926,7 +927,7 @@ void CheckShard(const std::string &shard) {
         totals["windows"] += result.counts.windows;
         totals["writes"] += result.writes;
 
-        buffer.assign((original.size() + 2 * DATAREAD_SECTOR_SIZE) & ~std::size_t(DATAREAD_SECTOR_SIZE - 1), 0);
+        buffer.assign((original.size() + 2 * DATAREAD_SECTOR_SIZE) & ~static_cast<std::size_t>(DATAREAD_SECTOR_SIZE - 1), 0);
         std::string name = "/" + key;
         int         size = 0;
         ASSERT_EQ(LoadFile2(name.data(), buffer.data(), &size, LOAD_FILE_READ), 1) << key;
@@ -934,11 +935,11 @@ void CheckShard(const std::string &shard) {
         EXPECT_EQ(std::memcmp(buffer.data(), bytes.data(), bytes.size()), 0) << key << ": NTSC loader bytes differ";
     }
     EXPECT_GT(files, 0);
-    std::printf("shard %s: %d scripts, %d known;", shard.c_str(), files, known);
+    std::print("shard {}: {} scripts, {} known;", shard, files, known);
     for (const auto &[name, value] : totals) {
-        std::printf(" %s %ld", name.c_str(), value);
+        std::print(" {} {}", name, value);
     }
-    std::printf("\n");
+    std::println("");
 }
 
 } // namespace

@@ -15,7 +15,7 @@ struct FixedMouseLook {
     // Display-frame time, in seconds. A rejected owner drops the sample and offset.
     void Update(bool owns, std::uint64_t sample, float x, float y, double seconds);
 
-    bool Active() const { return yaw != 0 || pitch != 0; }
+    [[nodiscard]] bool Active() const { return yaw != 0 || pitch != 0; }
 };
 
 bool            TownMouseFixedOwns(CCameraControl *camera, CScene *scene, CPadControl *pad,

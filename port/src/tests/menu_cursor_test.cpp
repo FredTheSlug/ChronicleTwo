@@ -12,15 +12,17 @@ TEST(MenuCursor, BothBandsKeepTheCursorTextureAndColor) {
     sceVif1Packet packet{};
     auto         *saved_info = mgDrawManager.render_info;
     auto         *saved_packet = mgVif1Packet;
-    const int     saved_width = mgScreenWidth, saved_height = mgScreenHeight;
+    const int     saved_width = mgScreenWidth;
+    const int     saved_height = mgScreenHeight;
     mgScreenWidth = 512;
     mgScreenHeight = 480;
     mgDrawManager.render_info = &info;
     mgVif1Packet = &packet;
     mgPortSetTextureLookup(nullptr, [](uint64_t tex0) -> mgPortTexture {
-        return tex0 != 0 ? mgPortTexture{42, 43} : mgPortTexture{};
+        return tex0 != 0 ? mgPortTexture{.texture = 42, .palette = 43} : mgPortTexture{};
     });
-    int horizontal = 0, vertical = 0;
+    int horizontal = 0;
+    int vertical = 0;
     mgPortSetPrimSink([&](gfx::Primitive kind, std::span<const gfx::Vertex2D> vertices,
                           const gfx::TextureBinding &binding, const gfx::DrawState &) {
         if (vertices.empty()) {

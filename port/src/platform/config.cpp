@@ -12,7 +12,8 @@
 #include <format>
 #include <fstream>
 #include <limits>
-#include <sstream>
+#include <optional>
+#include <print>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,12 +28,12 @@ namespace {
 using Json = nlohmann::ordered_json;
 
 Config g_config;
-Config g_persisted;
-bool   g_have_persisted = false;
+// What config.json was last read or written as; unset when its contents are unknown.
+std::optional<Config> g_persisted;
 // Whether config.json holds g_config, so a failed save is retried with the next change.
 bool g_saved = false;
 // An existing config.json that could not be read: replacing it would discard the user's settings.
-bool g_keep_file = false;
+bool             g_keep_file = false;
 ConfigChangeHook g_change_hook = nullptr;
 ConfigReadHook   g_read_hook = nullptr;
 
@@ -66,9 +67,19 @@ constexpr auto kUnit = [](auto value) { return value >= 0 && value <= 1; };
 constexpr const char *kPresentModeNames[] = {"fifo", "mailbox", "immediate"};
 constexpr const char *kAspectNames[] = {"auto", "4:3"};
 constexpr const char *kFpsDetailNames[] = {"fps", "ticks", "all"};
+constexpr const char *kHapticsNames[] = {"off", "vibration", "full"};
 constexpr const char *kGyroNames[] = {"off", "always", "first_person", "held"};
 constexpr const char *kGlyphDeviceNames[] = {
-    "auto", "ps3", "ps4", "ps5", "ps5color", "xbox", "switch", "steamdeck", "steamcontroller", "keyboard",
+    "auto",
+    "ps3",
+    "ps4",
+    "ps5",
+    "ps5color",
+    "xbox",
+    "switch",
+    "steamdeck",
+    "steamcontroller",
+    "keyboard",
 };
 
 std::string_view Trim(std::string_view text) {
@@ -92,8 +103,8 @@ double Shortest(float value) {
 }
 
 void Ignore(std::string_view name, const Json &value) {
-    std::fprintf(stderr, "config.json: ignoring %.*s = %s\n", static_cast<int>(name.size()), name.data(),
-                 value.dump().c_str());
+    std::println(stderr, "config.json: ignoring {:.{}} = {}", name.data(), static_cast<int>(name.size()),
+                 value.dump());
 }
 
 template <class T, class Valid>
@@ -181,7 +192,7 @@ bool ApplyBindings(Config &config, const Json &bindings) {
         return false;
     }
     for (const auto &[action, keys] : bindings.items()) {
-        ConfigKeyBinding binding = {Lower(action), {}};
+        ConfigKeyBinding binding = {.action = Lower(action), .keys = {}};
         if (ReadList(keys, binding.keys)) {
             config.key_bindings.push_back(std::move(binding));
         } else {
@@ -195,6 +206,21 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     HostSettings &s = config;
     if (name == "game.debug_mode") {
         return ReadBool(value, config.debug_mode);
+    }
+    if (name == "game.autosave") {
+        return ReadBool(value, config.autosave);
+    }
+    if (name == "game.floor_info_monsters") {
+        return ReadBool(value, config.floor_info_monsters);
+    }
+    if (name == "game.quick_loadout_title") {
+        return ReadChoice(value, "bar", "plate", config.quick_loadout_plate);
+    }
+    if (name == "game.skip_intro") {
+        return ReadBool(value, config.skip_intro);
+    }
+    if (name == "game.auto_use_event_item") {
+        return ReadBool(value, config.auto_use_event_item);
     }
     if (name == "video.present_mode") {
         return ReadEnum(value, kPresentModeNames, s.present_mode);
@@ -241,8 +267,13 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     if (name == "audio.sound") {
         return ReadChoice(value, "stereo", "surround", s.surround);
     }
+    if (name == "audio.dualsense_speaker") {
+        return ReadBool(value, config.dualsense_speaker);
+    }
+    // Superseded by audio.dualsense_speaker, whose default is this key's only opt-in: validated and dropped.
     if (name == "audio.robot_voice") {
-        return ReadChoice(value, "tv", "controller", config.robot_voice_controller);
+        bool controller = false;
+        return ReadChoice(value, "tv", "controller", controller);
     }
     if (name == "audio.controller_volume") {
         return ReadNumber(value, config.controller_volume, [](float volume) { return volume >= 0.0f && volume <= 2.0f; });
@@ -297,6 +328,12 @@ bool Apply(Config &config, std::string_view name, const Json &value) {
     }
     if (name == "input.rumble_strength") {
         return ReadNumber(value, s.rumble_strength, kUnit);
+    }
+    if (name == "input.dualsense_haptics") {
+        return ReadEnum(value, kHapticsNames, config.dualsense_haptics);
+    }
+    if (name == "input.haptics_strength") {
+        return ReadNumber(value, config.haptics_strength, [](float strength) { return strength >= 0.0f && strength <= 2.0f; });
     }
     if (name == "input.glyphs") {
         return ReadChoice(value, "original", "new", s.glyphs_new);
@@ -386,7 +423,7 @@ Config ConfigParse(std::string_view text) {
     }
     Json root = Json::parse(text, nullptr, false, true);
     if (!root.is_object()) {
-        std::fprintf(stderr, "config.json: %s; using the defaults\n",
+        std::println(stderr, "config.json: {}; using the defaults",
                      root.is_discarded() ? "not valid JSON" : "expected an object");
         return config;
     }
@@ -413,6 +450,11 @@ std::string ConfigSerialize(const Config &config) {
     }
     Json root;
     root["game"]["debug_mode"] = config.debug_mode;
+    root["game"]["autosave"] = config.autosave;
+    root["game"]["quick_loadout_title"] = config.quick_loadout_plate ? "plate" : "bar";
+    root["game"]["skip_intro"] = config.skip_intro;
+    root["game"]["auto_use_event_item"] = config.auto_use_event_item;
+    root["game"]["floor_info_monsters"] = config.floor_info_monsters;
     root["video"]["present_mode"] = kPresentModeNames[static_cast<std::size_t>(s.present_mode)];
     root["video"]["interpolation"] = config.interpolation;
     root["video"]["max_fps"] = s.max_fps;
@@ -427,7 +469,7 @@ std::string ConfigSerialize(const Config &config) {
     root["audio"]["master_volume"] = Shortest(s.master_volume);
     root["audio"]["sound"] = s.surround ? "surround" : "stereo";
     root["audio"]["soundtrack"] = s.soundtrack ? "custom" : "ps2";
-    root["audio"]["robot_voice"] = config.robot_voice_controller ? "controller" : "tv";
+    root["audio"]["dualsense_speaker"] = config.dualsense_speaker;
     root["audio"]["controller_volume"] = Shortest(config.controller_volume);
     root["input"]["mouse_sensitivity"] = Shortest(s.mouse_sensitivity);
     root["input"]["stick_sensitivity"] = Shortest(s.stick_sensitivity);
@@ -445,6 +487,8 @@ std::string ConfigSerialize(const Config &config) {
     root["input"]["touchpad_sensitivity"] = Shortest(s.touchpad_sensitivity);
     root["input"]["lightbar"] = s.lightbar;
     root["input"]["rumble_strength"] = Shortest(s.rumble_strength);
+    root["input"]["dualsense_haptics"] = kHapticsNames[static_cast<std::size_t>(config.dualsense_haptics)];
+    root["input"]["haptics_strength"] = Shortest(config.haptics_strength);
     root["input"]["glyphs"] = s.glyphs_new ? "new" : "original";
     root["input"]["glyph_device"] = kGlyphDeviceNames[static_cast<std::size_t>(s.glyph_device)];
     root["input"]["mouse_release"] = s.mouse_release_keys;
@@ -495,28 +539,26 @@ bool ConfigSave() {
         return g_saved = false;
     }
     const Json after = Json::parse(ConfigSerialize(g_config));
-    if (g_have_persisted && !recovered) {
-        MergeChanges(root, Json::parse(ConfigSerialize(g_persisted)), after);
+    if (g_persisted && !recovered) {
+        MergeChanges(root, Json::parse(ConfigSerialize(*g_persisted)), after);
     } else {
         root = after;
     }
     g_saved = WriteReplacing(path, root.dump(4) + "\n");
     if (g_saved) {
         g_persisted = g_config;
-        g_have_persisted = true;
-    }
-    if (!g_saved) {
-        std::fprintf(stderr, "config: could not save %s\n", PathsDisplay(path).c_str());
+    } else {
+        std::println(stderr, "config: could not save {}", PathsDisplay(path));
     }
     return g_saved;
 }
 
 bool ConfigLoad() {
-    const std::filesystem::path path = PathsSaveRoot() / "config.json";
-    std::error_code             error;
+    const std::filesystem::path        path = PathsSaveRoot() / "config.json";
+    std::error_code                    error;
     const std::filesystem::file_status status = std::filesystem::status(path, error);
     g_keep_file = false;
-    g_have_persisted = false;
+    g_persisted.reset();
     if (status.type() == std::filesystem::file_type::not_found) {
         g_config = Config{};
         ConfigSave();
@@ -524,8 +566,8 @@ bool ConfigLoad() {
     }
     std::string text;
     if (error || !std::filesystem::is_regular_file(status) || !ReadConfig(path, text)) {
-        std::fprintf(stderr, "config: could not read %s; using defaults and leaving it untouched\n",
-                     PathsDisplay(path).c_str());
+        std::println(stderr, "config: could not read {}; using defaults and leaving it untouched",
+                     PathsDisplay(path));
         g_config = Config{};
         g_saved = false;
         g_keep_file = true;
@@ -534,7 +576,6 @@ bool ConfigLoad() {
     g_config = ConfigParse(text);
     g_saved = true;
     g_persisted = g_config;
-    g_have_persisted = true;
     return true;
 }
 

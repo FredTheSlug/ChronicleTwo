@@ -5,3 +5,7 @@ extern int LoopMode asm("EditLoop_Mode");
 extern int ControlMode asm("EditLoop_Control");
 extern int LockChara asm("EditLoop_PlayerLock");
 extern int PauseFlag asm("EditLoop_Pause");
+extern int ActiveCharaNo asm("EditLoop_ActiveCharaNo");
+
+void PortRetailUpdateTrBoxFlag(int map_no) asm("EditLoop_UpdateTrBoxFlag");
+int  PortRetailEditDraw() asm("EditLoop_EditDraw");

@@ -28,7 +28,8 @@ CCameraControl Camera() {
 
 CCPoly Plane(int axis, float distance) {
     CCPoly      poly{};
-    const int   a = (axis + 1) % 3, b = (axis + 2) % 3;
+    const int   a = (axis + 1) % 3;
+    const int   b = (axis + 2) % 3;
     const float coordinates[3][2] = {
         {-2000, -2000},
         {2000,  -2000},
@@ -433,7 +434,7 @@ TEST(CameraZoom, FinalAvoidanceCorridorRecollectsSceneGeometry) {
         bool   final_wall_collected = false;
         CCPoly trigger{};
 
-        int GetCameraPoly(CCPoly *out, mgVu0FBOX &box, int) override {
+        int GetCameraPoly(CCPoly *out, mgVu0FBOX &box, int /*max*/) override {
             ++queries;
             out[0] = trigger;
             // A second wall outside the original eight-unit lateral envelope.
@@ -489,7 +490,7 @@ TEST(CameraZoom, OverlappingSceneAndCallerPolygonsCountOnceAboveHalfCapacity) {
             }
         }
 
-        int GetCameraPoly(CCPoly *out, mgVu0FBOX &, int capacity) override {
+        int GetCameraPoly(CCPoly *out, mgVu0FBOX & /*box*/, int capacity) override {
             const int count = std::min(capacity, static_cast<int>(polygons.size()));
             std::copy_n(polygons.begin(), count, out);
             return count;

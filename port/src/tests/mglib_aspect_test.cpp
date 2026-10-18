@@ -5,8 +5,11 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <initializer_list>
+#include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -24,6 +27,12 @@
 #include "platform/clock.hpp"
 #include "platform/window.hpp"
 
+// dngmenu.hpp brings libgraph.h, whose register macros must follow the host and test headers.
+// clang-format off
+#include "dngfloor.hpp"
+#include "dngmenu.hpp"
+// clang-format on
+
 using namespace dc::test;
 
 namespace {
@@ -32,7 +41,7 @@ class AspectRenderer {
 public:
     AspectRenderer(int width, int height) {
         SetEnv("VK_LAYER_VALIDATE_SYNC", "1", 0);
-        WindowConfig window{width, height, true};
+        WindowConfig window{.width = width, .height = height, .headless = true};
         window.vulkan = false;
         WindowInit(window);
 
@@ -116,8 +125,8 @@ void ExpectQuadAtLogicalPlace(int width, int height) {
     ASSERT_LE(min_y, max_y);
 
     const gfx::LogicalMapping mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
-    const double tol_x = std::max<double>(1.0, 1.0 / mapping.scale_x);
-    const double tol_y = std::max<double>(1.0, 1.0 / mapping.scale_y);
+    const double              tol_x = std::max<double>(1.0, 1.0 / mapping.scale_x);
+    const double              tol_y = std::max<double>(1.0, 1.0 / mapping.scale_y);
 
     const double left = (static_cast<double>(min_x) - mapping.offset_x) / mapping.scale_x;
     const double right = (static_cast<double>(max_x + 1) - mapping.offset_x) / mapping.scale_x;
@@ -245,11 +254,12 @@ TEST(MglibAspect, FrameBorderStaysAtVisibleEdges) {
     PortDrawFrameBorder();
     mgEndFrame(nullptr);
     std::vector<uint8_t> rgba;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
     ASSERT_EQ(width, 1920u);
     ASSERT_EQ(height, 1080u);
-    // Both old 4:3 boundaries are interior pixels of the expanded scene.
+    // Both 4:3 frame boundaries are interior pixels of the expanded scene.
     const auto mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
     for (float edge : {0.0f, 511.0f}) {
         const int x = static_cast<int>(mapping.offset_x + edge * mapping.scale_x);
@@ -260,12 +270,15 @@ TEST(MglibAspect, FrameBorderStaysAtVisibleEdges) {
     }
 }
 
+namespace {
 // The menu backdrop is 704 pixels wide and slides left by 192 pixels for the
 // item page. Its lens at texture x=350 must land at logical x=158, alongside
 // the model, even though the backdrop covers the entire logical frame.
-static void ExpectMenuLensAtRetailPosition(int window_width, int window_height) {
+void ExpectMenuLensAtRetailPosition(int window_width, int window_height) {
     AspectRenderer         renderer(window_width, window_height);
-    std::vector<u_long128> arena(4096), pixels(1024 * 512 * 4 / 16), ornament(64 * 64 * 4 / 16);
+    std::vector<u_long128> arena(4096);
+    std::vector<u_long128> pixels(1024 * 512 * 4 / 16);
+    std::vector<u_long128> ornament(64 * 64 * 4 / 16);
     mgCMemory              memory;
     memory.stSetBuffer(arena.data(), static_cast<int>(arena.size()));
     mgTexManager.SetTableBuffer(16, 4, &memory);
@@ -286,7 +299,8 @@ static void ExpectMenuLensAtRetailPosition(int window_width, int window_height) 
         }
     }
     u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels.data()};
-    char       background_name[] = "bg16", ornament_name[] = "mnmain";
+    char       background_name[] = "bg16";
+    char       ornament_name[] = "mnmain";
     ASSERT_NE(mgTexManager.EnterTexture(0, background_name, levels, 1024, 512, 32, nullptr, 0, 0), nullptr);
     levels[0] = ornament.data();
     ASSERT_NE(mgTexManager.EnterTexture(0, ornament_name, levels, 64, 64, 32, nullptr, 0, 0), nullptr);
@@ -306,9 +320,13 @@ static void ExpectMenuLensAtRetailPosition(int window_width, int window_height) 
     MenuMainFrameDraw(loaded_texture, 128);
     mgEndFrame(nullptr);
     std::vector<uint8_t> image;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, image, width, height));
-    uint32_t min_x = width, max_x = 0, min_y = height, max_y = 0;
+    uint32_t min_x = width;
+    uint32_t max_x = 0;
+    uint32_t min_y = height;
+    uint32_t max_y = 0;
     for (uint32_t y = 0; y < height; ++y) {
         for (uint32_t x = 0; x < width; ++x) {
             if (image[(static_cast<size_t>(y) * width + x) * 4] > 200) {
@@ -328,6 +346,7 @@ static void ExpectMenuLensAtRetailPosition(int window_width, int window_height) 
     EXPECT_GT(image[(static_cast<size_t>(height / 2) * width + width - 2) * 4 + 1], 200);
     mgTexManager.Initialize(0x1000, -1);
 }
+} // namespace
 
 TEST(MglibAspect, ItemMenuLensStaysWithModelAtSixteenNine) {
     ExpectMenuLensAtRetailPosition(1920, 1080);
@@ -381,8 +400,10 @@ TEST(MglibAspect, MenuFormsHideParkedStatsWithoutClippingEnteringPanel) {
         int state = -1;
         form.MenuFormDraw(state);
         // A following independent draw must still reach the wide flank.
-        auto             a = QuadCorner(-75, 50), b = QuadCorner(-50, 50);
-        auto             c = QuadCorner(-50, 75), d = QuadCorner(-75, 75);
+        auto             a = QuadCorner(-75, 50);
+        auto             b = QuadCorner(-50, 50);
+        auto             c = QuadCorner(-50, 75);
+        auto             d = QuadCorner(-75, 75);
         const std::array outside{a, b, c, d};
         gfx::DrawState   outside_state{};
         outside_state.depth_test = gfx::DepthTest::Always;
@@ -390,7 +411,8 @@ TEST(MglibAspect, MenuFormsHideParkedStatsWithoutClippingEnteringPanel) {
         mgPortDraw2D(gfx::Primitive::Quads, outside, {}, outside_state);
         mgEndFrame(nullptr);
         std::vector<uint8_t> rgba;
-        uint32_t             width = 0, height = 0;
+        uint32_t             width = 0;
+        uint32_t             height = 0;
         ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
         const auto pixel = [&](float px, float py, int channel) {
             const int sx = static_cast<int>(mapping.offset_x + px * mapping.scale_x);
@@ -428,16 +450,21 @@ TEST(MglibAspect, MenuFormsHideParkedStatsWithoutClippingEnteringPanel) {
     form.MenuFormDraw(state);
     mgEndFrame(nullptr);
     std::vector<uint8_t> rgba;
-    uint32_t             width = 0, height = 0;
+    uint32_t             width = 0;
+    uint32_t             height = 0;
     ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
     EXPECT_GT(rgba[(static_cast<size_t>(height / 2) * width + 100) * 4 + 1], 200);
     MenuPosData = saved_layout;
 }
 
-static void ExpectMenuBackdropContinuation(int window_width, int window_height, int page = 0, std::initializer_list<int> y_offsets = {0}) {
-    const bool             character = page == 1, invent = page == 2, options = page == 3;
+namespace {
+void ExpectMenuBackdropContinuation(int window_width, int window_height, int page = 0, std::initializer_list<int> y_offsets = {0}) {
+    const bool             character = page == 1;
+    const bool             invent = page == 2;
+    const bool             options = page == 3;
     AspectRenderer         renderer(window_width, window_height);
-    std::vector<u_long128> arena(4096), pixels(1024 * 1024 * 4 / 16);
+    std::vector<u_long128> arena(4096);
+    std::vector<u_long128> pixels(1024 * 1024 * 4 / 16);
     mgCMemory              memory;
     memory.stSetBuffer(arena.data(), static_cast<int>(arena.size()));
     mgTexManager.SetTableBuffer(16, 4, &memory);
@@ -461,7 +488,10 @@ static void ExpectMenuBackdropContinuation(int window_width, int window_height, 
         }
     }
     u_long128 *levels[MG_TEXTURE_LEVEL_MAX] = {pixels.data()};
-    char       name[] = "bg16", character_name[] = "chr_bg", invent_name[] = "inv_bg", options_name[] = "op_bg";
+    char       name[] = "bg16";
+    char       character_name[] = "chr_bg";
+    char       invent_name[] = "inv_bg";
+    char       options_name[] = "op_bg";
     auto      *texture = mgTexManager.EnterTexture(0, character ? character_name : invent ? invent_name
                                                                                : options  ? options_name
                                                                                           : name,
@@ -496,7 +526,8 @@ static void ExpectMenuBackdropContinuation(int window_width, int window_height, 
             prim.End();
             mgEndFrame(nullptr);
             std::vector<uint8_t> rgba;
-            uint32_t             width = 0, height = 0;
+            uint32_t             width = 0;
+            uint32_t             height = 0;
             ASSERT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
             for (float x : {-80.0f, -40.0f, 40.0f, 470.0f, 511.0f, 513.0f, 550.0f, 590.0f}) {
                 const int   sx = static_cast<int>(mapping.offset_x + x * mapping.scale_x);
@@ -543,6 +574,7 @@ static void ExpectMenuBackdropContinuation(int window_width, int window_height, 
     }
     mgTexManager.Initialize(0x1000, -1);
 }
+} // namespace
 
 TEST(MglibAspect, MenuBackdropContinuesArtworkAt1920x1080) {
     ExpectMenuBackdropContinuation(1920, 1080);
@@ -553,11 +585,11 @@ TEST(MglibAspect, MenuBackdropContinuesArtworkAt3840x2160) {
 }
 
 TEST(MglibAspect, CharacterBackdropContinuesArtworkAt1920x1080) {
-    ExpectMenuBackdropContinuation(1920, 1080, true);
+    ExpectMenuBackdropContinuation(1920, 1080, 1);
 }
 
 TEST(MglibAspect, CharacterBackdropContinuesArtworkAt3840x2160) {
-    ExpectMenuBackdropContinuation(3840, 2160, true);
+    ExpectMenuBackdropContinuation(3840, 2160, 1);
 }
 
 TEST(MglibAspect, InventBackdropContinuesArtworkAt1920x1080) {
@@ -583,7 +615,10 @@ void ExpectMenuTilesCoverWindow(int width, int height) {
     prim.write = nullptr;
     prim.Coord(1);
     for (float scroll : {-1.0f, -127.5f, -255.0f, 40.5f}) {
-        float left = 1e9f, top = 1e9f, right = -1e9f, bottom = -1e9f;
+        float left = 1e9f;
+        float top = 1e9f;
+        float right = -1e9f;
+        float bottom = -1e9f;
         mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices,
                               const gfx::TextureBinding &, const gfx::DrawState &) {
             for (const auto &v : vertices) {
@@ -628,4 +663,229 @@ TEST(MglibAspect, OptionsAndHelpBackdropContinueArtworkAt3840x2160) {
 
 TEST(MglibAspect, OptionsAndHelpFlanksFollowVerticalSlide) {
     ExpectMenuBackdropContinuation(1920, 1080, 3, {-480, -240, 80, 240, 480});
+}
+
+namespace {
+struct FreeDeleter {
+    void operator()(void *p) const {
+        std::free(p);
+    }
+};
+
+using FloorMap = std::unique_ptr<CDngFreeMap, FreeDeleter>;
+
+// A zeroed map is in menu mode with no textures, user or marks.
+FloorMap ZeroFloorMap() {
+    return FloorMap(static_cast<CDngFreeMap *>(std::calloc(1, sizeof(CDngFreeMap))));
+}
+
+// Binds the menu's shared builder to a draw manager, as the dungeon menu does, for the scope.
+class MenuPrimScope {
+public:
+    MenuPrimScope() {
+        manager.render_info = &info;
+        prim->draw_manager = &manager;
+        prim->Initialize(&memory, &packet);
+        prim->write = nullptr;
+    }
+
+    ~MenuPrimScope() {
+        prim->Initialize(nullptr, nullptr);
+        prim->draw_manager = nullptr;
+    }
+
+    MenuPrimScope(const MenuPrimScope &) = delete;
+    MenuPrimScope &operator=(const MenuPrimScope &) = delete;
+
+private:
+    mgCMemory      memory;
+    sceVif1Packet  packet{};
+    mgRENDER_INFO  info{};
+    mgCDrawManager manager;
+    mgCDrawPrim   *prim = GetMenuPrim();
+};
+
+struct CellVertices {
+    std::size_t room = 0;
+    std::size_t root = 0;
+};
+
+// Vertices the floor map's room and passage draws emit for a cell at logical (x, y).
+CellVertices FloorMapCellVertices(float x, float y) {
+    MenuPrimScope    scope;
+    FloorMap         map = ZeroFloorMap();
+    DNGMAP_ROOM_INFO room{};
+    DNGMAP_ROOT_INFO root{};
+    std::size_t      count = 0;
+    mgPortSetPrimSink([&](gfx::Primitive, std::span<const gfx::Vertex2D> vertices, const gfx::TextureBinding &,
+                          const gfx::DrawState &) { count += vertices.size(); });
+    const mgRect<float> cell(x, y, 52.0f, 20.0f);
+    CellVertices        out;
+    map->DrawRoomOne(cell, &room, 0, 128, 1.0f);
+    out.room = count;
+    count = 0;
+    map->DrawRoot(cell, &root, 0, 0, 128);
+    out.root = count;
+    mgPortSetPrimSink({});
+    return out;
+}
+
+// Retail draws a room up to 20 units and a passage up to 0 units past the screen's right edge, and
+// 30 and 20 units past its bottom. Each must hold at the given edges.
+void ExpectFloorMapCullsAt(float right, float bottom) {
+    const mgPortExtent extent = mgPortVisibleUiExtent(gfx::kMainTarget);
+    EXPECT_NEAR(extent.right, right, 0.5f);
+    EXPECT_NEAR(extent.bottom, bottom, 0.5f);
+    EXPECT_GT(FloorMapCellVertices(right + 19.0f, 200.0f).room, 0u);
+    EXPECT_EQ(FloorMapCellVertices(right + 21.0f, 200.0f).room, 0u);
+    EXPECT_GT(FloorMapCellVertices(right - 1.0f, 200.0f).root, 0u);
+    EXPECT_EQ(FloorMapCellVertices(right + 1.0f, 200.0f).root, 0u);
+    EXPECT_GT(FloorMapCellVertices(200.0f, bottom + 29.0f).room, 0u);
+    EXPECT_EQ(FloorMapCellVertices(200.0f, bottom + 31.0f).room, 0u);
+    EXPECT_GT(FloorMapCellVertices(200.0f, bottom + 19.0f).root, 0u);
+    EXPECT_EQ(FloorMapCellVertices(200.0f, bottom + 21.0f).root, 0u);
+}
+} // namespace
+
+TEST(MglibAspect, FloorMapCullsAtTheFourThreeScreen) {
+    AspectRenderer renderer(1024, 768);
+    ExpectFloorMapCullsAt(512.0f, 480.0f);
+}
+
+TEST(MglibAspect, FloorMapDrawsCellsInWideFlanks) {
+    AspectRenderer renderer(1280, 720);
+    ExpectFloorMapCullsAt(256.0f + 256.0f * (16.0f / 9.0f) / (4.0f / 3.0f), 480.0f);
+}
+
+TEST(MglibAspect, FloorMapDrawsCellsBelowANarrowScreen) {
+    AspectRenderer renderer(800, 1200);
+    ExpectFloorMapCullsAt(512.0f, 240.0f + 240.0f * (4.0f / 3.0f) / (800.0f / 1200.0f));
+}
+
+// UI scale 0.5 halves the floor map's 2D about the centre, so twice its extent is on screen.
+TEST(MglibAspect, FloorMapDrawsCellsUncoveredByUiScale) {
+    AspectRenderer renderer(1024, 768);
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = 0.5f});
+    ExpectFloorMapCullsAt(256.0f + 512.0f, 240.0f + 480.0f);
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Fill, .ui_scale = 1.0f});
+}
+
+namespace {
+// Draws with the menu builder into a cleared frame and reads the main target back.
+template <typename Draw>
+std::vector<uint8_t> DrawFrame(Draw draw, uint32_t &width, uint32_t &height) {
+    mgSetBackGround(0.0f, 0.0f, 0.0f, 128.0f);
+    mgBeginFrame(nullptr);
+    {
+        MenuPrimScope scope;
+        draw();
+    }
+    mgEndFrame(nullptr);
+    std::vector<uint8_t> rgba;
+    EXPECT_TRUE(mgPortCanonicalReadColor(gfx::kMainTarget, rgba, width, height));
+    return rgba;
+}
+
+// Counts the split strokes: two lit runs, each thinner than a logical pixel, with a gap of at most a
+// logical pixel between them, across every column and row. A solid band has none; retail's notches
+// between passage segments are bounded by full-width bands and do not count.
+int SplitStrokes(const std::vector<uint8_t> &rgba, uint32_t width, uint32_t height) {
+    const gfx::LogicalMapping mapping = gfx::GetLogicalMapping(gfx::kMainTarget);
+    const auto                lit = [&](uint32_t x, uint32_t y) { return rgba[(static_cast<size_t>(y) * width + x) * 4] > 64; };
+    int                       found = 0;
+    const auto                scan = [&](uint32_t lines, uint32_t length, float unit, auto at) {
+        for (uint32_t line = 0; line < lines; ++line) {
+            int previous_start = -1;
+            int previous_end = -1;
+            int start = -1;
+            for (uint32_t i = 0; i <= length; ++i) {
+                const bool on = i < length && at(line, i);
+                if (on && start < 0) {
+                    start = static_cast<int>(i);
+                } else if (!on && start >= 0) {
+                    const int end = static_cast<int>(i) - 1;
+                    if (previous_end >= 0 && start - previous_end - 1 <= unit &&
+                        previous_end - previous_start + 1 < unit && end - start + 1 < unit) {
+                        ++found;
+                    }
+                    previous_start = start;
+                    previous_end = end;
+                    start = -1;
+                }
+            }
+        }
+    };
+    scan(width, height, mapping.scale_y, [&](uint32_t x, uint32_t y) { return lit(x, y); });
+    scan(height, width, mapping.scale_x, [&](uint32_t y, uint32_t x) { return lit(x, y); });
+    return found;
+}
+
+void ExpectSolidPassages() {
+    uint32_t width = 0;
+    uint32_t height = 0;
+    // The detector sees retail's three 1-pixel lines, drawn without bands, as split.
+    const std::vector<uint8_t> plain = DrawFrame(
+        [] {
+            mgCDrawPrim *prim = GetMenuPrim();
+            SetSpriteEnv(prim, MENU_SPRITE_ENV_COLOR_AA);
+            prim->Begin(MG_PRIM_LINE);
+            prim->Color(212, 192, 144, 128);
+            for (int i = 0; i < 3; ++i) {
+                prim->Vertex(100.0f + i, 100.0f, 0.0f);
+                prim->Vertex(84.0f + i, 120.0f, 0.0f);
+                prim->Vertex(100.0f - i, 150.0f + i, 0.0f);
+                prim->Vertex(152.0f - i, 150.0f + i, 0.0f);
+            }
+            prim->End();
+        },
+        width, height);
+    EXPECT_GT(SplitStrokes(plain, width, height), 0);
+
+    for (int shape = 0; shape < 10; ++shape) {
+        const std::vector<uint8_t> rgba = DrawFrame(
+            [shape] {
+                FloorMap         map = ZeroFloorMap();
+                DNGMAP_ROOT_INFO root{};
+                root.shape = static_cast<u8>(shape);
+                map->DrawRoot(mgRect<float>(230.0f, 200.0f, 52.0f, 20.0f), &root, 0, 0, 128);
+            },
+            width, height);
+        std::size_t count = 0;
+        for (std::size_t i = 0; i < rgba.size(); i += 4) {
+            count += rgba[i] > 64;
+        }
+        EXPECT_GT(count, 0u) << "shape " << shape;
+        EXPECT_EQ(SplitStrokes(rgba, width, height), 0) << "shape " << shape;
+    }
+
+    // At half opacity a one-group passage blends each pixel once: every lit pixel has one colour.
+    for (int shape : {0, 1, 6, 7, 8, 9}) {
+        const std::vector<uint8_t> rgba = DrawFrame(
+            [shape] {
+                FloorMap         map = ZeroFloorMap();
+                DNGMAP_ROOT_INFO root{};
+                root.shape = static_cast<u8>(shape);
+                map->DrawRoot(mgRect<float>(230.0f, 200.0f, 52.0f, 20.0f), &root, 0, 0, 64);
+            },
+            width, height);
+        std::set<uint8_t> reds;
+        for (std::size_t i = 0; i < rgba.size(); i += 4) {
+            if (rgba[i] > 16) {
+                reds.insert(rgba[i]);
+            }
+        }
+        EXPECT_EQ(reds.size(), 1u) << "shape " << shape;
+    }
+}
+} // namespace
+
+// Every passage shape is one solid stroke above 512x480.
+TEST(MglibAspect, FloorMapPassagesAreSolidAt1920x1080) {
+    AspectRenderer renderer(1920, 1080);
+    ExpectSolidPassages();
+}
+
+TEST(MglibAspect, FloorMapPassagesAreSolidAt3840x2160) {
+    AspectRenderer renderer(3840, 2160);
+    ExpectSolidPassages();
 }

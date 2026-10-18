@@ -1,0 +1,96 @@
+#include "common.h"
+
+#include <filesystem>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "asset_directory.hpp"
+#include "dataread_port.hpp"
+#include "menu_world.hpp"
+#include "menumain.hpp"
+#include "mg_texture_port.hpp"
+#include "mglib.hpp"
+#include "platform/texture_catalog.hpp"
+#include "stubs/menumain.hpp"
+#include "texture_source.hpp"
+
+namespace {
+constexpr int kMenuWorkspaceQuadwords = 260000; /**< Capacity of the native menu's reusable work arena. */
+
+/**
+ * Directory supplying common textures, retained while workspace bytes are reused.
+ */
+std::string common_texture_directory;
+
+/**
+ * Owns menu workspace independently of the small serialized directory marker.
+ */
+std::vector<u_long128> &MenuWorkspace() {
+    static std::vector<u_long128> workspace(kMenuWorkspaceQuadwords);
+    return workspace;
+}
+
+/**
+ * Enters common texture documents directly from the retained native directory.
+ */
+void EnterCommonTextures(int block) {
+    if (common_texture_directory.empty()) {
+        return;
+    }
+    const std::filesystem::path directory(common_texture_directory);
+    for (const auto *name : {"edmenu.json", "allitem.json", "spectre.json"}) {
+        const auto path = (directory / name).generic_string();
+        if (std::string_view(name) == "spectre.json" && !texture_catalog::Find(path)) {
+            continue;
+        }
+        MgTextureEnterDocument(&mgTexManager, path, block, nullptr, nullptr);
+    }
+}
+} // namespace
+
+PORT_OVERRIDE void MenuCommonBaseDataEnter(mgCMemory *pallet_memory, u_int *pack, int /*unused*/, int block) {
+    common_texture_directory = AssetDirectoryPath(pack).value_or(std::string{});
+    auto &workspace = MenuWorkspace();
+    DataReadRegisterBuffer(workspace.data(), 0);
+    TextureSourceForget(workspace.data());
+    MenuMainTextureReadBuf.stSetBuffer(workspace.data(), static_cast<int>(workspace.size()));
+    EnterCommonTextures(block);
+    MenuPosData->AttachCommonTexInfo();
+    MenuItemIconTextureBlock = block;
+    MenuPosData->MallocPallet(pallet_memory);
+    MenuPosData->SearchTransPalletNo();
+    MenuPosData->ResetTextureInfoAll();
+}
+
+PORT_OVERRIDE void MenuBaseTextureReEnter() {
+    if (DataReadBufferSize(MenuMainTextureReadBuf.stack) != 0) {
+        if (const auto directory = AssetDirectoryPath(MenuMainTextureReadBuf.stack)) {
+            common_texture_directory = *directory;
+        }
+    }
+    const int block = MenuCommonInfo->tex_block[1];
+    mgTexManager.DeleteBlock(block);
+    MenuMainImageDataEnter(block);
+    EnterCommonTextures(block);
+    MenuPosData->AttachCommonTexInfo();
+    MenuPosData->ResetTextureInfoAll();
+}
+
+PORT_OVERRIDE int MenuMainInit(MENU_INIT_ARG *arg) {
+    if (menuworld::HoldMenuInit(arg)) {
+        return true;
+    }
+    return PortRetailMenuMainInit(arg);
+}
+
+PORT_OVERRIDE int MenuMainExit() {
+    menuworld::MenuClosed();
+    return PortRetailMenuMainExit();
+}
+
+PORT_OVERRIDE void MenuWorldTrans() {
+    if (!menuworld::ViewMenuCharacter()) {
+        PortRetailMenuWorldTrans();
+    }
+}

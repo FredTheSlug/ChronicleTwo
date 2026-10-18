@@ -3,28 +3,54 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <limits>
+#include <optional>
+#include <print>
+#include <string>
+#include <utility>
 
+#include "actionchara.hpp"
+#include "asset_directory.hpp"
+#include "dataread_port.hpp"
 #include "menu_mouse_item.hpp"
+#include "menu_world.hpp"
 #include "menuchr.hpp"
 #include "menudraw.hpp"
 #include "menudraw_port.hpp"
 #include "menumain.hpp"
 #include "mg_drawprim.hpp"
+#include "mg_frame.hpp"
 #include "mg_memory.hpp"
 #include "mg_texture.hpp"
 #include "mg_texture_port.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "platform/model_assets.hpp"
+#include "platform/texture_bundle.hpp"
+#include "stubs/menudraw.hpp"
 
 PORT_OVERRIDE void MenuReloadCLUT(int index) {
     MgTextureSetDrawVariant(MenuCharaChangeBase_Tex, index == 0 ? MenuCharaChangeCLUT_Tex : nullptr);
+}
+
+PORT_OVERRIDE void DrawMenuFillBox(int alpha, int red, int green, int blue) {
+    if (!menuworld::FillWithBackdrop()) {
+        PortRetailDrawMenuFillBox(alpha, red, green, blue);
+    }
 }
 
 PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgRect<int> uv,
                                     int alpha, int red, int green, int blue) {
     if (texture == nullptr || uv.right <= 0) {
         return;
+    }
+    // The frame's many clipped pieces move together, or a frame between two spread panels comes apart.
+    std::optional<gfx::UiAnchorScope> anchor;
+    if (const auto selection = menuworld::SelectionAnchor()) {
+        anchor.emplace(*selection);
     }
     const mgRect<int> outer(static_cast<int>(rect.left), static_cast<int>(rect.top),
                             static_cast<int>(rect.left + rect.right + uv.bottom),
@@ -86,62 +112,41 @@ PORT_OVERRIDE void DrawMenuWakuRect(mgCTexture *texture, mgRect<float> rect, mgR
 }
 
 PORT_OVERRIDE int MenuCapture(int block, mgCMemory *stack, int draw) {
-    u8                *dst;
-    mgCTextureManager *tex_manager;
-    int                half_w;
-    int                half_h;
-    int                tex_w;
-    int                tex_h;
-    int                pad_w;
-    int                pad_h;
-    mgCDrawPrim       *prim;
-
     stack->Align64();
-    tex_manager = &mgTexManager;
-    dst = stack->stack_bytes + (stack->stack_used << 4);
-    half_w = mgScreenWidth >> 1;
-    half_h = mgScreenHeight >> 1;
-    tex_w = half_w;
+    u8       *dst = stack->stack_bytes + (stack->stack_used << 4);
+    const int half_w = mgScreenWidth >> 1;
+    const int half_h = mgScreenHeight >> 1;
     MenuBGTextureBlock = block;
-    tex_h = half_h;
-    pad_w = half_w % 64;
-    pad_h = half_h % 64;
-
-    if (pad_w != 0) {
-        tex_w += 64 - pad_w;
-    }
-
-    if (pad_h != 0) {
-        tex_h += 64 - pad_h;
-    }
 
     static char frame_name[] = "menuwork2";
-    tex_manager->DeleteBlock(block);
-    MenuFrameTex = tex_manager->EnterTexture(block, frame_name, NULL, tex_w, tex_h, 32, NULL, 0, 0);
+    mgTexManager.DeleteBlock(block);
+    MenuFrameTex = mgTexManager.EnterTexture(block, frame_name, nullptr, (half_w + 63) / 64 * 64, (half_h + 63) / 64 * 64,
+                                             32, nullptr, 0, 0);
 
-    if (MenuFrameTex != NULL) {
+    if (MenuFrameTex != nullptr) {
         MenuFrameTex->tex0.bits.tcc = 0;
-        MenuFrameTex->image[0] = (u_long128 *) dst;
+        MenuFrameTex->image[0] = reinterpret_cast<u_long128 *>(dst);
         stack->Alloc(half_w * half_h * 4 / 16 + 1);
     }
 
     // The grab costs a frame on PS2 too: the tick that just ended is gfx::kPreviousFrame in the next one.
-    mgEndFrame(NULL);
-    mgBeginFrame(NULL);
+    mgEndFrame(nullptr);
+    mgBeginFrame(nullptr);
 
-    if (MenuFrameTex != NULL) {
+    const gfx::TextureHandle source = menuworld::TakeMenuGrab();
+    if (MenuFrameTex != nullptr) {
         // Frame target: the window's sides past the logical frame are copied in and carried by the full-frame draw.
         const gfx::TextureHandle target = mgPortRenderTarget(MenuFrameTex, true);
         // Registered before the copy: until a target exists under its TBP0 the texture binds its stack image.
         // Linear at 2:1 samples each 2x2 block's midpoint, which is the box filter retail ran on the CPU.
-        gfx::BlitTexture(gfx::kPreviousFrame, gfx::Rect{0, 0, mgScreenWidth, mgScreenHeight}, target,
-                         gfx::Rect{0, 0, half_w, half_h}, gfx::Filter::Linear);
+        gfx::BlitTexture(source, gfx::Rect{.x = 0, .y = 0, .w = mgScreenWidth, .h = mgScreenHeight}, target,
+                         gfx::Rect{.x = 0, .y = 0, .w = half_w, .h = half_h}, gfx::Filter::Linear);
     }
 
-    if (draw != 0 && MenuFrameTex != NULL) {
-        tex_manager->ReloadTexture(block, (sceVif1Packet *) NULL);
-        prim = GetMenuPrim();
-        prim->Initialize(NULL, NULL);
+    if (draw != 0 && MenuFrameTex != nullptr) {
+        mgTexManager.ReloadTexture(block, static_cast<sceVif1Packet *>(nullptr));
+        auto *prim = GetMenuPrim();
+        prim->Initialize(nullptr, nullptr);
         prim->TextureMapEnable(1);
         prim->Bilinear(1);
         prim->AlphaTestEnable(0);
@@ -170,57 +175,45 @@ float MenuTilePatternFirst(float phase, int size, float minimum) {
 
 // Count of grid positions first, first + size, ... that do not pass limit.
 int MenuTilePatternCount(float first, int size, float limit) {
-    int   count = 0;
-    float pos = first;
-
     if (size <= 0) {
         return 0;
     }
-
-    while (pos <= limit) {
-        count++;
-        pos += (float) size;
+    int count = 0;
+    for (float pos = first; pos <= limit; pos += static_cast<float>(size)) {
+        ++count;
     }
-
     return count;
 }
 
 PORT_OVERRIDE void DrawMenuTilePattern(mgCDrawPrim *prim, mgCTexture *tex, float x, float y, mgRect<int> tex_rect,
-                                       int unused, u8 *rgba) {
-    mgRect<int> dest(0, 0, 0, 0);
-    float       column_first;
-    float       row_first;
-    int         column_count;
-    int         row_count;
-    int         column;
-    int         row;
-
+                                       int /*unused*/, u8 *rgba) {
     if (tex_rect.right <= 0 || tex_rect.bottom <= 0) {
         return;
     }
 
     const auto extent = mgPortVisibleExtent();
     // One logical pixel protects negative fractional origins from truncation toward zero.
-    column_first = MenuTilePatternFirst(x, tex_rect.right, std::floor(extent.left) - 1.0f);
-    row_first = MenuTilePatternFirst(y - tex_rect.bottom, tex_rect.bottom, std::floor(extent.top) - 1.0f);
-    column_count = MenuTilePatternCount(column_first, tex_rect.right, std::ceil(extent.right));
-    row_count = MenuTilePatternCount(row_first, tex_rect.bottom, std::ceil(extent.bottom));
+    const float column_first = MenuTilePatternFirst(x, tex_rect.right, std::floor(extent.left) - 1.0f);
+    const float row_first = MenuTilePatternFirst(y - tex_rect.bottom, tex_rect.bottom, std::floor(extent.top) - 1.0f);
+    const int   column_count = MenuTilePatternCount(column_first, tex_rect.right, std::ceil(extent.right));
+    const int   row_count = MenuTilePatternCount(row_first, tex_rect.bottom, std::ceil(extent.bottom));
 
     SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Begin(MG_PRIM_SPRITE);
     prim->Texture(tex);
 
-    if (rgba != NULL) {
+    if (rgba != nullptr) {
         prim->Color(rgba[0], rgba[1], rgba[2], rgba[3]);
     } else {
         prim->Color(0x80, 0x80, 0x80, 0x80);
     }
 
-    for (column = 0; column < column_count; column++) {
-        dest.Set((int) (column_first + (float) (column * tex_rect.right)), (int) row_first, tex_rect.right,
-                 tex_rect.bottom);
+    mgRect<int> dest(0, 0, 0, 0);
+    for (int column = 0; column < column_count; ++column) {
+        dest.Set(static_cast<int>(column_first + static_cast<float>(column * tex_rect.right)), static_cast<int>(row_first),
+                 tex_rect.right, tex_rect.bottom);
 
-        for (row = 0; row < row_count; row++) {
+        for (int row = 0; row < row_count; ++row) {
             PrimQuad(prim, dest, tex_rect);
             dest.top += dest.bottom;
         }
@@ -252,7 +245,8 @@ bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
         if (part.w >= mgScreenWidth && part.h >= mgScreenHeight) {
             return false;
         }
-        float x0 = part.x, x1 = part.x + part.w;
+        float x0 = part.x;
+        float x1 = part.x + part.w;
         switch (part.dtype) {
             case MENUFORMPARTS_DTYPE_NORMAL:
             case MENUFORMPARTS_DTYPE_SQ_BETA:
@@ -289,7 +283,7 @@ bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
         }
         // Item-icon effects use their own storage layout in DrawOneItem.
         if (part.dtype != MENUFORMPARTS_DTYPE_SQ_BETA && part.dtype != MENUFORMPARTS_DTYPE_TRS) {
-            for (int effect = 0; part.effect && effect < part.effect_num; ++effect) {
+            for (int effect = 0; part.effect && std::cmp_less(effect, part.effect_num); ++effect) {
                 const int type = part.effect[effect].type;
                 if (type != 0 && type != MENU_PARTS_EFFECT_FILLBOX && type != MENU_PARTS_EFFECT_BLINK) {
                     return false;
@@ -308,14 +302,49 @@ bool MenuPanelOutsideFrame(const CMenuPosDataForm &form) {
 
 } // namespace
 
+void MenuAlignCharacterSlot(CMenuPosDataForm &form) {
+    if (form.name == nullptr || std::strcmp(form.name, "chr_bg") != 0) {
+        return;
+    }
+    auto *backing = form.GetPartInfo(const_cast<char *>("fcb1"));
+    auto *portrait = form.GetPartInfo(const_cast<char *>("fc1"));
+    auto *upper_backing = form.GetPartInfo(const_cast<char *>("fcb0"));
+    if (backing != nullptr && portrait != nullptr && upper_backing != nullptr &&
+        backing->y == 158.0f && backing->h == 100.0f && portrait->y == 181.0f && upper_backing->h == 121.0f) {
+        backing->y = portrait->y;
+        backing->h = upper_backing->h;
+    }
+}
+
 PORT_OVERRIDE void CMenuPosDataForm::MenuFormDraw(int &state) {
+    if (MenuCommonInfo != nullptr && MenuCommonInfo->now_mode == MENU_MODE_CHARA_CHANGE) {
+        MenuAlignCharacterSlot(*this);
+    }
     // Retail parks unused panels wholly outside its logical frame (SPECHECK,
     // for example, at x=-260). Hide that panel, not the entire page's flanks.
     // As soon as it overlaps the frame, draw its complete entering geometry.
-    if (MenuPanelOutsideFrame(*this)) {
+    if (MenuPanelOutsideFrame(*this) || menuworld::HidesForm(*this)) {
         return;
     }
-    int draw_x = fptosi(x), draw_y = fptosi(y);
+    // An item the mouse carries is drawn at the pointer, unmoved by the spread panels.
+    float held_x = 0.0f;
+    float held_y = 0.0f;
+    if (menuworld::ItemBackdrop() && this == MenuCommonInfo->cursor_form && MenuMouseHeldItemAt(held_x, held_y)) {
+        float tip_x = 0.0f;
+        float tip_y = 0.0f;
+        GetPutPosXY(const_cast<char *>("cursor0"), tip_x, tip_y);
+        const gfx::UiAnchorScope unanchored(gfx::UiAnchor{});
+        int                      draw_x = fptosi(x + held_x - 26.0f - tip_x);
+        int                      draw_y = fptosi(y + held_y - 14.0f - tip_y);
+        MenuFormDraw(draw_x, draw_y, state);
+        return;
+    }
+    std::optional<gfx::UiAnchorScope> anchor;
+    if (const auto spread = menuworld::FormAnchor(*this)) {
+        anchor.emplace(*spread);
+    }
+    int draw_x = fptosi(x);
+    int draw_y = fptosi(y);
     MenuFormDraw(draw_x, draw_y, state);
 }
 
@@ -325,19 +354,19 @@ PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float ro
         return;
     }
     const auto hand_key = MenuMouseNoteHand(mgPortBinding(texture),
-                                            {float(menu_long_hand.left), float(menu_long_hand.top),
-                                             float(menu_long_hand.right), float(menu_long_hand.bottom)},
-                                            rotation, reverse, alpha, scale);
+                                            {.x = static_cast<float>(menu_long_hand.left), .y = static_cast<float>(menu_long_hand.top), .w = static_cast<float>(menu_long_hand.right), .h = static_cast<float>(menu_long_hand.bottom)},
+                                            rotation, alpha, scale);
     // The canonical image retains the selection hand. A displayed mouse pointer
     // replaces this tagged group without changing screenshots or grab textures.
-    gfx::Interp2DScope tag({hand_key, static_cast<uint64_t>(mgPortFrameCount())});
+    gfx::Interp2DScope tag({.key = hand_key, .generation = static_cast<uint64_t>(mgPortFrameCount())});
     auto              *prim = GetMenuPrim();
     SetSpriteEnv(prim, MENU_SPRITE_ENV_TEXTURE);
     prim->Bilinear(1);
     prim->Begin(MG_PRIM_TRIANGLE_STRIP);
     prim->Texture(texture);
     prim->Color(128, 128, 128, alpha);
-    const float c = std::cos(rotation), s = std::sin(rotation);
+    const float c = std::cos(rotation);
+    const float s = std::sin(rotation);
     for (int i = 0; i < 4; ++i) {
         const float x = (i & 1 ? 40 : 0) * scale * (reverse ? -1 : 1);
         const float y = (i & 2 ? 24 : 0) * scale;
@@ -349,4 +378,122 @@ PORT_OVERRIDE void MenuCursorDraw(mgCTexture *texture, float *position, float ro
         prim->Vertex(px, py, 0.0f);
     }
     prim->End();
+}
+
+namespace {
+/**
+ * Selects the repair model by its actual bundle or ordinary asset-directory filename.
+ */
+std::optional<std::filesystem::path> RepairModelPath(const void *data) {
+    const auto path = DataReadBufferPath(data);
+    if (path && std::filesystem::path(*path).extension() == ".gltf") {
+        return std::filesystem::path(*path).replace_extension(".assets") / "repair_powder.gltf";
+    }
+    if (const auto directory = AssetDirectoryPath(data)) {
+        return std::filesystem::path(*directory) / "repair_powder.gltf";
+    }
+    return std::nullopt;
+}
+
+/**
+ * Enters the repair sprites from an embedded native set or an ordinary texture document.
+ */
+bool EnterRepairTexture(const void *data, int block) {
+    const auto path = DataReadBufferPath(data);
+    if (!path) {
+        return false;
+    }
+    std::strcpy(mgTexManager.name_suffix, "_2");
+    bool loaded = false;
+    if (std::filesystem::path(*path).extension() == ".gltf") {
+        std::string error;
+        loaded = texture_bundle::Enter(*path, "menueff0", mgTexManager, block, nullptr, error);
+        if (!loaded) {
+            std::println(stderr, "repair texture: {}", error);
+        }
+    } else if (const auto directory = AssetDirectoryPath(data)) {
+        MgTextureEnterDocument(&mgTexManager, *directory + "/repair_powder2d.json", block, nullptr, nullptr);
+        char texture_name[] = "menueff0";
+        loaded = mgTexManager.GetTexture(texture_name, block) != nullptr;
+    }
+    mgTexManager.name_suffix[0] = 0;
+    return loaded;
+}
+} // namespace
+
+PORT_OVERRIDE void CRepairManager::CheckDataBG(int block) {
+    if (data_ready) {
+        return;
+    }
+    mgTexManager.DeleteBlock(block);
+    tex_block = static_cast<s16>(block);
+    tex = nullptr;
+    if (!EnterRepairTexture(data, block)) {
+        bg_load = false;
+        return;
+    }
+    char texture_name[] = "menueff0_2";
+    tex = mgTexManager.GetTexture(texture_name, -1);
+    data_ready = tex != nullptr;
+    bg_load = false;
+}
+
+PORT_OVERRIDE void CRepairManager::SetRepairData(mgCMemory *memory, int block, unsigned int *pack) {
+    if (!memory) {
+        return;
+    }
+    tex_block = static_cast<s16>(block);
+    data = pack;
+    tex = nullptr;
+    data_ready = false;
+    bg_load = false;
+    keep = false;
+    if (!EnterRepairTexture(data, block)) {
+        return;
+    }
+    char texture_name[] = "menueff0_2";
+    tex = mgTexManager.GetTexture(texture_name, -1);
+    data_ready = tex != nullptr;
+    if (data_ready) {
+        SetStack(memory, 1);
+        keep = true;
+    }
+}
+
+PORT_OVERRIDE void CRepairManager::GeneratePoly(float *position, int block) {
+    const auto path = RepairModelPath(data);
+    if (!path || !position || !model_stack.stack) {
+        return;
+    }
+    if (model) {
+        model_assets::DeleteCharacterTextures(*model, 0, CHARA_IMAGE_MAX - 1);
+    }
+    model = nullptr;
+    model_stack.stack_used = 0;
+    model_stack.lock = 0;
+    auto *character = new (model_stack.Alloc(static_cast<int>((sizeof(CActionChara) + 15) / 16 + 2))) CActionChara;
+    model_assets::DeleteCharacterTextures(*character, 0, CHARA_IMAGE_MAX - 1);
+    character->Initialize(nullptr);
+    model_assets::CharacterLoadOptions options{.model_memory = &model_stack, .motion_memory = &model_stack, .image_memory = &model_stack, .textures = &mgTexManager, .parent = nullptr, .texture_block = block};
+    std::string                        error;
+    if (!model_assets::LoadCharacter(*character, *path, "info", options, error)) {
+        model_assets::DeleteCharacterTextures(*character, 0, CHARA_IMAGE_MAX - 1);
+        model_stack.stack_used = 0;
+        model_stack.lock = 0;
+        std::println(stderr, "repair model: {}", error);
+        return;
+    }
+    model = character;
+    model->SetScale(0.4f, 0.4f, 0.4f);
+    model->SetPosition(position);
+    model->SetMotion(const_cast<char *>("\x94\xad\x93\xae"), 0, 1);
+    model->SetFadeFlag(1);
+    model->Show(0, 1);
+    auto *frame = model->CObjectFrame::frame;
+    if (frame && frame->attr) {
+        frame->attr->z_test = MG_DEPTH_TEST_ALWAYS;
+        frame->SetAttrParam(*frame->attr, 1, MG_FRAME_ATTR_Z_TEST);
+    }
+    model->Show(1, 1);
+    model_counter = 0;
 }

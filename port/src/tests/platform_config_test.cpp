@@ -35,11 +35,11 @@ protected:
         fs::remove_all(root_, error);
     }
 
-    fs::path Path() const { return root_ / "config.json"; }
+    [[nodiscard]] fs::path Path() const { return root_ / "config.json"; }
 
     void Write(std::string_view text) const { std::ofstream(Path(), std::ios::binary) << text; }
 
-    std::string Read() const {
+    [[nodiscard]] std::string Read() const {
         std::ifstream file(Path(), std::ios::binary);
         return {std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
     }
@@ -87,7 +87,10 @@ TEST_F(PlatformConfig, FullFileRoundTrips) {
     full.master_volume = 0.5f;
     full.surround = true;
     full.soundtrack = true;
-    full.key_bindings = {ConfigKeyBinding{"cross", {"Space", "Z"}}, ConfigKeyBinding{"start", {"Return"}}};
+    full.key_bindings = {
+        ConfigKeyBinding{.action = "cross", .keys = {"Space", "Z"}},
+        ConfigKeyBinding{.action = "start", .keys = {"Return"}    }
+    };
     full.mouse_sensitivity = 0.25f;
     full.stick_sensitivity = 1.5f;
     full.stick_invert_x = true;
@@ -108,8 +111,10 @@ TEST_F(PlatformConfig, FullFileRoundTrips) {
     full.glyph_device = ConfigGlyphDevice::Ps5Color;
     full.mouse_release_keys = {"F12", "Pause"};
     full.font_sharp = true;
-    full.robot_voice_controller = true;
+    full.dualsense_speaker = false;
     full.controller_volume = 1.5f;
+    full.dualsense_haptics = ConfigHaptics::Vibration;
+    full.haptics_strength = 0.75f;
 
     ASSERT_TRUE(ConfigParse(ConfigSerialize(full)) == full);
 
@@ -130,15 +135,20 @@ TEST_F(PlatformConfig, TextFontIsOptInAndRoundTrips) {
     }
 }
 
-TEST_F(PlatformConfig, RobotVoiceIsOptInAndRoundTrips) {
-    EXPECT_FALSE(ConfigParse("").robot_voice_controller);
-    const Config controller = ConfigParse(R"({"audio":{"robot_voice":"controller","controller_volume":0.5}})");
-    EXPECT_TRUE(controller.robot_voice_controller);
-    EXPECT_EQ(controller.controller_volume, 0.5f);
-    EXPECT_TRUE(ConfigParse(ConfigSerialize(controller)) == controller);
-    for (const char *value : {"null", "true", "1", "\"pad\""}) {
-        EXPECT_FALSE(ConfigParse(std::string("{\"audio\":{\"robot_voice\":") + value + "}}").robot_voice_controller);
+TEST_F(PlatformConfig, DualSenseSpeakerIsOnByDefaultAndRoundTrips) {
+    EXPECT_TRUE(ConfigParse("").dualsense_speaker);
+    const Config off = ConfigParse(R"({"audio":{"dualsense_speaker":false,"controller_volume":0.5}})");
+    EXPECT_FALSE(off.dualsense_speaker);
+    EXPECT_EQ(off.controller_volume, 0.5f);
+    EXPECT_TRUE(ConfigParse(ConfigSerialize(off)) == off);
+    for (const char *value : {"null", "1", "\"off\""}) {
+        EXPECT_TRUE(ConfigParse(std::string("{\"audio\":{\"dualsense_speaker\":") + value + "}}").dualsense_speaker);
     }
+    // Either value of the legacy audio.robot_voice key leaves the speaker on.
+    for (const char *value : {"\"tv\"", "\"controller\""}) {
+        EXPECT_TRUE(ConfigParse(std::string("{\"audio\":{\"robot_voice\":") + value + "}}").dualsense_speaker);
+    }
+    EXPECT_FALSE(ConfigParse(R"({"audio":{"robot_voice":"controller","dualsense_speaker":false}})").dualsense_speaker);
     for (const char *value : {"-0.1", "2.1", "\"loud\""}) {
         EXPECT_EQ(ConfigParse(std::string("{\"audio\":{\"controller_volume\":") + value + "}}").controller_volume, 1.0f);
     }
@@ -184,6 +194,26 @@ TEST_F(PlatformConfig, DebugModeInvalidValuesKeepTheDefault) {
         std::string json = std::string(R"({"game": {"debug_mode": )") + value + "}}";
         ASSERT_FALSE(ConfigParse(json).debug_mode) << json;
     }
+}
+
+TEST_F(PlatformConfig, SkipIntroDefaultsToOffAndRoundTrips) {
+    ASSERT_FALSE(Config{}.skip_intro);
+    ASSERT_FALSE(ConfigParse(R"({"game": {"skip_intro": "yes"}})").skip_intro);
+    Config config;
+    config.skip_intro = true;
+    const Config parsed = ConfigParse(ConfigSerialize(config));
+    ASSERT_TRUE(parsed.skip_intro);
+    ASSERT_TRUE(parsed == config);
+}
+
+TEST_F(PlatformConfig, AutoUseEventItemDefaultsToOffAndRoundTrips) {
+    ASSERT_FALSE(Config{}.auto_use_event_item);
+    ASSERT_FALSE(ConfigParse(R"({"game": {"auto_use_event_item": 1}})").auto_use_event_item);
+    Config config;
+    config.auto_use_event_item = true;
+    const Config parsed = ConfigParse(ConfigSerialize(config));
+    ASSERT_TRUE(parsed.auto_use_event_item);
+    ASSERT_TRUE(parsed == config);
 }
 
 TEST_F(PlatformConfig, DebugModeRoundTripsThroughSerialize) {

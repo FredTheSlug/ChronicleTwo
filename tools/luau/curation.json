@@ -1,0 +1,8 @@
+{
+ "$comment": "Hand curation of tools/luau/commands.json, keyed by kind and handler name; see docs/PORT_LUAU.md.",
+ "action": {},
+ "effect": {},
+ "monster": {},
+ "event": {},
+ "event_arg": {}
+}

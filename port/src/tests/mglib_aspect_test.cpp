@@ -16,6 +16,7 @@
 #include "gfx/gfx.hpp"
 #include "gfx_fixture.hpp"
 #include "mainloop_port.hpp"
+#include "menu_mouse.hpp"
 #include "menudraw.hpp"
 #include "menumain.hpp"
 #include "mg_drawprim.hpp"
@@ -24,7 +25,9 @@
 #include "mg_texture.hpp"
 #include "mglib.hpp"
 #include "mglib_port.hpp"
+#include "options/screen.hpp"
 #include "platform/clock.hpp"
+#include "platform/input.hpp"
 #include "platform/window.hpp"
 
 // dngmenu.hpp brings libgraph.h, whose register macros must follow the host and test headers.
@@ -888,4 +891,38 @@ TEST(MglibAspect, FloorMapPassagesAreSolidAt1920x1080) {
 TEST(MglibAspect, FloorMapPassagesAreSolidAt3840x2160) {
     AspectRenderer renderer(3840, 2160);
     ExpectSolidPassages();
+}
+
+// At 4:3 and UI 150% the PC SETTINGS entry would sit above the window. Clicks where the fitted view
+// draws the entry and the page's Back reach them through the menu pointer.
+TEST(MglibAspect, PcSettingsClicksReachTheFittedEntryAndBackAt150Percent) {
+    AspectRenderer renderer(1920, 1080);
+    gfx::SetFrameLayout({.aspect = gfx::AspectMode::Letterbox, .ui_scale = 1.5f});
+    MenuMouseEnable(true);
+    options::g_screen = {};
+    const auto tick = [] {
+        mgBeginFrame(nullptr);
+        mgEndFrame(nullptr);
+        options::Run();
+    };
+    const auto click = [&](options::Point page) {
+        const auto view = options::CurrentView(options::g_screen);
+        ASSERT_LT(view.scale, 1.0f);
+        const auto                at = view.ToUi(page);
+        const auto                from = MenuMouseTake();
+        const gfx::LogicalMapping ui = gfx::GetUiMapping(gfx::kMainTarget);
+        InputSetScriptedDevices({.mouse_dx = (at.x - from.x) * ui.scale_x, .mouse_dy = (at.y - from.y) * ui.scale_y});
+        tick();
+        EXPECT_NEAR(MenuMouseTake().x, at.x, 1e-2f);
+        EXPECT_NEAR(MenuMouseTake().y, at.y, 1e-2f);
+        InputSetScriptedDevices({.mouse_buttons = 1});
+        tick();
+        InputSetScriptedDevices({});
+        tick();
+    };
+    click({.x = 364, .y = 63});
+    EXPECT_TRUE(options::g_screen.open);
+    click({.x = options::kLeft + 50, .y = 356});
+    EXPECT_FALSE(options::g_screen.open);
+    MenuMouseEnable(false);
 }

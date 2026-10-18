@@ -581,6 +581,8 @@ Open **Options**, then press **SELECT** (Backspace with the default keyboard bin
 
 The PC page uses the game's font and Options artwork. L1/R1 changes tabs, Up/Down selects a row, Left/Right changes a value, and confirm advances a choice or opens binding capture. Cancel returns to Options; Japanese retains its reversed confirm/cancel layout. The mouse can click tabs and value arrows, scroll rows, restore a binding, and return to Options. Hit targets follow aspect ratio, UI scale and window DPI.
 
+The **PC SETTINGS** entry and the page are drawn at the UI scale, or smaller when that scale would push them past the window (`options::FitView`, about 113% for the page and 124% for the entry at 16:9 and 4:3), so every offered scale leaves them whole, readable and clickable. Their hit targets use the same view. The rest of the game keeps the chosen scale.
+
 | Page | Settings |
 |---|---|
 | Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, FPS counter |

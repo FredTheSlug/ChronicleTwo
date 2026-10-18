@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <utility>
 
@@ -251,7 +252,7 @@ bool Run() {
     return g_screen.open || g_drain;
 }
 
-Point PointerPosition() { return {.x = g_pointer_x, .y = g_pointer_y}; }
+Point PointerPosition() { return CurrentView(g_screen).ToPage({.x = g_pointer_x, .y = g_pointer_y}); }
 
 bool Pointing() { return g_tracking && g_pointing; }
 
@@ -261,6 +262,43 @@ Point PointerToUi(float x, float y, int w, int h, const gfx::LogicalMapping &map
     }
     return {.x = (x * mapping.pixel_width / w - mapping.offset_x) / mapping.scale_x,
             .y = (y * mapping.pixel_height / h - mapping.offset_y) / mapping.scale_y};
+}
+
+Point View::ToUi(Point page) const {
+    return {.x = centre_x + (page.x - centre_x) * scale, .y = centre_y + (page.y - centre_y) * scale};
+}
+
+Point View::ToPage(Point ui) const {
+    return {.x = centre_x + (ui.x - centre_x) / scale, .y = centre_y + (ui.y - centre_y) / scale};
+}
+
+View FitView(const gfx::LogicalRect &bounds, const gfx::LogicalRect &visible, const gfx::LogicalRect &frame,
+             float ui_scale) {
+    View view{.centre_x = frame.x + frame.w / 2, .centre_y = frame.y + frame.h / 2, .scale = 1};
+    if (!(ui_scale > 0) || frame.w <= 0 || frame.h <= 0) {
+        return view;
+    }
+    // Each edge of bounds may sit as far from the centre as the visible edge on the same side.
+    float      fit = ui_scale;
+    const auto limit = [&](float centre, float edge, float low, float high) {
+        const float room = edge > centre ? high - centre : centre - low;
+        if (edge != centre) {
+            fit = std::min(fit, std::max(0.0f, room / std::fabs(edge - centre)));
+        }
+    };
+    limit(view.centre_x, bounds.x, visible.x, visible.x + visible.w);
+    limit(view.centre_x, bounds.x + bounds.w, visible.x, visible.x + visible.w);
+    limit(view.centre_y, bounds.y, visible.y, visible.y + visible.h);
+    limit(view.centre_y, bounds.y + bounds.h, visible.y, visible.y + visible.h);
+    if (fit > 0) {
+        view.scale = fit / ui_scale;
+    }
+    return view;
+}
+
+View CurrentView(const State &state) {
+    return FitView(state.open ? kPageBounds : kEntryBounds, gfx::VisibleLogicalRect(gfx::kMainTarget),
+                   gfx::LogicalFrame(), gfx::CurrentFrameLayout().ui_scale);
 }
 
 Hit HitTest(const State &state, float x, float y) {

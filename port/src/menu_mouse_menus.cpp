@@ -22,6 +22,7 @@
 #include "menuop.hpp"
 #include "menusys.hpp"
 #include "mglib.hpp"
+#include "mglib_port.hpp"
 #include "save_slots.hpp"
 #include "stubs/dngmenu.hpp"
 #include "stubs/menuchr.hpp"
@@ -70,6 +71,72 @@ void ItemPopupMouse() {
     }
 }
 
+// The drag that turns the costume model, owned by the costume menu that started it.
+MenuMouseDrag costume_drag;
+
+void CostumeModelMouse(const MenuMouseSample &mouse, bool over_model) {
+    CActionChara *model = MenuActionChara[0];
+    // The model takes the mouse once it has loaded; a drag held through a load needs a fresh press.
+    const bool  ready = MenuCosutumeLoadPhase == 4 && model != nullptr;
+    const float travel = costume_drag.Step(MenuCosPtr, mgPortFrameCount(), ready, mouse, over_model);
+    if (!ready) {
+        return;
+    }
+    if (travel != 0) {
+        // 100 units of drag, about a sixth of the screen, turns the character half way round.
+        AddRotationCharaY(model, travel * 0.03f);
+    }
+    if (over_model && mouse.wheel != 0) {
+        // Each notch is three ticks of a full stick, within KeyStep's 4 to 21 depth range.
+        sceVu0FVECTOR pos;
+        model->GetPosition(pos);
+        const float zoom = 3 * std::clamp(mouse.wheel, -4.0f, 4.0f);
+        const float z = std::clamp(pos[2] + 0.9f * zoom, 4.0f, 21.0f);
+        pos[0] -= 0.1f * (z - pos[2]) / 0.9f;
+        pos[2] = z;
+        model->SetPosition(pos);
+    }
+}
+
+void CostumeMouse() {
+    if (!MenuCosPtr || MenuCosPtr->mode != MENU_ASK_MODE_NONE || (MenuCosPtr->step != 0 && MenuCosPtr->step != 3) ||
+        MenuCosPtr->loading || MenuCosPtr->wait_load) {
+        // A question, a step change or a load interrupts any drag.
+        costume_drag.Cancel();
+        return;
+    }
+    auto &menu = *MenuCosPtr;
+    // Match the list artwork, then the character/continue and Monica exit rows.
+    const MenuMouseRect rows[] = {
+        {.x = 46,  .y = 80,  .w = 226, .h = 62},
+        {.x = 46,  .y = 146, .w = 226, .h = 62},
+        {.x = 46,  .y = 212, .w = 226, .h = 62},
+        {.x = 112, .y = 288, .w = 120, .h = 26},
+        {.x = 74,  .y = 328, .w = 170, .h = 26},
+    };
+    const auto &mouse = MenuMouseTake();
+    // Right of the lists the character stands: a left drag turns it and the wheel zooms, as the right stick does.
+    const bool over_model = mouse.pointing && mouse.x >= 300;
+    CostumeModelMouse(mouse, over_model);
+    const int                            count = menu.chara == USER_CHARA_MONICA ? 5 : 4;
+    const std::span<const MenuMouseRect> shown{rows, static_cast<std::size_t>(count)};
+    // The wheel steps the rows only while the pointer is over one of them.
+    const bool over_rows = mouse.pointing && MenuMouseHit(shown, mouse.x, mouse.y) >= 0;
+    const int  selected = MenuMouseRows(shown, menu.select, over_rows ? 1 : 0);
+    if (selected != menu.select) {
+        menu.select = selected;
+        MenuMouseCursorSound();
+    }
+    // Include the drawn arrows' full six-unit swing without hitting the labels.
+    if ((mouse.clicked & 1) && selected < 3) {
+        const MenuMouseRect left{.x = 49, .y = rows[selected].y + 33, .w = 22, .h = 22};
+        const MenuMouseRect right{.x = 249, .y = rows[selected].y + 33, .w = 22, .h = 22};
+        if (left.Contains(mouse.x, mouse.y) || right.Contains(mouse.x, mouse.y)) {
+            MenuMouseSetButtons((MenuMouseButtons() & ~PAD_CROSS) | (left.Contains(mouse.x, mouse.y) ? PAD_LEFT : PAD_RIGHT));
+        }
+    }
+}
+
 void TitleMouse() {
     if (GetNowLoopNo() != LOOP_TITLE || !MouseTitle || MouseTitle->mode != TITLE_MODE_TITLE) {
         return;
@@ -110,6 +177,9 @@ PORT_OVERRIDE int CMenuKeyFunc::CheckSelectKey() {
         }
         if (now_mode == MENU_MODE_MAIN_TOWN || now_mode == MENU_MODE_MAIN_DUNGEON) {
             RootMouse();
+        }
+        if (now_mode == MENU_MODE_COSTUME) {
+            CostumeMouse();
         }
         if (now_mode == MENU_MODE_DNG_TREE_MAP) {
             MenuMouseFloor();

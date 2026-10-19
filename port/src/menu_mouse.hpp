@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -30,10 +31,32 @@ MenuMouseView MenuMouseScroll(float wheel, MenuMouseView view, int count, int vi
 
 // Relative window pixels map through the same logical extent as the menu art.
 float MenuMouseUnits(float scale, float pixels, float window);
+// The menu hand's gain for a tick's motion of (dx, dy) counts: speed, raised smoothly to twice
+// speed between 4 and 28 counts when accelerating.
+float MenuMouseGain(float dx, float dy, float speed, bool accelerate);
 int   MenuMouseHit(std::span<const MenuMouseRect> rows, float x, float y);
 int   MenuMouseChoose(const MenuMouseSample &mouse, std::span<const MenuMouseRect> rows, int selected, int wheel_step = 1);
 // Whole wheel notches move selected by wheel_step per notch, clamped to [0, count).
 int MenuMouseWheelStep(int selected, float wheel, int count, int wheel_step = 1);
+
+// A left-button drag across an area of one menu, such as the costume model. It starts only on a fresh
+// press over the area while the menu takes input, and ends on release, when the menu stops taking input
+// or the pointer leaves it, when the owner changes, and when a tick passes without a Step (the menu
+// closed or skipped its input), so a press held across any of those turns nothing until pressed again.
+class MenuMouseDrag {
+public:
+    // The pointer's x travel this tick while dragging, or 0.
+    float Step(const void *owner, int tick, bool ready, const MenuMouseSample &mouse, bool over_area);
+    void  Cancel() { dragging_ = false; }
+    bool  Dragging() const { return dragging_; }
+
+private:
+    const void *owner_ = nullptr;
+    int         tick_ = 0;
+    bool        stepped_ = false;
+    bool        dragging_ = false;
+    float       x_ = 0;
+};
 class CMenuPosDataForm;
 struct MENUFORMPARTS_TYPE;
 // The form's part called name, or null. Unlike GetPartInfo this skips freed parts,
@@ -41,6 +64,10 @@ struct MENUFORMPARTS_TYPE;
 MENUFORMPARTS_TYPE *MenuMouseFindPart(CMenuPosDataForm *form, const char *name);
 // A drawn form part's rectangle; empty when the form or the part is hidden or missing.
 MenuMouseRect MenuMousePart(CMenuPosDataForm *form, const char *name);
+// The build-up list's rows, as MenuWeaponBuildUpDraw draws them: each name board with the gap left of it,
+// from the name positions it records (BuildUpNameXY: 20 left of a board, 5 below its top). Rows past
+// count are empty. language is LanguageCode, which widens the boards outside Japanese.
+std::array<MenuMouseRect, 3> MenuMouseBuildUpRows(const short (&names)[3][2], int count, int language);
 class ClsMes;
 std::vector<MenuMouseRect> MenuMouseMessageRows(ClsMes &message, int count);
 // The pad button a drawn message line's leading symbol shows, or 0, and the bounds of that placed line.

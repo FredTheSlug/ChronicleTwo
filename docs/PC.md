@@ -670,6 +670,8 @@ Writes are atomic: the file is written as `config.json.tmp` and renamed over `co
 | `input.mouse_capture` | bool | true | | capture the mouse |
 | `input.mouse_zoom` | bool | false | | mouse wheel zoom |
 | `input.mouse_fixed_look` | bool | true | | gentle mouse look in fixed-camera town rooms |
+| `input.menu_pointer_speed` | number | 1.5 | 0.25 to 4 | captured menu hand travel per mouse count; 1 is one window pixel |
+| `input.menu_pointer_acceleration` | bool | true | | fast captured motion moves the menu hand up to twice as far per count |
 | `input.touchpad` | bool | true | | a DualSense touchpad as the menus' mouse |
 | `input.touchpad_sensitivity` | number | 1.0 | above 0 | touchpad speed |
 | `input.lightbar` | bool | true | | lets the game colour the lightbar; read and saved, nothing sets a colour yet |
@@ -726,7 +728,7 @@ The **PC SETTINGS** entry and the page are drawn at the UI scale, or smaller whe
 |---|---|
 | Display | Windowed/fullscreen, resolution, FIFO/mailbox/immediate, frame cap, interpolation, auto/4:3 aspect, UI scale, original/sharp text font, FPS counter |
 | Audio | Master volume and PS2/custom soundtrack |
-| Controls | Mouse sensitivity, Y inversion and capture; stick sensitivity and X/Y inversion; button symbols and glyph style |
+| Controls | Mouse sensitivity, Y inversion and capture; menu pointer speed and acceleration; stick sensitivity and X/Y inversion; button symbols and glyph style |
 | Game | Autosave, quick loadout title, skip intro, auto-use event items, floor monster list, more monsters and debug mode |
 | Bindings | Keyboard and mouse bindings for pad buttons, movement, look, FPS and debug menu |
 
@@ -783,6 +785,13 @@ and game captures. The menu hand shares cursor ownership with the operating-syst
 `input.mouse_capture` configures capture, and `input.mouse_release` selects the
 keys that release it.
 
+Captured motion arrives as raw counts with the OS pointer acceleration off, so the
+hand has its own **Menu pointer speed** (default 150%) and **Menu pointer
+acceleration** (default On) in PC SETTINGS > Controls. Acceleration leaves up to
+four counts per tick linear and smoothly doubles the gain by 28 counts. Camera
+look keeps `input.mouse_sensitivity`. With capture off the hand follows the
+desktop cursor 1:1.
+
 Mouse selection covers the town and dungeon root menus, title menu, world map,
 dungeon floor maps and their help actions, the flat save/load file lists,
 and the field Use Item popup. Yes/No boxes and dialogue choices use the message
@@ -802,10 +811,13 @@ reach along the path (down onward, up back), preferring Right, Down, Up, then
 Left, so at a fork it keeps to the Right key's branch. Room hit boxes follow the
 drawn pictures and their cull edge. Clicking a help label presses the button its
 symbol shows: Back to Map or Exit Dungeon, Save Progress, and the floor
-information's Move and Cancel; on the floor information only those labels act on
-a left click. On these maps and the screens they open (the place list, the travel
-and floor questions, and Save Progress's save screen), Mouse1 confirms and Mouse2
-cancels in the language's own layout, so Japanese confirms with Circle.
+information's Move and Cancel. A left click elsewhere on the Floor Info screen
+enters the floor as Cross does, except in the first 20 ticks after it opens, so
+the second click of a double click on a room does not travel; the help labels
+act at once. On these maps and the screens they open (the place list, the
+travel and floor questions, and Save Progress's save screen), Mouse1 confirms
+and Mouse2 cancels in the language's own layout, so Japanese confirms with
+Circle.
 
 The shared pointer implementation is `port/src/menu_mouse.cpp`; menu adapters, cursor
 transitions, floor selection and message choices live in separate
@@ -1046,6 +1058,20 @@ active-slot placement (1100), active-slot moves (1300), and return after a drop
 outside the menu (1550). `item-menu-mouse-dungeon.input` reaches the dungeon's
 Item page and opens Bread's commands by frame 2850. These two scripts also use
 1280x720; scale `mouse:dx,dy` counts with the window dimensions for other sizes.
+
+A weapon's Build Up list takes the mouse too. Hovering a target's name board,
+or the gap before it where the retail hand points, selects that target and
+plays the cursor sound. Mouse1 on a target sends Cross, so retail handles it:
+a target shown as "???" is refused with the retail sound, and a reachable one
+opens the build-up question. Clicks beside the targets do nothing, Mouse2 backs
+out like Circle, and the wheel steps the selection. A weapon has at most three
+targets and all of them are shown, so nothing scrolls. The boards are drawn with the left panels, so on a
+wide window the targets are hit through the same spread mapping as the retail
+hand, which stays beside its target there. `MenuMouseBuildUpRows`
+(`port/src/menu_mouse.cpp`) gives the targets from the drawn name positions;
+the Monster Transform class-change list uses it as well.
+`tools/input/item-build-up-mouse.input` (`--jump town:10 --fast-load`, 1920x1080)
+opens the Battle Wrench's two targets; its comments give capture frames.
 
 ### Item page over the paused world
 

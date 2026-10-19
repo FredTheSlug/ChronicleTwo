@@ -74,6 +74,21 @@ TEST(MenuWorld, OtherMenusOpenUnchanged) {
     EXPECT_FLOAT_EQ(menuworld::RetailPointerX(123.5f), 123.5f);
 }
 
+TEST(MenuWorld, SpreadPointerReachesLeftPanelPartsUpToTheSplit) {
+    // At 16:9 the left panels move 106.7 left and the bag 106.7 right of the split at 240.
+    const float shift = -106.7f;
+    // A weapon icon drawn at retail x 225, inside the 40-wide band before the split, is hit where it is drawn.
+    EXPECT_FLOAT_EQ(menuworld::SpreadPointerX(225.0f + shift, shift, 240.0f, false), 225.0f);
+    EXPECT_FLOAT_EQ(menuworld::SpreadPointerX(100.0f + shift, shift, 240.0f, false), 100.0f);
+    // The bag's first column, and the gap between the spreads.
+    EXPECT_FLOAT_EQ(menuworld::SpreadPointerX(250.0f - shift, shift, 240.0f, false), 250.0f);
+    EXPECT_LT(menuworld::SpreadPointerX(240.0f, shift, 240.0f, false), -1000.0f);
+    EXPECT_GT(menuworld::SpreadPointerX(240.0f, shift, 240.0f, true), 240.0f);
+    // At 4:3 nothing moves.
+    EXPECT_FLOAT_EQ(menuworld::SpreadPointerX(239.0f, 0.0f, 240.0f, false), 239.0f);
+    EXPECT_FLOAT_EQ(menuworld::SpreadPointerX(240.0f, 0.0f, 240.0f, false), 240.0f);
+}
+
 TEST(MenuWorld, ItemsEntryDissolvesThePlayerAndReturnsThroughTheOrb) {
     const int     saved_loop_mode = PortTownLoopMode;
     CMenuKeyFunc *saved_keys = MenuCommonInfo;
@@ -219,6 +234,28 @@ TEST(MenuWorld, CursorShiftEasesFromTheLeftPanelsToTheRightPanels) {
     EXPECT_NEAR(menuworld::CursorShift(194.0f), left * 0.5f, 1e-4f);
 
     class_menu_item_info.item_board_form = saved_board;
+    mgScreenWidth = saved_width;
+}
+
+// The build-up list's hand sits near the split, but moves with the selection's panels like the pointer, not the eased shift.
+TEST(MenuWorld, BuildUpHandTakesTheSelectionsSide) {
+    const int saved_width = mgScreenWidth;
+    mgScreenWidth = 512;
+    auto      &menu = class_menu_item_info;
+    const auto saved_mode = menu.mode;
+    const auto saved_ask = menu.ask_para.ask_mode;
+    const auto saved_key = menu.key_arg_no;
+    menu.mode = MENU_ASK_MODE_EXTEND;
+    menu.ask_para.ask_mode = MENU_ITEM_EXTEND_BUILD_UP;
+
+    menu.key_arg_no = ITEM_MENU_PANEL_WEAPON;
+    EXPECT_FLOAT_EQ(menuworld::CursorFrameShift(), menuworld::CursorShift(0.0f));
+    menu.key_arg_no = ITEM_MENU_PANEL_BAG;
+    EXPECT_FLOAT_EQ(menuworld::CursorFrameShift(), menuworld::CursorShift(400.0f));
+
+    menu.mode = saved_mode;
+    menu.ask_para.ask_mode = saved_ask;
+    menu.key_arg_no = saved_key;
     mgScreenWidth = saved_width;
 }
 

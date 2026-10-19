@@ -22,6 +22,12 @@ $paths = foreach ($name in $names) {
 $gameplay = Join-Path $build 'assets/data.zip'
 if (!(Test-Path -LiteralPath $gameplay -PathType Leaf)) { throw "Missing gameplay archive: $gameplay" }
 $packageFiles = @($paths) + @($gameplay)
+# The scripts' Luau sources ship loose beside the executable; without them every script runs on the interpreter.
+$scripts = Join-Path $build 'scripts'
+if (!(Test-Path -LiteralPath (Join-Path $scripts 'mainchr/c01.luau') -PathType Leaf)) { throw "Missing Luau scripts: $scripts" }
+$luauLicense = Join-Path $build 'Luau-LICENSE.txt'
+if (!(Test-Path -LiteralPath $luauLicense -PathType Leaf)) { throw "Missing Luau license: $luauLicense" }
+$packageFiles += @($scripts, $luauLicense)
 $cmakeCache = Join-Path $build 'CMakeCache.txt'
 $tracyEnabled = @(Get-Content -LiteralPath $cmakeCache | Where-Object { $_ -eq 'CT_ENABLE_TRACY:BOOL=ON' }).Count -ne 0
 if ($tracyEnabled) {
@@ -30,4 +36,4 @@ if ($tracyEnabled) {
     $packageFiles += $tracyLicense
 }
 Compress-Archive -LiteralPath $packageFiles -DestinationPath $archive -Force
-Write-Output "Packaged $($paths.Count) program/runtime files and data.zip in $archive."
+Write-Output "Packaged $($paths.Count) program/runtime files, data.zip and scripts/ in $archive."

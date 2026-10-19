@@ -1,0 +1,357 @@
+{
+ "dungeon/act_script/c01.stb": {
+  "module": "dungeon/act_script/c01",
+  "sha256": "b1ae5772d92a76aa917c8e91b01853365ae10b58ba2c7883c8b4812f7baf2d4a"
+ },
+ "dungeon/act_script/c01a.stb": {
+  "module": "dungeon/act_script/c01a",
+  "sha256": "c87db366fa2e66510a453f92fcd39c9e70e9195872f00c4cf3c858abcc60884e"
+ },
+ "dungeon/act_script/c01win.stb": {
+  "module": "dungeon/act_script/c01win",
+  "sha256": "f30a7111fac5cdc1b71a8953689fb66670271824b0274eb7ab195262d0de34d1"
+ },
+ "dungeon/act_script/c02.stb": {
+  "module": "dungeon/act_script/c02",
+  "sha256": "25aa54f403d3f5848fd643e8cc474ae0e6e1027881b3dc34247d79ce6208a2ba"
+ },
+ "dungeon/act_script/c02a.stb": {
+  "module": "dungeon/act_script/c02a",
+  "sha256": "309f275d9156a47bf399dc9ecdce723321181e2d06a728a5fd83419c286a6f95"
+ },
+ "dungeon/act_script/f03a.stb": {
+  "module": "dungeon/act_script/f03a",
+  "sha256": "0670a21485f2dc6ebbbcd40d59894ab6dafe6b91e41eda43dad02abd1ba34f51"
+ },
+ "dungeon/act_script/f05a.stb": {
+  "module": "dungeon/act_script/f05a",
+  "sha256": "6530611a456f997ccb84447072e95a8e5641acfe56e736da2f11c757ea7a7169"
+ },
+ "dungeon/act_script/f06a.stb": {
+  "module": "dungeon/act_script/f06a",
+  "sha256": "3d11080451ef74eae9ef4917d19f0a8f62ac763f044445702c257e5479183934"
+ },
+ "dungeon/act_script/f10a.stb": {
+  "module": "dungeon/act_script/f10a",
+  "sha256": "c84417dff3ad5762467af3d881dd6c5af75937e87e9173e0044a17dcf63728d5"
+ },
+ "dungeon/act_script/f114.stb": {
+  "module": "dungeon/act_script/f114",
+  "sha256": "9b2648c9b1f981bc8b19f59fa867c780a62ad22e02515623fef841198b113b10"
+ },
+ "dungeon/act_script/f114a.stb": {
+  "module": "dungeon/act_script/f114a",
+  "sha256": "5569b854a1cfe32660e3cbc3ab65c787606624d336edcc121a4f45919bd09662"
+ },
+ "dungeon/act_script/f201a.stb": {
+  "module": "dungeon/act_script/f201a",
+  "sha256": "7e3cdb5ba6d737e5233339bb05056369d404e918cee68b1b4f5b17bb5edca79f"
+ },
+ "dungeon/act_script/f203a.stb": {
+  "module": "dungeon/act_script/f203a",
+  "sha256": "a731dd2cb9eccfd39f3855b9408f033b7ab1c20eeb7245b137e8749bcec8a8e1"
+ },
+ "dungeon/act_script/f204a.stb": {
+  "module": "dungeon/act_script/f204a",
+  "sha256": "2f0ea3b17e76116052ed2b9f4cadb2482d3778a55b31db4a1ddd23806baf7f7f"
+ },
+ "dungeon/act_script/f206a.stb": {
+  "module": "dungeon/act_script/f206a",
+  "sha256": "9305ea261e989838c4243c108c7857615fa1c683d5ec7527c39d437d645d7f9d"
+ },
+ "dungeon/act_script/f207a.stb": {
+  "module": "dungeon/act_script/f207a",
+  "sha256": "be4728c45de47fed08105af4b7e11831f70733531c65c458410b3122702b8ddb"
+ },
+ "dungeon/act_script/f213a.stb": {
+  "module": "dungeon/act_script/f213a",
+  "sha256": "2d51d46051ebf90c2ffb8aced065bda5625103364193524fa2d40c13b9d600c8"
+ },
+ "dungeon/act_script/f216a.stb": {
+  "module": "dungeon/act_script/f216a",
+  "sha256": "4013c641107f0cb166f5001f5381899502b3c89c728ab3092715a7aa0b986cc6"
+ },
+ "dungeon/act_script/f221a.stb": {
+  "module": "dungeon/act_script/f221a",
+  "sha256": "cc6e58dd2066e09d20fdc5b7cf899028a58727d3201e2264330886dc3db5b31c"
+ },
+ "dungeon/act_script/f24a.stb": {
+  "module": "dungeon/act_script/f24a",
+  "sha256": "61c09c4b373e8cb84fc3189600bb15865b79de8c77c3f91dd4d1efaa3474a6c2"
+ },
+ "dungeon/act_script/f26a.stb": {
+  "module": "dungeon/act_script/f26a",
+  "sha256": "715bb51795b72394ab47af18abd146e78c352871f64fcb7d8468478792081599"
+ },
+ "dungeon/act_script/f45a.stb": {
+  "module": "dungeon/act_script/f45a",
+  "sha256": "c175084b6ccda2adc1611b39878457bfae489008609ae7a68c13f08076456924"
+ },
+ "dungeon/act_script/f49a.stb": {
+  "module": "dungeon/act_script/f49a",
+  "sha256": "3139a6829bee1fe4f9a85e195cb87bb5b39138374d3b865a9a47def5fc797f72"
+ },
+ "dungeon/act_script/robo.stb": {
+  "module": "dungeon/act_script/robo",
+  "sha256": "7d80076c011a3bc1824e2e264e374fac819e7881fce9e23edcbf66a92a411062"
+ },
+ "libraries": {
+  "action/helper_1f0fc9e1": {
+   "users": [
+    "dungeon/act_script/c01.stb",
+    "dungeon/act_script/c01a.stb",
+    "mainchr/c01.stb"
+   ]
+  },
+  "action/helper_2a4fd538": {
+   "users": [
+    "dungeon/act_script/c01.stb",
+    "dungeon/act_script/c01a.stb",
+    "mainchr/c01.stb"
+   ]
+  },
+  "action/helper_4ccf4adc": {
+   "users": [
+    "dungeon/act_script/f03a.stb",
+    "dungeon/act_script/f207a.stb"
+   ]
+  },
+  "action/helper_5aa58089": {
+   "users": [
+    "dungeon/act_script/c02.stb",
+    "dungeon/act_script/c02a.stb",
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_5af6b30b": {
+   "users": [
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_6322acfa": {
+   "users": [
+    "dungeon/act_script/c01.stb",
+    "dungeon/act_script/c01a.stb",
+    "dungeon/act_script/c02.stb",
+    "dungeon/act_script/c02a.stb",
+    "mainchr/c01.stb",
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_72d1daf9": {
+   "users": [
+    "dungeon/act_script/f03a.stb",
+    "dungeon/act_script/f05a.stb",
+    "dungeon/act_script/f06a.stb",
+    "dungeon/act_script/f10a.stb",
+    "dungeon/act_script/f114.stb",
+    "dungeon/act_script/f114a.stb",
+    "dungeon/act_script/f201a.stb",
+    "dungeon/act_script/f203a.stb",
+    "dungeon/act_script/f206a.stb",
+    "dungeon/act_script/f207a.stb",
+    "dungeon/act_script/f213a.stb",
+    "dungeon/act_script/f216a.stb",
+    "dungeon/act_script/f221a.stb",
+    "dungeon/act_script/f24a.stb",
+    "dungeon/act_script/f26a.stb",
+    "dungeon/act_script/f45a.stb",
+    "dungeon/act_script/f49a.stb"
+   ]
+  },
+  "action/helper_77acd540": {
+   "users": [
+    "dungeon/act_script/f03a.stb",
+    "dungeon/act_script/f05a.stb",
+    "dungeon/act_script/f06a.stb",
+    "dungeon/act_script/f10a.stb",
+    "dungeon/act_script/f114.stb",
+    "dungeon/act_script/f114a.stb",
+    "dungeon/act_script/f201a.stb",
+    "dungeon/act_script/f203a.stb",
+    "dungeon/act_script/f206a.stb",
+    "dungeon/act_script/f207a.stb",
+    "dungeon/act_script/f213a.stb",
+    "dungeon/act_script/f216a.stb",
+    "dungeon/act_script/f221a.stb",
+    "dungeon/act_script/f24a.stb",
+    "dungeon/act_script/f26a.stb",
+    "dungeon/act_script/f45a.stb",
+    "dungeon/act_script/f49a.stb"
+   ]
+  },
+  "action/helper_8f2eb222": {
+   "users": [
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_9708d5ca": {
+   "users": [
+    "dungeon/act_script/c02.stb",
+    "dungeon/act_script/c02a.stb",
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_9f2e9866": {
+   "users": [
+    "dungeon/act_script/f03a.stb",
+    "dungeon/act_script/f05a.stb",
+    "dungeon/act_script/f06a.stb",
+    "dungeon/act_script/f10a.stb",
+    "dungeon/act_script/f114.stb",
+    "dungeon/act_script/f114a.stb",
+    "dungeon/act_script/f201a.stb",
+    "dungeon/act_script/f203a.stb",
+    "dungeon/act_script/f206a.stb",
+    "dungeon/act_script/f207a.stb",
+    "dungeon/act_script/f213a.stb",
+    "dungeon/act_script/f216a.stb",
+    "dungeon/act_script/f221a.stb",
+    "dungeon/act_script/f24a.stb",
+    "dungeon/act_script/f26a.stb",
+    "dungeon/act_script/f45a.stb",
+    "dungeon/act_script/f49a.stb"
+   ]
+  },
+  "action/helper_a815fafa": {
+   "users": [
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_bac4ec65": {
+   "users": [
+    "dungeon/act_script/c01.stb",
+    "dungeon/act_script/c01a.stb",
+    "dungeon/act_script/c01win.stb",
+    "dungeon/act_script/c02.stb",
+    "dungeon/act_script/c02a.stb",
+    "dungeon/act_script/f03a.stb",
+    "dungeon/act_script/f05a.stb",
+    "dungeon/act_script/f06a.stb",
+    "dungeon/act_script/f10a.stb",
+    "dungeon/act_script/f114.stb",
+    "dungeon/act_script/f114a.stb",
+    "dungeon/act_script/f201a.stb",
+    "dungeon/act_script/f203a.stb",
+    "dungeon/act_script/f204a.stb",
+    "dungeon/act_script/f206a.stb",
+    "dungeon/act_script/f207a.stb",
+    "dungeon/act_script/f213a.stb",
+    "dungeon/act_script/f216a.stb",
+    "dungeon/act_script/f221a.stb",
+    "dungeon/act_script/f24a.stb",
+    "dungeon/act_script/f26a.stb",
+    "dungeon/act_script/f45a.stb",
+    "dungeon/act_script/f49a.stb",
+    "dungeon/act_script/robo.stb",
+    "mainchr/c01.stb",
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_bc2fe269": {
+   "users": [
+    "dungeon/act_script/c02.stb",
+    "dungeon/act_script/c02a.stb",
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_ca3a0d08": {
+   "users": [
+    "dungeon/act_script/c01.stb",
+    "dungeon/act_script/c01a.stb",
+    "mainchr/c01.stb"
+   ]
+  },
+  "action/helper_cd42357d": {
+   "users": [
+    "dungeon/act_script/f03a.stb",
+    "dungeon/act_script/f05a.stb",
+    "dungeon/act_script/f06a.stb",
+    "dungeon/act_script/f10a.stb",
+    "dungeon/act_script/f114.stb",
+    "dungeon/act_script/f201a.stb",
+    "dungeon/act_script/f203a.stb",
+    "dungeon/act_script/f207a.stb",
+    "dungeon/act_script/f213a.stb",
+    "dungeon/act_script/f221a.stb",
+    "dungeon/act_script/f26a.stb",
+    "dungeon/act_script/f45a.stb",
+    "dungeon/act_script/f49a.stb"
+   ]
+  },
+  "action/helper_e420fa85": {
+   "users": [
+    "dungeon/act_script/c02.stb",
+    "dungeon/act_script/c02a.stb",
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_e8fedd84": {
+   "users": [
+    "dungeon/act_script/f10a.stb",
+    "dungeon/act_script/f114a.stb",
+    "dungeon/act_script/f203a.stb",
+    "dungeon/act_script/f213a.stb",
+    "dungeon/act_script/f216a.stb",
+    "dungeon/act_script/f24a.stb",
+    "dungeon/act_script/f26a.stb"
+   ]
+  },
+  "action/helper_ee2817e0": {
+   "users": [
+    "dungeon/act_script/c01.stb",
+    "dungeon/act_script/c01a.stb",
+    "dungeon/act_script/c02.stb",
+    "dungeon/act_script/c02a.stb",
+    "dungeon/act_script/f03a.stb",
+    "dungeon/act_script/f05a.stb",
+    "dungeon/act_script/f06a.stb",
+    "dungeon/act_script/f10a.stb",
+    "dungeon/act_script/f114.stb",
+    "dungeon/act_script/f114a.stb",
+    "dungeon/act_script/f201a.stb",
+    "dungeon/act_script/f203a.stb",
+    "dungeon/act_script/f206a.stb",
+    "dungeon/act_script/f207a.stb",
+    "dungeon/act_script/f213a.stb",
+    "dungeon/act_script/f216a.stb",
+    "dungeon/act_script/f221a.stb",
+    "dungeon/act_script/f24a.stb",
+    "dungeon/act_script/f26a.stb",
+    "dungeon/act_script/f45a.stb",
+    "dungeon/act_script/f49a.stb",
+    "mainchr/c01.stb",
+    "mainchr/c02.stb",
+    "mainchr/c02.stb_"
+   ]
+  },
+  "action/helper_f5a9cb5b": {
+   "users": [
+    "dungeon/act_script/c01.stb",
+    "dungeon/act_script/c01a.stb",
+    "mainchr/c01.stb"
+   ]
+  }
+ },
+ "mainchr/c01.stb": {
+  "module": "mainchr/c01",
+  "sha256": "22ab63c776fc08f48310469ff9c537a07396e0d234d68180a948e00ea37cf720"
+ },
+ "mainchr/c02.stb": {
+  "module": "mainchr/c02",
+  "sha256": "22d363ee1a6d787091f7b55b23c56d620649aa32120f0ae99435b1f9036faec5"
+ },
+ "mainchr/c02.stb_": {
+  "module": "mainchr/c02_",
+  "sha256": "17856d369f32f7c031f11f23db58dc979f06e4161678a4cf149a00143ef3bf0e"
+ }
+}

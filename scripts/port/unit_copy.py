@@ -89,6 +89,13 @@ RETAIL_BRIDGES = {
     "mg_dataset.cpp": [
         ("CopyFrame(mgCFrame*,mgCFrame*,mgCMemory*,int,mgCFrame**)", "CopyFrame", "PortRetailCopyFrame"),
     ],
+    "runscript.cpp": [
+        ("CRunScript::DeleteProgram()", "DeleteProgram", "PortRetailDeleteProgram"),
+        ("CRunScript::load(RS_PROG_HEADER*,RS_STACKDATA*,int,RS_CALLDATA*,int)", "load", "PortRetailLoad"),
+        ("CRunScript::resume()", "resume", "PortRetailResume"),
+        ("CRunScript::run(int)", "run", "PortRetailRun"),
+        ("CRunScript::skip()", "skip", "PortRetailSkip"),
+    ],
 }
 
 

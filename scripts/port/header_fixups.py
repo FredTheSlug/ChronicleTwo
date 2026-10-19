@@ -77,6 +77,14 @@ FIXUPS = [
      "        s32 *house_npc;                          /**< Villagers whose house was removed. */"),
     # Clearing a town also clears its extra model heaps around retail's clear, which stays under this name.
     ("editmap.hpp", "    void ClearAllParts();", "    void ClearAllParts();\n    void PortRetailClearAllParts();"),
+    # Luau runs the scripts that have modules; the interpreter's own entry points stay under these names for the rest.
+    ("runscript.hpp", "    void exe(vmcode_t *entry);",
+     "    void exe(vmcode_t *entry);\n"
+     "    void PortRetailDeleteProgram();\n"
+     "    void PortRetailLoad(RS_PROG_HEADER *program, RS_STACKDATA *values, int value_count, RS_CALLDATA *calls, int call_count);\n"
+     "    void PortRetailResume();\n"
+     "    int  PortRetailRun(int no);\n"
+     "    void PortRetailSkip();"),
     # Collision polygons name placed Georama parts beyond slot 4095.
     ("collision.hpp", "    CCPOLY_PARTS_EDIT = 0x1000,     /**< The polygon belongs to a placed Georama part. */",
      "    CCPOLY_PARTS_EDIT = 0x8000,     /**< The polygon belongs to a placed Georama part. */"),

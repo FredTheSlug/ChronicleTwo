@@ -1,6 +1,6 @@
-# Luau migration handoff (M1 and M2 paused)
+# Luau migration handoff
 
-Status at pause: M0 is complete. M1 (transpiler) and M2 (runtime) were only researched; no code for either exists yet. The working tree builds as before, because this phase changed no code.
+Status: M0 is complete. M1 (transpiler) and M2 (runtime) are complete for the action kind; see their sections below. The next milestones are M3 (effect and monster) and M4 (event).
 
 ## What exists
 
@@ -8,9 +8,9 @@ Status at pause: M0 is complete. M1 (transpiler) and M2 (runtime) were only rese
 - `tools/luau/stb/` (M0): decoder (`program.py`), CFG (`cfg.py`), abstract stack analysis (`analysis.py`), handler source parsing (`sources.py`), catalog (`catalog.py`), scan, report and fixture assembler.
 - `tools/luau/survey.py`, `commands.json` (1,081 commands), `REPORT.md`, `curation.json` (empty).
 - `tools/luau/test_stb.py`: 20 tests. They run through CTest as `Luau.Tools` and `Luau.Survey` (`port/src/tests/cmake/luau.cmake`).
-- The plan: `luau_plan.md` in the session scratchpad. The user's decisions below override it.
+- The plan: `docs/port/luau-plan.md`. The user's decisions below override it.
 
-Nothing exists yet under `port/src/luau/`, `port/cmake/luau.cmake` or `tools/luau/stb2luau/`, and there is no `dc2data export-scripts`.
+M2 added the runtime: `port/cmake/luau.cmake`, `port/src/luau_runtime.{hpp,cpp}`, `port/src/luau_bindings.hpp`, `tools/luau/bindings.py`, `port/src/luau/lib/vm.luau` and `dc2data export-scripts`. M1 writes the transpiler in `tools/luau/stb2luau/` and its output in `port/src/luau/`.
 
 ## Verified
 
@@ -116,7 +116,7 @@ Nothing exists yet under `port/src/luau/`, `port/cmake/luau.cmake` or `tools/lua
 7. Use native Luau numbers, with helpers only where integer or float semantics differ observably.
 8. Type aliases `s8 u8 s16 u16 s32 u32 f32` go in `port/src/luau/api/*.d.luau`. PRINT becomes `print`.
 
-Coordinator design choices so far (not yet implemented):
+Coordinator design choices (implemented):
 
 - `require` aliases go in `port/src/luau/.luaurc` (`@lib/...`).
 - `vm` should be a Luau library, so the harness and the game share it.
@@ -126,21 +126,79 @@ Coordinator design choices so far (not yet implemented):
 
 ### M1, transpiler (`tools/luau/stb2luau/`)
 
-1. `refvm.py`: a line-for-line port of `exe` with skip mode, using the semantics above, plus fixtures from `assembler.py`.
-2. `timing.py`: the eight `script_timing` recipes on decoded programs, with the inventory moved from `port/src/script_timing_inventory.inc` into data the Python reads, and count assertions.
-3. Lift each basic block's stack into expressions, then structure the CFG (if/elseif, while, repeat, numeric for, break, and `and`/`or` from short-circuit jumps).
-4. Name and type from `analysis.py` and the catalog, then emit, StyLua (pinned) and `luau-analyze --mode strict`.
-5. Differential harness: the refvm and Luau under a mock API with seeded outputs. Compare traces, wait counts, globals and print output. Gate: 27 of 27 action scripts trace-equal.
+Done for the action kind. `docs/PORT_LUAU.md` "Transpiler" describes the pipeline.
 
-### M2, runtime
+- Built:
+  - `tools/luau/stb2luau/`: `refvm.py`, `timing.py` (+ `timing_inventory.json`), `ir.py`, `lift.py`, `structure.py`, `emit.py`, `numbers.py`, `api.py`, `harness.py`, `transpile.py` (CLI), `toolchain.py`.
+  - `tools/luau/programs.json` (program names), `tools/luau/toolchain.json` (Luau 0.740 and StyLua 2.5.2 binaries), `tools/luau/harness/` (`luau-check` and `luau-harness`, own CMake, Luau 0.740).
+  - The tests `test_refvm`, `test_timing`, `test_lift`, `test_structure`, `test_emit`, `test_api`, `test_harness`, `test_transpile` and `test_programs`. They run in `Luau.Tools`, and CTest `Luau.Transpile` runs `transpile.py --check --harness`.
+- Output: `port/src/luau/{mainchr,dungeon/act_script}/*.luau` (27 modules), `lib/action/helper_*.luau` (20 shared helpers), `api/*.d.luau` for every kind, `.luaurc` and `manifest.json`.
+- Gate, run with `python tools/luau/stb2luau/transpile.py --data port/run/data.zip --harness --seeds 32`:
+  - 27 of 27 scripts transpile, and `luau-check` (strict, lint as errors) reports 0 errors.
+  - 13,824 of 13,824 harness scenarios are trace-equal, with 86.4% mean instruction coverage of the reference runs. Coverage is lowest for the player scripts: 45% for `mainchr/c01`, 38% for `c02`. Their deep state-machine states need longer, input-driven runs.
+  - M2's eight replays gave screenshots identical to the interpreter's with the modules before named handlers. The rerun with the current modules is M2's.
+- Known approximations (documented in the contract):
+  - Float literals are the shortest decimal, so a comparison with an engine float that equals a literal's exact float32 can differ from retail.
+  - Arithmetic is not wrapped to 32 bits except two-variable multiplication.
+  - A reference passed where a handler reads a value (`ProgSet` in `c01win`/`f204a`) passes the variable's value, where retail passed the pointer's bits.
+- Open:
+  - Curate the auto names (`helper_<hash>`, `varN`) in M5.
+  - `action.NowMosChgwait`'s output is `unknown` in the catalogue.
+  - `transpile.py` still reads `data.zip` through 7-Zip. It could take `--dc2data` as `survey.py` now does.
 
-1. `port/cmake/luau.cmake`: VM, Compiler, CodeGen and Analysis (the last for tools).
-2. `CRunScript` facade: override every member in `port/src/runscript.cpp`, keeping state in a side registry.
-3. Binding generator from `commands.json`, with typed shims that call retail handlers through `RS_STACKDATA`, behind `script_guards`.
-4. Loading from `scripts/`, with an interrupt budget and tracebacks.
-5. Copy `port/src/luau` to `<run dir>/scripts`.
-6. `dc2data export-scripts`, and dropping `.stb` from publication through the Kazarov process.
-7. Verify with headless replays and `Smoke.*`, and check that the PS2 build stays byte-identical.
+### M3/M4 transpilation (effect, monster, event)
+
+Measured with `transpile.py --kind <kind>` on the published corpus:
+
+| Kind | Transpile | Blocking |
+|---|---|---|
+| `effect` | 244 / 254 | dynamic array indices and pointer indices |
+| `monster` | 24 / 144 | 512 functions with pointer indices |
+| `event` | 11 / 969 | 2,429 pointer indices, 2,224 skip ends, 144 dynamic indices |
+| `event_arg` | 5 / 5 | none |
+
+- **Pointer and dynamic indices.** By-reference arrays and dynamic indexes into local arrays need table-backed variables in `lift.py`/`emit.py`. Arrays become Luau tables (the contract's "Arrays" bullet). Scalar references to script functions are copied in and out. Every remaining structuring shape in all kinds structures (0 `StructureError`s); multi-level breaks raise a distinct error and occur nowhere.
+- **Skip mode** (M4). `SKIP_END` lifts to an error today. Emit `vm.section`/`vm.skip_end` per the contract, and teach `refvm` scenarios to call `skip()`.
+- **Program names.** Effect programs 100 and 200 occur in every effect script, but `EFFECT_SCRIPT_PROG` names only 300. Add them to the enum and `programs.json`. Monster programs are all named.
+- **Shared code.** Event scripts embed a large common library (one body occurs in all 969 files). The shared-helper pass already handles that shape.
+- The harness `STATE` table, the stateful mock state such as `ProgSet`/`ProgGet` for action, needs entries for the new kinds.
+
+### M2, runtime (done for the action kind)
+
+Action scripts (Max, Monica, the Ridepod and monster transformations) run on Luau; every other kind still runs on the interpreter. `docs/PORT_LUAU.md` "Runtime" describes the implementation.
+
+- Done:
+  - `port/cmake/luau.cmake`: Luau 0.740 (VM, Compiler, CodeGen linked; `ct_luau_tools` builds `luau-analyze` and `luau-compile`).
+  - `port/src/luau_runtime.{hpp,cpp}` and the `CRunScript` overrides in `port/src/runscript.cpp`, with retail bridges for the interpreter fallback.
+  - The binding generator `tools/luau/bindings.py`.
+  - The `.stb`-to-module handle in `ResolveFile`.
+  - The script copy to `scripts/` and its install rule.
+  - The `print` global and the `vm` library (`port/src/luau/lib/vm.luau`).
+  - `DC2_SCRIPT_VM=interpreter`.
+  - Named handlers: `script.setup` and the `tools/luau/programs.json` names, generated per kind by `bindings.py --programs`.
+  - `dc2data export-scripts`, which `survey.py --dc2data` and the `Luau.Survey` test use in place of 7-Zip.
+- Verified on Windows (release, codegen on): with M1's 27 named-handler modules and their 20 `lib/action` helpers, the end-frame screenshots of the interpreter and Luau runs are byte-identical for these replays:
+  - `jump-dungeon-floor1` (2300 frames)
+  - `dungeon-mouse-play` (2750)
+  - `area-dungeon-combat` (5100)
+  - `area-dungeon-ranged` (3300)
+  - `dungeon-mouse-carry` (2374)
+  - `monica-opening-combat` (4200)
+  - `quick-change-monica` (1000)
+  - `ridepod-floor1` (2850)
+
+  The last three replays are new in `tools/input`. The interpreter is deterministic run to run. The `LuauRuntime.*` facade tests (18) and the full Windows suite pass; the only failures were two load-sensitive timeouts that pass on rerun. The Linux container build passes `LuauRuntime.*` when its build directory is inside the container; a build directory on the Windows bind mount fails extracting simdjson, which is unrelated.
+- Left:
+  - **Publication.** Dropping `.stb` from publication (decision 6) is deferred until the event kind runs on Luau (M4). Effect, monster and event scripts still need the `.stb` bytes, the NTSC validation and `script_timing`. The Kazarov sites are listed under "Loading and data".
+  - **Interpreter.** The interpreter, `script_timing` and the `Set*Script` stack allocations stay until M6.
+  - **Other kinds.** M3 and M4 must:
+    - add their kinds to `CT_LUAU_KINDS` (`port/cmake/luau.cmake`) and their data-key prefixes to `kScriptPrefixes` in `luau_runtime.cpp`;
+    - name effect programs 100 and 200, which `EFFECT_SCRIPT_PROG` leaves unnamed;
+    - map pack members (`effscript.cpp` `GetPackFile`), the language fallbacks and script-built names through `ModuleForScript`;
+    - implement skip mode (`CRunScript::skip` currently resumes) and argument scripts.
+  - **Catalogue.** `action.NowMosChgwait`'s output is `unknown` in the catalogue, although its handler writes a float. The runtime reads unknown outputs by their bits, so curate it as `f32` in `tools/luau/curation.json`.
+  - **macOS.** macOS has not been built with Luau; CI covers it.
+  - **Packages.** The Windows zip (`tools/windows/package.ps1`) and the macOS tarball (`pc.yml`) ship neither `scripts/` nor `glyphs/`, so those packages run the action scripts on the interpreter. The Flatpak installs both through CMake. Add `scripts/` to both packages before the interpreter is retired.
 
 ### Later coordinators
 

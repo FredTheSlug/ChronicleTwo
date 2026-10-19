@@ -29,6 +29,7 @@
 #include "dataread.hpp"
 #include "dataread_port.hpp"
 #include "log/log.hpp"
+#include "luau_runtime.hpp"
 #include "platform/archive_mount.hpp"
 #include "platform/config_catalog.hpp"
 #include "platform/datapacks.hpp"
@@ -277,6 +278,17 @@ int ResolveFile(const char *name, const std::string &key, void *buffer, bool siz
                 loaded_buffers[buffer] = static_cast<std::size_t>(size);
             }
             return size;
+        }
+    }
+
+    // Scripts with a Luau module load as a handle naming it; CRunScript::load runs the module instead.
+    if (key.ends_with(".stb")) {
+        if (const auto module = luau_runtime::ModuleForScript(key)) {
+            const std::string handle = luau_runtime::MakeHandle(*module);
+            if (buffer && !size_only) {
+                std::memcpy(buffer, handle.data(), handle.size());
+            }
+            return static_cast<int>(handle.size());
         }
     }
 

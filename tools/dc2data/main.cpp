@@ -1,13 +1,18 @@
 #include "kazarov_bridge/rust/lib.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
 #include <exception>
 #include <filesystem>
+#include <fstream>
+#include <stdexcept>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace {
 namespace fs = std::filesystem;
@@ -31,6 +36,84 @@ std::string Utf8Path(const fs::path &path) {
     return {reinterpret_cast<const char *>(bytes.data()), bytes.size()};
 }
 
+/**
+ *
+ * Tests whether an archive entry name denotes a script file by its extension.
+ *
+ */
+bool IsScriptName(const std::string &lower_name) {
+    return lower_name.ends_with(".stb") || lower_name.ends_with(".stb_");
+}
+
+/**
+ *
+ * Returns an ASCII lower-cased copy of a name.
+ *
+ */
+std::string ToLower(std::string text) {
+    std::ranges::transform(text, text.begin(), [](const char c) { return static_cast<char>(std::tolower(static_cast<unsigned char>(c))); });
+    return text;
+}
+
+/**
+ *
+ * Checks that a relative archive path cannot escape the output directory.
+ *
+ */
+bool IsSafeRelativePath(const std::string &relative) {
+    if (relative.empty() || relative.front() == '/' || relative.find_first_of("\\:") != std::string::npos) {
+        return false;
+    }
+    std::size_t start = 0;
+    while (true) {
+        const auto end = relative.find('/', start);
+        const auto part = relative.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        if (part.empty() || part == "..") {
+            return false;
+        }
+        if (end == std::string::npos) {
+            return true;
+        }
+        start = end + 1;
+    }
+}
+
+/**
+ *
+ * Writes every published script in a data archive to a directory, keyed by its data-relative path.
+ *
+ */
+std::size_t ExportScripts(const fs::path &source, const fs::path &output) {
+    const auto archive_file = fs::is_directory(source) ? source / "data.zip" : source;
+    const auto archive = kazarov::open_archive(Utf8Path(archive_file));
+    fs::create_directories(output);
+    const auto entry_count = kazarov::archive_entry_count(*archive);
+
+    std::size_t written = 0;
+    for (std::size_t index = 0; index < entry_count; ++index) {
+        const auto relative = static_cast<std::string>(kazarov::archive_entry_name(*archive, index));
+        if (!IsScriptName(ToLower(relative))) {
+            continue;
+        }
+        if (!IsSafeRelativePath(relative)) {
+            throw std::runtime_error("unsafe archive entry name: " + relative);
+        }
+
+        std::vector<std::uint8_t> bytes(static_cast<std::size_t>(kazarov::archive_entry_size(*archive, index)));
+        kazarov::archive_read_entry(*archive, index, rust::Slice<std::uint8_t>(bytes.data(), bytes.size()));
+
+        const auto target = output / fs::path(relative);
+        fs::create_directories(target.parent_path());
+        std::ofstream file(target, std::ios::binary);
+        file.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+        if (!file) {
+            throw std::runtime_error("could not write " + Utf8Path(target));
+        }
+        ++written;
+    }
+    return written;
+}
+
 int Usage() {
     std::fputs("usage: dc2data extract <iso-or-directory> <game-root>/data [--jobs N]\n"
                "       dc2data list <iso-or-directory>\n"
@@ -41,6 +124,7 @@ int Usage() {
                "       dc2data check <game-root>/data\n"
                "       dc2data current <iso-or-directory> <game-root>/data\n"
                "       dc2data pack <directory> <archive.zip>\n"
+               "       dc2data export-scripts <data.zip-or-game-root> <directory>\n"
                "extract publishes <game-root>/data.zip and <game-root>/data.json.\n",
                stderr);
     return 2;
@@ -114,6 +198,11 @@ int Run(int argc, ArgChar **argv) {
             kazarov::pack_directory(Utf8Path(argv[2]), Utf8Path(argv[3]));
             const auto archive = kazarov::open_archive(Utf8Path(argv[3]));
             std::printf("packed %llu files\n", static_cast<unsigned long long>(kazarov::archive_entry_count(*archive)));
+            return 0;
+        }
+        if (argc == 4 && ArgEquals(argv[1], ARG_LITERAL("export-scripts"))) {
+            const auto count = ExportScripts(fs::path(argv[2]), fs::path(argv[3]));
+            std::printf("exported %llu scripts to %s\n", static_cast<unsigned long long>(count), Utf8Path(argv[3]).c_str());
             return 0;
         }
         if (argc == 4 && ArgEquals(argv[1], ARG_LITERAL("current"))) {

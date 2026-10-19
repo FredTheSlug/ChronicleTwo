@@ -487,6 +487,7 @@ Environment, with the `DC2` prefix that `GameSetIdentity` sets:
 - `DC2_AUDIO_TRACE`: any value other than empty or `0` traces the audio calls on stderr.
 - `DC2_LOG=SPEC`: the log level, as `--log-level` takes it; `--log-level` outranks it, and it outranks `config.json`. An invalid value is logged and ignored.
 - `DC2_LOG_FILE=0`: no session log file, whatever `log.file` says.
+- `DC2_SCRIPT_VM=interpreter`: run every script on the retail interpreter, including those with a Luau module ([PORT_LUAU.md](PORT_LUAU.md)).
 - `DC2_CRASH_TEST=MODE[:early]`: as `--crash-test` (see "Test hooks"); the option outranks it.
 - `DC2_VULKAN_VALIDATION`: has no effect. `main` ORs its presence into `gfx::RendererConfig::validation`, which is already on in a Debug build, and a Release build never requests the layer.
 

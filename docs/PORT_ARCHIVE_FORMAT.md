@@ -26,7 +26,10 @@ Directories have no entries of their own. All PNGs and standalone texture JSON
 are under `textures/`, preserving ordinary source directories and removing
 extension-bearing container directory components. Character PNGs use the nearest
 `.chr` basename with sequential suffixes. Models and their `.game.json` sidecars
-keep their model locations and refer to the relocated images.
+keep their model locations and refer to the relocated images. A texture outside
+any PACK keeps its retail directory and name below `textures/`, where the game
+finds a relative `.json` name it misses
+([texture format](PORT_TEXTURE_FORMAT.md)).
 
 ## Container
 
@@ -85,7 +88,7 @@ for each entry, in name order:
 | Key | Meaning |
 | --- | --- |
 | `schema_version` | 1 |
-| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 19 places gameplay documents under `gameplay/`; version 18 introduced `textures/` and relocated PACK members |
+| `data_version` | Extractor data version (`tools/kazarov/data_version.json`); version 20 renames bare script asset names by their converted extension and rebakes every action of a frame that is scaled but never rotated from its authored matrix; version 19 places gameplay documents under `gameplay/`; version 18 introduced `textures/` and relocated PACK members |
 | `layout` | `"zip"` |
 | `archive_size` | Size of `data.zip` in bytes |
 | `archive_entries` | Number of entries |

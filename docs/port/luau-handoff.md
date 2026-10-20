@@ -1,21 +1,20 @@
 # Luau migration handoff
 
-Status: M0 is complete. M1 (transpiler) and M2 (runtime) are complete for the action kind; see their sections below. The next milestones are M3 (effect and monster) and M4 (event).
+Status: M0, M1 (transpiler), M2 (runtime) and M3 (effect and monster) are complete. 252 effect, 59 monster and 25 action scripts run on Luau; the 89 scripts the translation refuses stay on the interpreter (`tools/luau/fallback.json`), most of them monsters that pass CopyVector references through one shared helper. The current measurements are under "M3 runtime" below; the other sections keep the receipts of their milestones, labelled as such. M4 (event) is next.
 
 ## What exists
 
 - `docs/PORT_LUAU.md`: script kinds, tools and catalog, plus a draft **Runtime contract** section. That section is the agreement between the transpiler and the runtime.
 - `tools/luau/stb/` (M0): decoder (`program.py`), CFG (`cfg.py`), abstract stack analysis (`analysis.py`), handler source parsing (`sources.py`), catalog (`catalog.py`), scan, report and fixture assembler.
-- `tools/luau/survey.py`, `commands.json` (1,081 commands), `REPORT.md`, `curation.json` (empty).
-- `tools/luau/test_stb.py`: 20 tests. They run through CTest as `Luau.Tools` and `Luau.Survey` (`port/src/tests/cmake/luau.cmake`).
+- `tools/luau/survey.py`, `commands.json` (1,081 commands), `REPORT.md`, `curation.json` (hand corrections of the generated catalogue: names, types, directions and the `tagged`, `copies` and `inout` marks).
+- `tools/luau/test_*.py`, run through CTest as `Luau.Tools`, with `Luau.Survey`, `Luau.Transpile`, `Luau.Prune` and `Luau.Mutate` (`port/src/tests/cmake/luau.cmake`).
 - The plan: `docs/port/luau-plan.md`. The user's decisions below override it.
 
 M2 added the runtime: `port/cmake/luau.cmake`, `port/src/luau_runtime.{hpp,cpp}`, `port/src/luau_bindings.hpp`, `tools/luau/bindings.py`, `port/src/luau/lib/vm.luau` and `dc2data export-scripts`. M1 writes the transpiler in `tools/luau/stb2luau/` and its output in `port/src/luau/`.
 
 ## Verified
 
-- `python -m unittest discover -s tools/luau -p "test_*.py"`: 20 tests, OK (2.3 s).
-- `.\build.bat windows-x64` (incremental, `port/build/windows-x64`): exit 0 in 107 s. It recompiled the Kazarov Rust crate and relinked `dc2data.exe` and `darkchronicle.exe`. The PS2 build was not run, since nothing under `ps2/` changed.
+The current results are under "M3 runtime" below. `ps2/` is unchanged by the migration (the effect program names 100 and 200 are a port enum, `EffectScriptProgram` in `port/src/effscript_port.hpp`); the PS2 build was not run.
 
 ## Research findings (needed to resume)
 
@@ -135,37 +134,51 @@ Done for the action kind. `docs/PORT_LUAU.md` "Transpiler" describes the pipelin
 - Output: `port/src/luau/{mainchr,dungeon/act_script}/*.luau` (27 modules), `lib/action/helper_*.luau` (20 shared helpers), `api/*.d.luau` for every kind, `.luaurc` and `manifest.json`.
 - Gate, run with `python tools/luau/stb2luau/transpile.py --data port/run/data.zip --harness --seeds 32`:
   - 27 of 27 scripts transpile, and `luau-check` (strict, lint as errors) reports 0 errors.
-  - 13,824 of 13,824 harness scenarios are trace-equal, with 86.4% mean instruction coverage of the reference runs. Coverage is lowest for the player scripts: 45% for `mainchr/c01`, 38% for `c02`. Their deep state-machine states need longer, input-driven runs.
+  - 13,824 of 13,824 harness scenarios are trace-equal to their end, with 86.4% mean instruction coverage of the reference runs and 86.4% of what was compared. Coverage is lowest for the player scripts: 45% for `mainchr/c01`, 38% for `c02`. Their deep state-machine states need longer, input-driven runs.
   - M2's eight replays gave screenshots identical to the interpreter's with the modules before named handlers. The rerun with the current modules is M2's.
 - Known approximations (documented in the contract):
   - Float literals are the shortest decimal, so a comparison with an engine float that equals a literal's exact float32 can differ from retail.
-  - Arithmetic is not wrapped to 32 bits except two-variable multiplication.
-  - A reference passed where a handler reads a value (`ProgSet` in `c01win`/`f204a`) passes the variable's value, where retail passed the pointer's bits.
+  - Integer arithmetic wraps where the interval analysis cannot keep it inside 32 bits. A product of two integers beyond 2^53 loses its low bits in `vm.i32`, since Luau multiplies doubles.
+  - A reference passed where a handler reads a value (`ProgSet` in `c01win`/`f204a`) is refused, and those scripts stay on the interpreter (see M3 runtime).
 - Open:
   - Curate the auto names (`helper_<hash>`, `varN`) in M5.
-  - `action.NowMosChgwait`'s output is `unknown` in the catalogue.
   - `transpile.py` still reads `data.zip` through 7-Zip. It could take `--dc2data` as `survey.py` now does.
 
 ### M3/M4 transpilation (effect, monster, event)
 
-Measured with `transpile.py --kind <kind>` on the published corpus:
+Measured with `transpile.py --data <dc2data export-scripts directory> --kind <kind> --check --harness --seeds 32` on the published corpus at the end of M3 (`docs/PORT_LUAU.md` "Transpiler" describes references, arrays and the harness). The event rows are from the start of M3 and are M4's starting point.
 
-| Kind | Transpile | Blocking |
-|---|---|---|
-| `effect` | 244 / 254 | dynamic array indices and pointer indices |
-| `monster` | 24 / 144 | 512 functions with pointer indices |
-| `event` | 11 / 969 | 2,429 pointer indices, 2,224 skip ends, 144 dynamic indices |
-| `event_arg` | 5 / 5 | none |
+| Kind | Transpile | `luau-check` | Harness (32 seeds) | Mean coverage, reference / compared |
+|---|---|---|---|---|
+| `action` | 25 / 27 (2 on the interpreter) | 0 errors | 13,056 pass, 0 fail | 87.2% / 87.2% |
+| `effect` | 252 / 254 (2 on the interpreter) | 0 errors | 62,168 pass, 232 prefix only (step budget), 0 fail | 96.0% / 96.0% |
+| `monster` | 59 / 144 (85 on the interpreter) | 0 errors | 45,050 pass, 70 unsupported, 0 fail | 76.9% / 76.9% |
+| `event` | 251 / 969 lift | not run | blocked, see below | |
+| `event_arg` | 5 / 5 | | | |
 
-- **Pointer and dynamic indices.** By-reference arrays and dynamic indexes into local arrays need table-backed variables in `lift.py`/`emit.py`. Arrays become Luau tables (the contract's "Arrays" bullet). Scalar references to script functions are copied in and out. Every remaining structuring shape in all kinds structures (0 `StructureError`s); multi-level breaks raise a distinct error and occur nowhere.
+"Pass" means the trace matched to its end. "Prefix only" means the reference run exceeded its step budget and the trace matched up to its last event; nothing the module does after that is checked, so these 232 effect scenarios are not passes. "Unsupported" means the trace matched up to an access the translation does not model, after which it diverges from retail. An unsupported cut is accepted only where the module raises `vm.index`'s out-of-frame error (see `docs/PORT_LUAU.md` "Transpiler"). Integer arithmetic that may overflow 32 bits wraps (`vm.wrap`), which also changes two action counters (see "Action behaviour changes" below).
+
+- **References and arrays** cover the action, effect and monster corpus, with known gaps. Every pointer index in the corpus is `*p` (index 0) on a parameter, so a reference parameter is copied in and back. Copying cannot express retail's retagging, where a callee's float load reads an integer's bits in its caller's variable. So emission refuses the integer values that could reach a float load that way (none in these kinds); native outputs follow the tag analysis (M3 runtime). The interval analysis does not track array elements. Computed local indices make their array a table; only `dungeon/monster/b02a1.stb` `0x1a80` (an index from a native output) needs its whole frame as one table. Its `var1[var10 - 1] = var11` takes `var10` from `VPop`. When the harness's `VPop` returns a value past the array (17, in scenario `900/s1`), retail stores into the operand stack and goes on (68 scenarios, store at `0x1ca4`). When the value is below it, retail indexes into the caller's frame (2 scenarios, `0x1c8c`). In both cases the translation's `vm.index` raises an error, so these 70 scenarios are compared only up to the access and are reported as unsupported. In the game, `VPop` returns what the script pushed, which presumably stays inside the array; that has not been checked. Remaining for M4: 142 event call sites pass a reference to a parameter the callee does not dereference (it forwards the pointer as a value), which the lifter refuses, and 48 lifted event scripts emit consecutive `break`s after a `break` (the structurer keeps unreachable statements), which StyLua rejects.
 - **Skip mode** (M4). `SKIP_END` lifts to an error today. Emit `vm.section`/`vm.skip_end` per the contract, and teach `refvm` scenarios to call `skip()`.
-- **Program names.** Effect programs 100 and 200 occur in every effect script, but `EFFECT_SCRIPT_PROG` names only 300. Add them to the enum and `programs.json`. Monster programs are all named.
+- **Program names.** Effect program 200 (`EffectScriptProgram::Start`, `on_start`) runs every effect from its creation; 100 (`EffectScriptProgram::Init`, `init`) is defined empty everywhere and never run. Both are named port-side, since a PS2 build could not be verified here. Monster programs are all named.
 - **Shared code.** Event scripts embed a large common library (one body occurs in all 969 files). The shared-helper pass already handles that shape.
-- The harness `STATE` table, the stateful mock state such as `ProgSet`/`ProgGet` for action, needs entries for the new kinds.
+- The harness `STATE` table has the effect and monster entries (`VPush`/`VPop`, `VPush2`/`VPop2`, `SetBitFlag`/`GetBitFlag`, `SetValue`/`GetValue`); event needs its own.
+### M3 runtime (done)
+
+- Catalogue: tag-reading parameters are `tagged` (Int and Float variants), bit-copying tagged outputs (VPop, VPop2, GetValue) `copies`, the vector commands' read-and-written parameters `inout`. Every output type was audited against the `SetStack` overload clang resolves in its handler; that fixed GetNoDamageCnt (s16, was f32), GetGekirin (float, was s32), action CheckMosEnd (float) and six `unknown` outputs, and made inputs of arguments handlers read (monster CheckPause, GetEventInfo, MonsSeLoop, GetIndexPos, SetNextPos, SetStatus; action Shot, which robo passes a value).
+- Numbers: float32 arithmetic (`vm.f32`), and SIN/COS through the C library's `sinf`/`cosf` (`cmath`, registered by the runtime and the harness host; refvm calls them through `ctypes`).
+- Native outputs: `stb2luau/tags.py` follows slot tags and the reads each output reaches; outputs are reinterpreted (`vm.bits_float`, `vm.float_bits`) where the handler writes the other type than the variable holds, tagged variants follow the tag the handler branches on, and ambiguity is refused.
+- Fallback (`tools/luau/fallback.json`, 89 scripts: 85 monster, 2 effect, 2 action): a reference whose slot a handler reads as a value, where the PC interpreter reads the low bits of an address that changes from run to run (CopyVector through a shared move helper in 73 monsters, GetEventInfo in b02a2-b02a7, SetStatus, CheckPause, SetPos in Dark Element b11a, ProgSet in c01win and f204a); GetRand outputs read both ways (e110pol1, e732_snow); and Monster Gaspard's GetMonsterLife (p00_23a), whose destination holds an integer tag on the loop's first pass and a float afterwards. These run on the interpreter, as before M3.
+- Harness qualification: native inputs compare as the slots their handlers read (tag and payload where the handler reads the tag, the converted value where it reads through `GetStackInt`/`GetStackFloat`, exact float32 bits with the sign of zero and NaN payloads), and `stb2luau/mutate.py` (CTest `Luau.Mutate`) checks that every reached change of a native argument in eight sample scripts fails the harness.
+- Action behaviour changes. Every action module was regenerated, and some of what they do changes to correct differences from the PC interpreter (the replays compare the PC paths; they do not establish full PS2 runtime equivalence): robo passes `Shot` the value it reads (`global0` or 0) where the module passed an output; `f114a` and `f213a` pass `EsmSetValue` 12.0 and 10.0 as floats, which the handler stores by tag; the counters in `mainchr/c01` and `robo` wrap at 32 bits; float constants and arithmetic are float32 and SIN/COS use `sinf`/`cosf`; `CheckMosEnd`'s output is read as the float its handler writes; and `c01win` and `f204a` are back on the interpreter.
+- Measured with `transpile.py --kind action --kind effect --kind monster --check --harness --seeds 32`: 336 transpiled, 89 kept on the interpreter, 0 failed; `luau-check` 0 errors; harness 120,274 pass, 232 prefix only, 70 unsupported (b02a1), 0 fail (per kind in the table above). Mutation sweep: every reached mutation killed (2,794 at the last count, over eight scripts). Python tests: 329, OK.
+- Replays of the final tree (`DC2_SCRIPT_VM=interpreter` against Luau, Release, headless, two instances at a time, 35 checkpoints): `jump-dungeon-floor1`, `area-dungeon-combat` (3000-5100), the boss-event jumps 12570 (Rainbow Butterfly), 17160 (Emperor Griffon) and 17280 (Dark Element), and the boss sweeps 04, 18 and 24. Every screenshot is byte-identical and the filtered logs match, with no Luau errors.
+- Replays at `b022f3008`, before the review fixes that followed (`DC2_SCRIPT_VM=interpreter` against Luau, Release, headless, two instances at a time, 103 checkpoints): `jump-dungeon-floor1`, `area-dungeon-combat` (3000-5100), `area-dungeon-ranged`, `area-dungeon-floor2` (to 10800), `ridepod-floor1`, `monica-opening-combat`, `quick-change-monica`, `dungeon-mouse-carry`, `perf-ocean-walk`, a walk-and-attack run on each dungeon's first floor (`--skip-events --invincible --seed 1234`), boss-event jumps 12570, 15280, 17160 and 17280, and the boss sweeps 00 (Linda, e214a2), 01, 02, 03, 04 (Rainbow Butterfly, b02a), 05, 08, 10, 15, 18 (Emperor Griffon, b08a, fighting Max), 20 and 24 (Dark Element, b11a on the interpreter, b11a_moon on Luau). Every screenshot is byte-identical; logs match once addresses, memory sizes, shader progress and `script timing` lines are removed. Monster Gaspard was not reached by any replay; it stays on the interpreter.
+- Open: the `folded` plumbing of the harness is redundant now that refvm runs in float32. Most monsters stay on the interpreter until a decision on the CopyVector references: reproduce the original pointer-derived reads, or pass the referenced coordinate values the scripts appear to intend. The PC interpreter reads run-dependent PC address bits there, which do not establish the PS2's numerical results.
 
 ### M2, runtime (done for the action kind)
 
-Action scripts (Max, Monica, the Ridepod and monster transformations) run on Luau; every other kind still runs on the interpreter. `docs/PORT_LUAU.md` "Runtime" describes the implementation.
+Action, effect and monster scripts run on Luau (effect and monster since M3); event scripts still run on the interpreter. `docs/PORT_LUAU.md` "Runtime" describes the implementation.
 
 - Done:
   - `port/cmake/luau.cmake`: Luau 0.740 (VM, Compiler, CodeGen linked; `ct_luau_tools` builds `luau-analyze` and `luau-compile`).
@@ -189,20 +202,15 @@ Action scripts (Max, Monica, the Ridepod and monster transformations) run on Lua
 
   The last three replays are new in `tools/input`. The interpreter is deterministic run to run. The `LuauRuntime.*` facade tests (18) and the full Windows suite pass; the only failures were two load-sensitive timeouts that pass on rerun. The Linux container build passes `LuauRuntime.*` when its build directory is inside the container; a build directory on the Windows bind mount fails extracting simdjson, which is unrelated.
 - Left:
-  - **Publication.** Dropping `.stb` from publication (decision 6) is deferred until the event kind runs on Luau (M4). Effect, monster and event scripts still need the `.stb` bytes, the NTSC validation and `script_timing`. The Kazarov sites are listed under "Loading and data".
+  - **Publication.** Dropping `.stb` from publication (decision 6) is deferred until the event kind runs on Luau (M4). Event scripts still need the `.stb` bytes, the NTSC validation and `script_timing`. The Kazarov sites are listed under "Loading and data".
   - **Interpreter.** The interpreter, `script_timing` and the `Set*Script` stack allocations stay until M6.
-  - **Other kinds.** M3 and M4 must:
-    - add their kinds to `CT_LUAU_KINDS` (`port/cmake/luau.cmake`) and their data-key prefixes to `kScriptPrefixes` in `luau_runtime.cpp`;
-    - name effect programs 100 and 200, which `EFFECT_SCRIPT_PROG` leaves unnamed;
-    - map pack members (`effscript.cpp` `GetPackFile`), the language fallbacks and script-built names through `ModuleForScript`;
-    - implement skip mode (`CRunScript::skip` currently resumes) and argument scripts.
-  - **Catalogue.** `action.NowMosChgwait`'s output is `unknown` in the catalogue, although its handler writes a float. The runtime reads unknown outputs by their bits, so curate it as `f32` in `tools/luau/curation.json`.
+  - **Other kinds.** M3 did effect and monster (kinds, prefixes, `EffectScript` and `GetPackFile` members). M4 must add the event kind and its prefixes, map the language fallbacks and script-built names through `ModuleForScript`, and implement skip mode (`CRunScript::skip` currently resumes) and argument scripts.
   - **macOS.** macOS has not been built with Luau; CI covers it.
-  - **Packages.** The Windows zip (`tools/windows/package.ps1`) and the macOS tarball (`pc.yml`) ship neither `scripts/` nor `glyphs/`, so those packages run the action scripts on the interpreter. The Flatpak installs both through CMake. Add `scripts/` to both packages before the interpreter is retired.
+  - **Packages.** The Windows zip (`tools/windows/package.ps1`), the macOS tarball (`pc.yml`) and the Flatpak (through CMake's install) ship `scripts/`; the zip and the tarball still leave out `glyphs/`. A build removes the copies it made of modules the transpiler no longer generates, and an install the modules it installed (`port/cmake/scripts/luau_prune.cmake`, which keeps a manifest of what it copied and leaves alone any file it did not copy or that was changed since). The runtime also never loads a module for a script on `tools/luau/fallback.json`, even if an old copy is present.
 
 ### Later coordinators
 
-M3 (effects and monsters), M4 (events: skip mode, argument scripts, dynamic names), M5 (naming curation), M6 (retire `script_timing` and the interpreter, CI gates). See the plan's milestone table.
+M4 (events: skip mode, argument scripts, dynamic names) is next, then M5 (naming curation) and M6 (retire `script_timing` and the interpreter, CI gates). See the plan's milestone table; the decisions in this file override the plan.
 
 ## Resuming
 

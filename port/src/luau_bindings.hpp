@@ -16,8 +16,9 @@ namespace luau_bindings {
  *
  */
 enum class Direction : unsigned char {
-    In,  /**< Passed to the handler as a value. */
-    Out, /**< Written by the handler through a reference and returned to the script. */
+    In,    /**< Passed to the handler as a value. */
+    Out,   /**< Written by the handler through a reference and returned to the script. */
+    InOut, /**< Passed through a reference that the handler reads and writes, and returned to the script. */
 };
 
 /**
@@ -45,8 +46,9 @@ enum class Type : unsigned char {
  *
  */
 struct Param {
-    Direction direction; /**< Whether the handler reads the argument or writes it through a reference. */
-    Type      type;      /**< Script-side type of the argument. */
+    Direction direction;      /**< Whether the handler reads the argument or writes it through a reference. */
+    Type      type;           /**< Script-side type of the argument. */
+    bool      tagged = false; /**< Whether the handler reads the slot's integer or float tag, so each call chooses the type. */
 };
 
 /**
@@ -100,5 +102,12 @@ struct Kind {
  *
  */
 std::span<const Kind> Kinds();
+
+/**
+ *
+ * Module keys of the scripts tools/luau/fallback.json keeps on the interpreter, which the runtime never loads as modules.
+ *
+ */
+std::span<const std::string_view> FallbackModules();
 
 } // namespace luau_bindings

@@ -1,3 +1,4 @@
+import struct
 import sys
 import unittest
 from pathlib import Path
@@ -73,6 +74,32 @@ CATALOG = {
                         }
                     ],
                 },
+                {
+                    "no": 60,
+                    "luau": "VPush",
+                    "signatures": [
+                        {
+                            "argc": 2,
+                            "params": [
+                                {"name": "index", "dir": "in", "type": "s32"},
+                                {"name": "value", "dir": "in", "type": "s32", "tagged": True},
+                            ],
+                        }
+                    ],
+                },
+                {
+                    "no": 61,
+                    "luau": "VPop",
+                    "signatures": [
+                        {
+                            "argc": 2,
+                            "params": [
+                                {"name": "index", "dir": "in", "type": "s32"},
+                                {"name": "value", "dir": "out", "type": "s32", "tagged": True},
+                            ],
+                        }
+                    ],
+                },
             ],
         }
     }
@@ -97,16 +124,30 @@ def ints(*numbers):
     return {("local", n): ir.INT for n in numbers}
 
 
-def function(block, body, *, arg=0, slots=None, temps=(), programs=(), main=False):
-    return FunctionInput(block, arg, 0, dict(slots or {}), list(temps), list(body), list(programs), main)
+def function(block, body, *, arg=0, slots=None, temps=(), programs=(), main=False, refs=(), arrays=None):
+    return FunctionInput(
+        block, arg, 0, dict(slots or {}), list(temps), list(body), list(programs), main, tuple(refs), dict(arrays or {})
+    )
 
 
 def main_function(body, slots=None, temps=()):
     return function(ANY_BLOCK, body, slots=slots, temps=temps, main=True)
 
 
-def module(*functions, globals_=None, expose=False):
-    return ModuleInput("test/a.stb", "action", dict(globals_ or {}), {f.block: f for f in functions}, expose)
+def module(*functions, globals_=None, expose=False, probe=False):
+    return ModuleInput(
+        "test/a.stb", "action", dict(globals_ or {}), {f.block: f for f in functions}, expose, probe_refs=probe
+    )
+
+
+ARRAY = ("array", 1)
+FRAME = ("frame", 0)
+
+
+def bump(returns=ir.Const(0, ir.INT)):
+    """Helper 0x30, which adds one to the variable its reference parameter names."""
+    body = [ir.Assign(("local", 0), ir.Binary("add", var(0), const(1), ir.INT)), ir.Return(returns)]
+    return function(0x30, body, arg=1, slots=ints(0), refs=(0,))
 
 
 def emit_text(*functions, **kwargs):
@@ -330,6 +371,20 @@ class EmitTest(unittest.TestCase):
         self.assertIn("\tprint(0.1, 2.0, 1e-05)\n", emit_text(main_function(body)).text)
         self.assertIn("\tprint(20.0)\n", emit_text(main_function([ir.Print((const(20.0, ir.FLOAT),))])).text)
 
+    def test_float_arithmetic_and_constants_are_float32(self):
+        tenth = struct.unpack("<f", struct.pack("<f", 0.1))[0]
+        slots = {("local", 0): ir.FLOAT, ("local", 1): ir.FLOAT}
+        body = [
+            ir.Assign(("local", 1), ir.Binary("mul", var(0, ir.FLOAT), const(tenth, ir.FLOAT), ir.FLOAT)),
+            ir.Assign(("local", 0), ir.Unary("sin", var(1, ir.FLOAT), ir.FLOAT)),
+            ir.ExtCall(60, (const(1), const(tenth, ir.FLOAT))),
+        ]
+        text = emit_text(main_function(body, slots=slots)).text
+        self.assertIn("\tvar1 = vm.f32(var0 * vm.f32(0.1))\n", text)
+        self.assertIn("\tvar0 = vm.sin(var1)\n", text)
+        # A native call rounds its float arguments itself.
+        self.assertIn("\taction.VPushFloat(1, 0.1)\n", text)
+
     def test_unread_temp_is_discarded_into_underscore(self):
         body = [ir.Assign(ir.Temp(0, ir.INT), const(2))]
         result = emit_text(function(0x40, body, temps=[ir.INT], programs=[1])).text
@@ -410,37 +465,81 @@ class EmitTest(unittest.TestCase):
         result = emit_text(function(0x40, body, programs=[1])).text
         self.assertIn("\taction.Ext(30, 0, 1, 2, 3, 4) -- retail: the handler rejects 5 arguments\n", result)
 
-    def test_reference_in_input_position_is_commented(self):
+    def test_reference_where_the_handler_reads_a_value_is_refused(self):
+        # The PC interpreter would read the low bits of the variable's address, so the script stays on it.
         body = [ir.ExtCall(30, (addr(3), const(b"x", ir.STR)))]
-        result = emit_text(function(0x40, body, slots=ints(3), programs=[1])).text
-        self.assertIn(
-            "\taction.SetPallet(var3, \"x\") -- retail: argument 1 passes a reference where the handler reads a value\n",
-            result,
-        )
+        with self.assertRaisesRegex(EmitError, "reference the handler reads as a value"):
+            emit_text(function(0x40, body, slots=ints(3), programs=[1]))
 
-    def test_number_where_handler_reads_string_calls_ext(self):
+    def test_number_where_handler_reads_string_is_refused(self):
         body = [ir.ExtCall(30, (const(1), const(2)))]
+        with self.assertRaisesRegex(EmitError, "argument 2 is a number where the handler reads a string"):
+            emit_text(function(0x40, body, programs=[1]))
+
+    def test_string_where_handler_reads_number_is_refused(self):
+        body = [ir.ExtCall(30, (const(b"x", ir.STR), const(b"y", ir.STR)))]
+        with self.assertRaisesRegex(EmitError, "argument 1 is a string where the handler reads a number"):
+            emit_text(function(0x40, body, programs=[1]))
+
+    def test_output_is_reinterpreted_as_the_script_reads_it(self):
+        # ProgGet writes an integer; the script reads its variable as a float, which reads the integer's bits.
+        slots = {("local", 3): ir.FLOAT}
+        call = ir.ExtCall(2, (addr(3, ir.FLOAT),), tags=(("ref", ("int",), ("float",)),))
+        result = emit_text(function(0x40, [call, ir.Print((var(3, ir.FLOAT),))], slots=slots, programs=[1])).text
+        self.assertIn("\tprog = vm.bits_float(action.ProgGet()) or prog\n", result)
+
+    def test_output_read_both_ways_is_refused(self):
+        call = ir.ExtCall(2, (addr(3),), tags=(("ref", ("int",), ("float", "int")),))
+        with self.assertRaisesRegex(EmitError, "reads what argument 1 receives as float and int"):
+            emit_text(function(0x40, [call, ir.Print((var(3),))], slots=ints(3), programs=[1]))
+
+    def test_tagged_output_follows_the_destination_tag(self):
+        # VPop on an integer-tagged variable read as a float: the variant follows the tag, the bits are reinterpreted.
+        slots = {("local", 3): ir.FLOAT}
+        call = ir.ExtCall(61, (const(1), addr(3, ir.FLOAT)), tags=(("value", ("int",)), ("ref", ("int",), ("float",))))
+        result = emit_text(function(0x40, [call, ir.Print((var(3, ir.FLOAT),))], slots=slots, programs=[1])).text
+        self.assertIn("\tvalue = vm.bits_float(action.VPop(1)) or value\n", result)
+        mixed = ir.ExtCall(61, (const(1), addr(3, ir.FLOAT)), tags=(("value", ("int",)), ("ref", ("float", "int"), ("float",))))
+        with self.assertRaisesRegex(EmitError, "may be float or int"):
+            emit_text(function(0x40, [mixed, ir.Print((var(3, ir.FLOAT),))], slots=slots, programs=[1]))
+
+    def test_tagged_command_takes_the_variant_of_its_argument_type(self):
+        slots = {("local", 3): ir.FLOAT, ("local", 4): ir.INT}
+        body = [
+            ir.ExtCall(60, (const(1), var(3, ir.FLOAT))),
+            ir.ExtCall(60, (const(2), var(4))),
+            ir.ExtCall(61, (const(1), addr(3, ir.FLOAT))),
+            ir.ExtCall(61, (const(2), addr(4))),
+            ir.Print((var(3, ir.FLOAT), var(4))),
+        ]
+        result = emit_text(function(0x40, body, slots=slots, programs=[1])).text
+        self.assertIn("\taction.VPushFloat(1, value)\n", result)
+        self.assertIn("\taction.VPush(2, value_2)\n", result)
+        self.assertIn("\tvalue = action.VPopFloat(1) or value\n", result)
+        self.assertIn("\tvalue_2 = action.VPop(2) or value_2\n", result)
+
+    def test_inout_reference_passes_the_value_and_assigns_the_result(self):
+        catalog = {"kinds": {"action": {**CATALOG["kinds"]["action"], "commands": [{
+            "no": 7, "luau": "AngleLimit",
+            "signatures": [{"argc": 1, "params": [{"name": "angle", "dir": "inout", "type": "f32"}]}],
+        }]}}}
+        body = [ir.ExtCall(7, (addr(3, ir.FLOAT),)), ir.Print((var(3, ir.FLOAT),))]
+        result = emit(module(function(0x40, body, slots={("local", 3): ir.FLOAT}, programs=[1])), catalog).text
+        self.assertIn("\tangle = action.AngleLimit(angle) or angle\n", result)
+        # An integer variable passes its bits as a float and reads back the bits of the float written into it.
+        body = [ir.ExtCall(7, (addr(3),)), ir.Print((var(3),))]
+        result = emit(module(function(0x40, body, slots=ints(3), programs=[1])), catalog).text
+        self.assertIn("\tangle = vm.float_bits(action.AngleLimit(vm.bits_float(angle) :: number)) or angle\n", result)
+
+    def test_reference_as_tagged_stored_value_does_nothing(self):
+        body = [ir.ExtCall(60, (const(1), addr(3)))]
         result = emit_text(function(0x40, body, programs=[1]))
         self.assertIn(
-            "\taction.Ext(30, 1, 2) -- retail: argument 2 is a number where the handler reads a string\n", result.text
+            "\t-- retail: action.VPush(1, var3) does nothing, since its handler stores only an integer or a float\n",
+            result.text,
         )
-        self.assertIn("argument 2 is a number where the handler reads a string", result.diagnostics)
-
-    def test_string_where_handler_reads_number_calls_ext(self):
-        body = [ir.ExtCall(30, (const(b"x", ir.STR), const(b"y", ir.STR)))]
-        result = emit_text(function(0x40, body, programs=[1])).text
-        self.assertIn(
-            '\taction.Ext(30, "x", "y") -- retail: argument 1 is a string where the handler reads a number\n', result
-        )
-
-    def test_mismatched_call_passes_reference_values(self):
-        body = [ir.ExtCall(30, (addr(3), const(2)))]
-        result = emit_text(function(0x40, body, slots=ints(3), programs=[1])).text
-        self.assertIn(
-            "\taction.Ext(30, var3, 2) -- retail: argument 1 passes a reference where the handler reads a value; "
-            "argument 2 is a number where the handler reads a string\n",
-            result,
-        )
+        self.assertNotIn("local var3", result.text)
+        self.assertIn("reference passed as the value VPush stores", result.diagnostics)
 
     def test_temp_is_declared_at_its_assignment(self):
         body = [ir.Assign(ir.Temp(0, ir.INT), const(2)), ir.Print((ir.Temp(0, ir.INT),))]
@@ -451,6 +550,148 @@ class EmitTest(unittest.TestCase):
         body = [ir.Assign(("local", 3), const(0x3F800000)), ir.Print((var(3, ir.FLOAT),))]
         result = emit_text(function(0x40, body, slots={("local", 3): ir.FLOAT}, programs=[1]))
         self.assertIn("\tvar3 = 1.0 -- retail: integer bits read as a float\n", result.text)
+
+    def test_reference_parameter_is_copied_in_and_back(self):
+        caller = main_function([ir.CallStmt(ir.Call(0x30, (addr(2),), ir.INT)), ir.Print((var(2),))], slots=ints(2))
+        text = emit_text(bump(), caller).text
+        self.assertIn("local function helper_30(arg0: s32)\n\targ0 = arg0 + 1\n\treturn arg0\nend\n", text)
+        self.assertIn("\tvar2 = helper_30(var2)\n\tprint(var2)\n", text)
+
+    def test_used_result_comes_back_before_the_references(self):
+        caller = main_function(
+            [ir.Assign(ir.Temp(0, ir.INT), ir.Call(0x30, (addr(2),), ir.INT)), ir.Print((ir.Temp(0, ir.INT), var(2)))],
+            slots=ints(2),
+            temps=[ir.INT],
+        )
+        text = emit_text(bump(const(7)), caller).text
+        self.assertIn("\treturn 7, arg0\n", text)
+        self.assertIn("\tlocal t0: s32\n\tt0, var2 = helper_30(var2)\n\tprint(t0, var2)\n", text)
+
+    def test_probed_call_reports_its_references(self):
+        caller = main_function([ir.CallStmt(ir.Call(0x30, (addr(2),), ir.INT, 0x120)), ir.Print((var(2),))], slots=ints(2))
+        result = emit(module(bump(), caller, probe=True), CATALOG)
+        self.assertIn("\tvar2 = helper_30(var2)\n\t__ref(288, var2)\n", result.text)
+        self.assertEqual(result.probes, [0x120])
+
+    def test_reference_call_in_an_expression_is_rejected(self):
+        caller = main_function([ir.Print((ir.Call(0x30, (addr(2),), ir.INT),))], slots=ints(2))
+        with self.assertRaises(EmitError):
+            emit_text(bump(), caller)
+
+    def test_array_is_a_table_from_one(self):
+        body = [
+            ir.Assign(ir.Elem(ARRAY, var(0), ir.FLOAT), const(2.5, ir.FLOAT)),
+            ir.Assign(ir.Elem(ARRAY, ir.Binary("sub", var(0), const(1), ir.INT), ir.FLOAT), const(1.5, ir.FLOAT)),
+            ir.Print((ir.Elem(ARRAY, const(2), ir.FLOAT),)),
+        ]
+        slots = {**ints(0), ARRAY: ir.FLOAT}
+        result = emit_text(function(ANY_BLOCK, body, slots=slots, main=True, arrays={ARRAY: 3})).text
+        self.assertIn("\tlocal var1: { f32 } = table.create(3, 0)\n", result)
+        self.assertIn("\tvar1[var0 + 1] = 2.5\n", result)
+        self.assertIn("\tvar1[var0] = 1.5\n", result)
+        self.assertIn("\tprint(var1[3])\n", result)
+        self.assertNotIn("vm.", result)
+
+    def test_output_into_an_array_element(self):
+        body = [ir.ExtCall(2, (ir.Addr(ARRAY, ir.INT, var(0)),)), ir.Print((ir.Elem(ARRAY, const(0), ir.INT),))]
+        slots = {**ints(0), ARRAY: ir.INT}
+        text = emit_text(function(ANY_BLOCK, body, slots=slots, main=True, arrays={ARRAY: 2})).text
+        self.assertIn("\tvar1[var0 + 1] = action.ProgGet() or var1[var0 + 1]\n", text)
+
+    def test_frame_table_checks_computed_indices(self):
+        index = ir.Binary("add", ir.Elem(FRAME, const(0), ir.INT), const(1), ir.INT)
+        body = [ir.Assign(ir.Elem(FRAME, index, ir.INT), const(7)), ir.Return(ir.Elem(FRAME, const(2), ir.INT))]
+        helper = function(0x30, body, arg=1, slots={FRAME: ir.INT, **ints(0)}, arrays={FRAME: 4})
+        caller = main_function([ir.Print((ir.Call(0x30, (const(1),), ir.INT),))])
+        text = emit_text(helper, caller).text
+        self.assertIn("\t-- retail: a computed index here may leave its array", text)
+        self.assertIn("\tlocal frame: { s32 } = table.create(4, 0)\n\tframe[1] = arg0\n", text)
+        self.assertIn("\tframe[vm.index(frame[1] + 1, 4)] = 7\n\treturn frame[3]\n", text)
+        self.assertIn('local vm = require("@lib/vm")', text)
+
+    def test_reference_parameter_in_a_frame_comes_back_from_the_table(self):
+        body = [ir.Assign(ir.Elem(FRAME, const(0), ir.INT), const(3)), ir.Return(const(0))]
+        helper = function(0x30, body, arg=1, slots={FRAME: ir.INT, **ints(0)}, refs=(0,), arrays={FRAME: 2})
+        caller = main_function([ir.CallStmt(ir.Call(0x30, (addr(2),), ir.INT)), ir.Print((var(2),))], slots=ints(2))
+        text = emit_text(helper, caller).text
+        self.assertIn("\tframe[1] = 3\n\treturn frame[1]\n", text)
+
+    def test_output_past_the_frame_is_lost(self):
+        body = [
+            ir.ExtCall(53, (addr(4, ir.FLOAT), addr(5, ir.FLOAT), ir.Addr(("stack", 9), ir.FLOAT))),
+            ir.Print((var(4, ir.FLOAT), var(5, ir.FLOAT))),
+        ]
+        result = emit_text(main_function(body, slots={("local", 4): ir.FLOAT, ("local", 5): ir.FLOAT}))
+        self.assertIn(
+            "\t\tlocal out1, out2, _ = action.GetPos() -- retail: output 3 points past the frame, at the operand stack, "
+            "so the value is lost\n",
+            result.text,
+        )
+        self.assertIn("output written past the frame", result.diagnostics)
+
+    def test_dropped_return_value_declares_nothing(self):
+        helper = function(0x30, [ir.ExtCall(2, (addr(0),)), ir.Return(var(0))], slots=ints(0))
+        caller = main_function([ir.CallStmt(ir.Call(0x30, (), ir.INT))])
+        text = emit_text(helper, caller).text
+        self.assertIn("local function helper_30()\n\taction.ProgGet()\nend\n", text)
+
+    def test_repeated_condition_stays_a_nested_if(self):
+        cond = ir.Compare(opcodes.Compare.EQ, var(0), const(1))
+        body = [ir.If(cond, [ir.Print((const(1),))], [ir.If(cond, [ir.Print((const(2),))], [])])]
+        text = emit_text(main_function(body, slots=ints(0))).text
+        self.assertIn(
+            "\telse\n\t\t-- retail: the script tests this condition again, so its branch never runs\n"
+            "\t\tif var0 == 1 then\n\t\t\tprint(2)\n\t\tend\n\tend\n",
+            text,
+        )
+        self.assertNotIn("elseif", text)
+
+    def test_float_division_by_a_variable_checks_for_zero(self):
+        slots = {("local", n): ir.FLOAT for n in range(3)}
+        body = [
+            ir.Assign(("local", 1), ir.Binary("div", var(0, ir.FLOAT), var(2, ir.FLOAT), ir.FLOAT)),
+            ir.Assign(("local", 2), ir.Binary("div", var(1, ir.FLOAT), const(2.0, ir.FLOAT), ir.FLOAT)),
+            ir.Print((var(2, ir.FLOAT),)),
+        ]
+        text = emit_text(main_function(body, slots=slots)).text
+        self.assertIn("\tvar1 = vm.f32(vm.fdiv(var0, var2))\n", text)
+        self.assertIn("\tvar2 = vm.f32(var1 / 2.0)\n", text)
+
+    def test_integer_constant_for_a_float_parameter_passes_its_bits(self):
+        helper = function(0x30, [ir.Print((var(0, ir.FLOAT),))], arg=1, slots={("local", 0): ir.FLOAT})
+        caller = main_function([ir.CallStmt(ir.Call(0x30, (const(0x3F800000),), ir.INT))])
+        text = emit_text(helper, caller).text
+        self.assertIn(
+            "\thelper_30(1.0) -- retail: the integer 1065353216 is passed where the callee reads a float, so it reads "
+            "its bits\n",
+            text,
+        )
+
+    def test_integer_value_stored_into_a_float_variable_is_rejected(self):
+        # The script loads the variable as a float, which reads the bits of an integer its helper returned.
+        helper = function(0x30, [ir.Return(const(1065353216))])
+        body = [ir.Assign(("local", 0), ir.Call(0x30, (), ir.INT)), ir.Print((var(0, ir.FLOAT),))]
+        caller = main_function(body, slots={("local", 0): ir.FLOAT})
+        with self.assertRaisesRegex(EmitError, "may be an integer is stored into float variable"):
+            emit_text(helper, caller)
+
+    def test_float_arithmetic_stored_into_a_float_variable_is_accepted(self):
+        value = ir.Binary("mul", var(1, ir.ANY), const(0.5, ir.FLOAT), ir.ANY)
+        body = [ir.Assign(("local", 0), value), ir.Print((var(0, ir.FLOAT),))]
+        text = emit_text(main_function(body, slots={("local", 0): ir.FLOAT, ("local", 1): ir.ANY})).text
+        self.assertIn("\tvar0 = var1 * 0.5\n", text)
+
+    def test_integer_variable_passed_to_a_float_parameter_is_rejected(self):
+        helper = function(0x30, [ir.Print((var(0, ir.FLOAT),))], arg=1, slots={("local", 0): ir.FLOAT})
+        caller = main_function([ir.CallStmt(ir.Call(0x30, (var(1),), ir.INT))], slots=ints(1))
+        with self.assertRaisesRegex(EmitError, "passed to parameter 0 of helper_30, which the callee loads as a float"):
+            emit_text(helper, caller)
+
+    def test_float_variable_passed_to_an_integer_reference_is_rejected(self):
+        # bump stores an integer through its reference, whose bits the caller's float loads would read.
+        caller = main_function([ir.CallStmt(ir.Call(0x30, (addr(0, ir.FLOAT),), ir.INT))], slots={("local", 0): ir.FLOAT})
+        with self.assertRaisesRegex(EmitError, "may store an integer there"):
+            emit_text(bump(), caller)
 
     def test_float_condition_is_always_true(self):
         body = [ir.If(var(3, ir.FLOAT), [ir.Print((const(1),))], [])]
@@ -471,6 +712,22 @@ class EmitTest(unittest.TestCase):
     def test_end_statement_is_rejected(self):
         with self.assertRaisesRegex(EmitError, "end opcode unsupported"):
             emit_text(main_function([ir.End()]))
+
+    def test_integer_operations_that_may_overflow_wrap(self):
+        body = [
+            ir.Assign(("local", 0), ir.Binary("add", var(0), const(1), ir.INT, wrap=True)),
+            ir.Assign(("local", 1), ir.Binary("sub", var(1), var(0), ir.INT, wrap=True)),
+            ir.Assign(("local", 2), ir.Binary("mul", var(2), const(3), ir.INT, wrap=True)),
+            ir.Assign(("local", 3), ir.Unary("neg", var(3), ir.INT, wrap=True)),
+            ir.Assign(("local", 4), ir.Binary("add", var(4), const(1), ir.INT)),
+            ir.Print((var(0), var(1), var(2), var(3), var(4))),
+        ]
+        text = emit_text(main_function(body, slots=ints(0, 1, 2, 3, 4))).text
+        self.assertIn("\tvar0 = vm.i32(var0 + 1)\n", text)
+        self.assertIn("\tvar1 = vm.i32(var1 - var0)\n", text)
+        self.assertIn("\tvar2 = vm.i32(var2 * 3)\n", text)
+        self.assertIn("\tvar3 = vm.i32(-var3)\n", text)
+        self.assertIn("\tvar4 = var4 + 1\n", text)
 
     def test_precedence_parenthesises_only_when_needed(self):
         expr = ir.Binary("mul", ir.Binary("add", var(3), const(1), ir.INT), const(2), ir.INT)

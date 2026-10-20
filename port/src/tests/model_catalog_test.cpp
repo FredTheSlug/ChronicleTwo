@@ -31,9 +31,9 @@
 #include "mg_visual_port.hpp"
 #include "mglib.hpp"
 #include "platform/arena.hpp"
-#include "platform/texture_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/model_assets.hpp"
+#include "platform/texture_catalog.hpp"
 #include "texture_source.hpp"
 #include "visualmotion.hpp"
 
@@ -178,9 +178,10 @@ TEST_F(NativeModel, ModelLeavesATextureSetItsMapAlreadyEnteredWithTheMap) {
     textures.SetTableBuffer(8, 32, &texture_memory);
     textures.Initialize(0x1000, -1);
     const Json document = {
-        {"schema_version", 3},
-        {"groups", {0}},
-        {"entries", Json::array({{{"name", "water"}, {"pictures", Json::array({{{"canvas", {{"width", 2}, {"height", 2}}}}})}}})}};
+        {"schema_version", 3                                                                                                           },
+        {"groups",         {0}                                                                                                         },
+        {"entries",        Json::array({{{"name", "water"}, {"pictures", Json::array({{{"canvas", {{"width", 2}, {"height", 2}}}}})}}})}
+    };
     std::filesystem::create_directories(directory / "data/textures/map");
     Write(directory / "data/textures/map/piece.json", document);
     std::string catalog_error;

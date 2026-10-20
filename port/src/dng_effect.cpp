@@ -15,7 +15,9 @@
 #include "prespr.hpp"
 
 namespace {
-// Each Set places the lights around another healing point: a new emission.
+/**
+ * Distinguishes each healing point emission for light interpolation.
+ */
 uint64_t healing_generation = 0;
 } // namespace
 
@@ -40,8 +42,8 @@ PORT_OVERRIDE void CHealingEffectMan::Draw(mgCCamera *camera) {
     int   corner1[4];
     float identity[4][4];
     float rotation[4][4];
-    int   glow_alpha;
-    int   halo_alpha;
+    int   glow_alpha = 0;
+    int   halo_alpha = 0;
 
     if (active != 0) {
         camera->GetPos(camera_pos);
@@ -68,6 +70,8 @@ PORT_OVERRIDE void CHealingEffectMan::Draw(mgCCamera *camera) {
                 halo_alpha = fptosi(64.0f * fade_out);
                 break;
             }
+            default:
+                return;
         }
 
         float distance = mgDistVector(camera_pos, center);
@@ -79,11 +83,11 @@ PORT_OVERRIDE void CHealingEffectMan::Draw(mgCCamera *camera) {
                 distance_fade = 1.0f - (distance - 320.0f) / 320.0f;
             }
 
-            glow_alpha = fptosi((float) glow_alpha * distance_fade);
-            halo_alpha = fptosi((float) halo_alpha * distance_fade);
+            glow_alpha = fptosi(static_cast<float>(glow_alpha) * distance_fade);
+            halo_alpha = fptosi(static_cast<float>(halo_alpha) * distance_fade);
 
             CPreSprite prim;
-            prim.Initialize(NULL, NULL);
+            prim.Initialize(nullptr, nullptr);
             prim.Preset2D();
             prim.Coord(1);
             prim.DepthTestEnable(1);

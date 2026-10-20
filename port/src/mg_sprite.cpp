@@ -42,8 +42,7 @@ struct BillboardBatch {
     uint64_t                         tex0 = 0;
     uint64_t                         tex1 = 0;
     std::vector<vu1::Sprite3dRecord> billboards;
-    // Set by mgPortTag3DSpriteBatch: the batch is drawn under this tag rather than the one current at the draw.
-    std::optional<gfx::Interp2D> interpolation;
+    std::optional<gfx::Interp2D>     interpolation; /**< Overrides the interpolation tag current at submission. */
 };
 
 struct BillboardPacket {

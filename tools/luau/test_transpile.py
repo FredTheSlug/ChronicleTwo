@@ -210,6 +210,21 @@ def differential(functions, programs=None, seeds=2, **options):
 
 
 class ScriptTest(unittest.TestCase):
+    def test_unbounded_float_index_refuses_ambiguous_native_output(self):
+        local = AddrMode.LOCAL
+        body = [
+            ("push", 13), ("push", 10.0), ("LOAD_ADDR", 3, local), ("EXT", 3),
+            ("push", 13), ("push", 4.0), ("LOAD_ADDR", 0, local), ("EXT", 3),
+            ("LOAD", 0, local), ("LOAD", 1, AddrMode.LOCAL_INDEX_FLOAT), ("PRINT", 1),
+            ("LOAD", 3, local), ("PRINT", 1), ("push", 0), ("RET",),
+        ]
+        path = "dungeon/eff_script/t01.stb"
+        result, module = transpile.transpile(path, assemble({"main": (4, 0, body)}, "main"))
+        self.assertIsNotNone(module, result.error)
+        catalog = json.loads(transpile.CATALOG.read_text(encoding="utf-8"))
+        corpus = transpile.emit_corpus([(result, module)], catalog)
+        self.assertIn("float and int", corpus.errors[path])
+
     def test_integer_from_a_helper_passed_to_a_float_reference_is_rejected(self):
         # x = f() returns the integer 1065353216; read(&x) loads *p as a float and the caller then loads x as one. Retail
         # prints 1.0 twice, where copying the integer in and back would print 1065353216.

@@ -601,13 +601,15 @@ void PortDrawEffectSprites(_EFF_SCRIPT *script, mgCTexture *texture, float *offs
         }
 
         sceVu0FVECTOR size = {0.0f, 0.0f, 0.0f, 0.0f};
-        sceVu0FVECTOR uv0, uv1, position;
+        sceVu0FVECTOR uv0;
+        sceVu0FVECTOR uv1;
+        sceVu0FVECTOR position;
         sceVu0FVECTOR color;
         mgZeroVector(uv0);
         mgZeroVector(uv1);
         sceVu0AddVector(position, sprite->pos, offset);
         position[3] = 1.0f;
-        *(u_long128 *) color = *(u_long128 *) sprite->color;
+        sceVu0CopyVector(color, sprite->color);
 
         if (0.0f != sprite->blink_speed) {
             for (int component = 0; component < 4; component++) {
@@ -618,13 +620,14 @@ void PortDrawEffectSprites(_EFF_SCRIPT *script, mgCTexture *texture, float *offs
             sprite->blink_phase += sprite->blink_speed;
             sprite->blink_phase = mgAngleLimit(sprite->blink_phase);
         } else {
-            for (int component = 0; component < 4; component++) {
-                color[component] = std::clamp(color[component], 0.0f, 255.0f);
+            for (float &component : color) {
+                component = std::clamp(component, 0.0f, 255.0f);
             }
         }
 
         if (script->light_flag) {
-            sceVu0FMATRIX light_direction, light_color;
+            sceVu0FMATRIX light_direction;
+            sceVu0FMATRIX light_color;
             sceVu0FVECTOR ambient;
             mgGetLight(light_direction, light_color);
             mgGetAmbient(ambient);
@@ -671,12 +674,12 @@ void EffectOffset(_EFF_SCRIPT *script, sceVu0FVECTOR offset) {
                     if (frame != nullptr) {
                         sceVu0FVECTOR frame_position;
                         frame->GetWorldPosition0(frame_position);
-                        *(u_long128 *) character_position = *(u_long128 *) frame_position;
+                        sceVu0CopyVector(character_position, frame_position);
                     }
                 }
             }
 
-            *(u_long128 *) offset = *(u_long128 *) character_position;
+            sceVu0CopyVector(offset, character_position);
         }
     }
 
@@ -706,7 +709,7 @@ PORT_OVERRIDE void CEffectScriptMan::Draw() {
 
         sceVu0FVECTOR offset;
         EffectOffset(script, offset);
-        textures->ReloadTexture(script->texb, (sceVif1Packet *) nullptr);
+        textures->ReloadTexture(script->texb, static_cast<sceVif1Packet *>(nullptr));
         sceVu0FVECTOR position;
         script->chara->GetPosition(position);
         sceVu0AddVector(position, position, offset);
@@ -739,7 +742,7 @@ PORT_OVERRIDE void CEffectScriptMan::Draw() {
 
         sceVu0FVECTOR offset;
         EffectOffset(script, offset);
-        textures->ReloadTexture(script->texb, (sceVif1Packet *) nullptr);
+        textures->ReloadTexture(script->texb, static_cast<sceVif1Packet *>(nullptr));
         mgCTexture *texture = textures->GetTexture(script->tex_name, script->texb);
 
         if (texture != nullptr) {

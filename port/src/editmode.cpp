@@ -17,10 +17,21 @@ void PortRetailEditMode(CScene *scene) asm("EditMode_EditMode");
 
 namespace {
 
-// Retail's right stick: 0.1 radian of angle and 15 units of distance a frame at full deflection.
+/**
+ * Full-deflection right-stick turn per frame in radians.
+ */
 constexpr float kStickTurn = 0.1f;
+/**
+ * Full-deflection right-stick distance change per frame.
+ */
 constexpr float kStickDistance = 15.0f;
+/**
+ * Minimum requested Georama camera distance.
+ */
 constexpr float kNearest = 400.0f;
+/**
+ * Maximum requested Georama camera distance.
+ */
 constexpr float kFarthest = 800.0f;
 
 } // namespace

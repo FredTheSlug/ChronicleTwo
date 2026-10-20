@@ -2608,9 +2608,6 @@ struct ResolvedImages {
 };
 
 /**
- * Enters embedded pictures, mip chains, variants and texture animation into the native manager.
- */
-/**
  * Whether every picture of a texture set is already registered under its name, in any block.
  */
 bool SetAlreadyEntered(const texture_catalog::Source &source, mgCTextureManager &textures) {
@@ -2628,6 +2625,9 @@ bool SetAlreadyEntered(const texture_catalog::Source &source, mgCTextureManager 
     return any;
 }
 
+/**
+ * Enters embedded pictures, mip chains, variants and texture animation into the native manager.
+ */
 void EnterTextureSet(const std::shared_ptr<Document> &document, std::size_t index, const CharacterLoadOptions &options, CCharacter2 *character, int slot) {
     datapacks::TraceTimer timer("model.enter_texture_set_us");
     datapacks::Trace("model.enter_texture_sets");

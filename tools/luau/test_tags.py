@@ -62,6 +62,17 @@ class TagsTest(unittest.TestCase):
         ext = next(offset for offset, facts in calls.items() if 1 in facts.destinations)
         self.assertEqual(calls[ext].destinations[1], frozenset({"int", "float"}))
 
+    def test_unknown_float_index_reads_native_output_in_neighbouring_local(self):
+        for base, target in ((0, 1), (1, 0)):
+            with self.subTest(base=base, target=target):
+                calls, ext = analyse([
+                    ("push", 2), ("LOAD_ADDR", target, LOCAL), ("EXT", 2),
+                    ("push", 2), ("LOAD_ADDR", 1 - target, LOCAL), ("EXT", 2),
+                    ("LOAD", 1 - target, LOCAL), ("LOAD", base, AddrMode.LOCAL_INDEX_FLOAT), ("PRINT", 1),
+                    ("LOAD", target, LOCAL), ("PRINT", 1), ("push", 0), ("RET",),
+                ])
+                self.assertEqual(calls[ext[0]].reads[1], frozenset({"int", "float"}))
+
     def test_command_number_sums_are_folded(self):
         calls, ext = analyse([
             ("push", 1), ("push", 1), ("ADD",), ("LOAD_ADDR", 0, LOCAL), ("EXT", 2),

@@ -30,10 +30,10 @@ enum class ConfigRenderThread {
 };
 
 struct Config : HostSettings {
-    bool interpolation = true;
+    bool               interpolation = true;
     ConfigRenderThread render_thread = ConfigRenderThread::Async;
-    bool debug_mode = false;
-    bool autosave = true;
+    bool               debug_mode = false;
+    bool               autosave = true;
     // game.quick_loadout_title "plate": the quick loadout's title on a plate like the EXP gauge's, not on a bar.
     bool quick_loadout_plate = false;
     // game.skip_intro: boots past the Sony Computer Entertainment text, the copyright notice and the Level-5 logo.
@@ -48,10 +48,8 @@ struct Config : HostSettings {
     float        ui_scale = 1.0f;
     bool         font_sharp = false;
     bool         mouse_fixed_look = true;
-    // input.menu_pointer_speed: captured menu hand travel per mouse count; 1 is one window pixel. Camera look ignores it.
-    float menu_pointer_speed = 1.5f;
-    // input.menu_pointer_acceleration: fast captured motion moves the menu hand up to twice as far per count.
-    bool menu_pointer_acceleration = true;
+    float        menu_pointer_speed = 1.5f;        /**< Captured menu hand travel per mouse count in window pixels. */
+    bool         menu_pointer_acceleration = true; /**< Enables up to twice the menu hand gain for fast captured motion. */
     // audio.dualsense_speaker: the Ridepod's lines, the treasure chests' opening and the menus' effects
     // play on a DualSense speaker when one is found instead of the TV.
     bool dualsense_speaker = true;

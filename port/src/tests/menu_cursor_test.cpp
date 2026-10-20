@@ -96,7 +96,7 @@ TEST(MenuCursor, YesNoMouseTintsEachChoiceOnceAndControllerKeepsRetailColor) {
     });
     const auto draw = [&] {
         drawn = 0;
-        message.SetSelectCursorPos({100, 200, 220, 60});
+        message.SetSelectCursorPos({.x = 100, .y = 200, .width = 220, .height = 60});
         RGBAQ_TYPE color{};
         color.r = color.g = color.b = color.a = 128;
         mgCDrawPrim primitive;
@@ -114,7 +114,7 @@ TEST(MenuCursor, YesNoMouseTintsEachChoiceOnceAndControllerKeepsRetailColor) {
     MenuMouseEnable(true);
     InputSetScriptedDevices({.mouse_dx = 1});
     MenuMouseTake();
-    MenuMouseNoteHand({.texture = 123}, {96, 232, 40, 24});
+    MenuMouseNoteHand({.texture = 123}, {.x = 96, .y = 232, .w = 40, .h = 24});
     ASSERT_TRUE(MenuMousePointerVisible());
     for (int choice = 0; choice < 2; ++choice) {
         message.select = selected = choice;

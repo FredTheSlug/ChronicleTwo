@@ -24,29 +24,47 @@
 #include "platform/arena.hpp"
 #include "scenesnd.hpp"
 
-// Retail's sprite commands; the first two reach port/src/effscript.cpp's seams.
+/**
+ * Assigns sprite storage to the running effect.
+ */
 int _SPT_ASSIGN_SPRITE(RS_STACKDATA *stack, int argument_count);
+/**
+ * Resets the selected sprite slots of the running effect.
+ */
 int _SPT_INIT_SPRITE(RS_STACKDATA *stack, int argument_count);
+/**
+ * Releases the running effect's sprite storage.
+ */
 int _SPT_DELETE_SPRITE(RS_STACKDATA *stack, int argument_count);
 
 namespace {
 
-// One draw the effect manager made: a billboard batch, or one of its models.
+/**
+ * Records a model draw or billboard batch from the effect manager.
+ */
 struct Event {
-    bool                       model = false;
-    const CCharacter2         *chara = nullptr;
-    float                      position[4] = {};
-    gfx::Primitive             primitive = gfx::Primitive::Triangles;
-    std::vector<gfx::Vertex2D> vertices;
-    gfx::DrawState             state;
-    gfx::Interp2D              tag{};
+    bool                       model = false;                         /**< Whether this event represents a model draw. */
+    const CCharacter2         *chara = nullptr;                       /**< Model whose draw was captured. */
+    float                      position[4] = {};                      /**< Model position at draw time. */
+    gfx::Primitive             primitive = gfx::Primitive::Triangles; /**< Primitive topology of the captured billboards. */
+    std::vector<gfx::Vertex2D> vertices;                              /**< Vertices submitted by the billboard batch. */
+    gfx::DrawState             state;                                 /**< Render state of the captured billboard batch. */
+    gfx::Interp2D              tag{};                                 /**< Interpolation tag active during the draw. */
 };
 
+/**
+ * Receives model and billboard draws from the active fixture.
+ */
 std::vector<Event> *event_log = nullptr;
 
-// An effect model whose draw is logged, where it stands, in order with the billboard batches.
-class LoggedModel : public CCharacter2 {
+/**
+ * Logs model draw positions alongside billboard batches.
+ */
+class LoggedModel final : public CCharacter2 {
 public:
+    /**
+     * Records the model's current position in draw order.
+     */
     int DrawDirect() override {
         Event event{.model = true, .chara = this};
         GetPosition(event.position);
@@ -55,27 +73,44 @@ public:
     }
 };
 
+/**
+ * Restores the screen offsets after drawing with test offsets.
+ */
 class ScreenOffsetScope {
 public:
-    ScreenOffsetScope(int x, int y) : saved_x_(mgScreenOffx), saved_y_(mgScreenOffy) {
+    /**
+     * Installs test screen offsets while retaining the previous values.
+     */
+    ScreenOffsetScope(int x, int y) : saved_x(mgScreenOffx), saved_y(mgScreenOffy) {
         mgScreenOffx = x;
         mgScreenOffy = y;
     }
 
+    /**
+     * Restores the screen offsets that preceded the scope.
+     */
     ~ScreenOffsetScope() {
-        mgScreenOffx = saved_x_;
-        mgScreenOffy = saved_y_;
+        mgScreenOffx = saved_x;
+        mgScreenOffy = saved_y;
     }
 
+    /**
+     * Prevents copying ownership of saved screen offsets.
+     */
     ScreenOffsetScope(const ScreenOffsetScope &) = delete;
+    /**
+     * Prevents replacing a scope's saved screen offsets.
+     */
     ScreenOffsetScope &operator=(const ScreenOffsetScope &) = delete;
 
 private:
-    int saved_x_;
-    int saved_y_;
+    int saved_x; /**< Screen x offset preceding the scope. */
+    int saved_y; /**< Screen y offset preceding the scope. */
 };
 
-// A camera whose origin projects to the GS centre, as mg_sprite_test.cpp's.
+/**
+ * Configures a camera whose origin projects to the GS centre.
+ */
 void SetOriginCamera(mgRENDER_INFO &render_info) {
     constexpr float depth_w = 4.0f;
     render_info.world_screen[0][0] = 2.0f;
@@ -91,6 +126,9 @@ void SetOriginCamera(mgRENDER_INFO &render_info) {
     render_info.guard_max[3] = 200.0f;
 }
 
+/**
+ * Identity transform for recorded sprite draws.
+ */
 float kIdentity[4][4] = {
     {1.0f, 0.0f, 0.0f, 0.0f},
     {0.0f, 1.0f, 0.0f, 0.0f},
@@ -98,6 +136,9 @@ float kIdentity[4][4] = {
     {0.0f, 0.0f, 0.0f, 1.0f}
 };
 
+/**
+ * Creates an integer script argument.
+ */
 RS_STACKDATA Int(int value) {
     RS_STACKDATA slot{};
     slot.type = RS_INT;
@@ -105,6 +146,9 @@ RS_STACKDATA Int(int value) {
     return slot;
 }
 
+/**
+ * Finds the effect base associated with a script name.
+ */
 int BaseNo(const char *script) {
     for (int i = 0; i < EFF_SPT_BASE_DEF_NUM; ++i) {
         if (std::strcmp(eff_spt_base_def[i].script, script) == 0) {
@@ -114,14 +158,21 @@ int BaseNo(const char *script) {
     return -1;
 }
 
+/**
+ * Returns the interpolation key of an effect sprite.
+ */
 gfx::InterpKey Key(const _EFF_SCRIPT *effect, int index) {
     return static_cast<gfx::InterpKey>(reinterpret_cast<uintptr_t>(&effect->sprite[index]));
 }
 
-// Runs effects of the recovery base (n_heal) and of another texture base (gun_flash) in a manager of their own, and
-// logs the billboard batches they draw with the tag current at each.
+/**
+ * Captures recovery and ordinary effects with their draw order and interpolation tags.
+ */
 class EffectSprites : public testing::Test {
 protected:
+    /**
+     * Creates the effect manager, camera and billboard capture sink.
+     */
     void SetUp() override {
         storage = reinterpret_cast<u_long128 *>(ArenaBlock(this, 8192 * sizeof(u_long128)));
         memory.SetHeapMem(storage, 8192);
@@ -152,6 +203,9 @@ protected:
         });
     }
 
+    /**
+     * Clears effects and restores the global capture seams.
+     */
     void TearDown() override {
         manager.AllClearEffSpt();
         mgPortSet3DSpriteSink({});
@@ -159,14 +213,18 @@ protected:
         event_log = nullptr;
     }
 
+    /**
+     * Creates an effect from the requested base.
+     */
     _EFF_SCRIPT *Start(const EFF_SPT_BASE &base) {
         _EFF_SCRIPT *effect = manager.CreateEffSpt(base.base_no, 0, 1);
         EXPECT_NE(effect, nullptr);
         return effect;
     }
 
-    // Assigns four sprites through the sprite command, as the effect's script would: two additive, one hidden between
-    // them, and one translucent.
+    /**
+     * Assigns four sprites with additive, hidden and translucent test cases.
+     */
     void GiveSprites(_EFF_SCRIPT *effect) {
         PortSetRunningEffect(&manager, effect);
         RS_STACKDATA count = Int(4);
@@ -188,7 +246,9 @@ protected:
         PortSetRunningEffect(nullptr, nullptr);
     }
 
-    // The effect's sprites as the manager's Draw builds them, one game frame's worth.
+    /**
+     * Captures the sprite batches drawn for one effect frame.
+     */
     std::vector<Event> Draw(_EFF_SCRIPT *effect) {
         events.clear();
         mgC3DSprite renderer;
@@ -200,7 +260,9 @@ protected:
         return events;
     }
 
-    // The recorded draw of the sprite keyed `key`, as the display list holds it: one scene, one camera.
+    /**
+     * Finds the display-list entry associated with a sprite key.
+     */
     static gfx::detail::Draw2DEntry Entry(const std::vector<Event> &frame, gfx::InterpKey key) {
         for (const Event &event : frame) {
             if (!event.model && event.tag.key == key) {
@@ -217,7 +279,9 @@ protected:
         return {};
     }
 
-    // Display frame halfway between two game frames under a still camera; false when the newest corners stand.
+    /**
+     * Interpolates a display frame halfway between two recorded sprite frames.
+     */
     static bool Blend(const gfx::detail::Draw2DEntry &before, const gfx::detail::Draw2DEntry &after,
                       std::vector<gfx::Vertex2D> &result) {
         gfx::detail::Mat4 identity{};
@@ -228,18 +292,18 @@ protected:
         return gfx::detail::InterpolateSprite(before, scene, identity, after, scene, identity, identity, 0.5f, result);
     }
 
-    ScreenOffsetScope  screen_offset{0x800, 0x800};
-    std::vector<Event> events;
-    u_long128         *storage = nullptr;
-    mgCMemory          memory;
-    mgCMemory          other_memory;
-    RS_PROG_HEADER     program{};
-    EFF_SPT_BASE       heal{};
-    EFF_SPT_BASE       other{};
-    CEffectScriptMan   manager;
-    mgRENDER_INFO      render_info{};
-    mgCDrawManager     draw_manager;
-    mgCTexture         texture{};
+    ScreenOffsetScope  screen_offset{0x800, 0x800}; /**< Screen offset scope shared by sprite draws. */
+    std::vector<Event> events;                      /**< Ordered model and billboard draws. */
+    u_long128         *storage = nullptr;           /**< Arena backing the effect manager's work memory. */
+    mgCMemory          memory;                      /**< Primary effect work memory. */
+    mgCMemory          other_memory;                /**< Independent work memory for a peer manager. */
+    RS_PROG_HEADER     program{};                   /**< Empty script program used by test effects. */
+    EFF_SPT_BASE       heal{};                      /**< Recovery effect base configured for interpolation. */
+    EFF_SPT_BASE       other{};                     /**< Ordinary effect base retaining retail batches. */
+    CEffectScriptMan   manager;                     /**< Effect manager exercised by the fixture. */
+    mgRENDER_INFO      render_info{};               /**< Camera state used for projection. */
+    mgCDrawManager     draw_manager;                /**< Draw manager exposing the fixture camera. */
+    mgCTexture         texture;                     /**< Texture supplied to captured sprite draws. */
 };
 
 } // namespace
@@ -442,7 +506,7 @@ TEST_F(EffectSprites, RetiringAManagerAndItsArenaForgetsOnlyItsEffects) {
     // A second manager, with a work memory of its own, runs a recovery effect throughout.
     auto *other_storage = reinterpret_cast<u_long128 *>(ArenaBlock(&other_memory, 4096 * sizeof(u_long128)));
     other_memory.SetHeapMem(other_storage, 4096);
-    CEffectScriptMan other_manager;
+    CEffectScriptMan other_manager; /**< Effect manager exercised by the fixture. */
     other_manager.base[0] = &heal;
     other_manager.base_num = 1;
     other_manager.SetWorkBuffer(&other_memory);
@@ -559,7 +623,7 @@ TEST_F(EffectSprites, OtherEffectsAndEnclosingTagsKeepRetailBatches) {
 
 TEST_F(EffectSprites, ManagerDrawsEveryModelThenEverySpriteBatch) {
     std::vector<u_long128> table(8192);
-    mgCMemory              table_memory;
+    mgCMemory              table_memory; /**< Primary effect work memory. */
     table_memory.stSetBuffer(table.data(), static_cast<int>(table.size()));
     mgTexManager.SetTableBuffer(16, 4, &table_memory);
     mgTexManager.Initialize(0x1000, -1);
@@ -570,7 +634,7 @@ TEST_F(EffectSprites, ManagerDrawsEveryModelThenEverySpriteBatch) {
 
     auto        scene = std::make_unique<CScene>();
     CScene     *previous_scene = now_scene;
-    auto        previous_render_info = mgDrawManager.render_info;
+    auto       *previous_render_info = mgDrawManager.render_info;
     LoggedModel models[2];
     now_scene = scene.get();
     mgDrawManager.render_info = &render_info;

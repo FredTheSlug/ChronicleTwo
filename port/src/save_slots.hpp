@@ -82,11 +82,10 @@ CMemoryCardManager *SaveSlotManager();
 
 FilesResult SaveSlotWrite(const std::filesystem::path &path, const SaveDocument &document, bool replace);
 
-// Writes over the autosave the game as it stands, as a town save, or for LOOP_DUNGEON the game as the
-// current floor's load event began (SaveSlotRecordFloorEntry), as a save the title resumes on that floor.
-// False if the write failed, or for LOOP_DUNGEON without an entry state of the current floor; the autosave
-// then keeps what it held. A town save given a spawn also records it, so that loading the autosave returns
-// the player to that spot.
+/**
+ * Writes the current town save and optional spawn or the recorded dungeon floor-entry save, preserving the
+ * previous autosave if writing fails or the dungeon floor has no recorded entry state.
+ */
 bool SaveSlotWriteAutosave(int program_loop_no, const AutosaveSpawn *spawn = nullptr);
 
 /**

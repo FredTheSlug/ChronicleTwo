@@ -1729,9 +1729,12 @@ TEST(HealingPresentation, EachLightSpriteKeepsItsOwnKeyThroughCulling) {
     memory.stSetBuffer(backing, 512);
     mgSetDataBuffer(&memory, &memory, 0);
 
+    /**
+     * Records a healing sprite's interpolation tag and submitted vertex count.
+     */
     struct Tagged {
-        gfx::Interp2D tag;
-        size_t        vertices;
+        gfx::Interp2D tag;      /**< Interpolation tag active during submission. */
+        size_t        vertices; /**< Number of vertices in the sprite draw. */
     };
 
     std::vector<Tagged> draws;
@@ -1740,7 +1743,7 @@ TEST(HealingPresentation, EachLightSpriteKeepsItsOwnKeyThroughCulling) {
                           const gfx::TextureBinding &, const gfx::DrawState       &state) {
         EXPECT_EQ(primitive, gfx::Primitive::Quads);
         EXPECT_NE(state.depth_test, gfx::DepthTest::Always);
-        draws.push_back({gfx::CurrentInterp2D(), vertices.size()});
+        draws.push_back({.tag = gfx::CurrentInterp2D(), .vertices = vertices.size()});
     });
     auto project = [](float x) {
         auto matrix = Identity();

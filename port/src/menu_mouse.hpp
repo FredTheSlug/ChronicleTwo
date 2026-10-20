@@ -31,31 +31,45 @@ MenuMouseView MenuMouseScroll(float wheel, MenuMouseView view, int count, int vi
 
 // Relative window pixels map through the same logical extent as the menu art.
 float MenuMouseUnits(float scale, float pixels, float window);
-// The menu hand's gain for a tick's motion of (dx, dy) counts: speed, raised smoothly to twice
-// speed between 4 and 28 counts when accelerating.
+/**
+ * The menu hand's gain for a tick's motion of (dx, dy) counts: speed, raised smoothly to twice
+ * speed between 4 and 28 counts when accelerating.
+ */
 float MenuMouseGain(float dx, float dy, float speed, bool accelerate);
 int   MenuMouseHit(std::span<const MenuMouseRect> rows, float x, float y);
 int   MenuMouseChoose(const MenuMouseSample &mouse, std::span<const MenuMouseRect> rows, int selected, int wheel_step = 1);
 // Whole wheel notches move selected by wheel_step per notch, clamped to [0, count).
 int MenuMouseWheelStep(int selected, float wheel, int count, int wheel_step = 1);
 
-// A left-button drag across an area of one menu, such as the costume model. It starts only on a fresh
-// press over the area while the menu takes input, and ends on release, when the menu stops taking input
-// or the pointer leaves it, when the owner changes, and when a tick passes without a Step (the menu
-// closed or skipped its input), so a press held across any of those turns nothing until pressed again.
+/**
+ * A left-button drag across an area of one menu, such as the costume model. It starts only on a fresh
+ * press over the area while the menu takes input, and ends on release, when the menu stops taking input
+ * or the pointer stops pointing, when the owner changes, and when a tick passes without a Step (the menu
+ * closed or skipped its input), so a press held across any of those turns nothing until pressed again.
+ */
 class MenuMouseDrag {
 public:
-    // The pointer's x travel this tick while dragging, or 0.
+    /**
+     * The pointer's x travel this tick while dragging, or 0.
+     */
     float Step(const void *owner, int tick, bool ready, const MenuMouseSample &mouse, bool over_area);
-    void  Cancel() { dragging_ = false; }
-    bool  Dragging() const { return dragging_; }
+
+    /**
+     * Ends the current drag until a fresh press starts another.
+     */
+    void Cancel() { drag_active = false; }
+
+    /**
+     * Reports whether a press currently owns a drag.
+     */
+    [[nodiscard]] bool Dragging() const { return drag_active; }
 
 private:
-    const void *owner_ = nullptr;
-    int         tick_ = 0;
-    bool        stepped_ = false;
-    bool        dragging_ = false;
-    float       x_ = 0;
+    const void *sample_owner = nullptr; /**< Menu that owns the latest sample. */
+    int         sample_tick = 0;        /**< Tick of the latest sample. */
+    bool        has_sample = false;     /**< Whether a sample has been processed. */
+    bool        drag_active = false;    /**< Whether the current press started over the drag area. */
+    float       sample_x = 0;           /**< Pointer x from the latest drag sample. */
 };
 class CMenuPosDataForm;
 struct MENUFORMPARTS_TYPE;
@@ -64,9 +78,11 @@ struct MENUFORMPARTS_TYPE;
 MENUFORMPARTS_TYPE *MenuMouseFindPart(CMenuPosDataForm *form, const char *name);
 // A drawn form part's rectangle; empty when the form or the part is hidden or missing.
 MenuMouseRect MenuMousePart(CMenuPosDataForm *form, const char *name);
-// The build-up list's rows, as MenuWeaponBuildUpDraw draws them: each name board with the gap left of it,
-// from the name positions it records (BuildUpNameXY: 20 left of a board, 5 below its top). Rows past
-// count are empty. language is LanguageCode, which widens the boards outside Japanese.
+/**
+ * The build-up list's rows, as MenuWeaponBuildUpDraw draws them: each name board with the gap left of it,
+ * from the name positions it records (BuildUpNameXY: 20 left of a board, 5 below its top). Rows past
+ * count are empty. language is LanguageCode, which widens the boards outside Japanese.
+ */
 std::array<MenuMouseRect, 3> MenuMouseBuildUpRows(const short (&names)[3][2], int count, int language);
 class ClsMes;
 std::vector<MenuMouseRect> MenuMouseMessageRows(ClsMes &message, int count);

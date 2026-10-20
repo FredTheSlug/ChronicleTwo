@@ -1,10 +1,20 @@
 #include "common.h"
 
+#include <cstring>
+#include <utility>
+
 #include "drawwin.hpp"
+#include "menu_mouse.hpp"
 #include "mg_drawprim.hpp"
+#include "mglib_port.hpp"
 #include "nd_meswin.hpp"
 
 namespace {
+
+/**
+ * Records the selected mouse choice for the next Yes/No label draw.
+ */
+int yesno_highlight = -1;
 
 /**
  *
@@ -24,6 +34,27 @@ void DrawWindowPart(mgCDrawPrim *prim, VersatileWinPart part, int x, int y, int 
 }
 
 } // namespace
+
+PORT_OVERRIDE void ClsMes::SetSelectCursorPos(RECT rect) {
+    CalcSelectCursorPos(rect, &choice_pos[0][0]);
+    yesno_highlight = window_mode == MES_WIN_YESNO && select >= 0 && select < 2 &&
+                              fade >= 1 && alpha > 0 && buff && font_h > 0 && MenuMousePointerVisible()
+                          ? select
+                          : -1;
+}
+
+PORT_OVERRIDE void DrawYesNo(mgCDrawPrim *primitive, int yes_x, int yes_y, int no_x, int no_y, RGBAQ_TYPE *color) {
+    const int selected = std::exchange(yesno_highlight, -1);
+    for (int choice = 0; choice < 2; ++choice) {
+        RGBAQ_TYPE tint = *color;
+        // Brighten the mouse choice once, as retail costume selection does.
+        if (choice == selected) {
+            tint.r = tint.g = tint.b = 0xA4;
+        }
+        set2DSprite(primitive, {choice == 0 ? yes_x : no_x, choice == 0 ? yes_y : no_y, 60, 26},
+                    {choice == 0 ? 136 : 196, 230, 60, 26}, &tint);
+    }
+}
 
 // The gaiji frame exposes the backing at the top and left edges of its opening. Move those edges outward
 // without shortening the right and bottom edges of the original rectangle.
@@ -76,4 +107,49 @@ PORT_OVERRIDE void DrawVersatileWin_3(mgCDrawPrim *prim, RECT win, int select_y,
     DrawWindowPart(prim, VWIN_LOWER_BOTTOM_L, win.x, bottom_y, 0x17, 0x19, color);
     DrawWindowPart(prim, VWIN_LOWER_BOTTOM_C, inside_x, bottom_y, inside_width, 0x19, color);
     DrawWindowPart(prim, VWIN_LOWER_BOTTOM_R, right_x, bottom_y, 0x17, 0x19, color);
+}
+
+PORT_OVERRIDE void ClsMes::StepSelectCursor(int steps) {
+    if (select < 0) {
+        cursor_time = 0;
+        return;
+    }
+    SetGoalCursorXY();
+    if (cursor_time <= 0) {
+        cursor_x = goal_cursor_x;
+        cursor_y = goal_cursor_y;
+        cursor_time = 1;
+    } else {
+        for (int i = 0; i < steps; ++i) {
+            cursor_x = (cursor_x + goal_cursor_x) / 2;
+            cursor_y = (cursor_y + goal_cursor_y) / 2;
+            ++cursor_time;
+        }
+    }
+    if (fade < 1 || alpha <= 0 || !buff || font_h <= 0) {
+        return;
+    }
+    const auto choices = MenuMouseMessageRows(*this, (text_h + font_h - 1) / font_h);
+    if (std::cmp_less(select, choices.size())) {
+        MenuMouseNoteChoices(this, mes_no, choices, select, window_mode == MES_WIN_YESNO);
+    }
+}
+
+PORT_OVERRIDE void _set2DSprite(char *texture_name, mgCDrawPrim *primitive, mgRect<int> destination,
+                                mgRect<int> texture, RGBAQ_TYPE *color) {
+    if (MesAbsDrawOff != 0) {
+        return;
+    }
+    const bool         cursor = std::strcmp(texture_name, "gaiji") == 0 && texture.left == 96 && texture.top == 232 &&
+                                texture.right == 40 && texture.bottom == 24;
+    gfx::Interp2DScope tag(cursor ? gfx::Interp2D{.key = MenuMouseNextHandKey(), .generation = static_cast<uint64_t>(mgPortFrameCount())} : gfx::CurrentInterp2D());
+    primitive->Begin(MG_PRIM_SPRITE);
+    MySetTex(texture_name, primitive);
+    if (cursor && (color->r || color->g || color->b)) {
+        MenuMouseNoteHand(mgPortBinding(primitive->texture.tex0_bits, primitive->texture.tex1_bits),
+                          {.x = static_cast<float>(texture.left), .y = static_cast<float>(texture.top), .w = static_cast<float>(texture.right), .h = static_cast<float>(texture.bottom)},
+                          0, color->a);
+    }
+    set2DSpriteEasy(primitive, destination, texture, color);
+    primitive->End();
 }

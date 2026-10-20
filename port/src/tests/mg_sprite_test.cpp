@@ -86,9 +86,11 @@ private:
 class GsReset {
 public:
     GsReset() = default;
+
     ~GsReset() {
         mgPortResetGs();
     }
+
     GsReset(const GsReset &) = delete;
     GsReset &operator=(const GsReset &) = delete;
 };
@@ -100,13 +102,13 @@ std::array<uint8_t, 4> Rgba(const gfx::Vertex2D &v) {
 } // namespace
 
 TEST(MgSprite, UntexturedSpriteSubmitsOneQuad) {
-    const int offset = 0x800;
+    const int         offset = 0x800;
     ScreenOffsetScope screen_offset(offset, offset);
-    sceVif1Packet vif_packet{};
-    VifPacketScope vif(&vif_packet);
-    SinkRig rig;
+    sceVif1Packet     vif_packet{};
+    VifPacketScope    vif(&vif_packet);
+    SinkRig           rig;
 
-    mgRENDER_INFO render_info{};
+    mgRENDER_INFO  render_info{};
     mgCDrawManager manager;
     manager.render_info = &render_info;
 
@@ -135,13 +137,13 @@ TEST(MgSprite, UntexturedSpriteSubmitsOneQuad) {
 }
 
 TEST(MgSprite, DrawSubmitsSameQuadAndWritesNoDmaChain) {
-    const int offset = 0x800;
+    const int         offset = 0x800;
     ScreenOffsetScope screen_offset(offset, offset);
-    sceVif1Packet vif_packet{};
-    VifPacketScope vif(&vif_packet);
-    SinkRig rig;
+    sceVif1Packet     vif_packet{};
+    VifPacketScope    vif(&vif_packet);
+    SinkRig           rig;
 
-    mgRENDER_INFO render_info{};
+    mgRENDER_INFO  render_info{};
     mgCDrawManager manager;
     manager.render_info = &render_info;
 
@@ -149,7 +151,7 @@ TEST(MgSprite, DrawSubmitsSameQuadAndWritesNoDmaChain) {
     sprite.screen.Set(16 * 10, 16 * 20, 16 * 42, 16 * 36);
     sprite.SetColor(1, 2, 3, 4);
 
-    u_int tag[8] = {0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF};
+    u_int     tag[8] = {0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF, 0xDEADBEEF};
     const int qwords = sprite.Draw(tag, nullptr, &manager);
 
     EXPECT_EQ(qwords, 0);
@@ -162,7 +164,7 @@ TEST(MgSprite, DrawSubmitsSameQuadAndWritesNoDmaChain) {
 }
 
 TEST(MgSprite, PreSpriteSetScirorWritesScissorEdges) {
-    GsReset reset;
+    GsReset    reset;
     CPreSprite sprite;
     sprite.SetScirror(10, 20, 30, 40);
 
@@ -174,14 +176,14 @@ TEST(MgSprite, PreSpriteSetScirorWritesScissorEdges) {
 }
 
 TEST(MgSprite, PreSpriteSetAlphaBlendWritesAddEquation) {
-    GsReset reset;
+    GsReset    reset;
     CPreSprite sprite;
     sprite.SetAlphaBlend(2);
     EXPECT_EQ(mgPortGs().alpha, 0x48u);
 }
 
 TEST(MgSprite, PreSpriteSetAlphaBlendModeZeroWritesNothing) {
-    GsReset reset;
+    GsReset    reset;
     CPreSprite sprite;
     sprite.SetAlphaBlend(2);
     const uint64_t before = mgPortGs().alpha;
@@ -235,7 +237,12 @@ void SetOriginCamera(mgRENDER_INFO &render_info, float depth_w, float near_dist,
     render_info.fog.b = 30;
 }
 
-float kIdentity[4][4] = {{1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}};
+float kIdentity[4][4] = {
+    {1.0f, 0.0f, 0.0f, 0.0f},
+    {0.0f, 1.0f, 0.0f, 0.0f},
+    {0.0f, 0.0f, 1.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f, 1.0f}
+};
 
 void AddBillboard(mgC3DSprite &sprite, float angle) {
     float pos[4] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -249,9 +256,9 @@ void AddBillboard(mgC3DSprite &sprite, float angle) {
 } // namespace
 
 TEST(MgSprite, SpriteAtOriginLandsAtCentre) {
-    const int offset = 0x800;
+    const int         offset = 0x800;
     ScreenOffsetScope screen_offset(offset, offset);
-    BillboardRig rig;
+    BillboardRig      rig;
 
     mgRENDER_INFO render_info{};
     SetOriginCamera(render_info, 4.0f, 1.0f, 200.0f);
@@ -289,9 +296,9 @@ TEST(MgSprite, SpriteAtOriginLandsAtCentre) {
 }
 
 TEST(MgSprite, RotatedModeEmitsTriangles) {
-    const int offset = 0x800;
+    const int         offset = 0x800;
     ScreenOffsetScope screen_offset(offset, offset);
-    BillboardRig rig;
+    BillboardRig      rig;
 
     mgRENDER_INFO render_info{};
     SetOriginCamera(render_info, 4.0f, 1.0f, 200.0f);
@@ -312,9 +319,9 @@ TEST(MgSprite, RotatedModeEmitsTriangles) {
 }
 
 TEST(MgSprite, FogColourZeroForAdditive) {
-    const int offset = 0x800;
+    const int         offset = 0x800;
     ScreenOffsetScope screen_offset(offset, offset);
-    BillboardRig rig;
+    BillboardRig      rig;
 
     mgRENDER_INFO render_info{};
     SetOriginCamera(render_info, 4.0f, 1.0f, 200.0f);
@@ -344,9 +351,9 @@ TEST(MgSprite, FogColourZeroForAdditive) {
 }
 
 TEST(MgSprite, FogColourKeptForOpaque) {
-    const int offset = 0x800;
+    const int         offset = 0x800;
     ScreenOffsetScope screen_offset(offset, offset);
-    BillboardRig rig;
+    BillboardRig      rig;
 
     mgRENDER_INFO render_info{};
     SetOriginCamera(render_info, 4.0f, 1.0f, 200.0f);
@@ -376,9 +383,9 @@ TEST(MgSprite, FogColourKeptForOpaque) {
 }
 
 TEST(MgSprite, BehindNearPlaneIsNotDrawn) {
-    const int offset = 0x800;
+    const int         offset = 0x800;
     ScreenOffsetScope screen_offset(offset, offset);
-    BillboardRig rig;
+    BillboardRig      rig;
 
     mgRENDER_INFO render_info{};
     SetOriginCamera(render_info, 0.5f, 1.0f, 200.0f);

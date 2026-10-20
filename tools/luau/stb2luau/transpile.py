@@ -217,15 +217,17 @@ def transpile(path: str, data: bytes) -> tuple[Result, ModuleInput | None]:
 
     result = Result(path, name, None, None, [], program, normalized)
     analysis = Analysis(program)
-    call_tags = tags.analyse(program, _directions(classify(path).value)).calls
     refs = references(program)
+    pointer_flow = tags.analyse(program, _directions(classify(path).value)).references
+    for block, positions in pointer_flow.items():
+        refs[block] = tuple(sorted(set(refs.get(block, ())) | set(positions)))
     errors: list[str] = []
     functions: dict[int, FunctionInput] = {}
     folded: set[int] = set()
     for block in _reachable(program):
         try:
             lifted = lift(program, program.functions[block], analysis, refs)
-            body = _annotate(structure(lifted), call_tags)
+            body = structure(lifted)
         except (LiftError, StructureError) as error:
             errors.append(f"function {block:#x}: {error}")
             continue
@@ -245,6 +247,10 @@ def transpile(path: str, data: bytes) -> tuple[Result, ModuleInput | None]:
     if errors:
         result.error = "; ".join(errors)
         return result, None
+    bounded = frozenset(block for block, function in functions.items() if ir.FRAME not in function.arrays)
+    call_tags = tags.analyse(program, _directions(classify(path).value), bounded_functions=bounded).calls
+    for function in functions.values():
+        function.body = _annotate(function.body, call_tags)
     result.folded = frozenset(folded)
     result.float_refs = float_references(analysis)
     result.float_globals = float_globals(analysis)

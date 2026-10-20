@@ -60,6 +60,7 @@ class Facts:
     """The analysis of a whole program: per native call offset, its CallFacts."""
 
     calls: dict[int, CallFacts]
+    references: dict[int, tuple[int, ...]] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass
@@ -127,8 +128,11 @@ def _join(a: _State, b: _State) -> _State:
 
 
 class _Analysis:
-    def __init__(self, program: Program, directions: dict[tuple[int, int], tuple[str, ...]]):
+    def __init__(
+        self, program: Program, directions: dict[tuple[int, int], tuple[str, ...]], bounded_functions: frozenset[int]
+    ):
         self.program = program
+        self.bounded_functions = bounded_functions
         self.directions = directions
         self.graphs = {block: cfg.build(program, function) for block, function in program.functions.items()}
         self.named: dict[int, set[int]] = {}
@@ -183,15 +187,25 @@ class _Analysis:
         for number, outputs in self.global_outputs.items():
             for output in outputs:
                 self._read(output, self.global_reads.get(number, Tags()))
-        return Facts(self.calls)
+        references = {
+            block: tuple(
+                position
+                for position, deref in sorted(parameters.items())
+                if deref.reads or deref.stores or deref.outputs
+            )
+            for block, parameters in self.derefs.items()
+        }
+        return Facts(self.calls, references)
 
     def _read(self, output: OutputId, tags: Tags) -> None:
         facts = self.calls.setdefault(output[0], CallFacts())
         facts.reads[output[1]] = facts.reads.get(output[1], Tags()) | tags
 
     def _array_slots(self, function: Function, base: int) -> list[Slot]:
-        # A computed index stays in its array: the slots from its base up to the next slot the function names, as the
-        # lifter bounds it (stb2luau/lift.py _regions).
+        # Only the lifter's interval proof permits restricting an unknown index to its array; otherwise it may
+        # reach any neighbouring local in the frame.
+        if function.block not in self.bounded_functions:
+            return [("local", n) for n in range(function.local)]
         if function.block not in self.named:
             named = set(range(function.arg)) | {function.local}
             for instruction in function.instructions:
@@ -369,6 +383,16 @@ class _Analysis:
                                 passed.reads |= deref.reads
                                 passed.stores |= deref.stores
                                 passed.outputs |= deref.outputs
+                            elif (
+                                slot[0] == "local"
+                                and slot[1] < function.arg
+                                and PTR in tag_of(slot)
+                                and any((deref.reads, deref.stores, deref.outputs))
+                            ):
+                                passed = derefs_out[slot[1]]
+                                passed.reads |= deref.reads
+                                passed.stores |= deref.stores
+                                passed.outputs |= deref.outputs
                     stack.append(_Value(self.return_tags.get(callee.block, _UNKNOWN)))
                 elif op == Op.PRINT:
                     for _ in range(instruction.a1):
@@ -426,6 +450,15 @@ class _Analysis:
                     work.append(successor)
 
 
-def analyse(program: Program, directions: dict[tuple[int, int], tuple[str, ...]]) -> Facts:
-    """Tags and output reads of a program's native calls; directions maps (command, argc) to each parameter's dir."""
-    return _Analysis(program, directions).run()
+def analyse(
+    program: Program,
+    directions: dict[tuple[int, int], tuple[str, ...]],
+    *,
+    bounded_functions: frozenset[int] = frozenset(),
+) -> Facts:
+    """Tags and output reads of native calls, with directions by (command, argc).
+
+    bounded_functions names functions whose computed indices the lifter proved stay within their arrays; without
+    that proof an unknown index may reach any local in the frame.
+    """
+    return _Analysis(program, directions, bounded_functions).run()

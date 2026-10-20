@@ -37,12 +37,14 @@ unsigned long long MaxUniqueCounter(const SaveSlotList &list) {
     return newest;
 }
 
-// The current floor's entry state: the whole save as the floor's load event reached DNG_FLOOR_INIT, before any of
-// the floor's own events. It owns its copy of every town's layout, as the live layouts are found by the address of
-// the live save's town records.
+/**
+ * Owns the floor-entry save and each town's layout before the floor's arrival events.
+ */
 std::unique_ptr<SaveDocument> floor_entry;
 
-// The stage and floor a save is on, or -1 for the floor when its stage is out of range.
+/**
+ * Returns the saved stage and floor, using -1 for an invalid stage's floor.
+ */
 std::pair<int, int> FloorOf(const CSaveData &save) {
     const auto &dungeon = save.save_dungeon;
     if (dungeon.stage_id < 0 || dungeon.stage_id >= SAVE_DUNGEON_NUM) {

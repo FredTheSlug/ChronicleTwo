@@ -23,12 +23,27 @@ namespace fs = std::filesystem;
 
 namespace {
 
+/**
+ * Registry key holding the cached module results.
+ */
 constexpr const char *kModuleCacheKey = "luau_harness.modules";
-constexpr long long   kInterruptBudget = 200000000;
+/**
+ * Maximum safepoints allowed before a script is interrupted.
+ */
+constexpr long long kInterruptBudget = 200000000;
 
-fs::path  g_scripts_root;
+/**
+ * Root directory from which script modules are read.
+ */
+fs::path g_scripts_root;
+/**
+ * Safepoints executed since the interrupt budget was reset.
+ */
 long long g_interrupt_count = 0;
 
+/**
+ * Reads a complete module or driver source file.
+ */
 std::optional<std::string> read_file(const fs::path &path) {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
@@ -39,13 +54,18 @@ std::optional<std::string> read_file(const fs::path &path) {
     return contents.str();
 }
 
-// A module name resolved against scripts_root.
+/**
+ * A module name resolved against scripts_root.
+ */
 struct ResolvedModule {
-    fs::path    path;
-    std::string chunk_name;
-    std::string cache_key;
+    fs::path    path;       /**< Absolute source path of the module. */
+    std::string chunk_name; /**< Source name used in diagnostics. */
+    std::string cache_key;  /**< Unique registry key of the module result. */
 };
 
+/**
+ * Resolves a module name to its source path and diagnostic and cache identifiers.
+ */
 ResolvedModule resolve_module(lua_State *lua, const char *name) {
     std::string requested(name);
     fs::path    relative;
@@ -68,7 +88,9 @@ ResolvedModule resolve_module(lua_State *lua, const char *name) {
     return module;
 }
 
-// Compiles source and pushes the resulting chunk. On failure the error message is left on the stack.
+/**
+ * Compiles source and pushes the resulting chunk. On failure the error message is left on the stack.
+ */
 bool load_chunk(lua_State *lua, const std::string &source, const std::string &chunk_name) {
     Luau::CompileOptions options;
     options.optimizationLevel = 1;
@@ -77,7 +99,9 @@ bool load_chunk(lua_State *lua, const std::string &source, const std::string &ch
     return luau_load(lua, chunk_name.c_str(), bytecode.data(), bytecode.size(), 0) == LUA_OK;
 }
 
-// Runs a module's chunk once and pushes its single result.
+/**
+ * Runs a module's chunk once and pushes its single result.
+ */
 void run_module(lua_State *lua, const ResolvedModule &module) {
     std::optional<std::string> source = read_file(module.path);
     if (!source) {
@@ -89,7 +113,9 @@ void run_module(lua_State *lua, const ResolvedModule &module) {
     lua_call(lua, 0, 1);
 }
 
-// require(name): runs each module once and caches its result, keyed by the resolved path.
+/**
+ * require(name): runs each module once and caches its result, keyed by the resolved path.
+ */
 int lua_require(lua_State *lua) {
     ResolvedModule module = resolve_module(lua, luaL_checkstring(lua, 1));
 
@@ -111,14 +137,18 @@ int lua_require(lua_State *lua) {
     return 1;
 }
 
-// loadmodule(name): runs the module chunk anew on every call, so each caller gets fresh module-level locals.
+/**
+ * loadmodule(name): runs the module chunk anew on every call, so each caller gets fresh module-level locals.
+ */
 int lua_loadmodule(lua_State *lua) {
     run_module(lua, resolve_module(lua, luaL_checkstring(lua, 1)));
     return 1;
 }
 
-// Counts VM safepoints and aborts runaway scripts once the budget is spent. The count starts again at the error, so
-// the driver that catches it can go on.
+/**
+ * Counts VM safepoints and aborts runaway scripts once the budget is spent. The count starts again at the error, so
+ * the driver that catches it can go on.
+ */
 void interrupt(lua_State *lua, [[maybe_unused]] int gc) {
     if (++g_interrupt_count > kInterruptBudget) {
         g_interrupt_count = 0;
@@ -126,32 +156,42 @@ void interrupt(lua_State *lua, [[maybe_unused]] int gc) {
     }
 }
 
-// cmath.sinf(x): the C library's single-precision sine, which the game also links.
+/**
+ * cmath.sinf(x): the C library's single-precision sine, which the game also links.
+ */
 int lua_sinf(lua_State *lua) {
     lua_pushnumber(lua, static_cast<double>(std::sin(static_cast<float>(luaL_checknumber(lua, 1)))));
     return 1;
 }
 
-// cmath.cosf(x): the C library's single-precision cosine, which the game also links.
+/**
+ * cmath.cosf(x): the C library's single-precision cosine, which the game also links.
+ */
 int lua_cosf(lua_State *lua) {
     lua_pushnumber(lua, static_cast<double>(std::cos(static_cast<float>(luaL_checknumber(lua, 1)))));
     return 1;
 }
 
-// resetbudget(): restarts the interrupt budget for the next script run.
+/**
+ * resetbudget(): restarts the interrupt budget for the next script run.
+ */
 int lua_resetbudget([[maybe_unused]] lua_State *lua) {
     g_interrupt_count = 0;
     return 0;
 }
 
-// Error handler that replaces the error message with its message and a traceback.
+/**
+ * Error handler that replaces the error message with its message and a traceback.
+ */
 int traceback_handler(lua_State *lua) {
     const char *message = lua_tostring(lua, 1);
     luaL_traceback(lua, lua, message ? message : "(error object is not a string)", 1);
     return 1;
 }
 
-// Runs the driver named on the command line; returns the process exit code.
+/**
+ * Runs the driver named on the command line; returns the process exit code.
+ */
 int run(int argc, char **argv) {
     if (argc != 3) {
         std::fprintf(stderr, "usage: %s <scripts_root> <driver.luau>\n", argv[0]);
@@ -202,6 +242,9 @@ int run(int argc, char **argv) {
 
 } // namespace
 
+/**
+ * Runs the differential harness and reports uncaught host failures.
+ */
 int main(int argc, char **argv) {
     try {
         return run(argc, argv);

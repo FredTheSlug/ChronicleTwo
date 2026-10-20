@@ -113,26 +113,26 @@ int MenuMouseChoose(const MenuMouseSample &mouse, std::span<const MenuMouseRect>
 
 float MenuMouseDrag::Step(const void *owner, int tick, bool ready, const MenuMouseSample &mouse, bool over_area) {
     // Another menu, or a gap since the last tick, starts over.
-    if (owner != owner_ || !stepped_ || tick != tick_ + 1) {
-        dragging_ = false;
+    if (owner != sample_owner || !has_sample || tick != sample_tick + 1) {
+        drag_active = false;
     }
-    owner_ = owner;
-    tick_ = tick;
-    stepped_ = true;
+    sample_owner = owner;
+    sample_tick = tick;
+    has_sample = true;
     if (!ready || !mouse.pointing || !(mouse.held & 1)) {
-        dragging_ = false;
+        drag_active = false;
         return 0;
     }
     if (mouse.clicked & 1) {
-        dragging_ = over_area;
-        x_ = mouse.x;
+        drag_active = over_area;
+        sample_x = mouse.x;
         return 0;
     }
-    if (!dragging_ || !std::isfinite(mouse.x)) {
+    if (!drag_active || !std::isfinite(mouse.x)) {
         return 0;
     }
-    const float travel = mouse.x - x_;
-    x_ = mouse.x;
+    const float travel = mouse.x - sample_x;
+    sample_x = mouse.x;
     return travel;
 }
 

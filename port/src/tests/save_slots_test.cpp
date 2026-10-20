@@ -492,8 +492,12 @@ TEST_F(SaveSlotTest, DungeonAutosaveNeedsAnEntryStateOfTheCurrentFloor) {
     EXPECT_EQ(Bytes(SaveSlotAutosavePath()), original);
 }
 
-// A town's Georama layout past retail's part limit, with houses, a placement log and a river grid.
-static TownLayout LargeTown(int seed) {
+namespace {
+
+/**
+ * Builds a town layout exceeding retail capacity with houses, placement history and a river grid.
+ */
+TownLayout LargeTown(int seed) {
     TownLayout town;
     const int  parts = EDIT_DATA_PARTS_MAX + 40;
     for (int i = 0; i < parts; ++i) {
@@ -521,7 +525,10 @@ static TownLayout LargeTown(int seed) {
     return town;
 }
 
-static void ExpectSameTown(const TownLayout &actual, const TownLayout &expected) {
+/**
+ * Checks every saved component of a town layout.
+ */
+void ExpectSameTown(const TownLayout &actual, const TownLayout &expected) {
     ASSERT_EQ(actual.parts.size(), expected.parts.size());
     for (std::size_t i = 0; i < expected.parts.size(); ++i) {
         EXPECT_EQ(actual.parts[i].id, expected.parts[i].id) << i;
@@ -548,6 +555,8 @@ static void ExpectSameTown(const TownLayout &actual, const TownLayout &expected)
         EXPECT_EQ(actual.grids[i].cells, expected.grids[i].cells) << i;
     }
 }
+
+} // namespace
 
 // The towns' Georama layouts are kept beside the save data, found by the address of the live town records, so the
 // dungeon autosave's entry state owns copies of them: the autosave writes and loads every layout, past retail's part

@@ -79,9 +79,9 @@ void WriteAutosave(int program_loop_no, AutosaveSpawn *spawn = nullptr) {
     }
 }
 
-// Once per floor, the first frame the player has control on it, writing the floor's entry state. The entry state
-// is dropped then either way: it holds nothing the player goes on to do on the floor, so writing it later, once
-// autosave is turned on, would take the game back.
+/**
+ * Writes or discards the floor-entry save on the floor's first controllable frame.
+ */
 void AutosaveFloor() {
     const auto *save = GetSaveData();
     const auto *scene = GetMainScene();

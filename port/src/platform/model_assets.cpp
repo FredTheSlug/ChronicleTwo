@@ -2610,6 +2610,24 @@ struct ResolvedImages {
 /**
  * Enters embedded pictures, mip chains, variants and texture animation into the native manager.
  */
+/**
+ * Whether every picture of a texture set is already registered under its name, in any block.
+ */
+bool SetAlreadyEntered(const texture_catalog::Source &source, mgCTextureManager &textures) {
+    bool any = false;
+    for (const auto &entry : source.entries) {
+        if (entry.type != "texture" || entry.name.starts_with('#')) {
+            continue;
+        }
+        auto name = PictureName(entry, textures.name_suffix);
+        if (!textures.SearchHash(name.data(), -1)) {
+            return false;
+        }
+        any = true;
+    }
+    return any;
+}
+
 void EnterTextureSet(const std::shared_ptr<Document> &document, std::size_t index, const CharacterLoadOptions &options, CCharacter2 *character, int slot) {
     datapacks::TraceTimer timer("model.enter_texture_set_us");
     datapacks::Trace("model.enter_texture_sets");
@@ -2633,7 +2651,14 @@ void EnterTextureSet(const std::shared_ptr<Document> &document, std::size_t inde
     }
     auto *textures = options.textures ? options.textures : &mgTexManager;
     auto *memory = options.image_memory ? options.image_memory : options.model_memory;
-    bool  owned = false;
+    // Retail models look their textures up by name. A plain model's set whose pictures are all registered already,
+    // as a map piece's copy of the set its map entered into the map's own blocks, stays with that owner: entering it
+    // again from block 0 would put the pictures, and the texture animation that follows them by name, in blocks
+    // that outlive the memory the animation is allocated from.
+    if (!character && SetAlreadyEntered(*cached, *textures)) {
+        return;
+    }
+    bool owned = false;
     if (character) {
         for (const auto &entered : character_images[character]) {
             if (entered.source == cached && entered.manager == textures && entered.block == options.texture_block &&

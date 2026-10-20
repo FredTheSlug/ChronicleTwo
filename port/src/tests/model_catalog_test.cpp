@@ -31,6 +31,7 @@
 #include "mg_visual_port.hpp"
 #include "mglib.hpp"
 #include "platform/arena.hpp"
+#include "platform/texture_catalog.hpp"
 #include "platform/datapacks.hpp"
 #include "platform/model_assets.hpp"
 #include "texture_source.hpp"
@@ -164,6 +165,46 @@ TEST_F(NativeModel, DistinctModelDocumentsReuseIdenticalEmbeddedTexturesWithinTa
         EXPECT_EQ(textures.texture_num, 1);
     }
     textures.Initialize(0x1000, -1);
+}
+
+// A map piece embeds the texture set its map has already entered into the map's own blocks, as the Palm Brinks
+// residence pieces carry e04's water. Entering that copy again from block 0 put it, and the texture animation that
+// follows it by name, in another map's blocks, which outlive the map whose memory holds the animation.
+TEST_F(NativeModel, ModelLeavesATextureSetItsMapAlreadyEnteredWithTheMap) {
+    std::vector<u_long128> texture_storage(4096);
+    mgCMemory              texture_memory;
+    mgCTextureManager      textures;
+    texture_memory.stSetBuffer(texture_storage.data(), static_cast<int>(texture_storage.size()));
+    textures.SetTableBuffer(8, 32, &texture_memory);
+    textures.Initialize(0x1000, -1);
+    const Json document = {
+        {"schema_version", 3},
+        {"groups", {0}},
+        {"entries", Json::array({{{"name", "water"}, {"pictures", Json::array({{{"canvas", {{"width", 2}, {"height", 2}}}}})}}})}};
+    std::filesystem::create_directories(directory / "data/textures/map");
+    Write(directory / "data/textures/map/piece.json", document);
+    std::string catalog_error;
+    ASSERT_TRUE(texture_catalog::Load(directory / "data", catalog_error)) << catalog_error;
+    MgTextureEnterDocument(&textures, "textures/map/piece.json", 24, &memory, nullptr);
+    auto *map_texture = textures.GetTexture(const_cast<char *>("water"), -1);
+    ASSERT_NE(map_texture, nullptr);
+    ASSERT_EQ(map_texture->block, 24);
+
+    game["meshes"][0]["materials"][0]["texture"] = "water";
+    game["texture_sets"] = Json::array({{{"document", document}}});
+    Write(directory / "data/models/piece.gltf", gltf);
+    Write(directory / "data/models/piece.game.json", game);
+    mgLoadData load{};
+    load.memory = &memory;
+    load.texture_manager = &textures;
+    std::string error;
+    auto       *frame = model_assets::LoadModel(std::filesystem::path("models/piece.gltf"), load, error);
+    ASSERT_NE(frame, nullptr) << error;
+    EXPECT_EQ(frame->visual->GetMaterial(0)->texture, map_texture);
+    EXPECT_EQ(textures.texture_num, 1);
+    EXPECT_EQ(textures.GetTexture(const_cast<char *>("water"), 0), nullptr);
+    textures.Initialize(0x1000, -1);
+    texture_catalog::Clear();
 }
 
 TEST_F(NativeModel, CharacterTextureOwnershipDoesNotSkipDeletedReinitializedOrSuffixedRegistrations) {

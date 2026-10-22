@@ -18,6 +18,14 @@ class UnitFixups(unittest.TestCase):
         self.assertNotIn("static CDC2Mes *DownLoadMes[6];", mirrored)
         self.assertGreaterEqual(mirrored.count("i < 8;"), 2)
 
+    def test_trash_message_reset_stays_inside_its_slots(self):
+        source = (Path(__file__).resolve().parents[2] / "ps2/src/menusys.cpp").read_text(encoding="latin-1")
+        self.assertEqual(source.count("for (int i = 0; i < 8; i++) {\n                            TrushMesCls[i] = NULL;"), 1)
+        mirrored = header_fixups.fixup_unit_text("menusys.cpp", source)
+        self.assertIn("static CDC2Mes *TrushMesCls[8];", mirrored)
+        self.assertNotIn("static CDC2Mes *TrushMesCls[4];", mirrored)
+        self.assertEqual(mirrored.count("\n"), source.count("\n"))
+
     def test_geostone_conditions_fit_their_text_and_wrap_buffers(self):
         source = (Path(__file__).resolve().parents[2] / "ps2/src/editmenu.cpp").read_text()
         mirrored = header_fixups.fixup_unit_text("editmenu.cpp", source)

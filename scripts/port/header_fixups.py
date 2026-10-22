@@ -251,6 +251,9 @@ UNIT_FIXUPS = [
     ("monster.cpp", "target_no == i + MONSTER_ACTIVE_MAX)", "target_no == DNG_CHARA_SLOT_MONSTER + i)"),
     # Geostone announcement updates and draws reserve eight nullable message slots.
     ("editmenu.cpp", "static CDC2Mes *DownLoadMes[6];", "static CDC2Mes *DownLoadMes[8];"),
+    # Closing the item menu's overflow notice clears eight trash message slots of four. On the host the extra four
+    # zero the next statics, among them dng_main.cpp's debag_param, which hides the mini map and lock-on.
+    ("menusys.cpp", "static CDC2Mes *TrushMesCls[4];", "static CDC2Mes *TrushMesCls[8];"),
     # A Georama list that fits on one page has no scroll range: the EE FPU's 0/0 is finite, IEEE's is NaN.
     ("editmenu.cpp", "            float rate = space / (num - GEORAMA_LIST_LINE_NUM);",
      "            float rate = num > GEORAMA_LIST_LINE_NUM ? space / (num - GEORAMA_LIST_LINE_NUM) : 0.0f;"),

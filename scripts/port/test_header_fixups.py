@@ -27,12 +27,15 @@ class UnitFixups(unittest.TestCase):
         self.assertEqual(result.count("float     frame_now = PortBuggyRetailFrame(StarbullChara);"), 1)
         self.assertNotIn("GetNowFrame()", result)
         self.assertEqual(result.count("\n"), source.count("\n"))
+
     def test_trash_message_reset_stays_inside_its_slots(self):
         source = (Path(__file__).resolve().parents[2] / "ps2/src/menusys.cpp").read_text(encoding="latin-1")
-        self.assertEqual(source.count("for (int i = 0; i < 8; i++) {\n                            TrushMesCls[i] = NULL;"), 1)
+        reset = "for (int i = 0; i < 8; i++) {\n                            TrushMesCls[i] = NULL;"
+        self.assertEqual(source.count(reset), 1)
         mirrored = header_fixups.fixup_unit_text("menusys.cpp", source)
-        self.assertIn("static CDC2Mes *TrushMesCls[8];", mirrored)
-        self.assertNotIn("static CDC2Mes *TrushMesCls[4];", mirrored)
+        self.assertEqual(mirrored.count("static CDC2Mes *TrushMesCls[4];"), 1)
+        self.assertEqual(mirrored.count("for (auto &message : TrushMesCls) {\n                            message = nullptr;"), 1)
+        self.assertNotIn(reset, mirrored)
         self.assertEqual(mirrored.count("\n"), source.count("\n"))
 
     def test_geostone_conditions_fit_their_text_and_wrap_buffers(self):
